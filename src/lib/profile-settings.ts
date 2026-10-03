@@ -1,0 +1,39 @@
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+
+export interface ProfileSettings {
+  showWeeklyTotals: boolean;
+  showBalance: boolean;
+  allowSharing: boolean;
+}
+export const DEFAULT_PROFILE_SETTINGS: ProfileSettings = { showWeeklyTotals: true, showBalance: true, allowSharing: true };
+
+export function readSettings(raw: unknown): ProfileSettings {
+  const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const b = (k: keyof ProfileSettings) => (typeof o[k] === "boolean" ? (o[k] as boolean) : DEFAULT_PROFILE_SETTINGS[k]);
+  return { showWeeklyTotals: b("showWeeklyTotals"), showBalance: b("showBalance"), allowSharing: b("allowSharing") };
+}
+
+/** Signed-in user's profile row plus parsed account toggles. */
+export function useProfile() {
+  const qc = useQueryClient();
+  const q = useQuery({
+    queryKey: ["profile"],
+    queryFn: async () => {
+      const { data: u } = await supabase.auth.getUser();
+      const id = u.user!.id;
+      const { data: p } = await supabase.from("profiles").select("*").eq("id", id).maybeSingle();
+      return { id, email: u.user?.email ?? "", display_name: p?.display_name ?? "", base_currency: p?.base_currency ?? "USD", settings: readSettings(p?.settings) };
+    },
+    staleTime: 60_000,
+  });
+  const settings = q.data?.settings ?? DEFAULT_PROFILE_SETTINGS;
+  async function saveSettings(patch: Partial<ProfileSettings>) {
+    if (!q.data) return;
+    const next = { ...settings, ...patch };
+    const { error } = await supabase.from("profiles").upsert({ id: q.data.id, settings: next as never });
+    if (error) throw error;
+    await qc.invalidateQueries({ queryKey: ["profile"] });
+  }
+  return { profile: q.data, settings, saveSettings };
+}

@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791014464458,
+      "tag": "0000_alphamine_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791015456519,
+      "tag": "0001_noop_apply_existing",
+      "breakpoints": true
+    }
+  ]
+}
