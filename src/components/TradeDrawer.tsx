@@ -1,7 +1,7 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CalendarDays, Plus, Settings, Star, X } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Plus, Settings, Star, X } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import { useScreenshots, saveShots, deleteShot, type Shot } from "@/components/S
 import { FloatInput, FloatSelect, Segmented, SectionTitle, type Opt } from "@/components/trade-form/fields";
 import { ScreenshotSlots, type PendingShot } from "@/components/trade-form/ScreenshotSlots";
 
-export type DrawerOpts = { prefill?: Partial<Trade>; onSaved?: () => void | Promise<void> };
+export type DrawerOpts = { prefill?: Partial<Trade>; onSaved?: () => void | Promise<void>; /** Trades in display order, enables Previous/Next inside the editor. */ list?: Trade[] };
 const Ctx = createContext<{ open: (t?: Trade, opts?: DrawerOpts) => void } | null>(null);
 export const useTradeDrawer = () => {
   const c = useContext(Ctx);
@@ -96,7 +96,9 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
   });
   const myAlts = altStrats.filter((a) => a.setup_id && a.setup_id === f.setup_id);
   const [onSaved, setOnSaved] = useState<DrawerOpts["onSaved"]>();
+  const [navList, setNavList] = useState<Trade[]>([]);
   const show = (t?: Trade, opts?: DrawerOpts) => {
+    setNavList(opts?.list ?? []);
     setTrade(t); setF(toForm(t ?? opts?.prefill)); setTab("regular"); setOnSaved(() => opts?.onSaved);
     setExtraEntries([]); setExtraExits([]); setGrossTouched(!!t && t.exit_price != null);
     setFav(t?.is_favorite ?? false);
@@ -105,6 +107,26 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
     setPending([]); setRemoved([]); setNewCat(null);
     setOpen(true);
   };
+  // Previous / Next trade inside the editor (Alt+Left / Alt+Right), asking before discarding unsaved edits
+  const navIdx = trade ? navList.findIndex((x) => x.id === trade.id) : -1;
+  const canPrev = navIdx > 0, canNext = navIdx >= 0 && navIdx < navList.length - 1;
+  const go = (dir: -1 | 1) => {
+    const target = navList[navIdx + dir];
+    if (!target || !trade) return;
+    const dirty = JSON.stringify(f) !== JSON.stringify(toForm(trade));
+    if (dirty && !window.confirm("Discard unsaved changes to this trade?")) return;
+    show(target, { list: navList, onSaved });
+  };
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (!e.altKey || (e.key !== "ArrowLeft" && e.key !== "ArrowRight")) return;
+      e.preventDefault();
+      go(e.key === "ArrowLeft" ? -1 : 1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
   const set = <K extends keyof Form>(k: K) => (v: Form[K]) => setF((p) => ({ ...p, [k]: v }));
 
   // ---- P&L logic: scaled entries/exits are blended; gross auto-fills until edited ----
@@ -258,6 +280,12 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
           <div className="flex items-center gap-2.5 px-5 pb-4 pt-5">
             <button onClick={() => setFav(!fav)} aria-label="Favorite"><Star className={cn("h-[17px] w-[17px]", fav && "fill-star text-star")} /></button>
             <SheetTitle className="text-[15px] font-semibold">{trade ? `Edit Trade #${trade.trade_no}` : "New Trade"}</SheetTitle>
+            {navList.length > 1 && trade && (
+              <span className="flex items-center gap-0.5">
+                <button type="button" aria-label="Previous trade" title="Previous trade (Alt+←)" disabled={!canPrev} onClick={() => go(-1)} className="rounded p-1 hover:bg-muted disabled:opacity-30"><ChevronLeft className="h-4 w-4" /></button>
+                <button type="button" aria-label="Next trade" title="Next trade (Alt+→)" disabled={!canNext} onClick={() => go(1)} className="rounded p-1 hover:bg-muted disabled:opacity-30"><ChevronRight className="h-4 w-4" /></button>
+              </span>
+            )}
             <Popover>
               <PopoverTrigger aria-label="Form settings"><Settings className="h-[17px] w-[17px]" /></PopoverTrigger>
               <PopoverContent align="start" className="w-56 p-3 text-[12.5px]">

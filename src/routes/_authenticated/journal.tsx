@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useFillViewport } from "@/lib/use-fill-viewport";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Columns3, Copy, Download, GripVertical, ImageIcon, Merge, RefreshCw, Scaling, Star, Trash2, X } from "lucide-react";
@@ -24,7 +25,9 @@ export const Route = createFileRoute("/_authenticated/journal")({
 type Col = { k: string; l: string; get: (t: Trade) => string | number; render?: (t: Trade) => React.ReactNode; width?: number };
 const num = (v: number, d: number) => v.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
 const dt = (s: string | null) => (s ? s.replace("T", " ").slice(0, 16) : "");
-const pill = (t: Trade, txt: string) => <span className={cn("rounded px-2 py-0.5 text-xs capitalize", t.net_pnl > 0 ? "bg-profit-soft/60 text-profit" : t.net_pnl < 0 ? "bg-loss-soft/60 text-loss" : "bg-muted text-muted-foreground")}>{txt}</span>;
+const pill = (t: Trade, txt: string) => <span className={cn("inline-block min-w-[38px] rounded-full px-2.5 py-[3px] text-center text-[10px] font-medium capitalize leading-none", t.net_pnl > 0 ? "bg-pill-win text-profit" : t.net_pnl < 0 ? "bg-pill-loss text-loss" : "bg-muted text-foreground")}>{txt}</span>;
+const LEFT_COLS = ["instrument", "setup", "trade_type", "option_type", "direction", "entry_at", "exit_at", "tilt", "id", "notes"];
+const alignRight = (k: string) => !LEFT_COLS.includes(k);
 const pnlText = (t: Trade) => (t.net_pnl > 0 ? "text-profit" : t.net_pnl < 0 ? "text-loss" : "text-foreground");
 const COLS: Col[] = [
   { k: "id", l: "Trade ID", get: (t) => t.id.slice(0, 8), width: 105 },
@@ -32,6 +35,7 @@ const COLS: Col[] = [
   { k: "exit_at", l: "Exit Date", get: (t) => t.exit_at ?? "", render: (t) => <span className={pnlText(t)}>{dt(t.exit_at)}</span>, width: 132 },
   { k: "instrument", l: "Instrument", get: (t) => t.instrument, width: 105 },
   { k: "trade_type", l: "Trade Type", get: (t) => t.trade_type, render: (t) => pill(t, t.trade_type) },
+  { k: "option_type", l: "Option Type", get: (t) => (t.trade_type === "options" ? "Option" : ""), width: 100 },
   { k: "setup", l: "Setup", get: (t) => t.setup },
   { k: "tilt", l: "Tiltmeter", get: (t) => t.tilt, render: (t) => <TiltMeter value={t.tilt} /> },
   { k: "direction", l: "Direction", get: (t) => t.direction, render: (t) => pill(t, t.direction) },
@@ -73,6 +77,7 @@ function JournalPage() {
     return [...trades].sort((a, b) => { const x = c.get(a), y = c.get(b); return (x < y ? -1 : x > y ? 1 : 0) * (sort.asc ? 1 : -1); });
   }, [trades, sort]);
   const chosen = trades.filter((t) => sel.has(t.id));
+  const fillRef = useFillViewport<HTMLDivElement>();
   const [pageSize, setPageSize] = useState(50);
   const [page, setPage] = useState(0);
   const pages = Math.max(1, Math.ceil(sorted.length / pageSize));
@@ -165,31 +170,36 @@ function JournalPage() {
     dragKey.current = null;
   }
 
+  const toolbar = (
+    <div className="flex flex-wrap items-center gap-2.5 px-[22px] pb-3 pt-[18px]">
+      <Button variant="ink" size="sm" className="h-[30px] rounded-md px-4 text-[12px]" onClick={() => drawer.open()}>Add Trade</Button>
+      <Button variant="ink" size="sm" className="h-[30px] rounded-md px-4 text-[12px]" onClick={() => setImp(true)}>Import Trades</Button>
+      <Button variant="secondary" size="sm" className="h-[30px] rounded-md px-4 text-[12px] text-t4" disabled={sel.size < 2} onClick={merge}><Merge className="h-3.5 w-3.5" />Merge</Button>
+      <Button variant="secondary" size="sm" className="h-[30px] rounded-md px-4 text-[12px] text-t4" disabled={!sel.size} onClick={dup}><Copy className="h-3.5 w-3.5" />Duplicate</Button>
+      <Button variant="secondary" size="sm" className="h-[30px] rounded-md px-4 text-[12px] text-t4" disabled={!sel.size} onClick={del}><Trash2 className="h-3.5 w-3.5" />Delete</Button>
+      {filters.day && <Button variant="ghost" size="sm" onClick={() => setFilters({ ...filters, day: undefined })}>Day: {filters.day} <X className="ml-1 h-3 w-3" /></Button>}
+      <div className="flex-1" />
+      <Button variant="ghost" size="icon" title="Download to Excel" aria-label="Download to Excel" onClick={exportExcel}><Download className="h-4 w-4" /></Button>
+      <Button variant="ghost" size="icon" title="Auto-size columns" aria-label="Auto-size columns" onClick={autoSizeColumns}><Scaling className="h-4 w-4" /></Button>
+      <Button variant="ghost" size="icon" title="Reset to default" aria-label="Reset to default" onClick={resetColumns}><RefreshCw className="h-4 w-4" /></Button>
+    </div>
+  );
+
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="ink" size="sm" onClick={() => drawer.open()}>Add Trade</Button>
-        <Button variant="ink" size="sm" onClick={() => setImp(true)}>Import Trades</Button>
-        <Button variant="secondary" size="sm" disabled={sel.size < 2} onClick={merge}><Merge className="h-4 w-4" />Merge</Button>
-        <Button variant="secondary" size="sm" disabled={!sel.size} onClick={dup}><Copy className="h-4 w-4" />Duplicate</Button>
-        <Button variant="secondary" size="sm" disabled={!sel.size} onClick={del}><Trash2 className="h-4 w-4" />Delete</Button>
-        {filters.day && <Button variant="ghost" size="sm" onClick={() => setFilters({ ...filters, day: undefined })}>Day: {filters.day} <X className="ml-1 h-3 w-3" /></Button>}
-        <div className="flex-1" />
-        <Button variant="ghost" size="icon" title="Download to Excel" aria-label="Download to Excel" onClick={exportExcel}><Download className="h-4 w-4" /></Button>
-        <Button variant="ghost" size="icon" title="Auto-size columns" aria-label="Auto-size columns" onClick={autoSizeColumns}><Scaling className="h-4 w-4" /></Button>
-        <Button variant="ghost" size="icon" title="Reset to default" aria-label="Reset to default" onClick={resetColumns}><RefreshCw className="h-4 w-4" /></Button>
-      </div>
-      {trades.length === 0 ? <Empty>No trades match. Add a trade or clear filters.</Empty> : (
-        <div className="relative rounded-xl border bg-card pr-7">
-          <div className="max-h-[calc(100vh-220px)] overflow-auto">
-          <table className="whitespace-nowrap text-xs" style={{ tableLayout: "fixed", width: cols.reduce((sum, c) => sum + (layout.widths[c.k] ?? c.width ?? 110), 96) }}>
+    <div ref={fillRef} className="flex min-h-[320px] flex-col overflow-hidden rounded-lg bg-card shadow-[0_1px_5px_rgba(60,40,90,0.07)]">
+      {toolbar}
+      {trades.length === 0 ? <div className="p-6"><Empty>No trades match. Add a trade or clear filters.</Empty></div> : (
+        <>
+        <div className="relative flex min-h-0 flex-1 border-t">
+          <div className="slim-scroll min-h-0 min-w-0 flex-1 overflow-auto">
+          <table className="whitespace-nowrap text-[12px]" style={{ tableLayout: "fixed", width: cols.reduce((sum, c) => sum + (layout.widths[c.k] ?? c.width ?? 110), 96) }}>
             <colgroup><col style={{ width: 40 }} /><col style={{ width: 28 }} /><col style={{ width: 28 }} />{cols.map((c) => <col key={c.k} style={{ width: layout.widths[c.k] ?? c.width ?? 110 }} />)}</colgroup>
             <thead className="sticky top-0 z-10 bg-card">
-              <tr className="border-b text-left text-xs text-muted-foreground">
+              <tr className="h-[42px] border-b text-left text-[12px] text-foreground">
                 <th className="w-10 p-3"><Checkbox checked={sel.size === trades.length} onCheckedChange={(v) => setSel(v ? new Set(trades.map((t) => t.id)) : new Set())} /></th>
                 <th className="w-8" /><th className="w-8" />
                 {cols.map((c) => (
-                  <th key={c.k} draggable onDragStart={() => { dragKey.current = c.k; }} onDragOver={(e) => e.preventDefault()} onDrop={() => dropColumn(c.k)} className="relative cursor-grab select-none overflow-hidden px-3 py-2.5 font-semibold text-foreground" onClick={() => setSort({ k: c.k, asc: sort.k === c.k ? !sort.asc : false })}>
+                  <th key={c.k} draggable onDragStart={() => { dragKey.current = c.k; }} onDragOver={(e) => e.preventDefault()} onDrop={() => dropColumn(c.k)} className={cn("relative cursor-grab select-none overflow-hidden px-3 text-[12px] font-semibold text-foreground", alignRight(c.k) && "text-right")} onClick={() => setSort({ k: c.k, asc: sort.k === c.k ? !sort.asc : false })}>
                     <span className="inline-flex items-center gap-1">{c.l}{sort.k === c.k && (sort.asc ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}</span>
                     <span role="separator" aria-label={`Resize ${c.l}`} onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); resizeColumn(c.k, e.clientX); }} className="absolute inset-y-1 right-0 w-1 cursor-col-resize border-r border-transparent hover:border-ring" />
                   </th>
@@ -198,20 +208,20 @@ function JournalPage() {
             </thead>
             <tbody>
               {visible.map((t) => (
-                <tr key={t.id} onClick={() => drawer.open(t)}
-                  className={cn("cursor-pointer border-b border-border/40 last:border-0 tabular text-foreground hover:brightness-[0.98]", t.net_pnl > 0 ? "bg-profit-soft/25" : t.net_pnl < 0 ? "bg-loss-soft/30" : "")}>
-                  <td className="px-3 py-1.5" onClick={(e) => e.stopPropagation()}>
+                <tr key={t.id} onClick={() => drawer.open(t, { list: sorted })}
+                  className={cn("h-[32px] cursor-pointer tabular hover:brightness-[0.97]", t.net_pnl > 0 ? "bg-row-win" : t.net_pnl < 0 ? "bg-row-loss" : "bg-card")}>
+                  <td className="px-3" onClick={(e) => e.stopPropagation()}>
                     <Checkbox checked={sel.has(t.id)} onCheckedChange={() => setSel((s) => { const n = new Set(s); if (n.has(t.id)) n.delete(t.id); else n.add(t.id); return n; })} />
                   </td>
-                  <td onClick={(e) => { e.stopPropagation(); toggleFav(t); }}><Star className={cn("h-4 w-4 text-foreground", t.is_favorite && "fill-foreground")} /></td>
-                  <td className="px-1">{shotIds.has(t.id) && <ImageIcon className="h-4 w-4 text-foreground" />}</td>
-                  {cols.map((c) => <td key={c.k} className={cn("overflow-hidden text-ellipsis px-3 py-1.5", !["instrument", "setup", "trade_type", "direction", "entry_at", "exit_at", "tilt"].includes(c.k) && "text-right")}>{c.render ? c.render(t) : c.get(t)}</td>)}
+                  <td onClick={(e) => { e.stopPropagation(); toggleFav(t); }}><Star className={cn("h-[17px] w-[17px] text-foreground", t.is_favorite && "fill-foreground")} /></td>
+                  <td className="px-1">{shotIds.has(t.id) && <ImageIcon className="h-[17px] w-[17px] text-foreground" />}</td>
+                  {cols.map((c) => <td key={c.k} className={cn("overflow-hidden text-ellipsis px-3", alignRight(c.k) && "text-right", pnlText(t))}>{c.render ? c.render(t) : c.get(t)}</td>)}
                 </tr>
               ))}
             </tbody>
           </table>
           </div>
-          <button type="button" aria-label="Columns" aria-expanded={columnsOpen} onClick={() => setColumnsOpen((open) => !open)} className="absolute bottom-0 right-0 top-0 flex w-7 items-center justify-center border-l bg-card text-[10px] font-semibold [writing-mode:vertical-rl] hover:bg-muted"><Columns3 className="mb-1 h-3.5 w-3.5" />Columns</button>
+          <button type="button" aria-label="Columns" aria-expanded={columnsOpen} onClick={() => setColumnsOpen((open) => !open)} className="flex w-7 shrink-0 items-center justify-center border-l bg-card text-[10px] font-semibold [writing-mode:vertical-rl] hover:bg-muted"><Columns3 className="mb-1 h-3.5 w-3.5" />Columns</button>
           {columnsOpen && <aside className="absolute bottom-0 right-7 top-0 z-20 w-60 border-l bg-card p-2 shadow-lg">
             <input autoFocus value={colSearch} onChange={(e) => setColSearch(e.target.value)} placeholder="Search columns..." className="mb-2 w-full rounded border bg-background px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring" />
             <div className="h-[calc(100%-40px)] space-y-0.5 overflow-auto">
@@ -224,7 +234,8 @@ function JournalPage() {
               ))}
             </div>
           </aside>}
-          <div className="flex items-center justify-end gap-4 border-t px-4 py-3 text-xs">
+        </div>
+          <div className="flex shrink-0 items-center justify-end gap-4 border-t px-4 py-2.5 text-[11px]">
             <span className="flex items-center gap-1">Page Size:
               <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(0); }} className="rounded border bg-card px-1 py-0.5">{[25, 50, 100, 250].map((n) => <option key={n}>{n}</option>)}</select>
             </span>
@@ -237,7 +248,7 @@ function JournalPage() {
               <button onClick={() => setPage(pages - 1)} disabled={pg >= pages - 1}><ChevronsRight className="h-4 w-4" /></button>
             </span>
           </div>
-        </div>
+        </>
       )}
       <ImportDialog open={imp} onOpenChange={setImp} />
     </div>

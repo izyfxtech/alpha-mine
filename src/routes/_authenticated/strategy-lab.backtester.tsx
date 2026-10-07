@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { RichEditor } from "@/components/RichEditor";
-import { axis, tooltipStyle } from "@/components/kit";
+import { axis, seriesValues, tooltipStyle, tradeAxis, yScale } from "@/components/kit";
 import { useJournal } from "@/lib/journal-context";
 import { useJournalTable, type Row } from "@/lib/crud";
 import { cn } from "@/lib/utils";
@@ -25,7 +25,7 @@ export const Route = createFileRoute("/_authenticated/strategy-lab/backtester")(
 });
 
 type BT = Row<"backtests">;
-const LINE_COLORS = ["var(--color-profit)", "var(--color-loss)", "var(--color-info)", "var(--color-star)", "var(--color-chart-2)", "var(--color-chart-3)"];
+const LINE_COLORS = ["var(--color-chart-1)", "var(--color-chart-2)", "var(--color-info)", "var(--color-star)", "var(--color-chart-2)", "var(--color-chart-3)"];
 
 /** Per-outcome summary for a grid of results (rows × outcomes). */
 export function summarize(outcomes: string[], rows: number[][]) {
@@ -149,8 +149,8 @@ function BacktestSheet({ row, onClose, onSave }: { row: BT | null; onClose: () =
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chart} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid vertical={false} stroke="var(--color-border)" />
-                <XAxis dataKey="n" tick={axis} tickLine={false} axisLine={false} />
-                <YAxis tick={axis} tickLine={false} axisLine={false} width={50} />
+                <XAxis dataKey="n" tick={axis} tickLine={false} axisLine={false} {...tradeAxis(chart.length)} />
+                <YAxis tick={axis} tickLine={false} axisLine={false} width={50} {...yScale(seriesValues(chart, outcomes))} />
                 <Tooltip {...tooltipStyle} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 {outcomes.map((o, j) => <Line key={o + j} dataKey={o} type="monotone" dot={false} strokeWidth={2} stroke={LINE_COLORS[j % LINE_COLORS.length]} />)}

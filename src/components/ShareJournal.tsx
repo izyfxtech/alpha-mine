@@ -10,9 +10,22 @@ import { useProfile } from "@/lib/profile-settings";
 
 /** Create, copy, or switch off a read-only public link to the current journal's performance. */
 export function ShareJournal() {
+  const [open, setOpen] = useState(false);
   const { journal } = useJournal();
   const allowSharing = useProfile().settings.allowSharing;
-  const [open, setOpen] = useState(false);
+  if (!allowSharing) return null;
+  return (
+    <>
+      <Button variant="outline" size="sm" className="hidden h-8 lg:inline-flex" onClick={() => setOpen(true)} disabled={!journal}><Share2 className="h-4 w-4" />Share Journal</Button>
+      <ShareJournalDialog open={open} onOpenChange={setOpen} />
+    </>
+  );
+}
+
+/** The share dialog on its own, so it can also be opened from the account menu. */
+export function ShareJournalDialog({ open, onOpenChange: setOpen }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const { journal } = useJournal();
+  const allowSharing = useProfile().settings.allowSharing;
   const [token, setToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -35,7 +48,6 @@ export function ShareJournal() {
   if (!allowSharing) return null;
   return (
     <>
-      <Button variant="outline" size="sm" className="hidden h-8 lg:inline-flex" onClick={() => setOpen(true)} disabled={!journal}><Share2 className="h-4 w-4" />Share Journal</Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>

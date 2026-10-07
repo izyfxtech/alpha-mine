@@ -24,7 +24,7 @@ function Layout() {
           <AppSidebar collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
           <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
             <TopBar />
-            <main className="flex-1 overflow-auto p-5"><div className="w-full min-w-0 max-w-[1760px]"><Outlet /></div></main>
+            <main className="flex-1 overflow-auto p-[21px]"><div className="w-full min-w-0"><Outlet /></div></main>
           </div>
         </div>
       </TradeDrawerProvider>

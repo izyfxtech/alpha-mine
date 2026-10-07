@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useTrades } from "@/lib/journal-context";
 import { computeStats, fmtMoney, fmtNum } from "@/lib/metrics";
-import { AccentStat, EquityChart, type EquityPoint } from "@/components/kit";
+import { AccentStat, EquityChart, type EquityPoint, StatGrid } from "@/components/kit";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -71,8 +71,8 @@ function Equity() {
   const unit = display.match(/\((.+)\)/)?.[1] ?? "$";
 
   return (
-    <div className="space-y-4">
-      <section className="rounded-xl border bg-card p-5">
+    <div className="space-y-[22px]">
+      <section className="rounded-lg bg-card p-[22px] shadow-[0_1px_5px_rgba(60,40,90,0.07)]">
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <FieldBox label="Display">
             <DropdownMenu>
@@ -101,7 +101,7 @@ function Equity() {
             {has("Moving Average (50)") && <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-chart-3" />MA 50</span>}
           </div>
         </div>
-        <div className="h-[clamp(340px,58vh,560px)] min-w-0 overflow-hidden">
+        <div className="h-[clamp(340px,calc(100vh-330px),760px)] min-w-0 overflow-hidden">
         <EquityChart
           data={data}
           height="100%"
@@ -117,7 +117,7 @@ function Equity() {
         </div>
       </section>
 
-      <div className="flex flex-wrap gap-3">
+      <StatGrid>
         <AccentStat label="Trades" value={s.count} />
         <AccentStat label="Winners" value={s.wins} />
         <AccentStat label="Losers" value={s.losses} />
@@ -128,14 +128,14 @@ function Equity() {
         <AccentStat label="Biggest Winner" value={fmtMoney(s.biggestWin, cur)} />
         <AccentStat label="Biggest Loser" value={fmtMoney(s.biggestLoss, cur)} />
         <AccentStat label="Profit/Loss" value={fmtMoney(s.net, cur)} tone={s.net < 0 ? "neg" : "pos"} />
-      </div>
+      </StatGrid>
     </div>
   );
 }
 
 function FieldBox({ label, children }: { label?: string; children: React.ReactNode }) {
   return (
-    <div className="relative rounded-md border bg-card px-3 pb-2 pt-3">
+    <div className="relative rounded-md border border-line2 bg-card px-3 pb-1.5 pt-3">
       {label && <span className="absolute -top-2 left-2 bg-card px-1 text-[10px] text-muted-foreground">{label}</span>}
       {children}
     </div>

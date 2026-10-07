@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { fmtMoney } from "@/lib/metrics";
-import { axis, tooltipStyle } from "@/components/kit";
+import { axis, tooltipStyle, tradeAxis, yScale } from "@/components/kit";
 
 export const Route = createFileRoute("/share/$token")({
   head: () => ({
@@ -65,10 +65,10 @@ function SharedJournal() {
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={curve}>
               <CartesianGrid vertical={false} stroke="var(--color-border)" />
-              <XAxis dataKey="n" tick={axis} tickLine={false} axisLine={false} />
-              <YAxis tick={axis} tickLine={false} axisLine={false} width={60} />
+              <XAxis dataKey="n" tick={axis} tickLine={false} axisLine={false} {...tradeAxis(curve.length)} />
+              <YAxis tick={axis} tickLine={false} axisLine={false} width={60} {...yScale(curve.map((d) => d.v))} />
               <Tooltip {...tooltipStyle} formatter={(v) => fmtMoney(Number(v), data.currency)} />
-              <Area dataKey="v" name="Net Return" type="monotone" stroke="var(--color-profit)" fill="var(--color-profit)" fillOpacity={0.15} strokeWidth={2} />
+              <Area dataKey="v" name="Net Return" type="monotone" stroke="var(--color-chart-1)" fill="var(--color-chart-1)" fillOpacity={0.15} strokeWidth={2} />
             </AreaChart>
           </ResponsiveContainer>
         </div>

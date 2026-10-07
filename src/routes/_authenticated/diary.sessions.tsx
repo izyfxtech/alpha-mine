@@ -1,3 +1,4 @@
+import { DateRangeButton } from "@/components/DateRangeButton";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { ArrowUp, CalendarDays, ChevronDown, Plus, Star, Trash2, X } from "lucide-react";
@@ -53,25 +54,20 @@ function Sessions() {
 
   return (
     <div>
-      <div className="rounded-xl border bg-card">
+      <div className="rounded-lg bg-card shadow-[0_1px_5px_rgba(60,40,90,0.07)]">
         <div className="flex flex-wrap items-center gap-2 p-4">
           <Button variant="ink" size="sm" onClick={() => setEdit("new")}><Plus className="h-4 w-4" />Add More</Button>
           <Button variant="secondary" size="sm" disabled={!sel.size} onClick={async () => { await Promise.all([...sel].map((id) => t.remove(id))); setSel(new Set()); }}><Trash2 className="h-4 w-4" />Delete</Button>
           <div className="flex-1" />
-          <label className="flex h-9 items-center gap-2 rounded-md border px-3 text-sm">
-            <CalendarDays className="h-4 w-4" />
-            <input type="date" value={range.a} onChange={(e) => setRange({ ...range, a: e.target.value })} className="bg-transparent outline-none" aria-label="Start date" />
-            <span>–</span>
-            <input type="date" value={range.b} onChange={(e) => setRange({ ...range, b: e.target.value })} className="bg-transparent outline-none" aria-label="End date" />
-          </label>
+          <DateRangeButton value={range} onChange={setRange} className="w-[260px]" />
            <CategorySelect categories={journal?.session_categories ?? []} value={cats} onChange={setCats} className="w-80" placeholder="Session Categories" />
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full whitespace-nowrap text-xs">
+          <table className="w-full whitespace-nowrap text-[11px]">
             <thead>
               <tr className="text-left font-semibold">
-                <th className="w-10 px-4 py-2.5" /><th className="w-3" />
-                <th className="cursor-pointer px-3 py-2.5 font-semibold" onClick={() => setAsc(!asc)}><span className="inline-flex items-center gap-1">Period<ArrowUp className={cn("h-3 w-3", !asc && "rotate-180")} /></span></th>
+                <th className="w-10 px-4 py-3" /><th className="w-3" />
+                <th className="cursor-pointer px-3 py-3 font-semibold" onClick={() => setAsc(!asc)}><span className="inline-flex items-center gap-1">Period<ArrowUp className={cn("h-3 w-3", !asc && "rotate-180")} /></span></th>
                 <th className="px-3 font-semibold">Rating</th>
                 {["Trades", "Winners", "Losers", "Break even", "Winrate"].map((h) => <th key={h} className="px-3 text-center font-semibold">{h}</th>)}
                 <th className="px-3 text-center font-semibold">Tiltmeter</th>
@@ -174,7 +170,7 @@ function SessionSheet({ session, trades, start, currency, categories, onClose, o
               <AreaChart data={curve} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
                 <CartesianGrid vertical={false} stroke="var(--color-border)" />
                 <YAxis hide domain={["dataMin", "dataMax"]} />
-                <Area type="monotone" dataKey="v" stroke="var(--color-profit)" strokeWidth={1.5} fill="transparent" dot={false} isAnimationActive={false} />
+                <Area type="monotone" dataKey="v" stroke="var(--color-chart-1)" strokeWidth={1.5} fill="transparent" dot={false} isAnimationActive={false} />
               </AreaChart>
             </ResponsiveContainer>
           </div>

@@ -5,6 +5,9 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  --color-t1: var(--t1); --color-t2: var(--t2); --color-t3: var(--t3); --color-t4: var(--t4);
+  --color-line2: var(--line2); --color-grid: var(--grid); --color-axis-line: var(--axis-line); --color-ink-line: var(--ink-line);
+  --color-row-win: var(--row-win); --color-row-loss: var(--row-loss); --color-pill-win: var(--pill-win); --color-pill-loss: var(--pill-loss); --color-chip: var(--chip);
   --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
   --radius-sm: calc(var(--radius) - 4px);
@@ -55,7 +58,11 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(0.985 0.003 250);
+  --background: #fcf9ff;
+  /* semantic text / surface tokens (light) - dark values live in .dark below */
+  --t1: #181618; --t2: #353335; --t3: #615e61; --t4: #8d8a8d;
+  --line2: #cfccd2; --grid: #e9e6ec; --axis-line: #bdb9c0; --ink-line: #221f22;
+  --row-win: #f6fef2; --row-loss: #fff5f5; --pill-win: #e3f8d8; --pill-loss: #ffdede; --chip: #f1eef5;
   --foreground: oklch(0.26 0.018 255);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.26 0.018 255);
@@ -63,41 +70,44 @@
   --popover-foreground: oklch(0.26 0.018 255);
   --primary: oklch(0.17 0.005 255);
   --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.955 0.005 250);
+  --secondary: #f6f3fa;
   --secondary-foreground: oklch(0.26 0.018 255);
-  --muted: oklch(0.955 0.005 250);
+  --muted: #f6f3fa;
   --muted-foreground: oklch(0.52 0.015 255);
-  --accent: oklch(0.95 0.025 150);
-  --accent-foreground: oklch(0.32 0.08 150);
+  --accent: #ebfee1;
+  --accent-foreground: #2c6e27;
   --destructive: oklch(0.6 0.21 25);
   --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(0.92 0.006 250);
+  --border: #ebe8f0;
   --input: oklch(0.9 0.006 250);
-  --ring: oklch(0.6 0.16 150);
-  --profit: oklch(0.6 0.16 150);
-  --profit-soft: oklch(0.94 0.05 150);
-  --loss: oklch(0.6 0.21 25);
-  --loss-soft: oklch(0.94 0.04 25);
+  --ring: #43a93c;
+  --profit: #43a93c;
+  --profit-soft: #ebfee1;
+  --loss: #e5392b;
+  --loss-soft: #ffe7e7;
   --info: oklch(0.55 0.17 255);
   --star: oklch(0.8 0.15 80);
   --ink: oklch(0.26 0.018 255);
   --ink-foreground: oklch(0.99 0 0);
-  --chart-1: oklch(0.6 0.16 150);
-  --chart-2: oklch(0.6 0.21 25);
+  --chart-1: #5aba50;
+  --chart-2: #e9412a;
   --chart-3: oklch(0.45 0.03 255);
   --chart-4: oklch(0.75 0.14 80);
   --chart-5: oklch(0.6 0.12 230);
   --sidebar: oklch(1 0 0);
   --sidebar-foreground: oklch(0.32 0.018 255);
-  --sidebar-primary: oklch(0.6 0.16 150);
+  --sidebar-primary: #43a93c;
   --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.965 0.008 290);
+  --sidebar-accent: #f7f2fd;
   --sidebar-accent-foreground: oklch(0.26 0.018 255);
-  --sidebar-border: oklch(0.92 0.006 250);
+  --sidebar-border: #efecf4;
   --sidebar-ring: oklch(0.6 0.16 150);
 }
 
 .dark {
+  --t1: #f5f5f5; --t2: #e4e4e4; --t3: #b8b8bc; --t4: #8e8e94;
+  --line2: #3b3b40; --grid: #2a2a2e; --axis-line: #4b4b51; --ink-line: #d9d9d9;
+  --row-win: #101d0d; --row-loss: #261110; --pill-win: #1d3a17; --pill-loss: #4a1c18; --chip: #262629;
   --background: #131517;
   --foreground: oklch(0.96 0 0);
   --card: #0b0b0b;
@@ -132,7 +142,7 @@
   --sidebar-foreground: oklch(0.91 0 0);
   --sidebar-primary: oklch(0.79 0.2 145);
   --sidebar-primary-foreground: oklch(0.105 0 0);
-  --sidebar-accent: #343537;
+  --sidebar-accent: #333b47;
   --sidebar-accent-foreground: oklch(0.96 0 0);
   --sidebar-border: oklch(1 0 0 / 12%);
   --sidebar-ring: oklch(0.79 0.2 145);
@@ -156,7 +166,7 @@
   font-variant-numeric: tabular-nums;
 }
 @utility hatch {
-  background-image: repeating-linear-gradient(45deg, transparent 0 8px, color-mix(in oklab, var(--color-border) 70%, transparent) 8px 9px);
+  background-image: repeating-linear-gradient(135deg, transparent 0 7px, color-mix(in oklab, var(--color-foreground) 12%, transparent) 7px 8px);
 }
 
 @layer components {
@@ -222,3 +232,11 @@
   .tf-input[type="number"] { -moz-appearance: textfield; }
   .tf-tab { font-size: 12px; }
 }
+
+/* Thin, unobtrusive scrollbars for data tables so they never cover rows or the last column. */
+.slim-scroll { scrollbar-width: thin; scrollbar-color: #c9c5cf transparent; scrollbar-gutter: stable; }
+.slim-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+.slim-scroll::-webkit-scrollbar-track { background: transparent; }
+.slim-scroll::-webkit-scrollbar-thumb { background: #c9c5cf; border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
+.slim-scroll::-webkit-scrollbar-thumb:hover { background: #a9a4b2; background-clip: content-box; }
+.slim-scroll::-webkit-scrollbar-corner { background: transparent; }

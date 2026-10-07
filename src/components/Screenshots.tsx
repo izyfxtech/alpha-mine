@@ -1,3 +1,4 @@
+import { compressImage } from "@/lib/compress-image";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ImagePlus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -35,8 +36,9 @@ export async function saveShots(journalId: string, tradeId: string, items: { fil
   for (const it of items) {
     let path = it.url ?? "";
     if (it.file) {
-      path = `${u.user.id}/${tradeId}/${crypto.randomUUID()}-${it.file.name.replace(/[^\w.-]/g, "_")}`;
-      const up = await supabase.storage.from("screenshots").upload(path, it.file);
+      const file = await compressImage(it.file);
+      path = `${u.user.id}/${tradeId}/${crypto.randomUUID()}-${file.name.replace(/[^\w.-]/g, "_")}`;
+      const up = await supabase.storage.from("screenshots").upload(path, file);
       if (up.error) throw up.error;
     }
     const { error } = await supabase.from("trade_screenshots").insert({ trade_id: tradeId, journal_id: journalId, path });

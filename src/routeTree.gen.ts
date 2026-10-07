@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedAnalyticsRouteImport } from './routes/_authenticated/analytics'
+import { Route as AuthenticatedEdgeFinderRouteImport } from './routes/_authenticated/edge-finder'
 import { Route as AuthenticatedEquityRouteImport } from './routes/_authenticated/equity'
 import { Route as AuthenticatedHomeRouteImport } from './routes/_authenticated/home'
 import { Route as AuthenticatedJournalRouteImport } from './routes/_authenticated/journal'
@@ -57,6 +58,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
 const AuthenticatedAnalyticsRoute = AuthenticatedAnalyticsRouteImport.update({
   id: '/analytics',
   path: '/analytics',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedEdgeFinderRoute = AuthenticatedEdgeFinderRouteImport.update({
+  id: '/edge-finder',
+  path: '/edge-finder',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedEquityRoute = AuthenticatedEquityRouteImport.update({
@@ -178,6 +184,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/analytics': typeof AuthenticatedAnalyticsRoute
+  '/edge-finder': typeof AuthenticatedEdgeFinderRoute
   '/equity': typeof AuthenticatedEquityRoute
   '/home': typeof AuthenticatedHomeRoute
   '/journal': typeof AuthenticatedJournalRoute
@@ -204,6 +211,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/analytics': typeof AuthenticatedAnalyticsRoute
+  '/edge-finder': typeof AuthenticatedEdgeFinderRoute
   '/equity': typeof AuthenticatedEquityRoute
   '/home': typeof AuthenticatedHomeRoute
   '/journal': typeof AuthenticatedJournalRoute
@@ -232,6 +240,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/analytics': typeof AuthenticatedAnalyticsRoute
+  '/_authenticated/edge-finder': typeof AuthenticatedEdgeFinderRoute
   '/_authenticated/equity': typeof AuthenticatedEquityRoute
   '/_authenticated/home': typeof AuthenticatedHomeRoute
   '/_authenticated/journal': typeof AuthenticatedJournalRoute
@@ -260,6 +269,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/analytics'
+    | '/edge-finder'
     | '/equity'
     | '/home'
     | '/journal'
@@ -286,6 +296,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/analytics'
+    | '/edge-finder'
     | '/equity'
     | '/home'
     | '/journal'
@@ -313,6 +324,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/_authenticated/analytics'
+    | '/_authenticated/edge-finder'
     | '/_authenticated/equity'
     | '/_authenticated/home'
     | '/_authenticated/journal'
@@ -378,6 +390,13 @@ declare module '@tanstack/react-router' {
       path: '/analytics'
       fullPath: '/analytics'
       preLoaderRoute: typeof AuthenticatedAnalyticsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/edge-finder': {
+      id: '/_authenticated/edge-finder'
+      path: '/edge-finder'
+      fullPath: '/edge-finder'
+      preLoaderRoute: typeof AuthenticatedEdgeFinderRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/equity': {
@@ -525,6 +544,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAnalyticsRoute: typeof AuthenticatedAnalyticsRoute
+  AuthenticatedEdgeFinderRoute: typeof AuthenticatedEdgeFinderRoute
   AuthenticatedEquityRoute: typeof AuthenticatedEquityRoute
   AuthenticatedHomeRoute: typeof AuthenticatedHomeRoute
   AuthenticatedJournalRoute: typeof AuthenticatedJournalRoute
@@ -548,6 +568,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAnalyticsRoute: AuthenticatedAnalyticsRoute,
+  AuthenticatedEdgeFinderRoute: AuthenticatedEdgeFinderRoute,
   AuthenticatedEquityRoute: AuthenticatedEquityRoute,
   AuthenticatedHomeRoute: AuthenticatedHomeRoute,
   AuthenticatedJournalRoute: AuthenticatedJournalRoute,

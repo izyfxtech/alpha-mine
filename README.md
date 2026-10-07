@@ -37,3 +37,10 @@ with owner-scoped row level security.
 
 Enable the Google provider in Supabase (Authentication > Providers) and add your site
 URL and `<site>/auth` to the allowed redirect URLs.
+
+
+## Database migration 0002
+
+`drizzle/migrations/0002_plans_missed_option_fields.sql` adds Option Type, Expiry Date and Multiplier to Trading Plans and Missed Trades, and a `planned_trade_custom_stats` table so Trading Plans can carry custom statistics. Apply it to your Supabase project (SQL editor or `pnpm drizzle-kit migrate`) before using those fields. It is safe to run more than once.
+
+New dependency: `html-to-image` (calendar screenshot button). Run `pnpm install`.

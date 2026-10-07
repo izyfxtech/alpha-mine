@@ -6,13 +6,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Logo } from "@/components/Logo";
 import { NAV, childPath, type NavItem } from "@/lib/nav";
 import { cn } from "@/lib/utils";
-import { useTrades } from "@/lib/journal-context";
+import { useTrades, useJournal } from "@/lib/journal-context";
 import { computeStats, fmtMoney } from "@/lib/metrics";
 import { useTradeDrawer } from "@/components/TradeDrawer";
 import { ImportDialog } from "@/components/ImportDialog";
 import { useProfile } from "@/lib/profile-settings";
 
-const rowCls = "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent";
+const rowCls = "flex h-[38px] w-full items-center gap-3 rounded-md px-3 text-[12px] font-medium text-sidebar-foreground hover:bg-sidebar-accent";
 
 function Group({ item, collapsed, path }: { item: NavItem; collapsed: boolean; path: string }) {
   const active = item.children!.some((c) => path === childPath(c));
@@ -23,7 +23,7 @@ function Group({ item, collapsed, path }: { item: NavItem; collapsed: boolean; p
       key={c.label}
       to={c.to}
       params={c.params as never}
-      className={cn("block rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
+      className={cn("block whitespace-nowrap rounded-md py-2 pl-[40px] pr-2 text-[11px] text-sidebar-foreground hover:bg-sidebar-accent",
         path === childPath(c) && "bg-sidebar-accent font-semibold text-foreground")}
     >
       {c.label}
@@ -49,7 +49,7 @@ function Group({ item, collapsed, path }: { item: NavItem; collapsed: boolean; p
         <span className="flex-1 text-left">{item.label}</span>
         <ChevronRight className={cn("h-4 w-4 transition-transform", open && "rotate-90")} />
       </CollapsibleTrigger>
-      <CollapsibleContent className="ml-6 border-l pl-2">{links}</CollapsibleContent>
+      <CollapsibleContent>{links}</CollapsibleContent>
     </Collapsible>
   );
 }
@@ -58,6 +58,7 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
   const path = useRouterState({ select: (s) => s.location.pathname });
   const [dark, setDark] = useState(false);
   const { trades, journal } = useTrades({ unfiltered: true });
+  const { journals } = useJournal();
   const { settings } = useProfile();
   const drawer = useTradeDrawer();
   const [importOpen, setImportOpen] = useState(false);
@@ -75,8 +76,8 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
       <div className={cn("flex h-16 items-center border-b px-4", collapsed && "justify-center px-0")}>
         <Link to="/home"><Logo collapsed={collapsed} /></Link>
       </div>
-      <nav className="flex-1 space-y-0.5 overflow-y-auto p-2">
-        {NAV.map((item) =>
+      <nav className="flex-1 space-y-[2px] overflow-y-auto p-2">
+        {NAV.filter((item) => item.to !== "/portfolio" || journals.length > 1).map((item) =>
           item.children ? (
             <Group key={item.label} item={item} collapsed={collapsed} path={path} />
           ) : (
@@ -97,19 +98,22 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
         </button>
       </nav>
       <div className="space-y-2 p-2">
-        {!collapsed && settings.showBalance && (
-          <div className="rounded-lg bg-muted px-4 py-3">
-            <p className="tabular text-lg font-bold">{fmtMoney(balance, journal?.currency)}</p>
-            <p className="text-xs text-muted-foreground">Account Balance</p>
+        {collapsed && settings.showBalance && (
+          <div className="rounded-lg bg-background px-1 py-2.5 text-center text-[11px] font-bold tabular" title={fmtMoney(balance, journal?.currency)}>
+            {new Intl.NumberFormat("en-US", { style: "currency", currency: journal?.currency || "USD", notation: "compact", maximumFractionDigits: 0 }).format(balance)}
           </div>
         )}
-        <div className="flex overflow-hidden rounded-lg bg-ink text-ink-foreground">
-          <button onClick={() => drawer.open()} className="flex-1 py-3 text-sm font-semibold hover:opacity-90">{collapsed ? "+" : "Add New Trade"}</button>
-          {!collapsed && (
-            <button onClick={() => setImportOpen(true)} className="border-l border-ink-foreground/20 px-3 hover:opacity-90" title="Import trades">
-              <Upload className="h-4 w-4" />
-            </button>
-          )}
+        {!collapsed && settings.showBalance && (
+          <div className="rounded-lg bg-background px-4 py-3">
+            <p className="tabular text-[14px] font-bold">{fmtMoney(balance, journal?.currency)}</p>
+            <p className="text-[12px] text-t2">Account Balance</p>
+          </div>
+        )}
+        <div className={cn("overflow-hidden rounded-lg bg-ink text-ink-foreground", collapsed ? "flex flex-col" : "flex")}>
+          <button onClick={() => drawer.open()} className="flex-1 py-3 text-[12px] font-semibold hover:opacity-90" title="Add new trade">{collapsed ? "+" : "Add New Trade"}</button>
+          <button onClick={() => setImportOpen(true)} className={cn("px-3 py-2.5 hover:opacity-90", collapsed ? "border-t border-ink-foreground/20" : "border-l border-ink-foreground/20")} title="Import trades" aria-label="Import trades">
+            <Upload className="mx-auto h-4 w-4" />
+          </button>
         </div>
       </div>
       <ImportDialog open={importOpen} onOpenChange={setImportOpen} />

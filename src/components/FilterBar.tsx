@@ -35,7 +35,7 @@ function Tile({ icon, label, value, active, onClear, children, wide }: { icon?: 
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button className={cn("relative flex h-8 w-full items-center gap-1.5 rounded-md border bg-card px-2.5 text-left text-[12px]", active && "border-foreground")}>
+        <button className={cn("relative flex h-9 w-full items-center gap-1.5 rounded-md border border-line2 bg-card px-3 text-left text-[12px]", active && "border-foreground")}>
           {value != null && <span className="absolute -top-2 left-2 bg-card px-1 text-[9px] text-muted-foreground">{label}</span>}
           {icon}<span className="flex-1 truncate">{value ?? label}</span>
           {active ? <X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" onClick={(e) => { e.stopPropagation(); onClear(); }} /> : <ChevronDown className="h-3.5 w-3.5" />}
@@ -99,8 +99,8 @@ export function FilterPanel({ mode }: { mode: FilterMode }) {
   if (mode === "closed") return null;
   const dateVal = f.from || f.to ? `${f.from ?? "…"} → ${f.to ?? "…"}` : undefined;
   return (
-    <div className="border-b bg-background px-6 py-3">
-      <div className="grid max-w-[880px] grid-cols-5 gap-x-2 gap-y-3">
+    <div className="bg-card px-[21px] py-[18px] shadow-[0_1px_5px_rgba(60,40,90,0.07)]">
+      <div className="grid max-w-[880px] grid-cols-5 gap-x-2 gap-y-[14px]">
         <Multi icon={<Globe className="h-3.5 w-3.5" />} label="Instrument" options={(lk?.instruments ?? []).map((i) => [i.symbol, i.symbol] as const)} value={f.instrument} onChange={(v) => up({ instrument: v })} />
         <Multi label="Outcome" options={[["win", "Winners"], ["loss", "Losers"], ["be", "Break Even"]] as const} value={f.outcome} onChange={(v) => up({ outcome: v })} />
         <Multi icon={L("M")} label="Month" options={MONTHS.map((m, i) => [i, m] as const)} value={f.month} onChange={(v) => up({ month: v })} />

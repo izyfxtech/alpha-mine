@@ -4,7 +4,7 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PageHeader, Panel, Stat, axis, tooltipStyle } from "@/components/kit";
+import { PageHeader, Panel, Stat, axis, tooltipStyle, tradeAxis, yRange } from "@/components/kit";
 import { useTrades } from "@/lib/journal-context";
 import { computeStats, fmtMoney, fmtNum } from "@/lib/metrics";
 
@@ -14,7 +14,7 @@ export const Route = createFileRoute("/_authenticated/strategy-lab/simulator")({
 });
 
 const SHOWN = 20;
-const COLORS = ["var(--color-chart-1)", "var(--color-chart-2)", "var(--color-chart-3)", "var(--color-chart-4)", "var(--color-chart-5)", "var(--color-profit)"];
+const COLORS = ["var(--color-chart-1)", "var(--color-chart-2)", "var(--color-chart-3)", "var(--color-chart-4)", "var(--color-chart-5)", "var(--color-chart-1)"];
 
 function Simulator() {
   const { trades, journal } = useTrades();
@@ -82,8 +82,8 @@ function Simulator() {
           <ResponsiveContainer width="100%" height={340}>
             <LineChart data={sim.chart}>
               <CartesianGrid vertical={false} stroke="var(--color-border)" />
-              <XAxis dataKey="i" tick={axis} tickLine={false} axisLine={false} />
-              <YAxis tick={axis} tickLine={false} axisLine={false} width={70} domain={["auto", "auto"]} />
+              <XAxis dataKey="i" tick={axis} tickLine={false} axisLine={false} {...tradeAxis(p.trades)} />
+              <YAxis tick={axis} tickLine={false} axisLine={false} width={70} {...yRange(sim.chart as Record<string, number>[])} />
               <Tooltip {...tooltipStyle} />
               {Array.from({ length: Math.min(SHOWN, p.sims) }, (_, k) => <Line key={k} dataKey={`p${k}`} stroke={COLORS[k % COLORS.length]} strokeOpacity={0.6} dot={false} strokeWidth={1} isAnimationActive={false} />)}
             </LineChart>

@@ -41,6 +41,7 @@ function Portfolio() {
   const max = Math.max(1, ...per.map((p) => Math.abs(p.s.roi)));
   const name = new Map(journals.map((j) => [j.id, j.name]));
   const best = [...trades].sort((a, b) => b.pct - a.pct);
+  const extremes = best.length > 10 ? [...best.slice(0, 5), ...best.slice(-5)] : best; // the 5 best and the 5 worst
   const totals = per.reduce((a, { s: x }) => ({ roi: a.roi + x.roi, r: a.r + x.totalR, n: a.n + x.count }), { roi: 0, r: 0, n: 0 });
   const avgPct = trades.length ? trades.reduce((a, t) => a + t.pct, 0) / trades.length : 0;
   const avgR = trades.length ? trades.reduce((a, t) => a + (t.r ?? 0), 0) / trades.length : 0;
@@ -48,13 +49,13 @@ function Portfolio() {
   const followed = trades.filter((t) => t.followedPlan).length;
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-[1374px] space-y-[30px]">
       <div className="flex items-center justify-between">
-        <div className="inline-flex overflow-hidden rounded-md border text-[11px] font-medium">
-          {([["pct", "Return (%)"], ["r", "R Multiple"]] as const).map(([k, l]) => <button key={k} onClick={() => setUnit(k)} className={cn("px-2.5 py-1", unit === k && "bg-ink text-ink-foreground")}>{l}</button>)}
+        <div className="inline-flex h-[24px] overflow-hidden rounded-md border bg-card text-[10px] font-semibold">
+          {([["pct", "Return (%)"], ["r", "R Multiple"]] as const).map(([k, l]) => <button key={k} onClick={() => setUnit(k)} className={cn("border-r px-3 last:border-r-0", unit === k && "bg-ink text-ink-foreground")}>{l}</button>)}
         </div>
         <Popover>
-          <PopoverTrigger asChild><Button variant="outline" className="h-9 w-56 justify-between font-normal">Journals <ChevronDown className="h-4 w-4" /></Button></PopoverTrigger>
+          <PopoverTrigger asChild><Button variant="outline" className="h-8 w-56 justify-between bg-card text-[12px] font-normal">Journals <ChevronDown className="h-4 w-4" /></Button></PopoverTrigger>
           <PopoverContent align="end" className="w-56 space-y-1.5 p-3">
             {journals.map((j) => (
               <label key={j.id} className="flex items-center gap-2 text-xs">
@@ -69,7 +70,7 @@ function Portfolio() {
 
       <Panel title="Journals">
         <table className="w-full text-[11px] tabular">
-          <thead><tr className="text-right">{["Name", "Balance", "Return (%)", "Return (R)", "Avg. P&L", "Avg. %", "Avg. R", "Profit Factor", "Winrate", "Trades #", "AM Score", ""].map((h, i) => <th key={h} className={cn("whitespace-nowrap border-r px-2 py-2.5 font-medium last:border-0", i === 0 && "text-left")}>{h}</th>)}</tr></thead>
+          <thead><tr className="text-right">{["Name", "Balance", "Return (%)", "Return (R)", "Avg. P&L", "Avg. %", "Avg. R", "Profit Factor", "Winrate", "Trades #", "AM Score", ""].map((h, i) => <th key={h + i} className={cn("whitespace-nowrap px-2 py-2.5 font-semibold", i === 0 && "text-left", i > 0 && i < 11 && "border-l")}>{h}</th>)}</tr></thead>
           <tbody>
             {per.map(({ j, s: x, ts }) => {
               const tone = x.net > 0 ? "text-profit" : x.net < 0 ? "text-loss" : "";
@@ -78,7 +79,7 @@ function Portfolio() {
                 <tr key={j.id} className={cn("text-right", tone, x.net < 0 ? "bg-loss-soft/40" : x.net > 0 ? "bg-profit-soft/25" : "")}>
                   <td className="max-w-[130px] truncate px-2 py-2 text-left"><button className="hover:underline" onClick={() => setJournalId(j.id)}>{j.name}</button></td>
                   {[x.balance.toLocaleString("en-US", { style: "currency", currency: j.currency || "USD" }), n2(x.roi), n2(x.totalR), x.avgPnl.toLocaleString("en-US", { style: "currency", currency: j.currency || "USD" }), n2(ap), n2(x.avgR), n2(x.profitFactor), n2(x.winRate), x.count, n2(x.score)].map((v, i) => <td key={i} className="whitespace-nowrap px-2 py-2">{v}</td>)}
-                  <td className="w-40 px-4"><div className="flex h-3 items-center border-l-2 border-muted-foreground/60"><div className={x.net >= 0 ? "h-full bg-profit" : "h-full bg-loss"} style={{ width: `${(Math.abs(x.roi) / max) * 100}%` }} /></div></td>
+                  <td className="w-40 px-4"><div className="flex h-[14px] items-center border-l-2 border-t4"><div className={x.net >= 0 ? "h-full bg-chart-1" : "h-full bg-chart-2"} style={{ width: `${(Math.abs(x.roi) / max) * 100}%` }} /></div></td>
                 </tr>
               );
             })}
@@ -92,12 +93,12 @@ function Portfolio() {
 
       <Panel title="Equity Graph"><EquityChart data={curve} height={420} valueName={unit === "pct" ? "Return (%)" : "R Multiple"} fmt={fmtU} /></Panel>
 
-      <div className="grid grid-cols-[1fr_440px] gap-5">
+      <div className="grid grid-cols-[1fr_438px] gap-[30px]">
         <Panel title="Profit Calendar" action={
-          <div className="flex items-center overflow-hidden rounded-md border">
-            <button className="border-r px-2 py-1.5" onClick={() => setMonth(addMonths(month, -1))}><ChevronLeft className="h-4 w-4" /></button>
-            <span className="w-32 text-center text-sm">{format(month, "MMMM yyyy")}</span>
-            <button className="border-l px-2 py-1.5" onClick={() => setMonth(addMonths(month, 1))}><ChevronRight className="h-4 w-4" /></button>
+          <div className="flex items-center overflow-hidden rounded-md border border-ink-line">
+            <button className="border-r border-ink-line px-2 py-1.5" onClick={() => setMonth(addMonths(month, -1))}><ChevronLeft className="h-4 w-4" /></button>
+            <span className="w-28 text-center text-[12px]">{format(month, "MMMM yyyy")}</span>
+            <button className="border-l border-ink-line px-2 py-1.5" onClick={() => setMonth(addMonths(month, 1))}><ChevronRight className="h-4 w-4" /></button>
           </div>
         }>
           <ProfitCalendar trades={pctTrades} month={month} fmt={(v) => fmtU(v)} />
@@ -107,13 +108,13 @@ function Portfolio() {
         </Panel>
       </div>
 
-      <div className="grid grid-cols-[1fr_440px] gap-5">
+      <div className="grid grid-cols-[1fr_438px] gap-[30px]">
         <Panel title="Best & Worst Trades">
           <div className="max-h-[300px] overflow-y-auto">
             <table className="w-full text-[11px] tabular">
               <thead className="sticky top-0 bg-card"><tr className="text-left">{["Journal Name", "Entry Date", "Exit Date", "Instrument", "Setup", "Direction", "Return (%)", "Return (R)"].map((h) => <th key={h} className="whitespace-nowrap border-r px-2 py-2.5 font-medium last:border-0">{h === "Return (%)" ? <span className="inline-flex items-center gap-1"><ArrowDown className="h-3 w-3" />{h}</span> : h}</th>)}</tr></thead>
               <tbody>
-                {best.map((t) => (
+                {extremes.map((t) => (
                   <tr key={t.id} className={cn(t.pct > 0 ? "bg-profit-soft/25 text-profit" : t.pct < 0 ? "bg-loss-soft/40 text-loss" : "")}>
                     <td className="max-w-[150px] truncate px-2 py-2">{name.get(t.journal_id)}</td><td className="px-2">{dt(t.entry_at)}</td><td className="px-2">{dt(t.exit_at)}</td>
                     <td className="px-2">{t.instrument}</td><td className="px-2">{t.setup}</td>
@@ -135,7 +136,7 @@ function Portfolio() {
         </Panel>
       </div>
 
-      <div className="grid grid-cols-2 gap-5">
+      <div className="grid grid-cols-2 gap-[30px]">
         <Panel title="Performance by Instrument"><PnlBars height={280} fmt={fmtU} data={groupPerformance(pctTrades, (t) => t.instrument).sort((a, b) => b.pnl - a.pnl)} x="key" /></Panel>
         <Panel title="Performance by Setup"><PnlBars height={280} fmt={fmtU} angle data={groupPerformance(pctTrades, (t) => t.setup).sort((a, b) => b.pnl - a.pnl)} x="key" /></Panel>
         <Panel title="Performance by Month"><PnlBars height={280} fmt={fmtU} angle data={bucketPerformance(pctTrades, (t) => new Date(t.entry_at).getMonth(), MONTHS.map((m, i) => ({ k: i, label: m })))} x="key" /></Panel>

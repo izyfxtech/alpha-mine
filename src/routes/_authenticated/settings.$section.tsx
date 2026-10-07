@@ -77,7 +77,7 @@ function Account() {
       </Panel>
       <Panel title="Preferences">
         <div className="space-y-4">
-          {([ ["showWeeklyTotals", "Show weekly totals in the calendar"], ["showBalance", "Show account balance"], ["allowSharing", "Allow journal sharing"] ] as [keyof ProfileSettings, string][]).map(([key, label]) => (
+          {([ ["showWeeklyTotals", "Show weekly totals in the calendar"], ["showCalendarWinrate", "Show winrate next to the trade count in the calendar"], ["showBalance", "Show account balance"], ["allowSharing", "Allow journal sharing"] ] as [keyof ProfileSettings, string][]).map(([key, label]) => (
             <div key={key} className="flex items-center justify-between gap-4 text-sm"><Label htmlFor={key}>{label}</Label><Switch id={key} checked={settings[key]} onCheckedChange={async (checked) => { try { await saveSettings({ [key]: checked }); } catch { toast.error("Could not save preference"); } }} /></div>
           ))}
         </div>

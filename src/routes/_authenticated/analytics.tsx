@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Fragment, useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Minus, Plus } from "lucide-react";
-import { useTrades } from "@/lib/journal-context";
+import { Fragment, useMemo, useRef, useState } from "react";
+import { ChevronDown, ChevronRight, Columns3, GripVertical, Minus, Plus } from "lucide-react";
+import { plannedRRR, useLookups, useTrades } from "@/lib/journal-context";
+import { Checkbox } from "@/components/ui/checkbox";
 import { isLoss, isWin, type Trade } from "@/lib/metrics";
 import { cn } from "@/lib/utils";
 
@@ -25,7 +26,28 @@ const CRITERIA: Crit[] = [
   { key: "type", label: "Trade Type", get: (t) => [t.trade_type || "—"] },
 ];
 
-const COLS = ["Amount", "Avg. Qty.", "Winrate (%)", "Avg. P&L ($)", "Sum. Gain ($)", "Profit Factor", "Avg. R-Multiple", "Sum. R-Multiple", "Max. Cons. Winners", "Max. Cons. Losers"];
+/** Favourable / adverse excursion of a trade in price points, and as % of the distance to TP / SL. */
+function excursion(t: Trade) {
+  if (t.high_price == null || t.low_price == null) return null;
+  const long = t.direction === "long";
+  const hi = Number(t.high_price), lo = Number(t.low_price);
+  const mfe = Math.max(0, long ? hi - t.entry_price : t.entry_price - lo);
+  const mae = Math.max(0, long ? t.entry_price - lo : hi - t.entry_price);
+  const tp = t.take_profit != null ? Math.abs(Number(t.take_profit) - t.entry_price) : 0;
+  const sl = t.stop_loss != null ? Math.abs(t.entry_price - Number(t.stop_loss)) : 0;
+  return { mfe, mae, up: tp ? (mfe / tp) * 100 : null, dn: sl ? (mae / sl) * 100 : null };
+}
+
+const COLS: { k: string; l: string }[] = [
+  { k: "n", l: "Amount" }, { k: "qty", l: "Avg. Qty." }, { k: "wr", l: "Winrate (%)" }, { k: "avgPnl", l: "Avg. P&L ($)" },
+  { k: "sum", l: "Sum. Gain ($)" }, { k: "pf", l: "Profit Factor" }, { k: "avgR", l: "Avg. R-Multiple" }, { k: "sumR", l: "Sum. R-Multiple" },
+  { k: "planR", l: "Avg. Planned R" }, { k: "mw", l: "Max. Cons. Winners" }, { k: "ml", l: "Max. Cons. Losers" },
+  { k: "dd", l: "Avg. Drawdown (%)" }, { k: "up", l: "Avg. Updraw (%)" }, { k: "mae", l: "Avg. MAE" }, { k: "mfe", l: "Avg. MFE" },
+  { k: "fees", l: "Fees ($)" }, { k: "ret", l: "Return (%)" }, { k: "avgRet", l: "Avg. Return (%)" },
+];
+const DEFAULT_VISIBLE = COLS.map((c) => c.k);
+
+const mean = (a: number[]) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : null);
 
 function rowStats(ts: Trade[]) {
   const n = ts.length;
@@ -38,11 +60,17 @@ function rowStats(ts: Trade[]) {
     if (isWin(t)) { cw++; cl = 0; } else if (isLoss(t)) { cl++; cw = 0; } else { cw = 0; cl = 0; }
     mw = Math.max(mw, cw); ml = Math.max(ml, cl);
   });
-  const f = (v: number) => v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return {
-    sum,
-    cells: [String(n), f(ts.reduce((a, t) => a + t.quantity, 0) / (n || 1)), f(n ? (ts.filter(isWin).length / n) * 100 : 0), f(sum / (n || 1)), f(sum), gl ? f(gw / gl) : "", rs.length ? f(rs.reduce((a, b) => a + b, 0) / rs.length) : "", rs.length ? f(rs.reduce((a, b) => a + b, 0)) : "", String(mw), String(ml)],
+  const ex = ts.map(excursion).filter((x): x is NonNullable<ReturnType<typeof excursion>> => x != null);
+  const f = (v: number | null) => (v == null ? "" : v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+  const cells: Record<string, string> = {
+    n: String(n), qty: f(ts.reduce((a, t) => a + t.quantity, 0) / (n || 1)), wr: f(n ? (ts.filter(isWin).length / n) * 100 : 0),
+    avgPnl: f(sum / (n || 1)), sum: f(sum), pf: gl ? f(gw / gl) : "", avgR: f(mean(rs)), sumR: rs.length ? f(rs.reduce((a, b) => a + b, 0)) : "",
+    planR: f(mean(ts.map(plannedRRR).filter((x): x is number => x != null))), mw: String(mw), ml: String(ml),
+    dd: f(mean(ex.map((x) => x.dn).filter((x): x is number => x != null))), up: f(mean(ex.map((x) => x.up).filter((x): x is number => x != null))),
+    mae: f(mean(ex.map((x) => x.mae))), mfe: f(mean(ex.map((x) => x.mfe))),
+    fees: f(ts.reduce((a, t) => a + t.fees, 0)), ret: f(ts.reduce((a, t) => a + t.retPct, 0)), avgRet: f(mean(ts.map((t) => t.retPct))),
   };
+  return { sum, cells };
 }
 
 function group(ts: Trade[], c: Crit) {
@@ -52,17 +80,37 @@ function group(ts: Trade[], c: Crit) {
 }
 
 function Analytics() {
-  const { trades } = useTrades();
+  const { trades, journal } = useTrades();
+  const { data: lookups } = useLookups(journal?.id);
   const [order, setOrder] = useState<string[]>(["setup"]);
   const [open, setOpen] = useState<Set<string>>(new Set(["Overall"]));
-  const crits = order.map((k) => CRITERIA.find((c) => c.key === k)!);
-  const toggle = (p: string) => setOpen((s) => { const n = new Set(s); n.has(p) ? n.delete(p) : n.add(p); return n; });
+  const [visible, setVisible] = useState<string[]>(DEFAULT_VISIBLE);
+  const [colsOpen, setColsOpen] = useState(false);
+  const dragKey = useRef<string | null>(null);
+
+  // built-in criteria + one per custom statistic category, in the order set up in Settings
+  const criteria = useMemo<Crit[]>(() => {
+    const optById = new Map((lookups?.statOptions ?? []).map((o) => [o.id, o]));
+    const custom = (lookups?.statCategories ?? []).map((c): Crit => ({
+      key: `cs:${c.id}`, label: c.name,
+      get: (t) => { const v = t.customStats.map((id) => optById.get(id)).filter((o) => o?.category_id === c.id).map((o) => o!.label); return v.length ? v : ["Not set"]; },
+    }));
+    return [...CRITERIA, ...custom];
+  }, [lookups]);
+  const crits = useMemo(() => order.map((k) => criteria.find((c) => c.key === k)).filter((c): c is Crit => !!c), [order, criteria]);
+  const toggle = (p: string) => setOpen((s) => { const n = new Set(s); if (n.has(p)) n.delete(p); else n.add(p); return n; });
+  const reorder = (target: string) => {
+    const src = dragKey.current; dragKey.current = null;
+    if (!src || src === target) return;
+    setOrder((o) => { const n = o.filter((k) => k !== src); n.splice(n.indexOf(target), 0, src); return n; });
+    setOpen(new Set(["Overall"]));
+  };
 
   const rows = useMemo(() => {
     const out: { path: string; label: string; depth: number; ts: Trade[]; expandable: boolean }[] = [];
     const walk = (ts: Trade[], depth: number, path: string) => {
       if (depth >= crits.length || !open.has(path)) return;
-      group(ts, crits[depth]).forEach(([k, sub]) => {
+      group(ts, crits[depth]!).forEach(([k, sub]) => {
         const p = `${path}/${k}`;
         out.push({ path: p, label: k, depth: depth + 1, ts: sub, expandable: depth + 1 < crits.length });
         walk(sub, depth + 1, p);
@@ -73,61 +121,78 @@ function Analytics() {
     return out;
   }, [trades, crits, open]);
 
+  const shown = COLS.filter((c) => visible.includes(c.k));
+  const rowCls = "h-[30px] text-[11px]";
+  const item = "flex h-[40px] items-center justify-between border-b px-1 text-[11px] last:border-0";
+
   return (
-    <div className="grid gap-4 grid-cols-[240px_1fr]">
-      <div className="space-y-4">
-        <section className="min-h-[240px] rounded-xl border bg-card p-3">
-          <h3 className="mb-3 px-1 text-[15px] font-semibold">Ordering</h3>
+    <div className="grid grid-cols-[240px_1fr] gap-[22px]">
+      <div className="space-y-[22px]">
+        <section className="min-h-[200px] rounded-lg bg-card p-[22px] shadow-[0_1px_5px_rgba(60,40,90,0.07)]">
+          <h3 className="mb-3 text-[13px] font-semibold">Ordering</h3>
           {crits.map((c) => (
-            <div key={c.key} className="flex items-center justify-between border-b px-1 py-2.5 text-xs last:border-0">
-              {c.label}
-              <button aria-label={`Remove ${c.label}`} onClick={() => setOrder((o) => o.filter((k) => k !== c.key))}><Minus className="h-4 w-4" /></button>
+            <div key={c.key} draggable onDragStart={() => { dragKey.current = c.key; }} onDragOver={(e) => e.preventDefault()} onDrop={() => reorder(c.key)} className={cn(item, "cursor-grab")}>
+              <span className="flex items-center gap-1.5"><GripVertical className="h-3.5 w-3.5 text-muted-foreground" />{c.label}</span>
+              <button aria-label={`Remove ${c.label}`} onClick={() => { setOrder((o) => o.filter((k) => k !== c.key)); setOpen(new Set(["Overall"])); }}><Minus className="h-4 w-4" /></button>
             </div>
           ))}
-          {!crits.length && <p className="px-1 text-xs text-muted-foreground">Add a criterion below to group trades.</p>}
+          {!crits.length && <p className="text-[11px] text-muted-foreground">Add a criterion below to group trades.</p>}
         </section>
-        <section className="rounded-xl border bg-card p-3">
-          <h3 className="mb-3 px-1 text-[15px] font-semibold">Add Ordering Criteria</h3>
-          {CRITERIA.filter((c) => !order.includes(c.key)).map((c) => (
-            <div key={c.key} className="flex items-center justify-between border-b px-1 py-2.5 text-xs last:border-0">
+        <section className="rounded-lg bg-card p-[22px] shadow-[0_1px_5px_rgba(60,40,90,0.07)]">
+          <h3 className="mb-3 text-[13px] font-semibold">Add Ordering Criteria</h3>
+          {criteria.filter((c) => !order.includes(c.key)).map((c) => (
+            <div key={c.key} className={item}>
               {c.label}
-              <button aria-label={`Add ${c.label}`} onClick={() => setOrder((o) => [...o, c.key])}><Plus className="h-4 w-4" /></button>
+              <button aria-label={`Add ${c.label}`} onClick={() => { setOrder((o) => [...o, c.key]); setOpen(new Set(["Overall"])); }}><Plus className="h-4 w-4" /></button>
             </div>
           ))}
         </section>
       </div>
 
-      <section className="overflow-x-auto rounded-xl border bg-card">
-        <table className="w-full min-w-[1100px] text-xs tabular">
-          <thead>
-            <tr className="border-b">
-              <th className="sticky left-0 w-52 border-r bg-card px-3 py-3 text-left font-semibold">Group</th>
-              {COLS.map((c) => <th key={c} className="whitespace-nowrap px-3 py-3 text-right font-semibold">{c}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => {
-              const s = rowStats(r.ts);
-              const tone = s.sum > 0 ? "text-profit" : s.sum < 0 ? "text-loss" : "";
-              const bg = s.sum > 0 ? "bg-profit-soft/40" : s.sum < 0 ? "bg-loss-soft/50" : "";
-              return (
-                <Fragment key={r.path}>
-                  <tr className={cn("border-b border-border/50", bg, tone)}>
-                    <td className={cn("sticky left-0 border-r px-3 py-2", bg || "bg-card")} style={{ paddingLeft: 12 + r.depth * 22 }}>
-                      <span className="flex items-center gap-1">
-                        {r.expandable ? (
-                          <button onClick={() => toggle(r.path)} className="text-foreground">{open.has(r.path) ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}</button>
-                        ) : <span className="w-3.5" />}
-                        {r.label}
-                      </span>
-                    </td>
-                    {s.cells.map((c, i) => <td key={i} className="px-3 py-2 text-right">{c}</td>)}
-                  </tr>
-                </Fragment>
-              );
-            })}
-          </tbody>
-        </table>
+      <section className="relative min-w-0 pr-7">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1100px] text-[11px] tabular">
+            <thead>
+              <tr className="h-[34px]">
+                <th className="sticky left-0 z-10 w-[230px] border-r bg-background px-3 text-left font-semibold">Group</th>
+                {shown.map((c) => <th key={c.k} className="whitespace-nowrap px-3 text-right font-semibold">{c.l}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => {
+                const st = rowStats(r.ts);
+                const tone = st.sum > 0 ? "text-profit" : st.sum < 0 ? "text-loss" : "";
+                const bg = st.sum > 0 ? "bg-row-win" : st.sum < 0 ? "bg-row-loss" : "bg-background";
+                return (
+                  <Fragment key={r.path}>
+                    <tr className={cn(rowCls, bg, tone)}>
+                      <td className={cn("sticky left-0 z-10 whitespace-nowrap border-r px-3", bg)} style={{ paddingLeft: 12 + r.depth * 22 }}>
+                        <span className="flex items-center gap-1">
+                          {r.expandable ? (
+                            <button onClick={() => toggle(r.path)} aria-label={open.has(r.path) ? "Collapse" : "Expand"}>{open.has(r.path) ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}</button>
+                          ) : <span className="w-3.5" />}
+                          {r.label}
+                        </span>
+                      </td>
+                      {shown.map((c) => <td key={c.k} className="px-3 text-right">{st.cells[c.k]}</td>)}
+                    </tr>
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <button type="button" aria-label="Columns" aria-expanded={colsOpen} onClick={() => setColsOpen((o) => !o)} className="absolute bottom-0 right-0 top-0 flex w-7 items-center justify-center bg-card text-[10px] font-semibold [writing-mode:vertical-rl] hover:bg-muted"><Columns3 className="mb-1 h-3.5 w-3.5" />Columns</button>
+        {colsOpen && (
+          <aside className="absolute bottom-0 right-7 top-0 z-20 w-56 overflow-auto bg-card p-2 shadow-lg">
+            {COLS.map((c) => (
+              <label key={c.k} className="flex cursor-pointer items-center gap-2 rounded px-1 py-1.5 text-[11px] hover:bg-muted">
+                <Checkbox checked={visible.includes(c.k)} onCheckedChange={() => setVisible((v) => (v.includes(c.k) ? v.filter((k) => k !== c.k) : COLS.map((x) => x.k).filter((k) => k === c.k || v.includes(k))))} />
+                {c.l}
+              </label>
+            ))}
+          </aside>
+        )}
       </section>
     </div>
   );

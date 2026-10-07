@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Folder, FolderOpen, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RichEditor, stripHtml } from "@/components/RichEditor";
@@ -28,16 +28,26 @@ function Notebook() {
     return [...saved, ...[...new Set(pages.rows.map((p) => p.folder))].filter((n) => !saved.includes(n))];
   }, [folders.rows, pages.rows]);
   const list = folder === ALL ? pages.rows : pages.rows.filter((p) => p.folder === folder);
-  const page = list.find((p) => p.id === sel) ?? null;
+  // Reference behaviour: the first note of the current list is open by default.
+  const page = list.find((p) => p.id === sel) ?? list[0] ?? null;
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  useEffect(() => { setTitle(page?.title ?? ""); setContent(page?.content ?? ""); }, [page?.id]);
+  // Pending (unsaved) edit, kept in a ref so it can be flushed when the user switches notes quickly
+  // instead of being dropped by the debounce timer.
+  const pending = useRef<{ id: string; title: string; content: string } | null>(null);
+  const flush = () => {
+    const p = pending.current; pending.current = null;
+    if (p) void pages.update(p.id, { title: p.title, content: p.content, updated_at: new Date().toISOString() });
+  };
+  useEffect(() => { flush(); setTitle(page?.title ?? ""); setContent(page?.content ?? ""); }, [page?.id]);
   useEffect(() => {
     if (!page || (title === page.title && content === (page.content ?? ""))) return;
-    const h = setTimeout(() => pages.update(page.id, { title, content, updated_at: new Date().toISOString() }), 700);
+    pending.current = { id: page.id, title, content };
+    const h = setTimeout(flush, 700);
     return () => clearTimeout(h);
   }, [title, content]);
+  useEffect(() => flush, []); // save on leaving the page
 
   const addNote = async () => {
     const target = folder === ALL ? names[0] ?? "Diary" : folder;
@@ -67,10 +77,10 @@ function Notebook() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-7rem)] flex-col gap-4">
-      <div><Button variant="ink" size="sm" onClick={addNote}><Plus className="h-4 w-4" /> Add Note</Button></div>
-      <div className="grid min-h-0 flex-1 grid-cols-[210px_250px_1fr] gap-4 rounded-xl border bg-card p-5">
-        <aside className="space-y-0.5 text-sm">
+    <div className="flex h-[calc(100vh-7rem)] flex-col gap-[18px]">
+      <div><Button variant="ink" size="sm" className="h-[30px] rounded-md px-4 text-[12px]" onClick={addNote}><Plus className="h-3.5 w-3.5" /> Add Note</Button></div>
+      <div className="grid min-h-0 flex-1 grid-cols-[210px_250px_1fr] gap-[18px] rounded-lg bg-card p-[22px] shadow-[0_1px_5px_rgba(60,40,90,0.07)]">
+        <aside className="space-y-0.5 text-[12px]">
           <FolderRow label="All Notes" active={folder === ALL} onClick={() => setFolder(ALL)} />
           {names.map((n) => (
             <FolderRow key={n} label={`(${pages.rows.filter((p) => p.folder === n).length}) ${n}`} active={folder === n}
@@ -79,13 +89,13 @@ function Notebook() {
           <button onClick={newFolder} className="px-2 pt-2 text-sm text-info hover:underline">+ New Folder</button>
         </aside>
 
-        <div className="min-h-0 overflow-y-auto rounded-lg bg-muted/50 p-2">
+        <div className="min-h-0 overflow-y-auto rounded-lg bg-background p-2">
           {list.map((p) => (
             <button key={p.id} onClick={() => setSel(p.id)}
               className={cn("mb-1 block w-full rounded-md px-3 py-3 text-left", page?.id === p.id ? "bg-card shadow-sm" : "hover:bg-card/60")}>
-              <p className="truncate text-sm font-semibold">{p.title || "Untitled"}</p>
-              <p className="truncate text-xs text-muted-foreground">{stripHtml(p.content) || "Empty note"}</p>
-              <p className="text-[11px] text-muted-foreground">{fmtStamp(p.updated_at)}</p>
+              <p className="truncate text-[12px] font-semibold">{p.title || "Untitled"}</p>
+              <p className="truncate text-[10px] text-t4">{stripHtml(p.content) || "Empty note"}</p>
+              <p className="text-[10px] text-t4">{fmtStamp(p.updated_at)}</p>
             </button>
           ))}
         </div>
@@ -96,7 +106,7 @@ function Notebook() {
           ) : (
             <>
               <div className="mb-3 flex items-center gap-2">
-                <input value={title} onChange={(e) => setTitle(e.target.value)} className="flex-1 bg-transparent text-lg font-bold outline-none" />
+                <input value={title} onChange={(e) => setTitle(e.target.value)} className="flex-1 bg-transparent text-[16px] font-bold outline-none" />
                 <Button variant="ghost" size="icon" onClick={() => { pages.remove(page.id); setSel(null); }} title="Delete note"><Trash2 className="h-4 w-4" /></Button>
               </div>
               <RichEditor value={content} onChange={setContent} className="min-h-0 flex-1" />

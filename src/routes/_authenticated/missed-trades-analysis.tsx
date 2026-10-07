@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { EquityChart, Panel, axis, tooltipStyle } from "@/components/kit";
+import { EquityChart, Panel, axis, tooltipStyle, yScale } from "@/components/kit";
 import { useJournal, useTrades } from "@/lib/journal-context";
 import { useJournalTable } from "@/lib/crud";
 import { computeStats, fmtMoney, fmtNum } from "@/lib/metrics";
@@ -90,9 +90,9 @@ function Analysis() {
             <BarChart data={vs} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid vertical={false} stroke="var(--color-border)" />
               <XAxis dataKey="k" tick={axis} tickLine={false} axisLine={{ stroke: "var(--color-border)" }} />
-              <YAxis tick={axis} tickLine={false} axisLine={{ stroke: "var(--color-border)" }} tickFormatter={(v: number) => v.toLocaleString("de-DE")} />
+              <YAxis tick={axis} tickLine={false} axisLine={{ stroke: "var(--color-border)" }} tickFormatter={(v: number) => v.toLocaleString("de-DE")} {...yScale(vs.map((d) => d.v))} />
               <Tooltip {...tooltipStyle} formatter={(v) => fmt(Number(v))} cursor={{ fill: "var(--color-muted)" }} />
-              <Bar dataKey="v" name="Return" maxBarSize={180} isAnimationActive={false}>{vs.map((d) => <Cell key={d.k} fill={d.v >= 0 ? "var(--color-profit)" : "var(--color-loss)"} />)}</Bar>
+              <Bar dataKey="v" name="Return" maxBarSize={180} isAnimationActive={false}>{vs.map((d) => <Cell key={d.k} fill={d.v >= 0 ? "var(--color-chart-1)" : "var(--color-chart-2)"} />)}</Bar>
             </BarChart>
           </ResponsiveContainer>
         </Panel>
@@ -103,9 +103,9 @@ function Analysis() {
                <BarChart data={tagData} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
                 <CartesianGrid vertical={false} stroke="var(--color-border)" />
                 <XAxis dataKey="k" tick={axis} tickLine={false} interval={0} tickFormatter={(v: string) => (v.length > 14 ? `${v.slice(0, 12)}…` : v)} axisLine={{ stroke: "var(--color-border)" }} />
-                <YAxis allowDecimals={false} tick={axis} tickLine={false} axisLine={{ stroke: "var(--color-border)" }} />
+                <YAxis tick={axis} tickLine={false} axisLine={{ stroke: "var(--color-border)" }} {...yScale(tagData.map((d) => d.v), { integer: true })} />
                 <Tooltip {...tooltipStyle} cursor={{ fill: "var(--color-muted)" }} />
-                <Bar dataKey="v" name="Missed trades" fill="var(--color-profit)" maxBarSize={140} isAnimationActive={false} />
+                <Bar dataKey="v" name="Missed trades" fill="var(--color-chart-1)" maxBarSize={140} isAnimationActive={false} />
               </BarChart>
             </ResponsiveContainer>
           ) : <NoData />}

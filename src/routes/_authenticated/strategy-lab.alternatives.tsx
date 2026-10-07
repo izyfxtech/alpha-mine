@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { RichEditor } from "@/components/RichEditor";
-import { axis, tooltipStyle } from "@/components/kit";
+import { axis, seriesValues, tooltipStyle, tradeAxis, yScale } from "@/components/kit";
 import { supabase } from "@/integrations/supabase/client";
 import { useJournal, useLookups, useTrades } from "@/lib/journal-context";
 import { useJournalTable, type Row } from "@/lib/crud";
@@ -177,15 +177,15 @@ function StrategySheet({ row, setups, tradesFor, results, onClose, onSave }: {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chart} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid vertical={false} stroke="var(--color-border)" />
-                <XAxis dataKey="n" tick={axis} tickLine={false} axisLine={false} />
-                <YAxis yAxisId="p" tick={axis} tickLine={false} axisLine={false} width={55} label={{ value: "Profit", angle: -90, position: "insideLeft", style: axis }} />
-                <YAxis yAxisId="r" orientation="right" tick={axis} tickLine={false} axisLine={false} width={40} label={{ value: "R-Multiple", angle: 90, position: "insideRight", style: axis }} />
+                <XAxis dataKey="n" tick={axis} tickLine={false} axisLine={false} {...tradeAxis(chart.length)} />
+                <YAxis yAxisId="p" tick={axis} tickLine={false} axisLine={false} width={55} {...yScale(seriesValues(chart, ["Profit", "Alternative Profit"]))} label={{ value: "Profit", angle: -90, position: "insideLeft", style: axis }} />
+                <YAxis yAxisId="r" orientation="right" tick={axis} tickLine={false} axisLine={false} width={40} {...yScale(seriesValues(chart, ["R-Multiple", "Alternative R-Multiple"]))} label={{ value: "R-Multiple", angle: 90, position: "insideRight", style: axis }} />
                 <Tooltip {...tooltipStyle} />
                 <Legend verticalAlign="top" align="right" wrapperStyle={{ fontSize: 11 }} />
-                <Line yAxisId="p" dataKey="Profit" type="monotone" dot={false} strokeWidth={2} stroke="var(--color-profit)" />
-                <Line yAxisId="p" dataKey="Alternative Profit" type="monotone" dot={false} strokeWidth={2} stroke="var(--color-profit)" strokeOpacity={0.45} />
-                <Line yAxisId="r" dataKey="R-Multiple" type="monotone" dot={false} strokeWidth={2} stroke="var(--color-loss)" />
-                <Line yAxisId="r" dataKey="Alternative R-Multiple" type="monotone" dot={false} strokeWidth={2} stroke="var(--color-loss)" strokeOpacity={0.45} />
+                <Line yAxisId="p" dataKey="Profit" type="monotone" dot={false} strokeWidth={2} stroke="var(--color-chart-1)" />
+                <Line yAxisId="p" dataKey="Alternative Profit" type="monotone" dot={false} strokeWidth={2} stroke="var(--color-chart-1)" strokeOpacity={0.45} />
+                <Line yAxisId="r" dataKey="R-Multiple" type="monotone" dot={false} strokeWidth={2} stroke="var(--color-chart-2)" />
+                <Line yAxisId="r" dataKey="Alternative R-Multiple" type="monotone" dot={false} strokeWidth={2} stroke="var(--color-chart-2)" strokeOpacity={0.45} />
               </LineChart>
             </ResponsiveContainer>
           </div>

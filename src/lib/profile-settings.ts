@@ -3,15 +3,16 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface ProfileSettings {
   showWeeklyTotals: boolean;
+  showCalendarWinrate: boolean;
   showBalance: boolean;
   allowSharing: boolean;
 }
-export const DEFAULT_PROFILE_SETTINGS: ProfileSettings = { showWeeklyTotals: true, showBalance: true, allowSharing: true };
+export const DEFAULT_PROFILE_SETTINGS: ProfileSettings = { showWeeklyTotals: false, showCalendarWinrate: false, showBalance: true, allowSharing: true };
 
 export function readSettings(raw: unknown): ProfileSettings {
   const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   const b = (k: keyof ProfileSettings) => (typeof o[k] === "boolean" ? (o[k] as boolean) : DEFAULT_PROFILE_SETTINGS[k]);
-  return { showWeeklyTotals: b("showWeeklyTotals"), showBalance: b("showBalance"), allowSharing: b("allowSharing") };
+  return { showWeeklyTotals: b("showWeeklyTotals"), showCalendarWinrate: b("showCalendarWinrate"), showBalance: b("showBalance"), allowSharing: b("allowSharing") };
 }
 
 /** Signed-in user's profile row plus parsed account toggles. */

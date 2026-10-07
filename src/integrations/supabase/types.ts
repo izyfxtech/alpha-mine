@@ -429,6 +429,46 @@ export type Database = {
         }
         Relationships: []
       }
+      planned_trade_custom_stats: {
+        Row: {
+          journal_id: string
+          planned_trade_id: string
+          option_id: string
+        }
+        Insert: {
+          journal_id: string
+          planned_trade_id: string
+          option_id: string
+        }
+        Update: {
+          journal_id?: string
+          planned_trade_id?: string
+          option_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planned_trade_custom_stats_journal_id_fkey"
+            columns: ["journal_id"]
+            isOneToOne: false
+            referencedRelation: "journals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "planned_trade_custom_stats_planned_trade_id_fkey"
+            columns: ["planned_trade_id"]
+            isOneToOne: false
+            referencedRelation: "planned_trades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "planned_trade_custom_stats_option_id_fkey"
+            columns: ["option_id"]
+            isOneToOne: false
+            referencedRelation: "custom_stat_options"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       missed_trade_custom_stats: {
         Row: {
           journal_id: string
@@ -489,6 +529,9 @@ export type Database = {
           stop_loss: number | null
           take_profit: number | null
           trade_type: string
+          option_type: string | null
+          expiry_date: string | null
+          multiplier: number
         }
         Insert: {
           created_at?: string
@@ -509,6 +552,9 @@ export type Database = {
           stop_loss?: number | null
           take_profit?: number | null
           trade_type?: string
+          option_type?: string | null
+          expiry_date?: string | null
+          multiplier?: number
         }
         Update: {
           created_at?: string
@@ -529,6 +575,9 @@ export type Database = {
           stop_loss?: number | null
           take_profit?: number | null
           trade_type?: string
+          option_type?: string | null
+          expiry_date?: string | null
+          multiplier?: number
         }
         Relationships: [
           {
@@ -625,6 +674,9 @@ export type Database = {
           stop_loss: number | null
           take_profit: number | null
           trade_type: string
+          option_type: string | null
+          expiry_date: string | null
+          multiplier: number
         }
         Insert: {
           created_at?: string
@@ -640,6 +692,9 @@ export type Database = {
           stop_loss?: number | null
           take_profit?: number | null
           trade_type?: string
+          option_type?: string | null
+          expiry_date?: string | null
+          multiplier?: number
         }
         Update: {
           created_at?: string
@@ -655,6 +710,9 @@ export type Database = {
           stop_loss?: number | null
           take_profit?: number | null
           trade_type?: string
+          option_type?: string | null
+          expiry_date?: string | null
+          multiplier?: number
         }
         Relationships: [
           {

@@ -1,6 +1,6 @@
 import {
   Home, Briefcase, BookOpen, BarChart3, LineChart, BookMarked, NotebookPen, FlaskRound,
-  FileBarChart, FlaskConical, Settings, type LucideIcon,
+  FileBarChart, FlaskConical, Settings, Sparkles, type LucideIcon,
 } from "lucide-react";
 
 export const CHARTS = [
@@ -44,11 +44,12 @@ export const NAV: NavItem[] = [
   { label: "Journal", icon: BookOpen, to: "/journal" },
   { label: "Trade Analytics", icon: BarChart3, to: "/analytics" },
   { label: "Equity Graph", icon: LineChart, to: "/equity" },
+  { label: "Edge Finder", icon: Sparkles, to: "/edge-finder" },
   {
     label: "Advanced Journaling", icon: BookMarked, children: [
       { label: "Trading Plans", to: "/plans" },
-      { label: "Missed Trades", to: "/missed-trades" },
-      { label: "Missed Trades Analysis", to: "/missed-trades-analysis" },
+      { label: "Missed Trades - Journal", to: "/missed-trades" },
+      { label: "Missed Trades - Analysis", to: "/missed-trades-analysis" },
     ],
   },
   {
@@ -64,8 +65,8 @@ export const NAV: NavItem[] = [
   {
     label: "Reports", icon: FileBarChart, children: [
       { label: "Calendar", to: "/reports/calendar" },
-      { label: "Monthly Report", to: "/reports/monthly" },
-      { label: "Chart Book", to: "/reports/chart-book" },
+      { label: "Monthly Reports", to: "/reports/monthly" },
+      { label: "Chartbook", to: "/reports/chart-book" },
     ],
   },
   {

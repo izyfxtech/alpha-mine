@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowUp, X } from "lucide-react";
 import { toast } from "sonner";
 import type { Shot } from "@/components/Screenshots";
@@ -22,6 +22,18 @@ export function ScreenshotSlots({ existing, pending, onAdd, onRemoveExisting, on
     if (items.length > available) toast.error("A trade can have at most 6 screenshots");
     onAdd(items.slice(0, available));
   };
+  // Ctrl/Cmd+V anywhere on this tab drops a copied screenshot into the next free slot
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      if (e.defaultPrevented) return;
+      const files = Array.from(e.clipboardData?.files ?? []).filter((f) => f.type.startsWith("image/"));
+      if (!files.length) return;
+      e.preventDefault();
+      addLimited(fromFiles(files));
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  });
   return (
     <div className="space-y-6">
       {filled.map((f) => (

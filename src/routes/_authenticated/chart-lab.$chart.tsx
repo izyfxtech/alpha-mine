@@ -6,7 +6,7 @@ import { useLookups, useTrades } from "@/lib/journal-context";
 import { useTradeDrawer } from "@/components/TradeDrawer";
 import { CHARTS } from "@/lib/nav";
 import { computeStats, fmtMoney, fmtNum, groupBy, isLoss, isWin, stdev, type Trade } from "@/lib/metrics";
-import { AccentStat, Empty, axis } from "@/components/kit";
+import { AccentStat, Empty, StatGrid, axis, niceTicks, pctScale, seriesValues, tradeAxis, yScale } from "@/components/kit";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
@@ -27,13 +27,13 @@ export const Route = createFileRoute("/_authenticated/chart-lab/$chart")({
 });
 
 /* ---------------- shared building blocks ---------------- */
-const tickFmt = (n: number) => n.toLocaleString("de-DE");
+const tickFmt = (n: number) => Math.round(n * 100) / 100 === Math.round(n) ? Math.round(n).toLocaleString("de-DE") : n.toLocaleString("de-DE");
 const sorted = (ts: Trade[]) => [...ts].sort((a, b) => a.entry_at.localeCompare(b.entry_at));
 
 function Select<T extends string>({ label, value, options, onChange, width = "w-40" }: { label: string; value: T; options: readonly T[]; onChange: (v: T) => void; width?: string }) {
   return (
-    <div className="relative rounded-md border bg-card px-3 pb-1.5 pt-3">
-      <span className="absolute -top-2 left-2 bg-card px-1 text-[10px] text-muted-foreground">{label}</span>
+    <div className="relative rounded-md border border-line2 bg-card px-3 pb-1.5 pt-3">
+      <span className="absolute -top-2 left-2 bg-card px-1 text-[10px] text-t2">{label}</span>
       <DropdownMenu>
         <DropdownMenuTrigger className={cn("flex items-center justify-between gap-2 text-sm", width)}><span className="truncate">{value}</span><ChevronDown className="h-4 w-4 shrink-0" /></DropdownMenuTrigger>
         <DropdownMenuContent align="start">
@@ -44,16 +44,24 @@ function Select<T extends string>({ label, value, options, onChange, width = "w-
   );
 }
 
-function ChartCard({ controls, legend, children }: { controls?: ReactNode; legend?: ReactNode; children: ReactNode }) {
+type CardSize = "sm" | "md" | "lg" | "full";
+/** Card heights taken from the reference screens: 620 / 747 / 888 / 990 px on a 1080px-high window. */
+const CARD_H: Record<CardSize, string> = {
+  sm: "h-[max(520px,calc(100vh-457px))]",
+  md: "h-[max(600px,calc(100vh-330px))]",
+  lg: "h-[max(640px,calc(100vh-192px))]",
+  full: "h-[max(700px,calc(100vh-87px))]",
+};
+function ChartCard({ controls, legend, children, size = "lg" }: { controls?: ReactNode; legend?: ReactNode; children: ReactNode; size?: CardSize }) {
   return (
-    <section className="rounded-xl border bg-card p-5">
-      {(controls || legend) && <div className="mb-4 flex flex-wrap items-center gap-3">{controls}<div className="ml-auto flex gap-4 text-sm">{legend}</div></div>}
-      <div className="h-[clamp(320px,56vh,540px)] min-w-0 overflow-hidden">{children}</div>
+    <section className={cn("flex flex-col rounded-lg bg-card p-[22px] shadow-[0_1px_5px_rgba(60,40,90,0.07)]", CARD_H[size])}>
+      {(controls || legend) && <div className="mb-4 flex flex-wrap items-center gap-3">{controls}<div className="ml-auto flex gap-4 text-[12px]">{legend}</div></div>}
+      <div className="min-h-0 min-w-0 flex-1 overflow-hidden">{children}</div>
     </section>
   );
 }
 const Dot = ({ c, children }: { c: string; children: ReactNode }) => <span className="flex items-center gap-1.5"><span className={cn("h-2 w-2 rounded-full", c)} />{children}</span>;
-const Stats = ({ children }: { children: ReactNode }) => <div className="flex flex-wrap gap-3">{children}</div>;
+const Stats = ({ children }: { children: ReactNode }) => <StatGrid>{children}</StatGrid>;
 
 function Tip({ title, lines }: { title: string; lines: [string, string][] }) {
   return (
@@ -64,34 +72,37 @@ function Tip({ title, lines }: { title: string; lines: [string, string][] }) {
   );
 }
 
-const DISPLAY = ["Return ($)", "Return (%)", "R Multiple (R)", "Winrate (%)", "Number of Trades"] as const;
+const DISPLAY = ["Return ($)", "Average Return ($)", "Return (%)", "Average Return (%)", "R Multiple (R)", "Average R Multiple (R)", "Winrate (%)", "Number of Trades"] as const;
 type Display = (typeof DISPLAY)[number];
 const SORT = ["By Value", "By Name", "By Trades"] as const;
 type Sort = (typeof SORT)[number];
 
-function valueOf(ts: Trade[], d: Display, start: number, mode: "sum" | "avg" = "sum") {
+/** Value of one group for the chosen metric. "Average ..." divides the total by the number of trades. */
+function valueOf(ts: Trade[], d: Display, start: number) {
   const n = ts.length || 1;
-  const div = mode === "avg" ? n : 1;
-  switch (d) {
-    case "Return (%)": return start ? (ts.reduce((a, t) => a + t.net_pnl, 0) / start) * 100 / div : 0;
-    case "R Multiple (R)": return ts.reduce((a, t) => a + (t.r ?? 0), 0) / div;
-    case "Winrate (%)": return (ts.filter(isWin).length / n) * 100;
-    case "Number of Trades": return ts.length;
-    default: return ts.reduce((a, t) => a + t.net_pnl, 0) / div;
-  }
+  const avg = d.startsWith("Average");
+  const div = avg ? n : 1;
+  const unit = d.includes("(%)") ? "pct" : d.includes("(R)") ? "r" : "cur";
+  if (d === "Winrate (%)") return (ts.filter(isWin).length / n) * 100;
+  if (d === "Number of Trades") return ts.length;
+  const total = unit === "pct" ? (start ? (ts.reduce((a, t) => a + t.net_pnl, 0) / start) * 100 : 0) : unit === "r" ? ts.reduce((a, t) => a + (t.r ?? 0), 0) : ts.reduce((a, t) => a + t.net_pnl, 0);
+  return total / div;
 }
-const fmtD = (d: Display, v: number, cur: string) => d === "Return ($)" ? fmtMoney(v, cur) : d === "R Multiple (R)" ? `${fmtNum(v)}R` : d === "Number of Trades" ? String(v) : `${fmtNum(v)}%`;
+const fmtD = (d: Display, v: number, cur: string) => d.includes("($)") ? fmtMoney(v, cur) : d.includes("(R)") ? `${fmtNum(v)}R` : d === "Number of Trades" ? String(v) : `${fmtNum(v)}%`;
 
-function BarsBig({ data, yLabel, fmt, extra, hideTicks }: { data: { k: string; v: number; n?: number }[]; yLabel: string; fmt: (v: number) => string; extra?: (d: { k: string; v: number; n?: number }) => [string, string][]; hideTicks?: boolean }) {
+function BarsBig({ data, yLabel, fmt, extra, hideTicks, rotate }: { data: { k: string; v: number; n?: number }[]; yLabel: string; fmt: (v: number) => string; extra?: (d: { k: string; v: number; n?: number }) => [string, string][]; hideTicks?: boolean; rotate?: boolean }) {
+  const vals = data.map((d) => d.v);
+  const { ticks, lo, hi } = niceTicks(Math.min(0, ...vals), Math.max(0, ...vals), 8);
+  const tilt = rotate ?? !!hideTicks;
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <BarChart data={data} margin={{ top: 8, right: 8, left: 4, bottom: 4 }}>
-        <CartesianGrid vertical={false} stroke="var(--color-border)" />
-        <XAxis dataKey="k" tick={axis} tickLine={false} axisLine={false} interval={hideTicks ? "preserveStartEnd" : 0} minTickGap={hideTicks ? 30 : 0} tickFormatter={(s: string) => (s.length > 12 ? s.slice(0, 11) + "…" : s)} />
-        <YAxis tick={axis} tickLine={false} axisLine={false} width={58} tickFormatter={tickFmt} label={{ value: yLabel, angle: -90, position: "insideLeft", style: { ...axis, textAnchor: "middle" } }} />
-        <ReferenceLine y={0} stroke="var(--color-muted-foreground)" />
-        <Tooltip cursor={{ fill: "var(--color-muted)", opacity: 0.4 }} content={({ active, payload }) => active && payload?.length ? <Tip title={(payload[0].payload as { k: string }).k} lines={[[yLabel, fmt((payload[0].payload as { v: number }).v)], ...(extra ? extra(payload[0].payload as never) : [])]} /> : null} />
-        <Bar dataKey="v" maxBarSize={130} isAnimationActive={false}>{data.map((d, i) => <Cell key={i} fill={d.v >= 0 ? "var(--color-profit)" : "var(--color-loss)"} />)}</Bar>
+      <BarChart data={data} margin={{ top: 8, right: 8, left: 4, bottom: 4 }} barCategoryGap={hideTicks ? "18%" : "22%"}>
+        <CartesianGrid vertical={false} stroke="var(--color-grid)" />
+        <XAxis dataKey="k" tick={axis} tickLine={false} axisLine={false} interval={0} angle={tilt ? -60 : 0} textAnchor={tilt ? "end" : "middle"} height={tilt ? 70 : 30} tickMargin={6} tickFormatter={(s: string) => (s.length > 12 && !tilt ? s.slice(0, 11) + "…" : s)} />
+        <YAxis tick={axis} tickLine={false} axisLine={false} width={58} ticks={ticks} domain={[lo, hi]} interval={0} tickFormatter={tickFmt} label={{ value: yLabel, angle: -90, position: "insideLeft", style: { ...axis, textAnchor: "middle" } }} />
+        <ReferenceLine y={0} stroke="var(--color-axis-line)" />
+        <Tooltip cursor={{ fill: "rgba(90,186,80,0.08)" }} content={({ active, payload }) => active && payload?.length ? <Tip title={(payload[0].payload as { k: string }).k} lines={[[yLabel, fmt((payload[0].payload as { v: number }).v)], ...(extra ? extra(payload[0].payload as never) : [])]} /> : null} />
+        <Bar dataKey="v" maxBarSize={130} isAnimationActive={false}>{data.map((d, i) => <Cell key={i} fill={d.v >= 0 ? "var(--color-chart-1)" : "var(--color-chart-2)"} />)}</Bar>
       </BarChart>
     </ResponsiveContainer>
   );
@@ -112,7 +123,7 @@ function GroupTable({ rows, cur }: { rows: { k: string; ts: Trade[] }[]; cur: st
 }
 
 /** Performance by Setup / Instrument / Time / Day / Custom stats / Trade comments */
-function GroupChart({ trades, start, cur, by, noun, order, extraControl }: { trades: Trade[]; start: number; cur: string; by: (t: Trade) => string[]; noun: string; order?: string[]; extraControl?: ReactNode }) {
+function GroupChart({ trades, start, cur, by, noun, order, extraControl, showTable = true }: { trades: Trade[]; start: number; cur: string; by: (t: Trade) => string[]; noun: string; order?: string[]; extraControl?: ReactNode; showTable?: boolean }) {
   const [display, setDisplay] = useState<Display>("Return ($)");
   const [sort, setSort] = useState<Sort>(order ? "By Name" : "By Value");
   const groups = useMemo(() => {
@@ -130,16 +141,16 @@ function GroupChart({ trades, start, cur, by, noun, order, extraControl }: { tra
   const bestA = [...sums].sort((a, b) => b.avg - a.avg)[0], worstA = [...sums].sort((a, b) => a.avg - b.avg)[0];
   return (
     <div className="space-y-4">
-      <ChartCard controls={<><Select label="Display" value={display} options={DISPLAY} onChange={setDisplay} /><Select label="Sort By" value={sort} options={SORT} onChange={setSort} />{extraControl}</>}>
+      <ChartCard size="sm" controls={<><Select label="Display" value={display} options={DISPLAY} onChange={setDisplay} /><Select label="Sort By" value={sort} options={SORT} onChange={setSort} />{extraControl}</>}>
         <BarsBig data={groups} yLabel={display} fmt={(v) => fmtD(display, v, cur)} extra={(d) => [["Number of trades", String(d.n)]]} />
       </ChartCard>
-      <GroupTable rows={groups} cur={cur} />
+      {showTable && <GroupTable rows={groups} cur={cur} />}
       <Stats>
-        <AccentStat label={`Best ${noun} Sum`} value={fmtMoney(best.sum, cur)} />
-        <AccentStat label={`Worst ${noun} Sum`} value={fmtMoney(worst.sum, cur)} tone={worst.sum < 0 ? "neg" : undefined} />
-        <AccentStat label={`Best ${noun} Avg`} value={fmtMoney(bestA.avg, cur)} />
-        <AccentStat label={`Worst ${noun} Avg`} value={fmtMoney(worstA.avg, cur)} tone={worstA.avg < 0 ? "neg" : undefined} />
-        <AccentStat label={`Number of ${noun}s`} value={groups.length} />
+        <AccentStat info={showTable ? undefined : `${noun} with the highest total return`} label={`Best ${noun} Sum`} value={fmtMoney(best.sum, cur)} />
+        <AccentStat info={showTable ? undefined : `${noun} with the lowest total return`} label={`Worst ${noun} Sum`} value={fmtMoney(worst.sum, cur)} tone={worst.sum < 0 ? "neg" : undefined} />
+        <AccentStat info={showTable ? undefined : `${noun} with the highest average return`} label={`Best ${noun} Avg`} value={fmtMoney(bestA.avg, cur)} />
+        <AccentStat info={showTable ? undefined : `${noun} with the lowest average return`} label={`Worst ${noun} Avg`} value={fmtMoney(worstA.avg, cur)} tone={worstA.avg < 0 ? "neg" : undefined} />
+        {showTable && <AccentStat label={`Number of ${noun}s`} value={groups.length} />}
       </Stats>
     </div>
   );
@@ -165,14 +176,14 @@ function Consecutive({ trades, cur, start }: { trades: Trade[]; cur: string; sta
     });
   }, [trades, kind, avg, start]);
   return (
-    <ChartCard controls={<><Select label="Consecutive" value={kind} options={["Winners", "Losers"] as const} onChange={setKind} /><Select label="Average" value={avg} options={["Return ($)", "Return (%)", "Frequency"] as const} onChange={setAvg} /></>}>
+    <ChartCard size="full" controls={<><Select label="Consecutive" value={kind} options={["Winners", "Losers"] as const} onChange={setKind} /><Select label="Average" value={avg} options={["Return ($)", "Return (%)", "Frequency"] as const} onChange={setAvg} /></>}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 8, right: 8, left: 4, bottom: 18 }}>
-          <CartesianGrid vertical={false} stroke="var(--color-border)" />
+          <CartesianGrid vertical={false} stroke="var(--color-grid)" />
           <XAxis dataKey="k" tick={axis} tickLine={false} axisLine={{ stroke: "var(--color-border)" }} label={{ value: `Consecutive ${kind}`, position: "insideBottom", offset: -12, style: axis }} />
-          <YAxis tick={axis} tickLine={false} axisLine={false} width={58} tickFormatter={tickFmt} label={{ value: avg === "Frequency" ? "Frequency" : `Average ${avg}`, angle: -90, position: "insideLeft", style: { ...axis, textAnchor: "middle" } }} />
+          <YAxis tick={axis} tickLine={false} axisLine={false} width={58} tickFormatter={tickFmt} {...yScale(data.map((d) => d.v), { integer: avg === "Frequency" })} label={{ value: avg === "Frequency" ? "Frequency" : `Average ${avg}`, angle: -90, position: "insideLeft", style: { ...axis, textAnchor: "middle" } }} />
           <Tooltip cursor={{ fill: "var(--color-muted)", opacity: 0.4 }} content={({ active, payload }) => active && payload?.length ? <Tip title={`Consecutive ${kind}: ${(payload[0].payload as { k: string }).k}`} lines={[[avg, avg === "Frequency" ? String((payload[0].payload as { v: number }).v) : avg === "Return ($)" ? fmtMoney((payload[0].payload as { v: number }).v, cur) : `${(payload[0].payload as { v: number }).v}%`], ["Frequency", String((payload[0].payload as { n: number }).n)]]} /> : null} />
-          <Bar dataKey="v" fill={kind === "Winners" ? "var(--color-profit)" : "var(--color-loss)"} maxBarSize={120} isAnimationActive={false} />
+          <Bar dataKey="v" fill={kind === "Winners" ? "var(--color-chart-1)" : "var(--color-chart-2)"} maxBarSize={120} isAnimationActive={false} />
         </BarChart>
       </ResponsiveContainer>
     </ChartCard>
@@ -203,15 +214,15 @@ function Drawdown({ trades, cur, start }: { trades: Trade[]; cur: string; start:
   }, [trades, display, start]);
   return (
     <div className="space-y-4">
-      <ChartCard controls={<Select label="Display" value={display} options={["Return ($)", "Return (%)"] as const} onChange={setDisplay} />}>
+      <ChartCard size="full" controls={<Select label="Display" value={display} options={["Return ($)", "Return (%)"] as const} onChange={setDisplay} />}>
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 8, right: 8, left: 4, bottom: 18 }} className="cursor-pointer" onClick={(e: { activeIndex?: number | string | null }) => { const t = ordered[Number(e?.activeIndex)]; if (t) drawer.open(t); }}>
-            <defs><linearGradient id="ddg" x1="0" y1="0" x2="0" y2="1"><stop offset={0} stopColor="var(--color-loss)" stopOpacity={0.05} /><stop offset={1} stopColor="var(--color-loss)" stopOpacity={0.85} /></linearGradient></defs>
-            <CartesianGrid vertical={false} stroke="var(--color-border)" />
-            <XAxis dataKey="x" tick={axis} tickLine={false} axisLine={false} minTickGap={40} label={{ value: "Trades", position: "insideBottom", offset: -12, style: axis }} />
-            <YAxis tick={axis} tickLine={false} axisLine={false} width={58} tickFormatter={tickFmt} domain={["dataMin", 0]} label={{ value: `Drawdown (${display === "Return ($)" ? "$" : "%"})`, angle: -90, position: "insideLeft", style: { ...axis, textAnchor: "middle" } }} />
+            <defs><linearGradient id="ddg" x1="0" y1="0" x2="0" y2="1"><stop offset={0} stopColor="var(--color-chart-2)" stopOpacity={0.05} /><stop offset={1} stopColor="var(--color-chart-2)" stopOpacity={0.85} /></linearGradient></defs>
+            <CartesianGrid vertical={false} stroke="var(--color-grid)" />
+            <XAxis dataKey="x" tick={axis} tickLine={false} axisLine={false} {...tradeAxis(data.length)} label={{ value: "Trades", position: "insideBottom", offset: -12, style: axis }} />
+            <YAxis tick={axis} tickLine={false} axisLine={false} width={58} tickFormatter={tickFmt} {...yScale(data.map((d) => d.v))} label={{ value: `Drawdown (${display === "Return ($)" ? "$" : "%"})`, angle: -90, position: "insideLeft", style: { ...axis, textAnchor: "middle" } }} />
             <Tooltip content={({ active, payload }) => active && payload?.length ? <Tip title={`Trade #${(payload[0].payload as { x: number }).x}`} lines={[["Drawdown", display === "Return ($)" ? fmtMoney((payload[0].payload as { v: number }).v, cur) : `${(payload[0].payload as { v: number }).v}%`]]} /> : null} />
-            <Area type="monotone" dataKey="v" stroke="var(--color-loss)" strokeWidth={1.5} fill="url(#ddg)" baseValue={0} isAnimationActive={false} />
+            <Area type="monotone" dataKey="v" stroke="var(--color-chart-2)" strokeWidth={1.5} fill="url(#ddg)" baseValue={0} isAnimationActive={false} />
           </AreaChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -240,15 +251,15 @@ function Efficiency({ trades }: { trades: Trade[] }) {
   const rows = (["entry", "exit", "management"] as const).map((p) => ({ k: p === "entry" ? "Entries" : p === "exit" ? "Exits" : "Management", m: pct((t) => mistake(t, p)), f: pct((t) => t.comments.some((c) => c.phase === p && c.sentiment === "positive")) }));
   return (
     <div className="space-y-4">
-      <ChartCard>
+      <ChartCard size="md">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 8, right: 8, left: 4, bottom: 18 }} className="cursor-pointer" onClick={(e: { activeIndex?: number | string | null }) => { const t = ordered[Number(e?.activeIndex)]; if (t) drawer.open(t); }}>
-            <defs><linearGradient id="effg" x1="0" y1="0" x2="0" y2="1"><stop offset={0} stopColor="var(--color-profit)" stopOpacity={0.75} /><stop offset={1} stopColor="var(--color-profit)" stopOpacity={0.05} /></linearGradient></defs>
-            <CartesianGrid vertical={false} stroke="var(--color-border)" />
-            <XAxis dataKey="x" tick={axis} tickLine={false} axisLine={false} minTickGap={40} label={{ value: "Trades", position: "insideBottom", offset: -12, style: axis }} />
-            <YAxis tick={axis} tickLine={false} axisLine={false} width={50} domain={[0, 100]} label={{ value: "Efficiency (%)", angle: -90, position: "insideLeft", style: { ...axis, textAnchor: "middle" } }} />
+            <defs><linearGradient id="effg" x1="0" y1="0" x2="0" y2="1"><stop offset={0} stopColor="var(--color-chart-1)" stopOpacity={0.75} /><stop offset={1} stopColor="var(--color-chart-1)" stopOpacity={0.05} /></linearGradient></defs>
+            <CartesianGrid vertical={false} stroke="var(--color-grid)" />
+            <XAxis dataKey="x" tick={axis} tickLine={false} axisLine={false} {...tradeAxis(data.length)} label={{ value: "Trades", position: "insideBottom", offset: -12, style: axis }} />
+            <YAxis tick={axis} tickLine={false} axisLine={false} width={50} {...pctScale} label={{ value: "Efficiency (%)", angle: -90, position: "insideLeft", style: { ...axis, textAnchor: "middle" } }} />
             <Tooltip content={({ active, payload }) => active && payload?.length ? <Tip title={`Trade #${(payload[0].payload as { x: number }).x}`} lines={[["Efficiency", `${(payload[0].payload as { v: number }).v}%`]]} /> : null} />
-            <Area type="monotone" dataKey="v" stroke="var(--color-profit)" strokeWidth={1.5} fill="url(#effg)" isAnimationActive={false} />
+            <Area type="monotone" dataKey="v" stroke="var(--color-chart-1)" strokeWidth={1.5} fill="url(#effg)" isAnimationActive={false} />
           </AreaChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -283,27 +294,28 @@ function ExitAnalysis({ trades }: { trades: Trade[] }) {
   });
   const avg = (a: number[]) => (a.length ? a.reduce((s, x) => s + x, 0) / a.length : 0);
   const W = data.filter((d) => d.win), L = data.filter((d) => !d.win);
+  const yt = niceTicks(Math.min(-100, ...data.map((d) => Math.min(d.dn, d.exit))), Math.max(100, ...data.map((d) => Math.max(d.up, d.exit))), 6);
   return (
     <div className="space-y-4">
-      <ChartCard legend={<><Dot c="bg-profit">Updraw</Dot><Dot c="bg-loss">Drawdown</Dot></>}>
+      <ChartCard size="full" legend={<><Dot c="bg-profit">Updraw</Dot><Dot c="bg-loss">Drawdown</Dot></>}>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} stackOffset="sign" margin={{ top: 8, right: 8, left: 4, bottom: 18 }} className="cursor-pointer" onClick={(e: { activeIndex?: number | string | null }) => { const d = data[Number(e?.activeIndex)]; if (d) drawer.open(d.trade); }}>
-            <CartesianGrid vertical={false} stroke="var(--color-border)" />
+            <CartesianGrid vertical={false} stroke="var(--color-grid)" />
             <XAxis dataKey="x" tick={axis} tickLine={false} axisLine={false} label={{ value: "Trades", position: "insideBottom", offset: -12, style: axis }} />
-            <YAxis tick={axis} tickLine={false} axisLine={false} width={50} label={{ value: "Updraw / Drawdown", angle: -90, position: "insideLeft", style: { ...axis, textAnchor: "middle" } }} />
-            <ReferenceLine y={100} stroke="var(--color-profit)" />
-            <ReferenceLine y={-100} stroke="var(--color-loss)" />
+            <YAxis tick={axis} tickLine={false} axisLine={false} width={50} ticks={yt.ticks} domain={[yt.lo, yt.hi]} interval={0} label={{ value: "Updraw / Drawdown", angle: -90, position: "insideLeft", style: { ...axis, textAnchor: "middle" } }} />
+            <ReferenceLine y={100} stroke="var(--color-chart-1)" />
+            <ReferenceLine y={-100} stroke="var(--color-chart-2)" />
             <ReferenceLine y={0} stroke="var(--color-foreground)" />
             <Tooltip content={({ active, payload }) => active && payload?.length ? <Tip title={`Trade ${(payload[0].payload as { x: number }).x}`} lines={[["Updraw", `${(payload[0].payload as { up: number }).up}%`], ["Drawdown", `${(payload[0].payload as { dn: number }).dn}%`], ["Exit", `${(payload[0].payload as { exit: number }).exit}%`]]} /> : null} />
-            <Bar dataKey="up" stackId="a" fill="var(--color-profit)" isAnimationActive={false} />
-            <Bar dataKey="dn" stackId="a" fill="var(--color-loss)" isAnimationActive={false} />
-            <Scatter dataKey="exit" fill="var(--color-foreground)" shape="diamond" isAnimationActive={false} />
+            <Bar dataKey="up" stackId="a" fill="var(--color-chart-1)" isAnimationActive={false} />
+            <Bar dataKey="dn" stackId="a" fill="var(--color-chart-2)" isAnimationActive={false} />
+            <Scatter dataKey="exit" fill="#111" shape={(pp: { cx?: number; cy?: number }) => <circle cx={pp.cx} cy={pp.cy} r={2.5} fill="#111" />} isAnimationActive={false} />
           </ComposedChart>
         </ResponsiveContainer>
       </ChartCard>
       <Stats>
-        <AccentStat label="Trades Hit TP" value={`${fmtNum((data.filter((d) => d.up >= 100).length / data.length) * 100)}%`} />
-        <AccentStat label="Trades Hit SL" value={`${fmtNum((data.filter((d) => d.dn <= -100).length / data.length) * 100)}%`} />
+        <AccentStat info="Share of trades whose price reached the take profit" label="Trades Hit TP" value={`${fmtNum((data.filter((d) => d.up >= 100).length / data.length) * 100)}%`} />
+        <AccentStat info="Share of trades whose price reached the stop loss" label="Trades Hit SL" value={`${fmtNum((data.filter((d) => d.dn <= -100).length / data.length) * 100)}%`} />
         <AccentStat label="Avg. Updraw Winner" value={`${Math.round(avg(W.map((d) => d.up)))}%`} />
         <AccentStat label="Avg. Updraw Loser" value={`${Math.round(avg(L.map((d) => d.up)))}%`} />
         <AccentStat label="Avg. Drawdown Winner" value={`${Math.round(avg(W.map((d) => d.dn)))}%`} />
@@ -325,17 +337,19 @@ function HoldingTime({ trades, cur, start }: { trades: Trade[]; cur: string; sta
   const W = pts.filter((p) => p.win && p.pnl > 0), L = pts.filter((p) => p.pnl < 0);
   const avg = (a: number[]) => (a.length ? a.reduce((s, x) => s + x, 0) / a.length : 0);
   const big = (a: typeof pts, f: (a: number, b: number) => boolean) => a.reduce<(typeof pts)[number] | null>((m, p) => (!m || f(p.pnl, m.pnl) ? p : m), null);
+  const xt = niceTicks(0, Math.max(...pts.map((p) => p.x)), 15);
+  const yt = niceTicks(Math.min(...pts.map((p) => p.y)), Math.max(...pts.map((p) => p.y)), 6);
   return (
     <div className="space-y-4">
-      <ChartCard controls={<><Select label="Display" value={display} options={["Return ($)", "Return (%)", "R Multiple (R)"] as const} onChange={setDisplay} /><Select label="Time Settings" value={unit} options={["Minutes", "Hours", "Days"] as const} onChange={setUnit} /></>}>
+      <ChartCard size="lg" controls={<><Select label="Display" value={display} options={["Return ($)", "Return (%)", "R Multiple (R)"] as const} onChange={setDisplay} /><Select label="Time Settings" value={unit} options={["Minutes", "Hours", "Days"] as const} onChange={setUnit} /></>}>
         <ResponsiveContainer width="100%" height="100%">
           <ScatterChart margin={{ top: 8, right: 8, left: 4, bottom: 18 }}>
-            <CartesianGrid vertical={false} stroke="var(--color-border)" />
-            <XAxis type="number" dataKey="x" tick={axis} tickLine={false} axisLine={false} label={{ value: unit, position: "insideBottom", offset: -12, style: axis }} />
-            <YAxis type="number" dataKey="y" tick={axis} tickLine={false} axisLine={false} width={58} tickFormatter={tickFmt} label={{ value: display, angle: -90, position: "insideLeft", style: { ...axis, textAnchor: "middle" } }} />
+            <CartesianGrid vertical={false} stroke="var(--color-grid)" />
+            <XAxis type="number" dataKey="x" ticks={xt.ticks} domain={[xt.lo, xt.hi]} interval={0} tick={axis} tickLine={false} axisLine={false} label={{ value: unit, position: "insideBottom", offset: -12, style: axis }} />
+            <YAxis type="number" dataKey="y" ticks={yt.ticks} domain={[yt.lo, yt.hi]} interval={0} tick={axis} tickLine={false} axisLine={false} width={58} tickFormatter={tickFmt} label={{ value: display, angle: -90, position: "insideLeft", style: { ...axis, textAnchor: "middle" } }} />
             <ReferenceLine y={0} stroke="var(--color-muted-foreground)" />
             <Tooltip content={({ active, payload }) => { if (!active || !payload?.length) return null; const p = payload[0].payload as (typeof pts)[number]; return <Tip title={`Trade #${p.id}`} lines={[["Exit Date", p.exit], ["Holding Time", `${p.x} ${unit.toLowerCase()}`], ["Return", display === "Return ($)" ? fmtMoney(p.y, cur) : String(p.y)]]} />; }} />
-            <Scatter data={pts} isAnimationActive={false} cursor="pointer" onClick={(d: { payload?: { trade?: Trade } }) => d?.payload?.trade && drawer.open(d.payload.trade)}>{pts.map((p, i) => <Cell key={i} fill={p.y >= 0 ? "var(--color-profit)" : "var(--color-loss)"} />)}</Scatter>
+            <Scatter data={pts} isAnimationActive={false} cursor="pointer" onClick={(d: { payload?: { trade?: Trade } }) => d?.payload?.trade && drawer.open(d.payload.trade)}>{pts.map((p, i) => <Cell key={i} fill={p.y >= 0 ? "var(--color-chart-1)" : "var(--color-chart-2)"} />)}</Scatter>
           </ScatterChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -344,8 +358,8 @@ function HoldingTime({ trades, cur, start }: { trades: Trade[]; cur: string; sta
         <AccentStat label={`Losers Holding Time Avg (${unit})`} value={fmtNum(avg(L.map((p) => p.x)))} />
         <AccentStat label={`Winners Holding Time Sum (${unit})`} value={fmtNum(W.reduce((a, p) => a + p.x, 0))} />
         <AccentStat label={`Losers Holding Time Sum (${unit})`} value={fmtNum(L.reduce((a, p) => a + p.x, 0))} />
-        <AccentStat label={`Biggest Winner (${unit})`} value={fmtNum(big(W, (a, b) => a > b)?.x ?? 0)} />
-        <AccentStat label={`Biggest Loser (${unit})`} value={fmtNum(big(L, (a, b) => a < b)?.x ?? 0)} />
+        <AccentStat info="Holding time of the trade with the biggest gain" label={`Biggest Winner (${unit})`} value={fmtNum(big(W, (a, b) => a > b)?.x ?? 0)} />
+        <AccentStat info="Holding time of the trade with the biggest loss" label={`Biggest Loser (${unit})`} value={fmtNum(big(L, (a, b) => a < b)?.x ?? 0)} />
       </Stats>
     </div>
   );
@@ -353,7 +367,7 @@ function HoldingTime({ trades, cur, start }: { trades: Trade[]; cur: string; sta
 
 const RATIOS = ["Sharpe Ratio", "Sortino Ratio", "Gain To Pain", "Calmar", "Profit Factor", "SQN"] as const;
 type Ratio = (typeof RATIOS)[number];
-const RATIO_COLORS: Record<Ratio, string> = { "Sharpe Ratio": "var(--color-chart-5)", "Sortino Ratio": "var(--color-chart-4)", "Gain To Pain": "var(--color-profit)", Calmar: "var(--color-chart-3)", "Profit Factor": "var(--color-loss)", SQN: "var(--color-foreground)" };
+const RATIO_COLORS: Record<Ratio, string> = { "Sharpe Ratio": "var(--color-chart-5)", "Sortino Ratio": "var(--color-chart-4)", "Gain To Pain": "var(--color-chart-1)", Calmar: "var(--color-chart-3)", "Profit Factor": "var(--color-chart-2)", SQN: "var(--color-foreground)" };
 
 function Ratios({ trades, start }: { trades: Trade[]; start: number }) {
   const [sel, setSel] = useState<Set<Ratio>>(new Set(["Sharpe Ratio"]));
@@ -378,7 +392,7 @@ function Ratios({ trades, start }: { trades: Trade[]; start: number }) {
   }, [trades, start]);
   const label = [...sel].join(", ") || "Select ratio";
   return (
-    <ChartCard
+    <ChartCard size="full"
       controls={
         <div className="relative rounded-md border bg-card px-3 pb-1.5 pt-3">
           <span className="absolute -top-2 left-2 bg-card px-1 text-[10px] text-muted-foreground">Ratio</span>
@@ -394,9 +408,9 @@ function Ratios({ trades, start }: { trades: Trade[]; start: number }) {
     >
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 8, right: 8, left: 4, bottom: 18 }}>
-          <CartesianGrid vertical={false} stroke="var(--color-border)" />
+          <CartesianGrid vertical={false} stroke="var(--color-grid)" />
           <XAxis dataKey="x" tick={axis} tickLine={false} axisLine={false} minTickGap={40} label={{ value: "Trades", position: "insideBottom", offset: -12, style: axis }} />
-          <YAxis tick={axis} tickLine={false} axisLine={false} width={50} label={{ value: [...sel][0] ?? "", angle: -90, position: "insideLeft", style: { ...axis, textAnchor: "middle" } }} />
+          <YAxis tick={axis} tickLine={false} axisLine={false} width={50} {...yScale(seriesValues(data as unknown as Record<string, unknown>[], [...sel]))} label={{ value: [...sel][0] ?? "", angle: -90, position: "insideLeft", style: { ...axis, textAnchor: "middle" } }} />
           <ReferenceLine y={0} stroke="var(--color-muted-foreground)" />
           <Tooltip contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 12 }} labelFormatter={(l) => `Trade #${l}`} />
           {[...sel].map((r) => <Line key={r} type="monotone" dataKey={r} stroke={RATIO_COLORS[r]} strokeWidth={1.5} dot={false} isAnimationActive={false} />)}
@@ -422,11 +436,11 @@ function RiskDistribution({ trades, start }: { trades: Trade[]; start: number })
       <ChartCard controls={<Select label="Display" value={display} options={["Return (%)", "R Multiple (R)"] as const} onChange={setDisplay} />}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={buckets} margin={{ top: 8, right: 8, left: 10, bottom: 30 }}>
-            <CartesianGrid vertical={false} stroke="var(--color-border)" />
+            <CartesianGrid vertical={false} stroke="var(--color-grid)" />
             <XAxis dataKey="k" tick={{ ...axis, fontSize: 9 }} tickLine={false} axisLine={false} interval={0} angle={-50} textAnchor="end" height={60} label={{ value: display === "Return (%)" ? "Return, gain sum (%)" : "R Multiple", position: "insideBottom", offset: -24, style: axis }} />
-            <YAxis tick={axis} tickLine={false} axisLine={false} width={40} allowDecimals={false} label={{ value: "Number of Trades", angle: -90, position: "insideLeft", style: { ...axis, textAnchor: "middle" } }} />
+            <YAxis tick={axis} tickLine={false} axisLine={false} width={40} {...yScale(buckets.map((b) => b.n), { integer: true })} label={{ value: "Number of Trades", angle: -90, position: "insideLeft", style: { ...axis, textAnchor: "middle" } }} />
             <Tooltip cursor={{ fill: "var(--color-muted)", opacity: 0.4 }} content={({ active, payload }) => active && payload?.length ? <Tip title={(payload[0].payload as { k: string }).k} lines={[["Trades", String((payload[0].payload as { n: number }).n)]]} /> : null} />
-            <Bar dataKey="n" isAnimationActive={false}>{buckets.map((b, i) => <Cell key={i} fill={b.hi <= 0 ? "var(--color-loss)" : "var(--color-profit)"} />)}</Bar>
+            <Bar dataKey="n" isAnimationActive={false}>{buckets.map((b, i) => <Cell key={i} fill={b.hi <= 0 ? "var(--color-chart-2)" : "var(--color-chart-1)"} />)}</Bar>
           </BarChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -459,9 +473,9 @@ function SQN({ trades, start }: { trades: Trade[]; start: number }) {
       <ChartCard legend={<Dot c="bg-chart-5">Rolling SQN (30 trades)</Dot>}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={roll} margin={{ top: 8, right: 8, left: 4, bottom: 18 }}>
-            <CartesianGrid vertical={false} stroke="var(--color-border)" />
-            <XAxis dataKey="x" tick={axis} tickLine={false} axisLine={false} minTickGap={40} label={{ value: "Trades", position: "insideBottom", offset: -12, style: axis }} />
-            <YAxis tick={axis} tickLine={false} axisLine={false} width={50} label={{ value: "SQN", angle: -90, position: "insideLeft", style: { ...axis, textAnchor: "middle" } }} />
+            <CartesianGrid vertical={false} stroke="var(--color-grid)" />
+            <XAxis dataKey="x" tick={axis} tickLine={false} axisLine={false} {...tradeAxis(roll.length ? Math.max(...roll.map((r) => r.x)) : 1)} label={{ value: "Trades", position: "insideBottom", offset: -12, style: axis }} />
+            <YAxis tick={axis} tickLine={false} axisLine={false} width={50} {...yScale(roll.map((r) => r.v))} label={{ value: "SQN", angle: -90, position: "insideLeft", style: { ...axis, textAnchor: "middle" } }} />
             <ReferenceLine y={0} stroke="var(--color-muted-foreground)" />
             <Tooltip contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 12 }} labelFormatter={(l) => `Trade #${l}`} />
             <Line type="monotone" dataKey="v" name="SQN" stroke="var(--color-chart-5)" strokeWidth={1.5} dot={false} isAnimationActive={false} />
@@ -495,11 +509,11 @@ function WinRate({ trades }: { trades: Trade[] }) {
       <ChartCard legend={<><Dot c="bg-profit">Winrate</Dot><Dot c="bg-chart-5">Rolling (20)</Dot></>}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={d} margin={{ top: 8, right: 8, left: 4, bottom: 18 }}>
-            <CartesianGrid vertical={false} stroke="var(--color-border)" />
-            <XAxis dataKey="x" tick={axis} tickLine={false} axisLine={false} minTickGap={40} label={{ value: "Trades", position: "insideBottom", offset: -12, style: axis }} />
-            <YAxis tick={axis} tickLine={false} axisLine={false} width={50} domain={[0, 100]} label={{ value: "Winrate (%)", angle: -90, position: "insideLeft", style: { ...axis, textAnchor: "middle" } }} />
+            <CartesianGrid vertical={false} stroke="var(--color-grid)" />
+            <XAxis dataKey="x" tick={axis} tickLine={false} axisLine={false} {...tradeAxis(d.length ? Math.max(...d.map((p) => p.x)) : 1)} label={{ value: "Trades", position: "insideBottom", offset: -12, style: axis }} />
+            <YAxis tick={axis} tickLine={false} axisLine={false} width={50} {...pctScale} label={{ value: "Winrate (%)", angle: -90, position: "insideLeft", style: { ...axis, textAnchor: "middle" } }} />
             <Tooltip contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 12 }} labelFormatter={(l) => `Trade #${l}`} />
-            <Line type="monotone" dataKey="overall" name="Winrate" stroke="var(--color-profit)" strokeWidth={2} dot={false} isAnimationActive={false} />
+            <Line type="monotone" dataKey="overall" name="Winrate" stroke="var(--color-chart-1)" strokeWidth={2} dot={false} isAnimationActive={false} />
             <Line type="monotone" dataKey="rolling" name="Rolling (20)" stroke="var(--color-chart-5)" strokeWidth={1.5} dot={false} isAnimationActive={false} />
           </LineChart>
         </ResponsiveContainer>
@@ -517,7 +531,7 @@ function Comments({ trades, start, cur, fixed }: { trades: Trade[]; start: numbe
   const by = useMemo(() => (t: Trade) => t.comments.filter((c) => c.phase === p).map((c) => c.label), [p]);
   const has = trades.some((t) => t.comments.some((c) => c.phase === p));
   return (
-    <GroupChart trades={has ? trades : []} start={start} cur={cur} by={by} noun="Comment"
+    <GroupChart showTable={false} trades={has ? trades : []} start={start} cur={cur} by={by} noun="Comment"
       extraControl={fixed ? undefined : <Select label="Trade Comment" value={phase} options={Object.keys(PHASES) as PhaseLabel[]} onChange={setPhase} />} />
   );
 }
@@ -598,12 +612,12 @@ function Compare({ trades, cur, start }: { trades: Trade[]; cur: string; start: 
         <div className="h-[420px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-              <CartesianGrid vertical={false} stroke="var(--color-border)" />
-              <XAxis dataKey="n" tick={axis} tickLine={false} axisLine={false} label={{ value: "Trades", position: "insideBottom", offset: -2, style: axis }} />
-              <YAxis tick={axis} tickLine={false} axisLine={false} width={60} tickFormatter={tickFmt} />
+              <CartesianGrid vertical={false} stroke="var(--color-grid)" />
+              <XAxis dataKey="n" tick={axis} tickLine={false} axisLine={false} {...tradeAxis(data.length)} label={{ value: "Trades", position: "insideBottom", offset: -2, style: axis }} />
+              <YAxis tick={axis} tickLine={false} axisLine={false} width={60} tickFormatter={tickFmt} {...yScale(seriesValues(data as unknown as Record<string, unknown>[], ["A", "B"]))} />
               <ReferenceLine y={0} stroke="var(--color-foreground)" />
               <Tooltip content={({ active, payload, label }) => active && payload?.length ? <Tip title={`Trade ${label}`} lines={payload.map((p) => [p.dataKey === "A" ? nameA : nameB, fmtMoney(Number(p.value), cur)] as [string, string])} /> : null} />
-              <Line dataKey="A" type="monotone" dot={false} strokeWidth={2} stroke="var(--color-profit)" connectNulls={false} />
+              <Line dataKey="A" type="monotone" dot={false} strokeWidth={2} stroke="var(--color-chart-1)" connectNulls={false} />
               <Line dataKey="B" type="monotone" dot={false} strokeWidth={2} stroke="var(--color-info)" connectNulls={false} />
             </LineChart>
           </ResponsiveContainer>
@@ -659,20 +673,28 @@ function PerformanceByTime({ trades, start, cur }: { trades: Trade[]; start: num
 function PerformanceByDay({ trades, cur }: { trades: Trade[]; cur: string }) {
   const [days, setDays] = useState(50);
   const [display, setDisplay] = useState<"Return ($)" | "Return (%)" | "R Multiple (R)">("Return ($)");
+  const [dateBy, setDateBy] = useState<"Entry Date" | "Exit Date">("Entry Date");
   const all = useMemo(() => {
-    const m = new Map<string, { k: string; pnl: number; pct: number; r: number; n: number }>();
-    trades.forEach((t) => { const k = t.entry_at.slice(0, 10); const d = m.get(k) ?? { k, pnl: 0, pct: 0, r: 0, n: 0 }; d.pnl += t.net_pnl; d.pct += t.retPct; d.r += t.r ?? 0; d.n++; m.set(k, d); });
+    const m = new Map<string, { k: string; pnl: number; pct: number; r: number; n: number; w: number; l: number; be: number }>();
+    trades.forEach((t) => {
+      const k = (dateBy === "Exit Date" ? t.exit_at ?? t.entry_at : t.entry_at).slice(0, 10);
+      const d = m.get(k) ?? { k, pnl: 0, pct: 0, r: 0, n: 0, w: 0, l: 0, be: 0 };
+      d.pnl += t.net_pnl; d.pct += t.retPct; d.r += t.r ?? 0; d.n++;
+      if (isWin(t)) d.w++; else if (isLoss(t)) d.l++; else d.be++;
+      m.set(k, d);
+    });
     return [...m.values()].sort((a, b) => a.k.localeCompare(b.k));
-  }, [trades]);
-  const shown = all.slice(-days).map((d) => ({ k: d.k, n: d.n, v: +(display === "Return ($)" ? d.pnl : display === "Return (%)" ? d.pct : d.r).toFixed(2) }));
+  }, [trades, dateBy]);
+  const dayName = (k: string) => new Date(`${k}T12:00:00`).toLocaleDateString("en-US", { weekday: "long" });
+  const shown = all.slice(-days).map((d) => ({ k: d.k, n: d.n, w: d.w, l: d.l, be: d.be, v: +(display === "Return ($)" ? d.pnl : display === "Return (%)" ? d.pct : d.r).toFixed(2) }));
   const win = all.filter((d) => d.pnl > 0), loss = all.filter((d) => d.pnl < 0);
   const avg = (a: number[]) => (a.length ? a.reduce((s, x) => s + x, 0) / a.length : 0);
   const fmtV = (v: number) => display === "Return ($)" ? fmtMoney(v, cur) : display === "Return (%)" ? `${fmtNum(v)}%` : `${fmtNum(v)}R`;
   return (
     <div className="space-y-4">
-      <ChartCard controls={<><Select label="Display" value={display} options={["Return ($)", "Return (%)", "R Multiple (R)"] as const} onChange={setDisplay} />
-        <label className="flex items-center gap-2 text-xs text-muted-foreground">Days shown<input type="range" min={50} max={180} step={10} value={days} onChange={(e) => setDays(Number(e.target.value))} className="w-40 accent-primary" /><span className="w-8 tabular text-foreground">{days}</span></label></>}>
-        <BarsBig data={shown} yLabel={display} fmt={fmtV} extra={(d) => [["Number of trades", String(d.n)]]} hideTicks />
+      <ChartCard size="full" controls={<><Select label="Display" value={display} options={["Return ($)", "Return (%)", "R Multiple (R)"] as const} onChange={setDisplay} /><Select label="Date Settings" value={dateBy} options={["Entry Date", "Exit Date"] as const} onChange={setDateBy} />
+        <label className="flex items-center gap-2 text-[12px]">Days Shown ({days})<input type="range" min={50} max={180} step={10} value={days} onChange={(e) => setDays(Number(e.target.value))} className="w-40 accent-primary" /></label></>}>
+        <BarsBig data={shown} yLabel={display} fmt={fmtV} extra={(d) => { const x = d as unknown as { k: string; n: number; w: number; l: number; be: number }; return [["Weekday", dayName(x.k)], ["Number of trades", String(x.n)], ["Winners", String(x.w)], ["Losers", String(x.l)], ["Break evens", String(x.be)]]; }} hideTicks />
       </ChartCard>
       <Stats>
         <AccentStat label="Trading Days" value={all.length} />
@@ -733,13 +755,13 @@ function TradeManagement({ trades }: { trades: Trade[] }) {
       <ChartCard legend={<><Dot c="bg-chart-5">Actual R</Dot><Dot c="bg-profit">R gained by managing</Dot><Dot c="bg-muted-foreground">Potential R</Dot></>}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 8, right: 8, left: 4, bottom: 18 }} className="cursor-pointer" onClick={(e: { activeIndex?: number | string | null }) => { const d = data[Number(e?.activeIndex)]; if (d) drawer.open(d.trade); }}>
-            <CartesianGrid vertical={false} stroke="var(--color-border)" />
-            <XAxis dataKey="x" tick={axis} tickLine={false} axisLine={false} minTickGap={40} label={{ value: "Trades", position: "insideBottom", offset: -12, style: axis }} />
-            <YAxis tick={axis} tickLine={false} axisLine={false} width={50} label={{ value: "R Multiple", angle: -90, position: "insideLeft", style: { ...axis, textAnchor: "middle" } }} />
+            <CartesianGrid vertical={false} stroke="var(--color-grid)" />
+            <XAxis dataKey="x" tick={axis} tickLine={false} axisLine={false} {...tradeAxis(data.length)} label={{ value: "Trades", position: "insideBottom", offset: -12, style: axis }} />
+            <YAxis tick={axis} tickLine={false} axisLine={false} width={50} {...yScale(seriesValues(data as unknown as Record<string, unknown>[], ["actual", "potential", "effect"]))} label={{ value: "R Multiple", angle: -90, position: "insideLeft", style: { ...axis, textAnchor: "middle" } }} />
             <ReferenceLine y={0} stroke="var(--color-muted-foreground)" />
             <Tooltip content={({ active, payload }) => { if (!active || !payload?.length) return null; const d = payload[0].payload as (typeof data)[number]; return <Tip title={`Trade #${d.x}`} lines={[["Actual", `${fmtNum(d.actual)}R`], ["Potential", `${fmtNum(d.potential)}R`], ["Managing effect", `${fmtNum(d.effect)}R`]]} />; }} />
             <Line type="monotone" dataKey="actual" stroke="var(--color-chart-5)" strokeWidth={2} dot={false} isAnimationActive={false} />
-            <Line type="monotone" dataKey="effect" stroke="var(--color-profit)" strokeWidth={1.5} dot={false} isAnimationActive={false} />
+            <Line type="monotone" dataKey="effect" stroke="var(--color-chart-1)" strokeWidth={1.5} dot={false} isAnimationActive={false} />
             <Line type="monotone" dataKey="potential" stroke="var(--color-muted-foreground)" strokeWidth={1.5} strokeDasharray="4 3" dot={false} isAnimationActive={false} />
           </LineChart>
         </ResponsiveContainer>
