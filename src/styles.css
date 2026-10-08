@@ -58,9 +58,9 @@
 
 :root {
   --radius: 0.625rem;
-  --background: #fcf9ff;
+  --background: #f7f8f5;
   /* semantic text / surface tokens (light) - dark values live in .dark below */
-  --t1: #181618; --t2: #353335; --t3: #615e61; --t4: #8d8a8d;
+  --t1: #15201b; --t2: #34433b; --t3: #66736c; --t4: #96a19a;
   --line2: #cfccd2; --grid: #e9e6ec; --axis-line: #bdb9c0; --ink-line: #221f22;
   --row-win: #f6fef2; --row-loss: #fff5f5; --pill-win: #e3f8d8; --pill-loss: #ffdede; --chip: #f1eef5;
   --foreground: oklch(0.26 0.018 255);
