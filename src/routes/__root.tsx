@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
+import stylesText from "../styles.css?inline";
 
 function NotFoundComponent() {
   return (
@@ -81,6 +82,7 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
+        <style dangerouslySetInnerHTML={{ __html: stylesText }} />
       </head>
       <body>
         {children}
