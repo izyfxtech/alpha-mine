@@ -6,13 +6,15 @@ export interface ProfileSettings {
   showCalendarWinrate: boolean;
   showBalance: boolean;
   allowSharing: boolean;
+  /** First day of the week in calendars: 1 = Monday, 0 = Sunday. */
+  weekStartsOn: 0 | 1;
 }
-export const DEFAULT_PROFILE_SETTINGS: ProfileSettings = { showWeeklyTotals: false, showCalendarWinrate: false, showBalance: true, allowSharing: true };
+export const DEFAULT_PROFILE_SETTINGS: ProfileSettings = { showWeeklyTotals: false, showCalendarWinrate: false, showBalance: true, allowSharing: true, weekStartsOn: 1 };
 
 export function readSettings(raw: unknown): ProfileSettings {
   const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
-  const b = (k: keyof ProfileSettings) => (typeof o[k] === "boolean" ? (o[k] as boolean) : DEFAULT_PROFILE_SETTINGS[k]);
-  return { showWeeklyTotals: b("showWeeklyTotals"), showCalendarWinrate: b("showCalendarWinrate"), showBalance: b("showBalance"), allowSharing: b("allowSharing") };
+  const b = (k: "showWeeklyTotals" | "showCalendarWinrate" | "showBalance" | "allowSharing") => (typeof o[k] === "boolean" ? (o[k] as boolean) : DEFAULT_PROFILE_SETTINGS[k]);
+  return { showWeeklyTotals: b("showWeeklyTotals"), showCalendarWinrate: b("showCalendarWinrate"), showBalance: b("showBalance"), allowSharing: b("allowSharing"), weekStartsOn: o.weekStartsOn === 0 ? 0 : 1 };
 }
 
 /** Signed-in user's profile row plus parsed account toggles. */

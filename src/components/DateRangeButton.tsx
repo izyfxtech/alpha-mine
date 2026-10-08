@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameMonth, parseISO, startOfMonth, startOfWeek } from "date-fns";
+import { useProfile } from "@/lib/profile-settings";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -9,9 +10,10 @@ import { cn } from "@/lib/utils";
  * click sets the end (clicking an earlier day restarts the range). Values are yyyy-MM-dd strings, "" when unset.
  */
 export function DateRangeButton({ value, onChange, className }: { value: { a: string; b: string }; onChange: (v: { a: string; b: string }) => void; className?: string }) {
+  const weekStartsOn = useProfile().settings.weekStartsOn;
   const [open, setOpen] = useState(false);
   const [month, setMonth] = useState(() => (value.a ? parseISO(value.a) : new Date()));
-  const days = eachDayOfInterval({ start: startOfWeek(startOfMonth(month), { weekStartsOn: 1 }), end: endOfWeek(endOfMonth(month), { weekStartsOn: 1 }) });
+  const days = eachDayOfInterval({ start: startOfWeek(startOfMonth(month), { weekStartsOn }), end: endOfWeek(endOfMonth(month), { weekStartsOn }) });
   const pick = (k: string) => {
     if (!value.a || (value.a && value.b) || k < value.a) onChange({ a: k, b: "" });
     else { onChange({ a: value.a, b: k }); setOpen(false); }
@@ -28,7 +30,7 @@ export function DateRangeButton({ value, onChange, className }: { value: { a: st
           <span className="text-[12px] font-semibold">{format(month, "MMMM yyyy")}</span>
           <button type="button" aria-label="Next month" className="rounded p-1 hover:bg-muted" onClick={() => setMonth(addMonths(month, 1))}><ChevronRight className="h-4 w-4" /></button>
         </div>
-        <div className="grid grid-cols-7 gap-y-1 text-center text-[10px] text-t4">{["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((d) => <span key={d}>{d}</span>)}</div>
+        <div className="grid grid-cols-7 gap-y-1 text-center text-[10px] text-t4">{(weekStartsOn === 0 ? ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"] : ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]).map((d) => <span key={d}>{d}</span>)}</div>
         <div className="mt-1 grid grid-cols-7 gap-y-1 text-center text-[12px]">
           {days.map((d) => {
             const k = format(d, "yyyy-MM-dd");

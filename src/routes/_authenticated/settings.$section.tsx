@@ -3,11 +3,12 @@ import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ArrowDown, ArrowUp, Trash2 } from "lucide-react";
+import { DragHandle, EditableText, TypedConfirm, UsageBadge, plural, useDragReorder, useUsage } from "@/components/settings-parts";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Empty, PageHeader, Panel } from "@/components/kit";
+import { Empty, Panel } from "@/components/kit";
 import { supabase } from "@/integrations/supabase/client";
 import { createJournal, useJournal } from "@/lib/journal-context";
 import { useProfile, type ProfileSettings } from "@/lib/profile-settings";
@@ -29,28 +30,28 @@ export const Route = createFileRoute("/_authenticated/settings/$section")({
 
 const CURRENCIES = ["USD", "EUR", "GBP", "JPY", "CHF", "AUD", "CAD", "NGN", "ZAR", "INR"];
 const sel = "h-9 w-full rounded-md border bg-background px-2 text-sm";
+/** Same look, but its width comes from the w-* class next to it (w-full would override that). */
+const selFixed = "h-9 shrink-0 rounded-md border bg-background px-2 text-sm";
 
 function SettingsPage() {
   const { section } = Route.useParams();
   return (
-    <div>
-      <PageHeader title="Settings" />
-      <div className="grid gap-6 md:grid-cols-[200px_1fr]">
-        <nav className="space-y-1">
-          {SETTINGS.map(([s, l]) => (
-            <Link key={s} to="/settings/$section" params={{ section: s }} className={cn("block rounded-md px-3 py-2 text-sm hover:bg-muted", s === section && "bg-muted font-semibold")}>{l}</Link>
-          ))}
-        </nav>
-        <div className="max-w-3xl">
-          {section === "account" && <Account />}
-          {section === "journal" && <JournalSettings />}
-          {section === "instruments" && <ListEditor table="instruments" field="symbol" label="Instrument" extra="asset_class" extraLabel="Asset class" />}
-          {section === "setups" && <ListEditor table="setups" field="name" label="Setup" extra="description" extraLabel="Description" />}
-          {section === "comments" && <Comments />}
-          {section === "custom-statistics" && <CustomStatistics />}
-          {section === "sessions" && <SessionCategories />}
-          {section === "cashflows" && <Cashflows />}
-        </div>
+    <div className="mx-auto max-w-[920px] space-y-[22px]">
+      <nav aria-label="Settings sections" className="flex flex-wrap gap-1 rounded-lg bg-card p-1.5 shadow-[0_1px_5px_rgba(60,40,90,0.07)]">
+        {SETTINGS.map(([s, l]) => (
+          <Link key={s} to="/settings/$section" params={{ section: s }} aria-current={s === section ? "page" : undefined}
+            className={cn("rounded-md px-3 py-1.5 text-[12px] hover:bg-muted", s === section ? "bg-ink font-semibold text-ink-foreground hover:bg-ink" : "text-t2")}>{l}</Link>
+        ))}
+      </nav>
+      <div className="space-y-[22px]">
+        {section === "account" && <Account />}
+        {section === "journal" && <JournalSettings />}
+        {section === "instruments" && <ListEditor table="instruments" field="symbol" label="Instrument" extra="asset_class" extraLabel="Asset class" />}
+        {section === "setups" && <ListEditor table="setups" field="name" label="Setup" extra="description" extraLabel="Description" />}
+        {section === "comments" && <Comments />}
+        {section === "custom-statistics" && <CustomStatistics />}
+        {section === "sessions" && <SessionCategories />}
+        {section === "cashflows" && <Cashflows />}
       </div>
     </div>
   );
@@ -77,9 +78,11 @@ function Account() {
       </Panel>
       <Panel title="Preferences">
         <div className="space-y-4">
-          {([ ["showWeeklyTotals", "Show weekly totals in the calendar"], ["showCalendarWinrate", "Show winrate next to the trade count in the calendar"], ["showBalance", "Show account balance"], ["allowSharing", "Allow journal sharing"] ] as [keyof ProfileSettings, string][]).map(([key, label]) => (
+          {([ ["showWeeklyTotals", "Show weekly totals in the calendar"], ["showCalendarWinrate", "Show winrate next to the trade count in the calendar"], ["showBalance", "Show account balance"], ["allowSharing", "Allow journal sharing"] ] as ["showWeeklyTotals" | "showCalendarWinrate" | "showBalance" | "allowSharing", string][]).map(([key, label]) => (
             <div key={key} className="flex items-center justify-between gap-4 text-sm"><Label htmlFor={key}>{label}</Label><Switch id={key} checked={settings[key]} onCheckedChange={async (checked) => { try { await saveSettings({ [key]: checked }); } catch { toast.error("Could not save preference"); } }} /></div>
           ))}
+          <div className="flex items-center justify-between gap-4 text-sm"><Label htmlFor="weekStartsOn">First day of the week</Label>
+            <select id="weekStartsOn" className={selFixed + " w-40"} value={settings.weekStartsOn} onChange={async (e) => { try { await saveSettings({ weekStartsOn: e.target.value === "0" ? 0 : 1 }); } catch { toast.error("Could not save preference"); } }}><option value="1">Monday</option><option value="0">Sunday</option></select></div>
         </div>
       </Panel>
       <Panel title="Change password">
@@ -98,6 +101,7 @@ function Account() {
 function JournalSettings() {
   const { journal, journals, setJournalId, refresh } = useJournal();
   const [f, setF] = useState({ name: "", broker: "", currency: "USD", starting_balance: "10000", markets: "", trade_type: "Spot", auto_pnl: true });
+  const [confirmDelete, setConfirmDelete] = useState(false);
   useEffect(() => { if (journal) setF({ name: journal.name, broker: journal.broker ?? "", currency: journal.currency, starting_balance: String(journal.starting_balance), markets: journal.markets.join(", "), trade_type: journal.trade_type, auto_pnl: journal.auto_pnl }); }, [journal?.id]);
   if (!journal) return null;
   return (
@@ -117,13 +121,18 @@ function JournalSettings() {
             const { error } = await supabase.from("journals").update({ ...f, broker: f.broker || null, markets: f.markets.split(",").map((x) => x.trim()).filter(Boolean), starting_balance: Number(f.starting_balance) }).eq("id", journal.id);
             if (error) toast.error(error.message); else { toast.success("Journal saved"); refresh(); }
           }}>Save journal</Button>
-          <Button variant="ghost" className="text-loss" disabled={journals.length < 2} onClick={async () => {
-            if (!confirm(`Delete "${journal.name}" and all its trades? This cannot be undone.`)) return;
-            await supabase.from("journals").delete().eq("id", journal.id);
-            setJournalId(journals.find((j) => j.id !== journal.id)!.id); refresh();
-          }}><Trash2 className="h-4 w-4" /> Delete journal</Button>
+          <Button variant="ghost" className="text-loss" disabled={journals.length < 2} title={journals.length < 2 ? "You need at least one other journal" : undefined} onClick={() => setConfirmDelete(true)}><Trash2 className="h-4 w-4" /> Delete journal</Button>
         </div>
       </Panel>
+      <TypedConfirm open={confirmDelete} onOpenChange={setConfirmDelete} title="Delete this journal?" phrase={journal.name} confirmLabel="Delete journal"
+        description={<p>This permanently deletes <b className="text-t1">{journal.name}</b> with all of its trades, screenshots, plans, notes and sessions. It cannot be undone.</p>}
+        onConfirm={async () => {
+          const next = journals.find((j) => j.id !== journal.id);
+          const { error } = await supabase.from("journals").delete().eq("id", journal.id);
+          if (error) { toast.error(error.message); throw error; }
+          if (next) setJournalId(next.id);
+          refresh();
+        }} />
       <Panel title="All journals" action={<Button size="sm" variant="outline" onClick={async () => { const j = await createJournal(`Journal ${journals.length + 1}`); setJournalId(j.id); refresh(); }}>New journal</Button>}>
         {journals.map((j) => (
           <button key={j.id} onClick={() => setJournalId(j.id)} className={cn("flex w-full justify-between border-b py-2.5 text-left text-sm last:border-0", j.id === journal.id && "font-semibold")}>
@@ -138,25 +147,69 @@ function JournalSettings() {
 function ListEditor({ table, field, label, extra, extraLabel }: { table: "instruments" | "setups"; field: "symbol" | "name"; label: string; extra: "asset_class" | "description"; extraLabel: string }) {
   const { journal } = useJournal();
   const t = useJournalTable(table, journal?.id, "position", true);
+  const usage = useUsage();
   const [a, setA] = useState(""); const [b, setB] = useState("");
+  const rows = t.rows as unknown as (Record<string, string | null> & { id: string })[];
+  const { rowProps, over } = useDragReorder(rows.map((r) => r.id), (ids) => t.reorder(ids));
+  const used = (name: string) => (table === "instruments" ? usage.inst : usage.setup).get(name) ?? 0;
+  const exists = (name: string, exceptId?: string) => rows.some((r) => r.id !== exceptId && (r[field] ?? "").toLowerCase() === name.toLowerCase());
+  const add = async () => {
+    const name = a.trim();
+    if (!name) return;
+    if (exists(name)) { toast.error(`${label} "${name}" already exists`); return; }
+    await t.insert({ [field]: name, [extra]: b || null } as never); setA(""); setB("");
+  };
+  const remove = (row: Record<string, string | null> & { id: string }) => {
+    const n = used(row[field] ?? "");
+    if (n > 0 && !confirm(`"${row[field]}" is used by ${plural(n, "trade")}. The trades are kept, but their ${label.toLowerCase()} field will be left empty. Delete it anyway?`)) return;
+    void t.remove(row.id);
+  };
   return (
     <Panel title={`${label}s`}>
-      <div className="mb-4 flex gap-2">
-        <Input placeholder={label} value={a} onChange={(e) => setA(e.target.value)} />
-        <Input placeholder={extraLabel} value={b} onChange={(e) => setB(e.target.value)} />
-        <Button disabled={!a.trim()} onClick={async () => { await t.insert({ [field]: a.trim(), [extra]: b || null } as never); setA(""); setB(""); }}>Add</Button>
-      </div>
-      {!t.rows.length ? <p className="text-sm text-muted-foreground">None yet.</p> : t.rows.map((r) => {
-        const row = r as unknown as Record<string, string | null> & { id: string };
-        return (
-          <div key={row.id} className="flex items-center gap-2 border-b py-2 last:border-0">
-            <Input defaultValue={row[field] ?? ""} className="h-8" onBlur={(e) => e.target.value !== row[field] && t.update(row.id, { [field]: e.target.value } as never)} />
-            <Input defaultValue={row[extra] ?? ""} className="h-8" placeholder={extraLabel} onBlur={(e) => e.target.value !== (row[extra] ?? "") && t.update(row.id, { [extra]: e.target.value || null } as never)} />
-            <MoveButtons row={row.id} move={t.move} />
-            <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" aria-label={`Delete ${row[field]}`} onClick={() => t.remove(row.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+      <p className="mb-3 text-[12px] text-t3">Drag to reorder (this is the order used in selectors and filters). Double-click a name to rename it.</p>
+      <form className="mb-4 flex gap-2" onSubmit={(e) => { e.preventDefault(); void add(); }}>
+        <Input placeholder={label} aria-label={label} value={a} onChange={(e) => setA(e.target.value)} />
+        <Input placeholder={extraLabel} aria-label={extraLabel} value={b} onChange={(e) => setB(e.target.value)} />
+        <Button type="submit" disabled={!a.trim()}>Add</Button>
+      </form>
+      {!rows.length ? <p className="text-sm text-muted-foreground">None yet.</p> : rows.map((row) => (
+        <div key={row.id} {...rowProps(row.id)} className={cn("flex items-center gap-2 border-b py-1.5 last:border-0", over === row.id && "bg-muted")}>
+          <DragHandle />
+          <EditableText value={row[field] ?? ""} label={label} className="!flex-none w-[190px] font-medium"
+            onSave={(v) => { if (exists(v, row.id)) toast.error(`${label} "${v}" already exists`); else void t.update(row.id, { [field]: v } as never); }} />
+          <Input defaultValue={row[extra] ?? ""} aria-label={`${extraLabel} for ${row[field]}`} className="h-8" placeholder={extraLabel} onBlur={(e) => e.target.value !== (row[extra] ?? "") && t.update(row.id, { [extra]: e.target.value || null } as never)} />
+          <UsageBadge n={used(row[field] ?? "")} />
+          <MoveButtons row={row.id} move={t.move} />
+          <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" aria-label={`Delete ${row[field]}`} onClick={() => remove(row)}><Trash2 className="h-3.5 w-3.5" /></Button>
+        </div>
+      ))}
+    </Panel>
+  );
+}
+
+type CommentRow = { id: string; label: string; phase: string; sentiment: string };
+function PhaseComments({ phase, rows, t, usage }: { phase: string; rows: CommentRow[]; t: ReturnType<typeof useJournalTable<"comment_definitions">>; usage: Map<string, number> }) {
+  const { rowProps, over } = useDragReorder(rows.map((r) => r.id), (ids) => t.reorder(ids));
+  const remove = (c: CommentRow) => {
+    const n = usage.get(c.id) ?? 0;
+    if (n > 0 && !confirm(`"${c.label}" is attached to ${plural(n, "trade")}. Deleting it removes it from all of them and changes their tilt meter. Delete it anyway?`)) return;
+    void t.remove(c.id);
+  };
+  return (
+    <Panel title={<span className="capitalize">{phase} comments</span>}>
+      <div className="space-y-1">
+        {!rows.length && <p className="text-sm text-muted-foreground">None yet.</p>}
+        {rows.map((c) => (
+          <div key={c.id} {...rowProps(c.id)} className={cn("flex items-center gap-2 rounded", over === c.id && "bg-muted")}>
+            <DragHandle />
+            <EditableText value={c.label} label="Comment" onSave={(v) => void t.update(c.id, { label: v })} />
+            <select aria-label={`Classification of ${c.label}`} className={selFixed + " w-28"} value={c.sentiment} onChange={(e) => t.update(c.id, { sentiment: e.target.value })}><option value="positive">Positive</option><option value="neutral">Neutral</option><option value="negative">Negative</option></select>
+            <select aria-label={`Phase of ${c.label}`} className={selFixed + " w-36"} value={c.phase} onChange={(e) => t.update(c.id, { phase: e.target.value })}><option value="entry">Entry</option><option value="management">Management</option><option value="exit">Exit</option></select>
+            <UsageBadge n={usage.get(c.id) ?? 0} />
+            <Button variant="ghost" size="icon" aria-label={`Delete ${c.label}`} onClick={() => remove(c)}><Trash2 className="h-4 w-4" /></Button>
           </div>
-        );
-      })}
+        ))}
+      </div>
     </Panel>
   );
 }
@@ -164,27 +217,27 @@ function ListEditor({ table, field, label, extra, extraLabel }: { table: "instru
 function Comments() {
   const { journal } = useJournal();
   const t = useJournalTable("comment_definitions", journal?.id, "position", true);
+  const usage = useUsage();
   const [f, setF] = useState({ phase: "entry", label: "", sentiment: "neutral" });
+  const rows = t.rows as unknown as CommentRow[];
+  const add = async () => {
+    const label = f.label.trim();
+    if (!label) return;
+    if (rows.some((c) => c.phase === f.phase && c.label.toLowerCase() === label.toLowerCase())) { toast.error(`"${label}" already exists in ${f.phase} comments`); return; }
+    await t.insert({ ...f, label, position: rows.length }); setF({ ...f, label: "" });
+  };
   return (
-    <div className="space-y-5">
+    <div className="space-y-[22px]">
       <Panel title="Add trade comment">
-        <p className="mb-3 text-sm text-muted-foreground">Comments feed the tilt meter: positive comments move it green, negative ones red.</p>
-        <div className="flex gap-2">
-          <select className={sel + " w-40"} value={f.phase} onChange={(e) => setF({ ...f, phase: e.target.value })}><option value="entry">Entry</option><option value="management">Management</option><option value="exit">Exit</option></select>
-          <Input placeholder="Comment" value={f.label} onChange={(e) => setF({ ...f, label: e.target.value })} />
-          <select className={sel + " w-36"} value={f.sentiment} onChange={(e) => setF({ ...f, sentiment: e.target.value })}><option value="positive">Positive</option><option value="neutral">Neutral</option><option value="negative">Negative</option></select>
-          <Button disabled={!f.label.trim()} onClick={async () => { await t.insert(f); setF({ ...f, label: "" }); }}>Add</Button>
-        </div>
+        <p className="mb-3 text-sm text-muted-foreground">Comments feed the tilt meter and efficiency: positive comments move it green, negative ones red. Drag to reorder, double-click to rename.</p>
+        <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); void add(); }}>
+          <select aria-label="Phase" className={selFixed + " w-40"} value={f.phase} onChange={(e) => setF({ ...f, phase: e.target.value })}><option value="entry">Entry</option><option value="management">Management</option><option value="exit">Exit</option></select>
+          <Input aria-label="Comment" placeholder="Comment" value={f.label} onChange={(e) => setF({ ...f, label: e.target.value })} />
+          <select aria-label="Classification" className={selFixed + " w-36"} value={f.sentiment} onChange={(e) => setF({ ...f, sentiment: e.target.value })}><option value="positive">Positive</option><option value="neutral">Neutral</option><option value="negative">Negative</option></select>
+          <Button type="submit" disabled={!f.label.trim()}>Add</Button>
+        </form>
       </Panel>
-      {(["entry", "management", "exit"] as const).map((phase) => (
-        <Panel key={phase} title={<span className="capitalize">{phase} comments</span>}>
-           <div className="space-y-2">
-            {t.rows.filter((c) => c.phase === phase).map((c) => (
-               <div key={c.id} className="flex items-center gap-2"><Input className="h-8 flex-1" defaultValue={c.label} onBlur={(e) => e.target.value !== c.label && t.update(c.id, { label: e.target.value })} /><select className={sel + " w-28"} value={c.sentiment} aria-label={`${c.label} sentiment`} onChange={(e) => t.update(c.id, { sentiment: e.target.value })}><option value="positive">Positive</option><option value="neutral">Neutral</option><option value="negative">Negative</option></select><MoveButtons row={c.id} move={(id, dir) => t.move(id, dir, { field: "phase", value: phase })} /><Button variant="ghost" size="icon" aria-label={`Delete ${c.label}`} onClick={() => t.remove(c.id)}><Trash2 className="h-4 w-4" /></Button></div>
-            ))}
-          </div>
-        </Panel>
-      ))}
+      {(["entry", "management", "exit"] as const).map((phase) => <PhaseComments key={phase} phase={phase} rows={rows.filter((c) => c.phase === phase)} t={t} usage={usage.comment} />)}
     </div>
   );
 }
@@ -199,10 +252,11 @@ function CustomStatistics() {
   const options = useJournalTable("custom_stat_options", journal?.id, "position", true);
   const [name, setName] = useState("");
   const [tags, setTags] = useState<Record<string, string>>({});
+  const usage = useUsage();
   return <div className="space-y-5"><Panel title={`Custom Statistics (${cats.rows.length}/20)`}>
     <div className="flex gap-2"><Input placeholder="Statistic name" value={name} onChange={(e) => setName(e.target.value)} /><Button disabled={!name.trim() || cats.rows.length >= 20} onClick={async () => { const r = await cats.insert({ name: name.trim(), position: cats.rows.length }); if (r) setName(""); }}>Add</Button></div>
-  </Panel>{cats.rows.map((c) => <Panel key={c.id} title={<div className="flex items-center gap-2"><Input aria-label="Statistic name" className="h-8" defaultValue={c.name} onBlur={(e) => e.target.value !== c.name && cats.update(c.id, { name: e.target.value })} /><MoveButtons row={c.id} move={cats.move} /><Button variant="ghost" size="icon" aria-label={`Delete ${c.name}`} onClick={() => { if (confirm(`Delete ${c.name} and its tags?`)) cats.remove(c.id); }}><Trash2 className="h-4 w-4" /></Button></div>}>
-    <div className="space-y-2">{options.rows.filter((o) => o.category_id === c.id).map((o) => <div className="flex items-center gap-2" key={o.id}><Input aria-label="Tag" className="h-8" defaultValue={o.label} onBlur={(e) => e.target.value !== o.label && options.update(o.id, { label: e.target.value })} /><MoveButtons row={o.id} move={(id, dir) => options.move(id, dir, { field: "category_id", value: c.id })} /><Button variant="ghost" size="icon" aria-label={`Delete ${o.label}`} onClick={() => options.remove(o.id)}><Trash2 className="h-4 w-4" /></Button></div>)}
+  </Panel>{cats.rows.map((c) => <Panel key={c.id} title={<div className="flex items-center gap-2"><Input aria-label="Statistic name" className="h-8" defaultValue={c.name} onBlur={(e) => e.target.value !== c.name && cats.update(c.id, { name: e.target.value })} /><MoveButtons row={c.id} move={cats.move} /><Button variant="ghost" size="icon" aria-label={`Delete ${c.name}`} onClick={() => { const n = options.rows.filter((o) => o.category_id === c.id).reduce((a, o) => a + (usage.option.get(o.id) ?? 0), 0); if (confirm(`Delete "${c.name}" and all of its tags?${n ? ` ${plural(n, "tag assignment")} on your trades will be removed too.` : ""}`)) cats.remove(c.id); }}><Trash2 className="h-4 w-4" /></Button></div>}>
+    <div className="space-y-2">{options.rows.filter((o) => o.category_id === c.id).map((o) => <div className="flex items-center gap-2" key={o.id}><Input aria-label="Tag" className="h-8" defaultValue={o.label} onBlur={(e) => e.target.value !== o.label && options.update(o.id, { label: e.target.value })} /><MoveButtons row={o.id} move={(id, dir) => options.move(id, dir, { field: "category_id", value: c.id })} /><Button variant="ghost" size="icon" aria-label={`Delete ${o.label}`} onClick={() => { const n = usage.option.get(o.id) ?? 0; if (n > 0 && !confirm(`"${o.label}" is on ${plural(n, "trade")}. Deleting it removes it from all of them. Delete it anyway?`)) return; options.remove(o.id); }}><Trash2 className="h-4 w-4" /></Button></div>)}
       <div className="flex gap-2"><Input placeholder="New tag" value={tags[c.id] ?? ""} onChange={(e) => setTags({ ...tags, [c.id]: e.target.value })} /><Button variant="outline" disabled={!tags[c.id]?.trim()} onClick={async () => { const r = await options.insert({ category_id: c.id, label: tags[c.id].trim(), position: options.rows.filter((o) => o.category_id === c.id).length }); if (r) setTags({ ...tags, [c.id]: "" }); }}>Add tag</Button></div>
     </div></Panel>)}</div>;
 }

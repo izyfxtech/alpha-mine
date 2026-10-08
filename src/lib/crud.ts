@@ -43,6 +43,11 @@ export function useJournalTable<T extends TableName>(table: T, journalId: string
        const results = await Promise.all(rows.map((r, position) => (supabase as any).from(table).update({ position }).eq("id", r.id)));
       if (!fail(results.find((r: { error: { message: string } | null }) => r.error)?.error ?? null)) done();
     },
+    /** Persist a drag-and-drop order: every id gets position = its index in the given list. */
+    reorder: async (orderedIds: string[]) => {
+      const results = await Promise.all(orderedIds.map((id, position) => (supabase as any).from(table).update({ position }).eq("id", id)));
+      if (!fail(results.find((r: { error: { message: string } | null }) => r.error)?.error ?? null)) done();
+    },
     remove: async (id: string) => {
       const { error } = await (supabase as any).from(table).delete().eq("id", id);
       if (!fail(error)) done();

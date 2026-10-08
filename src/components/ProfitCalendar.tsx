@@ -23,8 +23,9 @@ export function ProfitCalendar({ trades, month, fmt, tall }: { trades: Trade[]; 
     });
     return m;
   }, [trades]);
-  const start = startOfWeek(startOfMonth(month), { weekStartsOn: 1 });
-  let days = eachDayOfInterval({ start, end: endOfWeek(endOfMonth(month), { weekStartsOn: 1 }) });
+  const { showWeeklyTotals: weekly, showCalendarWinrate: showWr, weekStartsOn } = useProfile().settings;
+  const start = startOfWeek(startOfMonth(month), { weekStartsOn });
+  let days = eachDayOfInterval({ start, end: endOfWeek(endOfMonth(month), { weekStartsOn }) });
   while (days.length < 42) days = eachDayOfInterval({ start, end: new Date(days[days.length - 1].getTime() + 7 * 864e5) });
   const rows: Date[][] = [];
   for (let i = 0; i < days.length; i += 7) rows.push(days.slice(i, i + 7));
@@ -38,11 +39,10 @@ export function ProfitCalendar({ trades, month, fmt, tall }: { trades: Trade[]; 
       x && inMonth && x.pnl < 0 && "bg-loss-soft",
       x && inMonth && x.pnl === 0 && "bg-card");
 
-  const { showWeeklyTotals: weekly, showCalendarWinrate: showWr } = useProfile().settings;
   const countLabel = (n: number, w: number) => `${n} trade${n === 1 ? "" : "s"}${showWr ? ` · ${Math.round((w / n) * 100)}%` : ""}`;
   return (
     <div className={cn("grid gap-x-[6px] gap-y-[6px]", weekly ? "grid-cols-8" : "grid-cols-7", "text-center text-[10px] text-t4")}>
-      {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun", ...(weekly ? ["Total"] : [])].map((d) => <div key={d} className="pb-[10px] pt-[6px]">{d}</div>)}
+      {[...(weekStartsOn === 0 ? ["Sun"] : []), "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", ...(weekStartsOn === 0 ? [] : ["Sun"]), ...(weekly ? ["Total"] : [])].map((d) => <div key={d} className="pb-[10px] pt-[6px]">{d}</div>)}
       {rows.map((week, wi) => {
         const tot = week.filter((d) => isSameMonth(d, month)).reduce((a, d) => { const x = daily.get(format(d, "yyyy-MM-dd")); return x ? { pnl: a.pnl + x.pnl, n: a.n + x.n, w: a.w + x.w, tilt: a.tilt + x.tilt, r: a.r + x.r, pct: a.pct + x.pct } : a; }, { w: 0, pnl: 0, n: 0, tilt: 0, r: 0, pct: 0 });
         return [
