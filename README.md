@@ -17,9 +17,7 @@ with owner-scoped row level security.
    SUPABASE_PROJECT_ID=
    ```
 
-2. Apply the SQL files in `drizzle/migrations/` (in order) to your Supabase project,
-   via the SQL editor or `pnpm drizzle-kit migrate` with `DATABASE_URL` set to your
-   Postgres connection string.
+2. Link the Supabase CLI and push the migrations (see "Database workflow" below).
 3. Install and run:
 
    ```
@@ -38,15 +36,27 @@ with owner-scoped row level security.
 Enable the Google provider in Supabase (Authentication > Providers) and add your site
 URL and `<site>/auth` to the allowed redirect URLs.
 
+## Database workflow
 
-## Database migration 0002
+Drizzle Kit generates SQL into `supabase/migrations/`; the Supabase CLI applies and tracks it.
 
-`drizzle/migrations/0002_plans_missed_option_fields.sql` adds Option Type, Expiry Date and Multiplier to Trading Plans and Missed Trades, and a `planned_trade_custom_stats` table so Trading Plans can carry custom statistics. Apply it to your Supabase project (SQL editor or `pnpm drizzle-kit migrate`) before using those fields. It is safe to run more than once.
+```
+pnpm install
+pnpm supabase login
+pnpm supabase link --project-ref <your-project-ref>   # once
+pnpm db:push                                          # apply migrations to the linked project
+pnpm db:start                                         # optional: local stack (needs Docker)
+pnpm db:types                                         # regenerate src/integrations/supabase/types.ts
+```
 
-New dependency: `html-to-image` (calendar screenshot button). Run `pnpm install`.
+Changing the schema:
 
+1. First time only: `pnpm db:pull` (needs `DATABASE_URL`) to fill `drizzle/schema.ts` from the live database.
+2. Edit `drizzle/schema.ts`, then `pnpm db:generate`. This writes `supabase/migrations/<timestamp>_<name>.sql`.
+3. Review the SQL, then `pnpm db:push`. RLS policies, triggers and functions are not modelled by Drizzle, so add those as hand written migrations (`pnpm supabase migration new <name>`).
 
-## Database migrations 0003 and 0004
+If your remote database already has the old manual migrations applied, mark them as done instead of re-running them:
 
-- `drizzle/migrations/0003_mt_import.sql` mirrors the MetaTrader import SQL (`sync_jobs`, `journals.mt_*`, `trades.source/external_id/raw_symbol/commission/swap`, the unique `(journal_id, external_id)` index and the updated `trades_compute_pnl` trigger). It is written with `IF NOT EXISTS` / `OR REPLACE`, so it is safe to run on a database where you already applied those statements by hand.
-- `drizzle/migrations/0004_disable_items.sql` adds a `disabled` flag to instruments, setups, trade comments and custom statistics, and `journals.disabled_session_categories`. The Settings pages use it for the "Active Items / Disabled Items" switch: the trash icon retires an item (it stays on existing trades) instead of deleting it.
+```
+pnpm supabase migration repair --status applied 20261003080104 20261004074640 20261005113320 20261006152000
+```

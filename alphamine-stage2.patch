@@ -1,0 +1,370 @@
+diff --git a/src/components/auth-bits.tsx b/src/components/auth-bits.tsx
+new file mode 100644
+index 0000000..28e5ad6
+--- /dev/null
++++ b/src/components/auth-bits.tsx
+@@ -0,0 +1,41 @@
++import { type InputHTMLAttributes, type ReactNode } from "react";
++import { Link } from "@tanstack/react-router";
++import { ArrowLeft } from "@phosphor-icons/react";
++import { BrandLink, ThemeToggle } from "@/components/marketing-shell";
++
++export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
++
++/** Split layout shared by sign in and password reset. */
++export function AuthFrame({ children }: { children: ReactNode }) {
++  return (
++    <main id="main" className="grid min-h-screen lg:grid-cols-2">
++      <aside className="hidden flex-col justify-between border-r border-[var(--mk-line)] bg-[var(--mk-s1)] p-12 lg:flex">
++        <BrandLink />
++        <div>
++          <h2 className="mk-grad text-5xl font-semibold" style={{ maxWidth: 480 }}>Mine your trades for the edge you already have.</h2>
++          <p className="mt-6 text-lg text-[var(--mk-mute)]" style={{ maxWidth: 480 }}>Journal every trade, measure discipline with the tilt meter, and let sixteen Chart Lab reports show what actually works.</p>
++        </div>
++        <p className="text-sm text-[var(--mk-mute)]">Your journals stay private to your account.</p>
++      </aside>
++      <div className="flex flex-col p-6">
++        <div className="flex items-center justify-between">
++          <Link to="/" className="inline-flex items-center gap-2 rounded-lg px-2 py-2 text-sm font-semibold text-[var(--mk-mute)] transition-colors duration-300 hover:text-[var(--mk-fg)]"><ArrowLeft size={16} />Back to home</Link>
++          <ThemeToggle />
++        </div>
++        <div className="flex flex-1 items-center justify-center py-12"><div className="w-full" style={{ maxWidth: 384 }}>{children}</div></div>
++      </div>
++    </main>
++  );
++}
++
++export function Field({ label, error, right, ...props }: { label: string; error?: string; right?: ReactNode } & InputHTMLAttributes<HTMLInputElement>) {
++  const id = props.id ?? label.toLowerCase().replace(/\s+/g, "-");
++  return (
++    <div>
++      <div className="flex items-center justify-between"><label htmlFor={id} className="text-sm font-semibold">{label}</label>{right}</div>
++      <input id={id} aria-invalid={!!error} aria-describedby={error ? `${id}-err` : undefined} {...props}
++        className={`mt-2 block w-full rounded-lg border bg-[var(--mk-bg)] px-3 py-2 text-base text-[var(--mk-fg)] placeholder:text-[var(--mk-mute)] transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-[var(--mk-acc)] ${error ? "border-red-500" : "border-[var(--mk-line)]"}`} />
++      {error && <p id={`${id}-err`} role="alert" className="mt-2 text-sm text-red-500">{error}</p>}
++    </div>
++  );
++}
+diff --git a/src/routes/__root.tsx b/src/routes/__root.tsx
+index 9407c19..faf9370 100644
+--- a/src/routes/__root.tsx
++++ b/src/routes/__root.tsx
+@@ -13,21 +13,23 @@ import { useEffect, type ReactNode } from "react";
+ import appCss from "../styles.css?url";
+ import { Toaster } from "@/components/ui/sonner";
+ import { supabase } from "@/integrations/supabase/client";
++import { MkShell } from "@/components/marketing-shell";
+ 
+ function NotFoundComponent() {
+   return (
+-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+-      <div className="max-w-md text-center">
+-        <h1 className="text-7xl font-bold text-foreground">404</h1>
+-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
+-        <p className="mt-2 text-sm text-muted-foreground">The page you're looking for doesn't exist or has been moved.</p>
+-        <div className="mt-6">
+-          <Link to="/" className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+-            Go home
+-          </Link>
++    <MkShell>
++      <main id="main" className="grid min-h-screen place-items-center px-6 text-center">
++        <div>
++          <p className="font-mono text-sm text-[var(--mk-acc)]">Error 404</p>
++          <h1 className="mk-grad mt-3 text-5xl font-semibold md:text-7xl">Page not found</h1>
++          <p className="mx-auto mt-4 text-lg text-[var(--mk-mute)]" style={{ maxWidth: 480 }}>That link is broken or the page has moved. Your journal is exactly where you left it.</p>
++          <div className="mt-8 flex justify-center gap-3">
++            <Link to="/" className="mk-btn mk-btn-pri">Back to home</Link>
++            <Link to="/auth" className="mk-btn mk-btn-sec">Sign in</Link>
++          </div>
+         </div>
+-      </div>
+-    </div>
++      </main>
++    </MkShell>
+   );
+ }
+ 
+@@ -69,6 +71,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
+       { rel: "icon", type: "image/png", href: "/favicon.png" },
+       { rel: "preconnect", href: "https://fonts.googleapis.com" },
+       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
++      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" },
+       { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" },
+     ],
+   }),
+diff --git a/src/routes/auth.tsx b/src/routes/auth.tsx
+index 2c40d67..1c13a9d 100644
+--- a/src/routes/auth.tsx
++++ b/src/routes/auth.tsx
+@@ -1,33 +1,36 @@
+ import { createFileRoute, useNavigate } from "@tanstack/react-router";
+ import { useEffect, useState } from "react";
+-import { toast } from "sonner";
++import { Eye, EyeSlash, GoogleLogo, EnvelopeSimple } from "@phosphor-icons/react";
+ import { supabase } from "@/integrations/supabase/client";
+-import { Button } from "@/components/ui/button";
+-import { Input } from "@/components/ui/input";
+-import { Label } from "@/components/ui/label";
+-import { Logo } from "@/components/Logo";
++import { MkShell } from "@/components/marketing-shell";
++import { AuthFrame, EMAIL_RE, Field } from "@/components/auth-bits";
+ 
+ export const Route = createFileRoute("/auth")({
++  validateSearch: (s: Record<string, unknown>): { mode?: "signup" } => (s.mode === "signup" ? { mode: "signup" } : {}),
+   head: () => ({
+     meta: [
+-      { title: "Sign in — AlphaMine" },
+-      { name: "description", content: "Sign in or create your AlphaMine trading journal account." },
+-      { property: "og:title", content: "Sign in — AlphaMine" },
+-      { property: "og:description", content: "Sign in or create your AlphaMine trading journal account." },
+-       { property: "og:type", content: "website" },
+-       { name: "twitter:card", content: "summary" },
++      { title: "Sign in to AlphaMine" }, { name: "description", content: "Sign in or create your AlphaMine trading journal account." },
++      { name: "robots", content: "noindex" }, { property: "og:title", content: "Sign in to AlphaMine" }, { property: "og:type", content: "website" },
+     ],
+   }),
+-  component: AuthPage,
++  component: () => <MkShell><AuthPage /></MkShell>,
+ });
+ 
++type Mode = "in" | "up" | "forgot";
++const COPY: Record<Mode, { h: string; sub: string; cta: string; busy: string }> = {
++  in: { h: "Welcome back", sub: "Sign in to open your journal.", cta: "Sign in", busy: "Signing in" },
++  up: { h: "Create your account", sub: "Start a journal in under a minute.", cta: "Create account", busy: "Creating account" },
++  forgot: { h: "Reset your password", sub: "We will email you a link to choose a new one.", cta: "Send reset link", busy: "Sending link" },
++};
++
+ function AuthPage() {
+   const navigate = useNavigate();
+-  const [mode, setMode] = useState<"in" | "up" | "forgot">("in");
+-  const [email, setEmail] = useState("");
+-  const [password, setPassword] = useState("");
+-  const [name, setName] = useState("");
+-  const [busy, setBusy] = useState(false);
++  const { mode: initial } = Route.useSearch();
++  const [mode, setMode] = useState<Mode>(initial === "signup" ? "up" : "in");
++  const [name, setName] = useState(""); const [email, setEmail] = useState(""); const [password, setPassword] = useState("");
++  const [show, setShow] = useState(false); const [busy, setBusy] = useState(false);
++  const [errs, setErrs] = useState<{ email?: string; password?: string; form?: string }>({});
++  const [sent, setSent] = useState<null | "confirm" | "reset">(null);
+ 
+   useEffect(() => {
+     supabase.auth.getSession().then(({ data }) => data.session && navigate({ to: "/home", replace: true }));
+@@ -35,74 +38,74 @@ function AuthPage() {
+     return () => data.subscription.unsubscribe();
+   }, [navigate]);
+ 
++  const switchTo = (m: Mode) => { setMode(m); setErrs({}); setSent(null); };
++
+   async function submit(e: React.FormEvent) {
+     e.preventDefault();
++    const next: typeof errs = {};
++    if (!EMAIL_RE.test(email)) next.email = "Enter a valid email address, like name@example.com.";
++    if (mode !== "forgot" && password.length < 6) next.password = "Use at least 6 characters.";
++    setErrs(next);
++    if (next.email || next.password) return;
+     setBusy(true);
+     try {
+       if (mode === "in") {
+         const { error } = await supabase.auth.signInWithPassword({ email, password });
+         if (error) throw error;
+       } else if (mode === "up") {
+-        const { error } = await supabase.auth.signUp({
+-          email,
+-          password,
+-          options: { emailRedirectTo: window.location.origin + "/home", data: { full_name: name } },
+-        });
++        const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin + "/home", data: { full_name: name } } });
+         if (error) throw error;
+-        toast.success("Check your email to confirm your account.");
++        setSent("confirm");
+       } else {
+         const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + "/reset-password" });
+         if (error) throw error;
+-        toast.success("Password reset link sent.");
++        setSent("reset");
+       }
+     } catch (err) {
+-      toast.error((err as Error).message);
+-    } finally {
+-      setBusy(false);
+-    }
++      setErrs({ form: `${(err as Error).message}. Check your details and try again.` });
++    } finally { setBusy(false); }
+   }
+ 
+   async function google() {
+-    const { error } = await supabase.auth.signInWithOAuth({
+-      provider: "google",
+-      options: { redirectTo: window.location.origin + "/auth" },
+-    });
+-    if (error) toast.error(error.message ?? "Google sign-in failed");
++    const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.origin + "/auth" } });
++    if (error) setErrs({ form: "Google sign in failed. Try again or use your email." });
+   }
+ 
+-  return (
+-    <div className="grid min-h-screen lg:grid-cols-2">
+-      <div className="hidden flex-col justify-between bg-ink p-12 text-ink-foreground lg:flex">
+-        <Logo />
+-        <div>
+-          <h1 className="text-4xl font-extrabold leading-tight">Mine your trades<br />for the edge you already have.</h1>
+-          <p className="mt-4 max-w-md text-ink-foreground/70">Journal every trade, measure your discipline with the tilt meter, and let the numbers show you what actually works.</p>
++  if (sent) {
++    return (
++      <AuthFrame>
++        <div className="mk-card p-6 text-center hover:!translate-y-0">
++          <EnvelopeSimple size={32} className="mx-auto text-[var(--mk-acc)]" />
++          <h1 className="mt-4 text-2xl font-semibold">Check your email</h1>
++          <p className="mt-2 text-base text-[var(--mk-mute)]">{sent === "confirm" ? "We sent a confirmation link to " : "We sent a password reset link to "}<span className="font-semibold text-[var(--mk-fg)]">{email}</span>.</p>
++          <button type="button" onClick={() => switchTo("in")} className="mk-btn mk-btn-sec mt-6 w-full">Back to sign in</button>
+         </div>
+-        <p className="text-sm text-ink-foreground/50">© AlphaMine</p>
+-      </div>
+-      <div className="flex items-center justify-center p-6">
+-        <form onSubmit={submit} className="w-full max-w-sm space-y-4">
+-          <div className="lg:hidden"><Logo /></div>
+-          <h2 className="text-2xl font-bold">{mode === "in" ? "Welcome back" : mode === "up" ? "Create your account" : "Reset password"}</h2>
+-          {mode === "up" && (
+-            <div className="space-y-1.5"><Label>Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
+-          )}
+-          <div className="space-y-1.5"><Label>Email</Label><Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></div>
+-          {mode !== "forgot" && (
+-            <div className="space-y-1.5"><Label>Password</Label><Input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} /></div>
+-          )}
+-          <Button className="w-full" disabled={busy}>{mode === "in" ? "Sign in" : mode === "up" ? "Sign up" : "Send reset link"}</Button>
+-          {mode !== "forgot" && (
+-            <Button type="button" variant="outline" className="w-full" onClick={google}>Continue with Google</Button>
+-          )}
+-          <div className="flex justify-between text-sm text-muted-foreground">
+-            <button type="button" onClick={() => setMode(mode === "in" ? "up" : "in")} className="hover:text-foreground">
+-              {mode === "in" ? "Create an account" : "Have an account? Sign in"}
+-            </button>
+-            {mode === "in" && <button type="button" onClick={() => setMode("forgot")} className="hover:text-foreground">Forgot password?</button>}
+-          </div>
+-        </form>
++      </AuthFrame>
++    );
++  }
++
++  const c = COPY[mode];
++  return (
++    <AuthFrame>
++      <h1 className="text-3xl font-semibold">{c.h}</h1>
++      <p className="mt-2 text-base text-[var(--mk-mute)]">{c.sub}</p>
++      <form onSubmit={submit} noValidate className="mt-8 space-y-4">
++        {mode === "up" && <Field label="Name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />}
++        <Field label="Email" type="email" autoComplete="email" value={email} error={errs.email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" />
++        {mode !== "forgot" && (
++          <Field label="Password" type={show ? "text" : "password"} autoComplete={mode === "in" ? "current-password" : "new-password"} value={password} error={errs.password} onChange={(e) => setPassword(e.target.value)}
++            right={<button type="button" onClick={() => setShow((v) => !v)} className="inline-flex items-center gap-1 rounded-lg text-sm text-[var(--mk-mute)] transition-colors duration-300 hover:text-[var(--mk-fg)]" aria-pressed={show}>{show ? <EyeSlash size={16} /> : <Eye size={16} />}{show ? "Hide" : "Show"}</button>} />
++        )}
++        {errs.form && <p role="alert" className="rounded-lg border border-red-500 p-3 text-sm text-red-500">{errs.form}</p>}
++        <button className="mk-btn mk-btn-pri w-full disabled:opacity-60" disabled={busy}>{busy ? c.busy : c.cta}</button>
++        {mode !== "forgot" && (
++          <button type="button" onClick={google} className="mk-btn mk-btn-sec w-full"><GoogleLogo size={18} weight="bold" />Continue with Google</button>
++        )}
++      </form>
++      <div className="mt-6 flex justify-between text-sm text-[var(--mk-mute)]">
++        <button type="button" onClick={() => switchTo(mode === "in" ? "up" : "in")} className="rounded-lg transition-colors duration-300 hover:text-[var(--mk-fg)]">{mode === "in" ? "Create an account" : "Have an account? Sign in"}</button>
++        {mode === "in" && <button type="button" onClick={() => switchTo("forgot")} className="rounded-lg transition-colors duration-300 hover:text-[var(--mk-fg)]">Forgot password?</button>}
+       </div>
+-    </div>
++    </AuthFrame>
+   );
+ }
+diff --git a/src/routes/index.tsx b/src/routes/index.tsx
+index e96b9b9..20bc674 100644
+--- a/src/routes/index.tsx
++++ b/src/routes/index.tsx
+@@ -80,7 +80,7 @@ function Landing() {
+           <h1 className="mk-grad mx-auto text-5xl font-semibold md:text-7xl" style={{ maxWidth: 680 }}>Your trades already contain your edge.<br />Mine it.</h1>
+           <p className="mx-auto mt-6 text-lg text-[var(--mk-mute)]" style={{ maxWidth: 680 }}>AlphaMine is a trading journal that puts hard numbers on your results and on your discipline. Import from MetaTrader 5, tag your decisions, and see what actually pays.</p>
+           <div className="mt-8 flex flex-col items-center gap-3">
+-            <Link to="/auth" className="mk-btn mk-btn-pri">Start journaling free <ArrowRight size={18} weight="bold" /></Link>
++            <Link to="/auth" search={{ mode: "signup" }} className="mk-btn mk-btn-pri">Start journaling free <ArrowRight size={18} weight="bold" /></Link>
+             <p className="text-sm text-[var(--mk-mute)]">Sixteen Chart Lab reports. Private to your account.</p>
+           </div>
+           <Rv className="mt-16"><ProductMock /></Rv>
+@@ -154,7 +154,7 @@ function Landing() {
+           <Rv>
+             <div className="rounded-2xl border border-[var(--mk-line)] bg-[var(--mk-s1)] px-6 py-16">
+               <h2 className="mx-auto text-4xl font-semibold md:text-5xl" style={{ maxWidth: 680 }}>Find out what your trades have been telling you</h2>
+-              <Link to="/auth" className="mk-btn mk-btn-pri mt-8">Start journaling free <ArrowRight size={18} weight="bold" /></Link>
++              <Link to="/auth" search={{ mode: "signup" }} className="mk-btn mk-btn-pri mt-8">Start journaling free <ArrowRight size={18} weight="bold" /></Link>
+             </div>
+           </Rv>
+         </section>
+diff --git a/src/routes/reset-password.tsx b/src/routes/reset-password.tsx
+index df91e3f..13d2af5 100644
+--- a/src/routes/reset-password.tsx
++++ b/src/routes/reset-password.tsx
+@@ -1,43 +1,43 @@
+ import { createFileRoute, useNavigate } from "@tanstack/react-router";
+ import { useState } from "react";
+-import { toast } from "sonner";
+ import { supabase } from "@/integrations/supabase/client";
+-import { Button } from "@/components/ui/button";
+-import { Input } from "@/components/ui/input";
+-import { Logo } from "@/components/Logo";
++import { MkShell } from "@/components/marketing-shell";
++import { AuthFrame, Field } from "@/components/auth-bits";
+ 
+ export const Route = createFileRoute("/reset-password")({
+-  head: () => ({
+-    meta: [
+-      { title: "Set a new password — AlphaMine" },
+-      { name: "description", content: "Choose a new password for your AlphaMine account." },
+-      { property: "og:title", content: "Set a new password — AlphaMine" },
+-      { property: "og:description", content: "Choose a new password for your AlphaMine account." },
+-       { property: "og:type", content: "website" },
+-       { name: "twitter:card", content: "summary" },
+-    ],
+-  }),
+-  component: Reset,
++  head: () => ({ meta: [{ title: "Set a new password for AlphaMine" }, { name: "description", content: "Choose a new password for your AlphaMine account." }, { name: "robots", content: "noindex" }] }),
++  component: () => <MkShell><Reset /></MkShell>,
+ });
+ 
+ function Reset() {
+-  const [pw, setPw] = useState("");
+   const navigate = useNavigate();
++  const [pw, setPw] = useState(""); const [again, setAgain] = useState("");
++  const [err, setErr] = useState<{ pw?: string; again?: string; form?: string }>({}); const [busy, setBusy] = useState(false);
++
+   async function save(e: React.FormEvent) {
+     e.preventDefault();
++    const n: typeof err = {};
++    if (pw.length < 6) n.pw = "Use at least 6 characters.";
++    if (again !== pw) n.again = "The two passwords do not match.";
++    setErr(n);
++    if (n.pw || n.again) return;
++    setBusy(true);
+     const { error } = await supabase.auth.updateUser({ password: pw });
+-    if (error) return toast.error(error.message);
+-    toast.success("Password updated");
++    setBusy(false);
++    if (error) return setErr({ form: `${error.message}. Open the reset link from your email again.` });
+     navigate({ to: "/home" });
+   }
++
+   return (
+-    <div className="flex min-h-screen items-center justify-center p-6">
+-      <form onSubmit={save} className="w-full max-w-sm space-y-4">
+-        <Logo />
+-        <h2 className="text-2xl font-bold">Set a new password</h2>
+-        <Input type="password" minLength={6} required value={pw} onChange={(e) => setPw(e.target.value)} placeholder="New password" />
+-        <Button className="w-full">Update password</Button>
++    <AuthFrame>
++      <h1 className="text-3xl font-semibold">Set a new password</h1>
++      <p className="mt-2 text-base text-[var(--mk-mute)]">Choose something you have not used before.</p>
++      <form onSubmit={save} noValidate className="mt-8 space-y-4">
++        <Field label="New password" type="password" autoComplete="new-password" value={pw} error={err.pw} onChange={(e) => setPw(e.target.value)} />
++        <Field label="Confirm password" type="password" autoComplete="new-password" value={again} error={err.again} onChange={(e) => setAgain(e.target.value)} />
++        {err.form && <p role="alert" className="rounded-lg border border-red-500 p-3 text-sm text-red-500">{err.form}</p>}
++        <button className="mk-btn mk-btn-pri w-full disabled:opacity-60" disabled={busy}>{busy ? "Updating password" : "Update password"}</button>
+       </form>
+-    </div>
++    </AuthFrame>
+   );
+ }

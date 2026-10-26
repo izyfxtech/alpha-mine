@@ -240,3 +240,38 @@
 .slim-scroll::-webkit-scrollbar-thumb { background: #c9c5cf; border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
 .slim-scroll::-webkit-scrollbar-thumb:hover { background: #a9a4b2; background-clip: content-box; }
 .slim-scroll::-webkit-scrollbar-corner { background: transparent; }
+
+/* Marketing + auth scope (.mk). Own type scale in px so the app's 12px root size does not shrink it. */
+.mk {
+  --spacing: 4px;
+  --text-xs: 12px; --text-xs--line-height: 16px; --text-sm: 14px; --text-sm--line-height: 20px;
+  --text-base: 16px; --text-base--line-height: 24px; --text-lg: 18px; --text-lg--line-height: 28px;
+  --text-xl: 20px; --text-xl--line-height: 28px; --text-2xl: 24px; --text-2xl--line-height: 32px;
+  --text-3xl: 30px; --text-3xl--line-height: 36px; --text-4xl: 36px; --text-4xl--line-height: 40px;
+  --text-5xl: 48px; --text-5xl--line-height: 1; --text-6xl: 60px; --text-6xl--line-height: 1; --text-7xl: 72px; --text-7xl--line-height: 1;
+  --radius-lg: 8px; --radius-xl: 12px; --radius-2xl: 16px; --radius-full: 9999px;
+  --mk-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  font-family: "Geist", ui-sans-serif, system-ui, sans-serif;
+  background: var(--mk-bg); color: var(--mk-fg); min-height: 100vh;
+}
+.mk-dark { --mk-bg: #000000; --mk-s1: #181818; --mk-s2: #1f1f1f; --mk-line: #313131; --mk-fg: #f5f5f5; --mk-mute: #9b9b9b; --mk-acc: #6fd35f; --mk-acc-fg: #000000; --mk-g1: #ffffff; --mk-g2: #9b9b9b; --ink: #f5f5f5; --profit: #6fd35f; --mk-nav: rgb(24 24 24 / 0.7); --mk-panel: rgb(0 0 0 / 0.94); color-scheme: dark; }
+.mk-light { --mk-bg: #ffffff; --mk-s1: #f6f6f6; --mk-s2: #ededed; --mk-line: #e2e2e2; --mk-fg: #111111; --mk-mute: #666666; --mk-acc: #2f8a29; --mk-acc-fg: #ffffff; --mk-g1: #000000; --mk-g2: #666666; --ink: #111111; --profit: #2f8a29; --mk-nav: rgb(255 255 255 / 0.75); --mk-panel: rgb(255 255 255 / 0.96); color-scheme: light; }
+.mk h1, .mk h2, .mk h3 { text-wrap: balance; letter-spacing: -0.02em; }
+.mk p { text-wrap: pretty; }
+.mk-wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+.mk-grad { background: linear-gradient(90deg, var(--mk-g1), var(--mk-g2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.mk-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 12px; border-radius: 8px; font-size: 16px; font-weight: 600; transition: background-color 300ms var(--mk-ease), transform 200ms var(--mk-ease), opacity 300ms var(--mk-ease); }
+.mk-btn:active { transform: scale(0.98); }
+.mk-btn:focus-visible, .mk a:focus-visible, .mk button:focus-visible, .mk summary:focus-visible { outline: 2px solid var(--mk-acc); outline-offset: 2px; }
+.mk-btn-pri { background: var(--mk-acc); color: var(--mk-acc-fg); } .mk-btn-pri:hover { opacity: 0.88; }
+.mk-btn-sec { background: var(--mk-s1); color: var(--mk-fg); border: 1px solid var(--mk-line); } .mk-btn-sec:hover { background: var(--mk-s2); }
+.mk-card { background: var(--mk-s1); border: 1px solid var(--mk-line); border-radius: 16px; transition: background-color 300ms var(--mk-ease), transform 500ms var(--mk-ease); }
+.mk-card:hover { background: var(--mk-s2); transform: translateY(-2px); }
+.mk-js .mk-rv { opacity: 0; transform: translateY(32px); transition: opacity 700ms var(--mk-ease), transform 700ms var(--mk-ease); }
+.mk-js .mk-rv.in { opacity: 1; transform: none; }
+.mk-w { opacity: 0.3; transition: opacity 500ms var(--mk-ease); } .mk-w.in { opacity: 1; }
+.mk details > summary { list-style: none; cursor: pointer; } .mk details > summary::-webkit-details-marker { display: none; }
+.mk details[open] .mk-plus { transform: rotate(45deg); } .mk-plus { transition: transform 500ms var(--mk-ease); }
+@media (prefers-reduced-motion: reduce) {
+  .mk-js .mk-rv { transform: none; } .mk-card:hover, .mk-btn:active { transform: none; } .mk-plus { transition: none; }
+}
