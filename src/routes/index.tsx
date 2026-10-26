@@ -163,7 +163,7 @@ function Landing() {
       <footer className="border-t border-[var(--mk-line)] py-8">
         <div className="mk-wrap flex flex-col items-center justify-between gap-4 text-sm text-[var(--mk-mute)] sm:flex-row">
           <BrandLink />
-          <div className="flex items-center gap-6">{nav.map((l) => <a key={l.href} href={l.href} className="transition-colors duration-300 hover:text-[var(--mk-fg)]">{l.label}</a>)}<Link to="/auth" className="transition-colors duration-300 hover:text-[var(--mk-fg)]">Sign in</Link></div>
+          <div className="flex items-center gap-6">{nav.map((l) => <a key={l.href} href={l.href} className="transition-colors duration-300 hover:text-[var(--mk-fg)]">{l.label}</a>)}<Link to="/privacy" className="transition-colors duration-300 hover:text-[var(--mk-fg)]">Privacy</Link><Link to="/terms" className="transition-colors duration-300 hover:text-[var(--mk-fg)]">Terms</Link><Link to="/auth" className="transition-colors duration-300 hover:text-[var(--mk-fg)]">Sign in</Link></div>
           <p>© {new Date().getFullYear()} AlphaMine</p>
         </div>
       </footer>

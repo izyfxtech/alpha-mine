@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Eye, EyeSlash, GoogleLogo, EnvelopeSimple } from "@phosphor-icons/react";
 import { supabase } from "@/integrations/supabase/client";
@@ -102,6 +102,7 @@ function AuthPage() {
           <button type="button" onClick={google} className="mk-btn mk-btn-sec w-full"><GoogleLogo size={18} weight="bold" />Continue with Google</button>
         )}
       </form>
+      {mode !== "forgot" && <p className="mt-6 text-sm text-[var(--mk-mute)]">By continuing you agree to the <Link to="/terms" className="font-semibold underline">Terms</Link> and <Link to="/privacy" className="font-semibold underline">Privacy policy</Link>.</p>}
       <div className="mt-6 flex justify-between text-sm text-[var(--mk-mute)]">
         <button type="button" onClick={() => switchTo(mode === "in" ? "up" : "in")} className="rounded-lg transition-colors duration-300 hover:text-[var(--mk-fg)]">{mode === "in" ? "Create an account" : "Have an account? Sign in"}</button>
         {mode === "in" && <button type="button" onClick={() => switchTo("forgot")} className="rounded-lg transition-colors duration-300 hover:text-[var(--mk-fg)]">Forgot password?</button>}
