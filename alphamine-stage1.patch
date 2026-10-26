@@ -1,0 +1,1059 @@
+diff --git a/.env.example b/.env.example
+new file mode 100644
+index 0000000..ef9cda6
+--- /dev/null
++++ b/.env.example
+@@ -0,0 +1,8 @@
++SUPABASE_PROJECT_ID=
++SUPABASE_PUBLISHABLE_KEY=
++SUPABASE_URL=
++VITE_SUPABASE_PROJECT_ID=
++VITE_SUPABASE_PUBLISHABLE_KEY=
++VITE_SUPABASE_URL=
++DATABASE_URL=
++CRON_SECRET=
+diff --git a/.gitignore b/.gitignore
+index 978afd7..569c10d 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -26,3 +26,11 @@ dist-ssr
+ *.njsproj
+ *.sln
+ *.sw?
++
++# Env and Supabase CLI local state
++.env
++.env.*
++!.env.example
++supabase/.temp
++supabase/.branches
++supabase/.env
+diff --git a/README.md b/README.md
+index 764f47a..c3f08bc 100644
+--- a/README.md
++++ b/README.md
+@@ -17,9 +17,7 @@ with owner-scoped row level security.
+    SUPABASE_PROJECT_ID=
+    ```
+ 
+-2. Apply the SQL files in `drizzle/migrations/` (in order) to your Supabase project,
+-   via the SQL editor or `pnpm drizzle-kit migrate` with `DATABASE_URL` set to your
+-   Postgres connection string.
++2. Link the Supabase CLI and push the migrations (see "Database workflow" below).
+ 3. Install and run:
+ 
+    ```
+@@ -38,15 +36,27 @@ with owner-scoped row level security.
+ Enable the Google provider in Supabase (Authentication > Providers) and add your site
+ URL and `<site>/auth` to the allowed redirect URLs.
+ 
++## Database workflow
+ 
+-## Database migration 0002
++Drizzle Kit generates SQL into `supabase/migrations/`; the Supabase CLI applies and tracks it.
+ 
+-`drizzle/migrations/0002_plans_missed_option_fields.sql` adds Option Type, Expiry Date and Multiplier to Trading Plans and Missed Trades, and a `planned_trade_custom_stats` table so Trading Plans can carry custom statistics. Apply it to your Supabase project (SQL editor or `pnpm drizzle-kit migrate`) before using those fields. It is safe to run more than once.
++```
++pnpm install
++pnpm supabase login
++pnpm supabase link --project-ref <your-project-ref>   # once
++pnpm db:push                                          # apply migrations to the linked project
++pnpm db:start                                         # optional: local stack (needs Docker)
++pnpm db:types                                         # regenerate src/integrations/supabase/types.ts
++```
+ 
+-New dependency: `html-to-image` (calendar screenshot button). Run `pnpm install`.
++Changing the schema:
+ 
++1. First time only: `pnpm db:pull` (needs `DATABASE_URL`) to fill `drizzle/schema.ts` from the live database.
++2. Edit `drizzle/schema.ts`, then `pnpm db:generate`. This writes `supabase/migrations/<timestamp>_<name>.sql`.
++3. Review the SQL, then `pnpm db:push`. RLS policies, triggers and functions are not modelled by Drizzle, so add those as hand written migrations (`pnpm supabase migration new <name>`).
+ 
+-## Database migrations 0003 and 0004
++If your remote database already has the old manual migrations applied, mark them as done instead of re-running them:
+ 
+-- `drizzle/migrations/0003_mt_import.sql` mirrors the MetaTrader import SQL (`sync_jobs`, `journals.mt_*`, `trades.source/external_id/raw_symbol/commission/swap`, the unique `(journal_id, external_id)` index and the updated `trades_compute_pnl` trigger). It is written with `IF NOT EXISTS` / `OR REPLACE`, so it is safe to run on a database where you already applied those statements by hand.
+-- `drizzle/migrations/0004_disable_items.sql` adds a `disabled` flag to instruments, setups, trade comments and custom statistics, and `journals.disabled_session_categories`. The Settings pages use it for the "Active Items / Disabled Items" switch: the trash icon retires an item (it stays on existing trades) instead of deleting it.
++```
++pnpm supabase migration repair --status applied 20261003080104 20261004074640 20261005113320 20261006152000
++```
+diff --git a/drizzle.config.ts b/drizzle.config.ts
+index 4c603be..09e67df 100644
+--- a/drizzle.config.ts
++++ b/drizzle.config.ts
+@@ -1,10 +1,11 @@
+ import { defineConfig } from "drizzle-kit";
+ 
++// Drizzle Kit generates the SQL, the Supabase CLI applies and tracks it.
++// `prefix: "supabase"` names files <timestamp>_<name>.sql, which is what the CLI expects.
+ export default defineConfig({
+   dialect: "postgresql",
+   schema: "./drizzle/schema.ts",
+-  out: "./drizzle/migrations",
+-  dbCredentials: {
+-    url: process.env.DATABASE_URL ?? "",
+-  },
++  out: "./supabase/migrations",
++  migrations: { prefix: "supabase" },
++  dbCredentials: { url: process.env.DATABASE_URL ?? "" },
+ });
+diff --git a/drizzle/migrations/0001_noop_apply_existing.sql b/drizzle/migrations/0001_noop_apply_existing.sql
+deleted file mode 100644
+index 027b7d6..0000000
+--- a/drizzle/migrations/0001_noop_apply_existing.sql
++++ /dev/null
+@@ -1 +0,0 @@
+-SELECT 1;
+\ No newline at end of file
+diff --git a/drizzle/migrations/meta/0000_snapshot.json b/drizzle/migrations/meta/0000_snapshot.json
+deleted file mode 100644
+index 6acad6b..0000000
+--- a/drizzle/migrations/meta/0000_snapshot.json
++++ /dev/null
+@@ -1,18 +0,0 @@
+-{
+-  "id": "841b2e76-42ba-4eab-8efb-170769046e60",
+-  "prevId": "00000000-0000-0000-0000-000000000000",
+-  "version": "7",
+-  "dialect": "postgresql",
+-  "tables": {},
+-  "enums": {},
+-  "schemas": {},
+-  "views": {},
+-  "sequences": {},
+-  "roles": {},
+-  "policies": {},
+-  "_meta": {
+-    "columns": {},
+-    "schemas": {},
+-    "tables": {}
+-  }
+-}
+diff --git a/drizzle/migrations/meta/0001_snapshot.json b/drizzle/migrations/meta/0001_snapshot.json
+deleted file mode 100644
+index 70eba5f..0000000
+--- a/drizzle/migrations/meta/0001_snapshot.json
++++ /dev/null
+@@ -1,18 +0,0 @@
+-{
+-  "id": "4d8e1efc-d0da-4566-9d92-5bca67d6f97b",
+-  "prevId": "841b2e76-42ba-4eab-8efb-170769046e60",
+-  "version": "7",
+-  "dialect": "postgresql",
+-  "tables": {},
+-  "enums": {},
+-  "schemas": {},
+-  "views": {},
+-  "sequences": {},
+-  "roles": {},
+-  "policies": {},
+-  "_meta": {
+-    "columns": {},
+-    "schemas": {},
+-    "tables": {}
+-  }
+-}
+diff --git a/drizzle/migrations/meta/_journal.json b/drizzle/migrations/meta/_journal.json
+deleted file mode 100644
+index 8d86d8c..0000000
+--- a/drizzle/migrations/meta/_journal.json
++++ /dev/null
+@@ -1,41 +0,0 @@
+-{
+-  "version": "7",
+-  "dialect": "postgresql",
+-  "entries": [
+-    {
+-      "idx": 0,
+-      "version": "7",
+-      "when": 1791014464458,
+-      "tag": "0000_alphamine_schema",
+-      "breakpoints": true
+-    },
+-    {
+-      "idx": 1,
+-      "version": "7",
+-      "when": 1791015456519,
+-      "tag": "0001_noop_apply_existing",
+-      "breakpoints": true
+-    },
+-    {
+-      "idx": 2,
+-      "version": "7",
+-      "when": 1791100000000,
+-      "tag": "0002_plans_missed_option_fields",
+-      "breakpoints": true
+-    },
+-    {
+-      "idx": 3,
+-      "version": "7",
+-      "when": 1791200000000,
+-      "tag": "0003_mt_import",
+-      "breakpoints": true
+-    },
+-    {
+-      "idx": 4,
+-      "version": "7",
+-      "when": 1791300000000,
+-      "tag": "0004_disable_items",
+-      "breakpoints": true
+-    }
+-  ]
+-}
+\ No newline at end of file
+diff --git a/package.json b/package.json
+index 4c86e28..1d4600a 100644
+--- a/package.json
++++ b/package.json
+@@ -10,9 +10,17 @@
+     "preview": "vite preview",
+     "format": "prettier --write .",
+     "test": "vitest run",
+-    "test:watch": "vitest"
++    "test:watch": "vitest",
++    "db:pull": "drizzle-kit pull",
++    "db:generate": "drizzle-kit generate",
++    "db:start": "supabase start",
++    "db:stop": "supabase stop",
++    "db:reset": "supabase db reset",
++    "db:push": "supabase db push",
++    "db:types": "supabase gen types typescript --linked > src/integrations/supabase/types.ts"
+   },
+   "dependencies": {
++    "@phosphor-icons/react": "^2.1.10",
+     "@radix-ui/react-checkbox": "^1.3.11",
+     "@radix-ui/react-collapsible": "^1.1.20",
+     "@radix-ui/react-dialog": "^1.1.23",
+@@ -53,6 +61,7 @@
+     "nitro": ">=3.0.260903-beta",
+     "postgres": "^3.4.9",
+     "prettier": "^3.9.9",
++    "supabase": "^2.122.0",
+     "typescript": "^7.0.2",
+     "vite": "8.3.2",
+     "vitest": "^5.0.3"
+diff --git a/pnpm-workspace.yaml b/pnpm-workspace.yaml
+index 3cdf2ff..eeb52ef 100644
+--- a/pnpm-workspace.yaml
++++ b/pnpm-workspace.yaml
+@@ -1,3 +1,4 @@
+ allowBuilds:
+   esbuild: true
++  supabase: true
+ minimumReleaseAge: 0
+diff --git a/src/components/marketing-shell.tsx b/src/components/marketing-shell.tsx
+new file mode 100644
+index 0000000..b64458e
+--- /dev/null
++++ b/src/components/marketing-shell.tsx
+@@ -0,0 +1,66 @@
++import { useEffect, useState, type ReactNode } from "react";
++import { Link } from "@tanstack/react-router";
++import { Moon, Sun } from "@phosphor-icons/react";
++import { Logo } from "@/components/Logo";
++
++type Theme = "dark" | "light";
++const KEY = "am.mk-theme";
++
++/** Marketing + auth wrapper: dark by default, persisted toggle, one observer for reveals and word fades. */
++export function MkShell({ children }: { children: ReactNode }) {
++  const [theme, setTheme] = useState<Theme>("dark");
++  const [ready, setReady] = useState(false);
++
++  useEffect(() => {
++    try { if (localStorage.getItem(KEY) === "light") setTheme("light"); } catch { /* storage unavailable */ }
++    setReady(true);
++  }, []);
++
++  useEffect(() => {
++    if (!ready) return;
++    const els = document.querySelectorAll<HTMLElement>(".mk-rv, .mk-w");
++    const obs = new IntersectionObserver(
++      (entries) => entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("in"); obs.unobserve(e.target); } }),
++      { rootMargin: "0px 0px -15% 0px" },
++    );
++    els.forEach((el) => obs.observe(el));
++    return () => obs.disconnect();
++  }, [ready]);
++
++  const toggle = () => setTheme((t) => {
++    const n = t === "dark" ? "light" : "dark";
++    try { localStorage.setItem(KEY, n); } catch { /* ignore */ }
++    return n;
++  });
++
++  return (
++    <div className={`mk ${theme === "dark" ? "mk-dark" : "mk-light"} ${ready ? "mk-js" : ""}`}>
++      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-lg focus:bg-[var(--mk-acc)] focus:px-3 focus:py-2 focus:text-[var(--mk-acc-fg)]">Skip to content</a>
++      <MkContext.Provider value={{ theme, toggle }}>{children}</MkContext.Provider>
++    </div>
++  );
++}
++
++import { createContext, useContext } from "react";
++const MkContext = createContext<{ theme: Theme; toggle: () => void }>({ theme: "dark", toggle: () => {} });
++
++export function ThemeToggle() {
++  const { theme, toggle } = useContext(MkContext);
++  return (
++    <button type="button" onClick={toggle} aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
++      className="grid h-9 w-9 place-items-center rounded-lg border border-[var(--mk-line)] text-[var(--mk-mute)] transition-colors duration-300 hover:bg-[var(--mk-s2)] hover:text-[var(--mk-fg)]">
++      {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
++    </button>
++  );
++}
++
++export const Rv = ({ children, className = "", delay = 0 }: { children: ReactNode; className?: string; delay?: number }) => (
++  <div className={`mk-rv ${className}`} style={delay ? { transitionDelay: `${delay}ms` } : undefined}>{children}</div>
++);
++
++/** Each word fades from muted to full colour as it crosses the trigger line. */
++export const Words = ({ text }: { text: string }) => (
++  <>{text.split(" ").map((w, i) => <span key={i} className="mk-w">{w}{" "}</span>)}</>
++);
++
++export const BrandLink = () => <Link to="/" aria-label="AlphaMine home"><Logo /></Link>;
+diff --git a/src/routes/index.tsx b/src/routes/index.tsx
+index 43bc722..e96b9b9 100644
+--- a/src/routes/index.tsx
++++ b/src/routes/index.tsx
+@@ -1,52 +1,197 @@
+ import { createFileRoute, Link } from "@tanstack/react-router";
+-import { Button } from "@/components/ui/button";
+-import { Logo } from "@/components/Logo";
+-import { CalendarDays, LineChart, Brain, FlaskConical } from "lucide-react";
++import { useState } from "react";
++import { ArrowRight, Brain, CalendarDots, ChartLineUp, FileArrowDown, Flask, MagnifyingGlass, Plus, ShareNetwork } from "@phosphor-icons/react";
++import { MkShell, Rv, ThemeToggle, Words, BrandLink } from "@/components/marketing-shell";
++
++const TITLE = "AlphaMine: the trading journal that finds your edge";
++const DESC = "Journal trades, measure discipline with the tilt meter, and analyse performance with 16 Chart Lab reports. Imports MetaTrader 5 reports.";
+ 
+ export const Route = createFileRoute("/")({
+   head: () => ({
+     meta: [
+-      { title: "AlphaMine — The trading journal that finds your edge" },
+-      { name: "description", content: "Journal trades, track discipline with the tilt meter, and analyse performance with 16 Chart Lab reports." },
+-      { property: "og:title", content: "AlphaMine — The trading journal that finds your edge" },
+-      { property: "og:description", content: "Journal trades, track discipline with the tilt meter, and analyse performance with 16 Chart Lab reports." },
+-      { property: "og:type", content: "website" },
+-      { name: "twitter:card", content: "summary_large_image" },
++      { title: TITLE }, { name: "description", content: DESC },
++      { property: "og:title", content: TITLE }, { property: "og:description", content: DESC },
++      { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" },
+     ],
++    links: [{ rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" }],
+   }),
+   component: Landing,
+ });
+ 
++const nav = [{ href: "#features", label: "Features" }, { href: "#how", label: "How it works" }, { href: "#faq", label: "FAQ" }];
++
+ const features = [
+-  { icon: CalendarDays, t: "Profit calendar", d: "Daily P&L, trade count and tilt meter at a glance." },
+-  { icon: LineChart, t: "Chart Lab", d: "Drawdown, exit analysis, holding time, SQN and more." },
+-  { icon: Brain, t: "Tilt meter", d: "Tag entries, management and exits to measure discipline." },
+-  { icon: FlaskConical, t: "Strategy Lab", d: "What-if exits and Monte Carlo simulation of your edge." },
++  { icon: CalendarDots, t: "Profit calendar", d: "Daily P&L, trade count and tilt score on one calendar, so a bad week is obvious in seconds." },
++  { icon: Brain, t: "Tilt meter", d: "Tag entries, management and exits as disciplined or not, then watch the score move by day." },
++  { icon: ChartLineUp, t: "Chart Lab", d: "Sixteen reports including drawdown, exit analysis, holding time and SQN by setup." },
++  { icon: MagnifyingGlass, t: "Edge Finder", d: "Surfaces the setups, sessions and instruments where your results actually separate from luck." },
++  { icon: Flask, t: "Strategy Lab", d: "Test what if exits and run Monte Carlo simulations on your own trade history." },
++  { icon: FileArrowDown, t: "MetaTrader 5 import", d: "Drop in an HTML or Excel report and your trades land in the journal with P&L recomputed." },
++];
++
++const steps = [
++  { n: "01", t: "Bring your trades in", d: "Import a MetaTrader 5 report, upload a spreadsheet, or log a trade by hand with screenshots." },
++  { n: "02", t: "Tag your decisions", d: "Mark setup, entry, management and exit quality. Thirty seconds per trade is enough." },
++  { n: "03", t: "Read your edge", d: "Open Chart Lab and Edge Finder to see what pays, what leaks, and where discipline slips." },
++];
++
++const faqs = [
++  { q: "Which platforms can I import from?", a: "MetaTrader 5 report exports in HTML and Excel are supported. You can also import a CSV or Excel file, or add trades by hand with screenshots." },
++  { q: "Is my data private?", a: "Every journal belongs to your account and database rules stop other users from reading it. Screenshots sit in a private bucket and open through short lived signed links." },
++  { q: "What is the tilt meter?", a: "You tag each entry, management decision and exit. AlphaMine turns those tags into a daily discipline score, so you can see when your process slipped." },
++  { q: "Can I keep more than one journal?", a: "Yes. Each journal has its own broker, currency and starting balance, and every report follows the journal you have selected." },
++  { q: "Can I show my journal to someone else?", a: "You can create a share link for a journal, handy for a coach or a trading partner." },
++  { q: "What does Strategy Lab do?", a: "It replays your history with different exits and runs Monte Carlo simulations, so you can judge an edge by its spread of outcomes, not one lucky run." },
+ ];
+ 
+ function Landing() {
++  const [open, setOpen] = useState(false);
+   return (
+-    <div className="min-h-screen">
+-      <header className="mx-auto flex max-w-6xl items-center justify-between p-6">
+-        <Logo />
+-        <Button asChild><Link to="/auth">Sign in</Link></Button>
++    <MkShell>
++      {/* Floating navigation */}
++      <header className="fixed inset-x-0 top-3 z-40 mx-auto w-fit max-w-[calc(100%-24px)]">
++        <nav aria-label="Primary" className="flex items-center gap-4 rounded-2xl border border-[var(--mk-line)] bg-[var(--mk-nav)] px-3 py-2 backdrop-blur-xl">
++          <BrandLink />
++          <div className="hidden items-center gap-1 md:flex">
++            {nav.map((l) => <a key={l.href} href={l.href} className="rounded-lg px-3 py-2 text-sm font-semibold text-[var(--mk-mute)] transition-colors duration-300 hover:text-[var(--mk-fg)]">{l.label}</a>)}
++          </div>
++          <div className="flex items-center gap-2">
++            <ThemeToggle />
++            <Link to="/auth" className="mk-btn mk-btn-sec hidden text-sm md:inline-flex">Sign in</Link>
++            <button type="button" aria-label={open ? "Close menu" : "Open menu"} aria-expanded={open} onClick={() => setOpen((o) => !o)} className="relative z-50 h-9 w-9 rounded-lg border border-[var(--mk-line)] md:hidden">
++              <span className="absolute left-2.5 top-3.5 h-0.5 w-4 rounded-full bg-[var(--mk-fg)] transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]" style={{ transform: open ? "translateY(3px) rotate(45deg)" : "none" }} />
++              <span className="absolute left-2.5 top-[21px] h-0.5 w-4 rounded-full bg-[var(--mk-fg)] transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]" style={{ transform: open ? "translateY(-4px) rotate(-45deg)" : "none" }} />
++            </button>
++          </div>
++        </nav>
+       </header>
+-      <main className="mx-auto max-w-6xl px-6 pb-24 pt-16">
+-        <h1 className="max-w-3xl text-5xl font-extrabold leading-[1.05] tracking-tight md:text-6xl">
+-          Your trades already contain your edge. <span className="text-profit">Mine it.</span>
+-        </h1>
+-        <p className="mt-6 max-w-xl text-lg text-muted-foreground">AlphaMine is a trading journal built for traders who want hard numbers on their performance and their discipline.</p>
+-        <Button size="lg" className="mt-8" asChild><Link to="/auth">Start journaling — free</Link></Button>
+-        <div className="mt-20 grid gap-4 md:grid-cols-4">
+-          {features.map((f) => (
+-            <div key={f.t} className="rounded-xl border bg-card p-5">
+-              <f.icon className="h-5 w-5 text-profit" />
+-              <h3 className="mt-3 font-semibold">{f.t}</h3>
+-              <p className="mt-1 text-sm text-muted-foreground">{f.d}</p>
+-            </div>
++      <div className={`fixed inset-0 z-30 bg-[var(--mk-panel)] backdrop-blur-2xl transition-opacity duration-500 md:hidden ${open ? "opacity-100" : "pointer-events-none opacity-0"}`} aria-hidden={!open}>
++        <div className="flex h-full flex-col justify-center gap-6 px-6">
++          {[...nav, { href: "/auth", label: "Sign in" }].map((l, i) => (
++            <a key={l.href} href={l.href} tabIndex={open ? 0 : -1} onClick={() => setOpen(false)} className="text-4xl font-semibold transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
++              style={{ transitionDelay: open ? `${Math.min(i * 60, 400)}ms` : "0ms", opacity: open ? 1 : 0, transform: open ? "none" : "translateY(24px)" }}>{l.label}</a>
+           ))}
+         </div>
++      </div>
++
++      <main id="main">
++        {/* Hero */}
++        <section className="mk-wrap pb-16 pt-40 text-center md:pt-48">
++          <h1 className="mk-grad mx-auto text-5xl font-semibold md:text-7xl" style={{ maxWidth: 680 }}>Your trades already contain your edge.<br />Mine it.</h1>
++          <p className="mx-auto mt-6 text-lg text-[var(--mk-mute)]" style={{ maxWidth: 680 }}>AlphaMine is a trading journal that puts hard numbers on your results and on your discipline. Import from MetaTrader 5, tag your decisions, and see what actually pays.</p>
++          <div className="mt-8 flex flex-col items-center gap-3">
++            <Link to="/auth" className="mk-btn mk-btn-pri">Start journaling free <ArrowRight size={18} weight="bold" /></Link>
++            <p className="text-sm text-[var(--mk-mute)]">Sixteen Chart Lab reports. Private to your account.</p>
++          </div>
++          <Rv className="mt-16"><ProductMock /></Rv>
++        </section>
++
++        {/* Problem to solution */}
++        <section className="mk-wrap py-24">
++          <Rv>
++            <h2 className="mx-auto text-center text-3xl font-semibold md:text-4xl" style={{ maxWidth: 680 }}>A P&L number tells you what happened. It never tells you why.</h2>
++          </Rv>
++          <div className="mt-12 grid gap-4 md:grid-cols-2">
++            <Rv><div className="mk-card h-full p-6"><p className="text-sm font-semibold text-[var(--mk-mute)]">Without a journal</p><p className="mt-3 text-xl">You remember the big winner and the one you should have skipped. Everything in between blurs, so the same leaks come back every month.</p></div></Rv>
++            <Rv delay={100}><div className="mk-card h-full p-6"><p className="text-sm font-semibold text-[var(--mk-acc)]">With AlphaMine</p><p className="mt-3 text-xl">Each trade carries its setup, its discipline tags and its screenshots. Patterns show up in the data before they show up in your balance.</p></div></Rv>
++          </div>
++        </section>
++
++        {/* Benefits */}
++        <section id="features" className="mk-wrap scroll-mt-24 py-24">
++          <Rv><h2 className="text-3xl font-semibold md:text-4xl" style={{ maxWidth: 680 }}>Everything you need to review a trade, a week or a whole strategy</h2></Rv>
++          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
++            {features.map((f, i) => (
++              <Rv key={f.t} delay={(i % 3) * 80}>
++                <article className="mk-card h-full p-6">
++                  <f.icon size={28} className="text-[var(--mk-acc)]" />
++                  <h3 className="mt-4 text-xl font-semibold">{f.t}</h3>
++                  <p className="mt-2 text-base text-[var(--mk-mute)]">{f.d}</p>
++                </article>
++              </Rv>
++            ))}
++          </div>
++        </section>
++
++        {/* Tagline reveal */}
++        <section className="mk-wrap py-32">
++          <p className="mx-auto text-4xl font-semibold md:text-5xl" style={{ maxWidth: 680 }}>
++            <Words text="Most traders review their results. Few review their decisions. AlphaMine shows you both, so the next trade starts from evidence instead of memory." />
++          </p>
++        </section>
++
++        {/* How it works */}
++        <section id="how" className="mk-wrap scroll-mt-24 py-24">
++          <Rv><h2 className="text-3xl font-semibold md:text-4xl" style={{ maxWidth: 680 }}>From a raw report to a clear read in three steps</h2></Rv>
++          <ol className="mt-12 grid gap-4 md:grid-cols-3">
++            {steps.map((s, i) => (
++              <Rv key={s.n} delay={i * 100}>
++                <li className="mk-card h-full list-none p-6">
++                  <span className="font-mono text-sm text-[var(--mk-acc)]">{s.n}</span>
++                  <h3 className="mt-3 text-xl font-semibold">{s.t}</h3>
++                  <p className="mt-2 text-base text-[var(--mk-mute)]">{s.d}</p>
++                </li>
++              </Rv>
++            ))}
++          </ol>
++        </section>
++
++        {/* FAQ */}
++        <section id="faq" className="mk-wrap scroll-mt-24 py-24">
++          <Rv><h2 className="text-3xl font-semibold md:text-4xl">Questions traders ask first</h2></Rv>
++          <div className="mt-12 divide-y divide-[var(--mk-line)] rounded-2xl border border-[var(--mk-line)] bg-[var(--mk-s1)]" style={{ maxWidth: 760 }}>
++            {faqs.map((f) => (
++              <details key={f.q} className="group px-6 py-4">
++                <summary className="flex items-center justify-between gap-4 text-lg font-semibold">{f.q}<Plus size={20} className="mk-plus shrink-0 text-[var(--mk-mute)]" /></summary>
++                <p className="mt-3 text-base text-[var(--mk-mute)]">{f.a}</p>
++              </details>
++            ))}
++          </div>
++        </section>
++
++        {/* Final CTA */}
++        <section className="mk-wrap pb-24 pt-16 text-center">
++          <Rv>
++            <div className="rounded-2xl border border-[var(--mk-line)] bg-[var(--mk-s1)] px-6 py-16">
++              <h2 className="mx-auto text-4xl font-semibold md:text-5xl" style={{ maxWidth: 680 }}>Find out what your trades have been telling you</h2>
++              <Link to="/auth" className="mk-btn mk-btn-pri mt-8">Start journaling free <ArrowRight size={18} weight="bold" /></Link>
++            </div>
++          </Rv>
++        </section>
+       </main>
++
++      <footer className="border-t border-[var(--mk-line)] py-8">
++        <div className="mk-wrap flex flex-col items-center justify-between gap-4 text-sm text-[var(--mk-mute)] sm:flex-row">
++          <BrandLink />
++          <div className="flex items-center gap-6">{nav.map((l) => <a key={l.href} href={l.href} className="transition-colors duration-300 hover:text-[var(--mk-fg)]">{l.label}</a>)}<Link to="/auth" className="transition-colors duration-300 hover:text-[var(--mk-fg)]">Sign in</Link></div>
++          <p>© {new Date().getFullYear()} AlphaMine</p>
++        </div>
++      </footer>
++    </MkShell>
++  );
++}
++
++/** Product preview drawn in code. Figures are illustrative sample data. */
++function ProductMock() {
++  const kpis = [["Net P&L", "+$4,812.37", true], ["Profit factor", "1.84", false], ["Tilt score", "82", false]] as const;
++  return (
++    <div className="mx-auto rounded-2xl border border-[var(--mk-line)] bg-[var(--mk-s1)] p-2 text-left" style={{ maxWidth: 920 }}>
++      <div className="rounded-lg bg-[var(--mk-bg)] p-4 md:p-6">
++        <div className="flex items-center justify-between"><p className="text-sm font-semibold">Equity curve</p><p className="text-xs text-[var(--mk-mute)]">Sample data</p></div>
++        <svg viewBox="0 0 800 220" className="mt-4 h-auto w-full" role="img" aria-label="Sample equity curve rising with two shallow drawdowns">
++          {[40, 90, 140, 190].map((y) => <line key={y} x1="0" x2="800" y1={y} y2={y} stroke="var(--mk-line)" strokeWidth="1" />)}
++          <path d="M0 190 L70 176 L130 182 L200 148 L260 156 L330 112 L390 124 L460 84 L520 96 L590 58 L650 70 L720 34 L800 26 L800 220 L0 220 Z" fill="var(--mk-acc)" opacity="0.12" />
++          <path d="M0 190 L70 176 L130 182 L200 148 L260 156 L330 112 L390 124 L460 84 L520 96 L590 58 L650 70 L720 34 L800 26" fill="none" stroke="var(--mk-acc)" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
++        </svg>
++        <div className="mt-4 grid gap-2 sm:grid-cols-3">
++          {kpis.map(([k, v, pos]) => (
++            <div key={k} className="rounded-lg border border-[var(--mk-line)] bg-[var(--mk-s1)] p-3">
++              <p className="text-xs text-[var(--mk-mute)]">{k}</p>
++              <p className={`mt-1 font-mono text-2xl font-semibold ${pos ? "text-[var(--mk-acc)]" : ""}`}>{v}</p>
++            </div>
++          ))}
++        </div>
++      </div>
+     </div>
+   );
+ }
+diff --git a/src/styles.css b/src/styles.css
+index 442f7f3..08bb420 100644
+--- a/src/styles.css
++++ b/src/styles.css
+@@ -240,3 +240,38 @@
+ .slim-scroll::-webkit-scrollbar-thumb { background: #c9c5cf; border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
+ .slim-scroll::-webkit-scrollbar-thumb:hover { background: #a9a4b2; background-clip: content-box; }
+ .slim-scroll::-webkit-scrollbar-corner { background: transparent; }
++
++/* Marketing + auth scope (.mk). Own type scale in px so the app's 12px root size does not shrink it. */
++.mk {
++  --spacing: 4px;
++  --text-xs: 12px; --text-xs--line-height: 16px; --text-sm: 14px; --text-sm--line-height: 20px;
++  --text-base: 16px; --text-base--line-height: 24px; --text-lg: 18px; --text-lg--line-height: 28px;
++  --text-xl: 20px; --text-xl--line-height: 28px; --text-2xl: 24px; --text-2xl--line-height: 32px;
++  --text-3xl: 30px; --text-3xl--line-height: 36px; --text-4xl: 36px; --text-4xl--line-height: 40px;
++  --text-5xl: 48px; --text-5xl--line-height: 1; --text-6xl: 60px; --text-6xl--line-height: 1; --text-7xl: 72px; --text-7xl--line-height: 1;
++  --radius-lg: 8px; --radius-xl: 12px; --radius-2xl: 16px; --radius-full: 9999px;
++  --mk-ease: cubic-bezier(0.22, 1, 0.36, 1);
++  font-family: "Geist", ui-sans-serif, system-ui, sans-serif;
++  background: var(--mk-bg); color: var(--mk-fg); min-height: 100vh;
++}
++.mk-dark { --mk-bg: #000000; --mk-s1: #181818; --mk-s2: #1f1f1f; --mk-line: #313131; --mk-fg: #f5f5f5; --mk-mute: #9b9b9b; --mk-acc: #6fd35f; --mk-acc-fg: #000000; --mk-g1: #ffffff; --mk-g2: #9b9b9b; --ink: #f5f5f5; --profit: #6fd35f; --mk-nav: rgb(24 24 24 / 0.7); --mk-panel: rgb(0 0 0 / 0.94); color-scheme: dark; }
++.mk-light { --mk-bg: #ffffff; --mk-s1: #f6f6f6; --mk-s2: #ededed; --mk-line: #e2e2e2; --mk-fg: #111111; --mk-mute: #666666; --mk-acc: #2f8a29; --mk-acc-fg: #ffffff; --mk-g1: #000000; --mk-g2: #666666; --ink: #111111; --profit: #2f8a29; --mk-nav: rgb(255 255 255 / 0.75); --mk-panel: rgb(255 255 255 / 0.96); color-scheme: light; }
++.mk h1, .mk h2, .mk h3 { text-wrap: balance; letter-spacing: -0.02em; }
++.mk p { text-wrap: pretty; }
++.mk-wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
++.mk-grad { background: linear-gradient(90deg, var(--mk-g1), var(--mk-g2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
++.mk-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 12px; border-radius: 8px; font-size: 16px; font-weight: 600; transition: background-color 300ms var(--mk-ease), transform 200ms var(--mk-ease), opacity 300ms var(--mk-ease); }
++.mk-btn:active { transform: scale(0.98); }
++.mk-btn:focus-visible, .mk a:focus-visible, .mk button:focus-visible, .mk summary:focus-visible { outline: 2px solid var(--mk-acc); outline-offset: 2px; }
++.mk-btn-pri { background: var(--mk-acc); color: var(--mk-acc-fg); } .mk-btn-pri:hover { opacity: 0.88; }
++.mk-btn-sec { background: var(--mk-s1); color: var(--mk-fg); border: 1px solid var(--mk-line); } .mk-btn-sec:hover { background: var(--mk-s2); }
++.mk-card { background: var(--mk-s1); border: 1px solid var(--mk-line); border-radius: 16px; transition: background-color 300ms var(--mk-ease), transform 500ms var(--mk-ease); }
++.mk-card:hover { background: var(--mk-s2); transform: translateY(-2px); }
++.mk-js .mk-rv { opacity: 0; transform: translateY(32px); transition: opacity 700ms var(--mk-ease), transform 700ms var(--mk-ease); }
++.mk-js .mk-rv.in { opacity: 1; transform: none; }
++.mk-w { opacity: 0.3; transition: opacity 500ms var(--mk-ease); } .mk-w.in { opacity: 1; }
++.mk details > summary { list-style: none; cursor: pointer; } .mk details > summary::-webkit-details-marker { display: none; }
++.mk details[open] .mk-plus { transform: rotate(45deg); } .mk-plus { transition: transform 500ms var(--mk-ease); }
++@media (prefers-reduced-motion: reduce) {
++  .mk-js .mk-rv { transform: none; } .mk-card:hover, .mk-btn:active { transform: none; } .mk-plus { transition: none; }
++}
+diff --git a/supabase/config.toml b/supabase/config.toml
+index 868c5d9..12bc6bc 100644
+--- a/supabase/config.toml
++++ b/supabase/config.toml
+@@ -1 +1,429 @@
+-project_id = "dhwardtlqynijuihjjha"
+\ No newline at end of file
++# For detailed configuration reference documentation, visit:
++# https://supabase.com/docs/guides/local-development/cli/config
++# A string used to distinguish different Supabase projects on the same host. Defaults to the
++# working directory name when running `supabase init`.
++project_id = "alphamine"
++
++[api]
++enabled = true
++# Port to use for the API URL.
++port = 54321
++# Schemas to expose in your API. Tables, views and stored procedures in this schema will get API
++# endpoints. `public` and `graphql_public` schemas are included by default.
++schemas = ["public", "graphql_public"]
++# Extra schemas to add to the search_path of every request.
++extra_search_path = ["public", "extensions"]
++# The maximum number of rows returns from a view, table, or stored procedure. Limits payload size
++# for accidental or malicious requests.
++max_rows = 1000
++# Controls whether new tables, views, sequences and functions created in the `public` schema by
++# `postgres` are reachable through the Data API roles (`anon`, `authenticated`, `service_role`)
++# without explicit GRANTs, matching the cloud default. Set to `false` to require explicit GRANTs
++# instead. Left unset, a fresh project falls back to `true`.
++# auto_expose_new_tables = true
++
++[api.tls]
++# Enable HTTPS endpoints locally using a self-signed certificate.
++enabled = false
++# Paths to self-signed certificate pair.
++# cert_path = "../certs/my-cert.pem"
++# key_path = "../certs/my-key.pem"
++
++[db]
++# Port to use for the local database URL.
++port = 54322
++# Port used by db diff command to initialize the shadow database.
++shadow_port = 54320
++# Maximum amount of time to wait for health check when starting the local database.
++health_timeout = "2m"
++# The database major version to use. This has to be the same as your remote database's. Run `SHOW
++# server_version;` on the remote database to check.
++major_version = 17
++# OrioleDB version to use as the Postgres storage engine. Leave empty to use the default engine.
++orioledb_version = ""
++
++[db.pooler]
++enabled = false
++# Port to use for the local connection pooler.
++port = 54329
++# Specifies when a server connection can be reused by other clients.
++# Configure one of the supported pooler modes: `transaction`, `session`.
++pool_mode = "transaction"
++# How many server connections to allow per user/database pair.
++default_pool_size = 20
++# Maximum number of client connections allowed.
++max_client_conn = 100
++
++# [db.vault]
++# secret_key = "env(SECRET_VALUE)"
++
++[db.migrations]
++# If disabled, migrations will be skipped during a db push or reset.
++enabled = true
++# Specifies an ordered list of schema files, directories, or glob patterns that describe your database.
++# Supports paths relative to supabase directory: "./schemas/*.sql", "./database".
++schema_paths = []
++
++[db.seed]
++# If enabled, seeds the database after migrations during a db reset.
++enabled = true
++# Specifies an ordered list of seed files to load during db reset.
++# Supports glob patterns relative to supabase directory: "./seeds/*.sql"
++sql_paths = ["./seed.sql"]
++
++[db.network_restrictions]
++# Enable management of network restrictions.
++enabled = false
++# List of IPv4 CIDR blocks allowed to connect to the database.
++# Defaults to allow all IPv4 connections. Set empty array to block all IPs.
++allowed_cidrs = ["0.0.0.0/0"]
++# List of IPv6 CIDR blocks allowed to connect to the database.
++# Defaults to allow all IPv6 connections. Set empty array to block all IPs.
++allowed_cidrs_v6 = ["::/0"]
++
++# Uncomment to reject non-secure connections to the database.
++# [db.ssl_enforcement]
++# enabled = true
++
++[realtime]
++enabled = true
++# Bind realtime via either IPv4 or IPv6. (default: IPv4)
++# ip_version = "IPv6"
++# The maximum length in bytes of HTTP request headers. (default: 4096)
++# max_header_length = 4096
++
++[studio]
++enabled = true
++# Port to use for Supabase Studio.
++port = 54323
++# External URL of the API server that frontend connects to.
++api_url = "http://127.0.0.1"
++# OpenAI API Key to use for Supabase AI in the Supabase Studio.
++openai_api_key = "env(OPENAI_API_KEY)"
++
++# Email testing server. Emails sent with the local dev setup are not actually sent - rather, they
++# are monitored, and you can view the emails that would have been sent from the web interface.
++[local_smtp]
++enabled = true
++# Port to use for the email testing server web interface.
++port = 54324
++# Uncomment to expose additional ports for testing user applications that send emails.
++# smtp_port = 54325
++# pop3_port = 54326
++# admin_email = "admin@email.com"
++# sender_name = "Admin"
++
++[storage]
++enabled = true
++# The maximum file size allowed (e.g. "5MB", "500KB").
++file_size_limit = "50MiB"
++
++# Uncomment to configure local storage buckets
++# [storage.buckets.images]
++# public = false
++# file_size_limit = "50MiB"
++# allowed_mime_types = ["image/png", "image/jpeg"]
++# objects_path = "./images"
++
++# Allow connections via S3 compatible clients
++[storage.buckets.screenshots]
++public = false
++file_size_limit = "10MiB"
++allowed_mime_types = ["image/png", "image/jpeg", "image/webp", "image/gif"]
++objects_path = "./storage/screenshots"
++
++[storage.s3_protocol]
++enabled = true
++
++# Image transformation API is available to Supabase Pro plan.
++# [storage.image_transformation]
++# enabled = true
++
++# Store analytical data in S3 for running ETL jobs over Iceberg Catalog
++# This feature is only available on the hosted platform.
++[storage.analytics]
++enabled = false
++max_namespaces = 5
++max_tables = 10
++max_catalogs = 2
++
++# Analytics Buckets is available to Supabase Pro plan.
++# [storage.analytics.buckets.my-warehouse]
++
++# Store vector embeddings in S3 for large and durable datasets
++[storage.vector]
++enabled = true
++max_buckets = 10
++max_indexes = 5
++
++# Vector Buckets is available to Supabase Pro plan.
++# [storage.vector.buckets.documents-openai]
++
++[auth]
++enabled = true
++# The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
++# in emails.
++site_url = "http://localhost:5173"
++# The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
++# external_url = ""
++# A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
++additional_redirect_urls = ["http://localhost:5173/auth", "http://localhost:5173/home", "http://localhost:5173/reset-password"]
++# How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
++jwt_expiry = 3600
++# JWT issuer URL. If not set, defaults to auth.external_url.
++# jwt_issuer = ""
++# Path to JWT signing key. DO NOT commit your signing keys file to git.
++# signing_keys_path = "./signing_keys.json"
++# If disabled, the refresh token will never expire.
++enable_refresh_token_rotation = true
++# Allows refresh tokens to be reused after expiry, up to the specified interval in seconds.
++# Requires enable_refresh_token_rotation = true.
++refresh_token_reuse_interval = 10
++# Allow/disallow new user signups to your project.
++enable_signup = true
++# Allow/disallow anonymous sign-ins to your project.
++enable_anonymous_sign_ins = false
++# Allow/disallow testing manual linking of accounts
++enable_manual_linking = false
++# Passwords shorter than this value will be rejected as weak. Minimum 6, recommended 8 or more.
++minimum_password_length = 6
++# Passwords that do not meet the following requirements will be rejected as weak. Supported values
++# are: `letters_digits`, `lower_upper_letters_digits`, `lower_upper_letters_digits_symbols`
++password_requirements = ""
++
++# Configure passkey sign-ins.
++# [auth.passkey]
++# enabled = false
++
++# Configure WebAuthn relying party settings (required when passkey is enabled).
++# [auth.webauthn]
++# rp_display_name = "Supabase"
++# rp_id = "localhost"
++# rp_origins = ["http://127.0.0.1:3000"]
++
++[auth.rate_limit]
++# Number of emails that can be sent per hour. Requires auth.email.smtp to be enabled.
++email_sent = 2
++# Number of SMS messages that can be sent per hour. Requires auth.sms to be enabled.
++sms_sent = 30
++# Number of anonymous sign-ins that can be made per hour per IP address. Requires enable_anonymous_sign_ins = true.
++anonymous_users = 30
++# Number of sessions that can be refreshed in a 5 minute interval per IP address.
++token_refresh = 150
++# Number of sign up and sign-in requests that can be made in a 5 minute interval per IP address (excludes anonymous users).
++sign_in_sign_ups = 30
++# Number of OTP / Magic link verifications that can be made in a 5 minute interval per IP address.
++token_verifications = 30
++# Number of Web3 logins that can be made in a 5 minute interval per IP address.
++web3 = 30
++
++# Configure one of the supported captcha providers: `hcaptcha`, `turnstile`.
++# [auth.captcha]
++# enabled = true
++# provider = "hcaptcha"
++# secret = ""
++
++[auth.email]
++# Allow/disallow new user signups via email to your project.
++enable_signup = true
++# If enabled, a user will be required to confirm any email change on both the old, and new email
++# addresses. If disabled, only the new email is required to confirm.
++double_confirm_changes = true
++# If enabled, users need to confirm their email address before signing in.
++enable_confirmations = false
++# If enabled, users will need to reauthenticate or have logged in recently to change their password.
++secure_password_change = false
++# Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.
++max_frequency = "1s"
++# Number of characters used in the email OTP.
++otp_length = 6
++# Number of seconds before the email OTP expires (defaults to 1 hour).
++otp_expiry = 3600
++
++# Use a production-ready SMTP server
++# [auth.email.smtp]
++# enabled = true
++# host = "smtp.sendgrid.net"
++# port = 587
++# user = "apikey"
++# pass = "env(SENDGRID_API_KEY)"
++# admin_email = "admin@email.com"
++# sender_name = "Admin"
++
++# Uncomment to customize email template
++# [auth.email.template.invite]
++# subject = "You have been invited"
++# content_path = "./supabase/templates/invite.html"
++
++# Uncomment to customize notification email template
++# [auth.email.notification.password_changed]
++# enabled = true
++# subject = "Your password has been changed"
++# content_path = "./supabase/templates/password_changed_notification.html"
++
++[auth.sms]
++# Allow/disallow new user signups via SMS to your project.
++enable_signup = false
++# If enabled, users need to confirm their phone number before signing in.
++enable_confirmations = false
++# Template for sending OTP to users
++template = "Your code is {{ .Code }}"
++# Controls the minimum amount of time that must pass before sending another sms otp.
++max_frequency = "5s"
++
++# Use pre-defined map of phone number to OTP for testing.
++# Keys are the phone number with country code and without the + prefix.
++# [auth.sms.test_otp]
++# 14152127777 = "123456"
++
++# Configure logged in session timeouts.
++# [auth.sessions]
++# Force log out after the specified duration.
++# timebox = "24h"
++# Force log out if the user has been inactive longer than the specified duration.
++# inactivity_timeout = "8h"
++
++# This hook runs before a new user is created and allows developers to reject the request based on the incoming user object.
++# [auth.hook.before_user_created]
++# enabled = true
++# uri = "pg-functions://postgres/auth/before-user-created-hook"
++
++# This hook runs before a token is issued and allows you to add additional claims based on the authentication method used.
++# [auth.hook.custom_access_token]
++# enabled = true
++# uri = "pg-functions://<database>/<schema>/<hook_name>"
++
++# Configure one of the supported SMS providers: `twilio`, `twilio_verify`, `messagebird`, `textlocal`, `vonage`.
++[auth.sms.twilio]
++enabled = false
++account_sid = ""
++message_service_sid = ""
++# DO NOT commit your Twilio auth token to git. Use environment variable substitution instead:
++auth_token = "env(SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN)"
++
++# Multi-factor-authentication is available to Supabase Pro plan.
++[auth.mfa]
++# Control how many MFA factors can be enrolled at once per user.
++max_enrolled_factors = 10
++
++# Control MFA via App Authenticator (TOTP)
++[auth.mfa.totp]
++enroll_enabled = false
++verify_enabled = false
++
++# Configure MFA via Phone Messaging
++[auth.mfa.phone]
++enroll_enabled = false
++verify_enabled = false
++otp_length = 6
++template = "Your code is {{ .Code }}"
++max_frequency = "5s"
++
++# Configure MFA via WebAuthn
++# [auth.mfa.web_authn]
++# enroll_enabled = true
++# verify_enabled = true
++
++# Use an external OAuth provider. The full list of providers are: `apple`, `azure`, `bitbucket`,
++# `discord`, `facebook`, `github`, `gitlab`, `google`, `keycloak`, `linkedin_oidc`, `notion`, `twitch`,
++# `twitter`, `x`, `slack`, `spotify`, `workos`, `zoom`.
++[auth.external.apple]
++enabled = false
++client_id = ""
++# DO NOT commit your OAuth provider secret to git. Use environment variable substitution instead:
++secret = "env(SUPABASE_AUTH_EXTERNAL_APPLE_SECRET)"
++# Overrides the default auth callback URL derived from auth.external_url.
++redirect_uri = ""
++# Overrides the default auth provider URL. Used to support self-hosted gitlab, single-tenant Azure,
++# or any other third-party OIDC providers.
++url = ""
++# If enabled, the nonce check will be skipped. Required for local sign in with Google auth.
++skip_nonce_check = false
++# If enabled, it will allow the user to successfully authenticate when the provider does not return an email address.
++email_optional = false
++
++# Allow Solana wallet holders to sign in to your project via the Sign in with Solana (SIWS, EIP-4361) standard.
++# You can configure "web3" rate limit in the [auth.rate_limit] section and set up [auth.captcha] if self-hosting.
++[auth.web3.solana]
++enabled = false
++
++# Use Firebase Auth as a third-party provider alongside Supabase Auth.
++[auth.third_party.firebase]
++enabled = false
++# project_id = "my-firebase-project"
++
++# Use Auth0 as a third-party provider alongside Supabase Auth.
++[auth.third_party.auth0]
++enabled = false
++# tenant = "my-auth0-tenant"
++# tenant_region = "us"
++
++# Use AWS Cognito (Amplify) as a third-party provider alongside Supabase Auth.
++[auth.third_party.aws_cognito]
++enabled = false
++# user_pool_id = "my-user-pool-id"
++# user_pool_region = "us-east-1"
++
++# Use Clerk as a third-party provider alongside Supabase Auth.
++[auth.third_party.clerk]
++enabled = false
++# Obtain from https://clerk.com/setup/supabase
++# domain = "example.clerk.accounts.dev"
++
++# OAuth server configuration
++[auth.oauth_server]
++# Enable OAuth server functionality
++enabled = false
++# Path for OAuth consent flow UI
++authorization_url_path = "/oauth/consent"
++# Allow dynamic client registration
++allow_dynamic_registration = false
++
++[edge_runtime]
++enabled = true
++# Supported request policies: `oneshot`, `per_worker`.
++# `per_worker` (default) — enables hot reload during local development.
++# `oneshot` — fallback mode if hot reload causes issues (e.g. in large repos or with symlinks).
++policy = "per_worker"
++# Port to attach the Chrome inspector for debugging edge functions.
++inspector_port = 8083
++# The Deno major version to use.
++deno_version = 2
++
++# [edge_runtime.secrets]
++# secret_key = "env(SECRET_VALUE)"
++
++[analytics]
++enabled = true
++port = 54327
++# Configure one of the supported backends: `postgres`, `bigquery`.
++backend = "postgres"
++
++# Experimental features may be deprecated any time
++[experimental]
++# Configures S3 bucket URL, eg. <bucket_name>.s3-<region>.amazonaws.com
++s3_host = "env(S3_HOST)"
++# Configures S3 bucket region, eg. us-east-1
++s3_region = "env(S3_REGION)"
++# Configures AWS_ACCESS_KEY_ID for S3 bucket
++s3_access_key = "env(S3_ACCESS_KEY)"
++# Configures AWS_SECRET_ACCESS_KEY for S3 bucket
++s3_secret_key = "env(S3_SECRET_KEY)"
++
++# pg-delta is the schema diff engine for db diff / db pull / db remote commit.
++# Set enabled = false to fall back to the legacy migra engine.
++[experimental.pgdelta]
++enabled = true
++# Directory under `supabase/` where declarative files are written.
++# declarative_schema_path = "./schemas"
++# JSON string passed through to pg-delta SQL formatting. When omitted, SQL is
++# formatted with uppercase keywords, indent 2, max width 180, trailing commas,
++# and column/key alignment. Set to "null" to emit raw, unformatted SQL.
++# format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":180,\"commaStyle\":\"trailing\"}"
++
++# Google sign in. Fill SUPABASE_AUTH_GOOGLE_CLIENT_ID / _SECRET in supabase/.env, then flip enabled to true.
++[auth.external.google]
++enabled = false
++client_id = "env(SUPABASE_AUTH_GOOGLE_CLIENT_ID)"
++secret = "env(SUPABASE_AUTH_GOOGLE_SECRET)"
++skip_nonce_check = false
+diff --git a/drizzle/migrations/0000_alphamine_schema.sql b/supabase/migrations/20261003080104_alphamine_schema.sql
+similarity index 100%
+rename from drizzle/migrations/0000_alphamine_schema.sql
+rename to supabase/migrations/20261003080104_alphamine_schema.sql
+diff --git a/drizzle/migrations/0002_plans_missed_option_fields.sql b/supabase/migrations/20261004074640_plans_missed_option_fields.sql
+similarity index 100%
+rename from drizzle/migrations/0002_plans_missed_option_fields.sql
+rename to supabase/migrations/20261004074640_plans_missed_option_fields.sql
+diff --git a/drizzle/migrations/0003_mt_import.sql b/supabase/migrations/20261005113320_mt_import.sql
+similarity index 100%
+rename from drizzle/migrations/0003_mt_import.sql
+rename to supabase/migrations/20261005113320_mt_import.sql
+diff --git a/drizzle/migrations/0004_disable_items.sql b/supabase/migrations/20261006152000_disable_items.sql
+similarity index 100%
+rename from drizzle/migrations/0004_disable_items.sql
+rename to supabase/migrations/20261006152000_disable_items.sql
+diff --git a/supabase/migrations/20261007000000_screenshots_bucket.sql b/supabase/migrations/20261007000000_screenshots_bucket.sql
+new file mode 100644
+index 0000000..3c3cd32
+--- /dev/null
++++ b/supabase/migrations/20261007000000_screenshots_bucket.sql
+@@ -0,0 +1,4 @@
++-- Private bucket for trade screenshots (policies live in the schema migration). Idempotent.
++insert into storage.buckets (id, name, public)
++values ('screenshots', 'screenshots', false)
++on conflict (id) do nothing;
+diff --git a/supabase/seed.sql b/supabase/seed.sql
+new file mode 100644
+index 0000000..7b66c16
+--- /dev/null
++++ b/supabase/seed.sql
+@@ -0,0 +1 @@
++-- Local seed data goes here. It runs after migrations on 'supabase db reset'.
