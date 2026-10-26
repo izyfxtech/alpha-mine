@@ -1,0 +1,223 @@
+diff --git a/src/components/site.tsx b/src/components/site.tsx
+index 7495c70..515ebb2 100644
+--- a/src/components/site.tsx
++++ b/src/components/site.tsx
+@@ -9,7 +9,7 @@ const ease = "ease-[cubic-bezier(0.22,1,0.36,1)]";
+ 
+ function Nav() {
+   const [open, setOpen] = useState(false);
+-  const mobile = [{ to: "/features", label: "Features" }, { to: "/import", label: "Import" }, { to: "/auth", label: "Sign in" }] as const;
++  const mobile = [{ to: "/features", label: "Features" }, { to: "/import", label: "Import" }, { to: "/pricing", label: "Pricing" }, { to: "/about", label: "About" }, { to: "/help", label: "Help" }, { to: "/auth", label: "Sign in" }] as const;
+   return (
+     <>
+       <header className="fixed inset-x-0 top-3 z-40 mx-auto w-fit max-w-[calc(100%-24px)]">
+@@ -30,6 +30,8 @@ function Nav() {
+               </div>
+             </div>
+             <Link to="/import" className={linkCls}>Import</Link>
++            <Link to="/pricing" className={linkCls}>Pricing</Link>
++            <Link to="/about" className={linkCls}>About</Link>
+           </div>
+           <div className="flex items-center gap-2">
+             <ThemeToggle />
+@@ -57,13 +59,14 @@ const fl = "transition-colors duration-300 hover:text-[var(--mk-fg)]";
+ function Footer() {
+   return (
+     <footer className="border-t border-[var(--mk-line)] py-16">
+-      <div className="mk-wrap grid gap-10 text-sm text-[var(--mk-mute)] sm:grid-cols-2 lg:grid-cols-4">
++      <div className="mk-wrap grid gap-10 text-sm text-[var(--mk-mute)] sm:grid-cols-2 lg:grid-cols-5">
+         <div><BrandLink /><p className="mt-4" style={{ maxWidth: 240 }}>The trading journal that finds your edge.</p></div>
+         <div><p className="font-semibold text-[var(--mk-fg)]">Product</p><ul className="mt-4 space-y-3">{FEATURES.map((f) => <li key={f.slug}><Link to="/features/$slug" params={{ slug: f.slug }} className={fl}>{f.name}</Link></li>)}<li><Link to="/import" className={fl}>Import</Link></li></ul></div>
++        <div><p className="font-semibold text-[var(--mk-fg)]">Company</p><ul className="mt-4 space-y-3"><li><Link to="/about" className={fl}>About</Link></li><li><Link to="/pricing" className={fl}>Pricing</Link></li><li><Link to="/help" className={fl}>Help centre</Link></li></ul></div>
+         <div><p className="font-semibold text-[var(--mk-fg)]">Account</p><ul className="mt-4 space-y-3"><li><Link to="/auth" className={fl}>Sign in</Link></li><li><Link to="/auth" search={{ mode: "signup" }} className={fl}>Create account</Link></li></ul></div>
+         <div><p className="font-semibold text-[var(--mk-fg)]">Legal</p><ul className="mt-4 space-y-3"><li><Link to="/privacy" className={fl}>Privacy policy</Link></li><li><Link to="/terms" className={fl}>Terms of service</Link></li></ul></div>
+       </div>
+-      <div className="mk-wrap mt-12 border-t border-[var(--mk-line)] pt-6 text-sm text-[var(--mk-mute)]">© {new Date().getFullYear()} AlphaMine</div>
++      <div className="mk-wrap mt-12 border-t border-[var(--mk-line)] pt-6 text-sm text-[var(--mk-mute)]">© {new Date().getFullYear()} IZ Technologies Limited. AlphaMine is built by traders, for traders.</div>
+     </footer>
+   );
+ }
+diff --git a/src/routes/about.tsx b/src/routes/about.tsx
+new file mode 100644
+index 0000000..16ace0e
+--- /dev/null
++++ b/src/routes/about.tsx
+@@ -0,0 +1,34 @@
++import { createFileRoute, Link } from "@tanstack/react-router";
++import { ArrowRight } from "@phosphor-icons/react";
++import { CtaBand, PageHero, Section, SiteLayout } from "@/components/site";
++import { Rv } from "@/components/marketing-shell";
++
++const DESC = "AlphaMine is built by traders for traders, under IZ Technologies Limited.";
++const beliefs = [
++  { t: "Decisions over outcomes", d: "A winning trade can be a bad decision, and a losing one can be a good decision. We built tools that tell the two apart." },
++  { t: "Evidence over memory", d: "Memory keeps the big winner and forgets the rest. A journal keeps everything, so your next trade starts from facts." },
++  { t: "Your data stays yours", d: "Every journal belongs to your account and stays private unless you choose to share it." },
++];
++export const Route = createFileRoute("/about")({
++  head: () => ({ meta: [{ title: "About | AlphaMine" }, { name: "description", content: DESC }, { property: "og:title", content: "About | AlphaMine" }, { property: "og:description", content: DESC }, { property: "og:type", content: "website" }], links: [{ rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" }] }),
++  component: () => (
++    <SiteLayout>
++      <PageHero eyebrow="About" title="Built by traders, for traders" lead="AlphaMine is made by committed traders for committed traders, and published by IZ Technologies Limited.">
++        <Link to="/auth" search={{ mode: "signup" }} className="mk-btn mk-btn-pri">Start journaling free <ArrowRight size={18} weight="bold" /></Link>
++      </PageHero>
++      <Section n="01" label="Why we exist" title="A journal made by people who trade" split>
++        <div className="space-y-6 text-lg text-[var(--mk-mute)]">
++          <p>Most trading tools are built to look at the market. AlphaMine looks at you: your setups, your exits and the moments your discipline slipped.</p>
++          <p>That focus comes from the people building it. We are traders, and we wanted a journal serious enough for traders who take the work seriously. So that is what we are making.</p>
++          <p>IZ Technologies Limited is the company behind AlphaMine. The people behind it are committed traders, and that shapes every feature we ship.</p>
++        </div>
++      </Section>
++      <Section n="02" label="What we believe" title="Three ideas behind every feature">
++        <div className="grid gap-10 md:grid-cols-3 md:gap-8">
++          {beliefs.map((b, i) => <Rv key={b.t} delay={i * 100}><div className="border-t border-[var(--mk-acc)] pt-5"><h3 className="text-xl font-semibold">{b.t}</h3><p className="mt-2 text-base text-[var(--mk-mute)]">{b.d}</p></div></Rv>)}
++        </div>
++      </Section>
++      <CtaBand title="Join the traders building their edge" />
++    </SiteLayout>
++  ),
++});
+diff --git a/src/routes/help.tsx b/src/routes/help.tsx
+new file mode 100644
+index 0000000..a6adb95
+--- /dev/null
++++ b/src/routes/help.tsx
+@@ -0,0 +1,55 @@
++import { createFileRoute, Link } from "@tanstack/react-router";
++import { Plus } from "@phosphor-icons/react";
++import { CtaBand, PageHero, SiteLayout } from "@/components/site";
++
++const DESC = "Answers about getting started, importing trades, sharing, and the tools inside AlphaMine.";
++const groups = [
++  { id: "start", title: "Getting started", items: [
++    ["How do I create an account?", "Open the sign in page and choose Create account. Sign up with your email and a password of at least 6 characters, or continue with Google. We email you a link to confirm your address."],
++    ["What is a journal?", "A journal is a separate set of trades with its own broker, currency and starting balance. You can keep more than one, and every report follows the journal you have selected."],
++    ["How do I add my first trade?", "Open Journal and add a trade with its instrument, setup and result, or import a report to bring in your history at once."],
++  ] },
++  { id: "import", title: "Importing", items: [
++    ["Which files can I import?", "MetaTrader 5 reports exported as HTML or Excel, plus CSV and Excel spreadsheets. You can also log trades by hand."],
++    ["Can I attach screenshots to a trade?", "Yes. Add screenshots to any trade so the chart behind the decision stays with the result."],
++  ] },
++  { id: "tools", title: "Tools", items: [
++    ["What is the tilt meter?", "You tag entries, management and exits as disciplined or not. Those tags roll up into a tilt score for each day."],
++    ["What is Chart Lab?", "Sixteen reports built from your journal, including drawdown, exit analysis, holding time and SQN by setup. Select part of a chart to open the trades behind it."],
++    ["How does Edge Finder rate my trading?", "It looks across your journal and marks each area as Strong, Average or Needs attention, with a trend marker and the detail behind each card."],
++    ["What does the simulator need?", "Your win rate, average gain, average loss, starting balance, number of simulations and trades per simulation. It then shows the range of final balances and the longest winning and losing streaks."],
++  ] },
++  { id: "privacy", title: "Privacy and sharing", items: [
++    ["Who can see my journal?", "Only you, unless you create a share link. Database rules keep each journal tied to the account that owns it."],
++    ["How do share links work?", "Use the Share Journal button to create a read only link to your journal's performance. Create a new link to replace the old one, or choose Stop sharing to switch it off."],
++    ["Where are my screenshots stored?", "In a private storage bucket. They open through short lived signed links."],
++  ] },
++  { id: "account", title: "Account", items: [
++    ["I forgot my password.", "On the sign in page, choose Forgot password and enter your email. We send you a link to set a new one."],
++  ] },
++];
++export const Route = createFileRoute("/help")({
++  head: () => ({ meta: [{ title: "Help centre | AlphaMine" }, { name: "description", content: DESC }, { property: "og:title", content: "Help centre | AlphaMine" }, { property: "og:description", content: DESC }, { property: "og:type", content: "website" }], links: [{ rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" }] }),
++  component: () => (
++    <SiteLayout>
++      <PageHero eyebrow="Help centre" title="Answers, grouped by what you are doing" lead="Getting started, importing, the tools, and keeping your data private." />
++      <section className="mk-wrap pb-24">
++        <div className="grid gap-12 border-t border-[var(--mk-line)] pt-16 lg:grid-cols-[220px_1fr]">
++          <nav aria-label="Help topics" className="hidden lg:block"><ul className="sticky top-24 space-y-1">{groups.map((g) => <li key={g.id}><a href={`#${g.id}`} className="block rounded-lg px-3 py-2 text-sm font-semibold text-[var(--mk-mute)] transition-colors duration-300 hover:bg-[var(--mk-s1)] hover:text-[var(--mk-fg)]">{g.title}</a></li>)}</ul></nav>
++          <div className="space-y-16">
++            {groups.map((g) => (
++              <div key={g.id} id={g.id} className="scroll-mt-24">
++                <h2 className="text-2xl font-semibold">{g.title}</h2>
++                <div className="mt-6 divide-y divide-[var(--mk-line)] border-y border-[var(--mk-line)]">
++                  {g.items.map(([q, a]) => <details key={q} className="py-5"><summary className="flex items-center justify-between gap-4 text-lg font-semibold">{q}<Plus size={20} className="mk-plus shrink-0 text-[var(--mk-mute)]" /></summary><p className="mt-3 text-base text-[var(--mk-mute)]">{a}</p></details>)}
++                </div>
++              </div>
++            ))}
++            <p className="text-base text-[var(--mk-mute)]">Looking for something else? Browse the <Link to="/features" className="font-semibold text-[var(--mk-acc)] underline">features</Link> or the <Link to="/import" className="font-semibold text-[var(--mk-acc)] underline">import guide</Link>.</p>
++          </div>
++        </div>
++      </section>
++      <CtaBand title="Ready to open your journal?" />
++    </SiteLayout>
++  ),
++});
+diff --git a/src/routes/pricing.tsx b/src/routes/pricing.tsx
+new file mode 100644
+index 0000000..e56812c
+--- /dev/null
++++ b/src/routes/pricing.tsx
+@@ -0,0 +1,51 @@
++import { createFileRoute, Link } from "@tanstack/react-router";
++import { ArrowRight, Check, Plus } from "@phosphor-icons/react";
++import { CtaBand, PageHero, Section, SiteLayout } from "@/components/site";
++import { Rv } from "@/components/marketing-shell";
++import { FEATURES } from "@/lib/site-content";
++
++const DESC = "AlphaMine is free while we build. Paid plans are coming, and pricing will be published here before they launch.";
++const included = [...FEATURES.map((f) => f.name), "MetaTrader 5, CSV and Excel import", "Multiple journals", "Share links for any journal", "Trading plans, missed trades and diary"];
++const faqs = [
++  { q: "Is AlphaMine really free?", a: "Yes. Today every feature in the app is free to use." },
++  { q: "Do I need to add a card?", a: "No. AlphaMine does not collect payment details at the moment." },
++  { q: "When will paid plans arrive?", a: "There is no date yet. Paid plans are coming, and their pricing will be published on this page before they launch." },
++  { q: "What happens to my journal when plans change?", a: "Your journals belong to your account. We will share the details of any plan changes here when pricing is announced." },
++];
++export const Route = createFileRoute("/pricing")({
++  head: () => ({ meta: [{ title: "Pricing | AlphaMine" }, { name: "description", content: DESC }, { property: "og:title", content: "Pricing | AlphaMine" }, { property: "og:description", content: DESC }, { property: "og:type", content: "website" }], links: [{ rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" }] }),
++  component: () => (
++    <SiteLayout>
++      <PageHero eyebrow="Pricing" title="Free while we build. Paid plans are coming." lead="Everything in AlphaMine is free today. We will add paid plans later, and publish their pricing here before they launch.">
++        <Link to="/auth" search={{ mode: "signup" }} className="mk-btn mk-btn-pri">Start journaling free <ArrowRight size={18} weight="bold" /></Link>
++      </PageHero>
++      <section className="mk-wrap pb-24">
++        <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
++          <Rv>
++            <div className="h-full rounded-2xl border border-[var(--mk-acc)] bg-[var(--mk-s1)] p-8">
++              <div className="flex items-center justify-between"><h2 className="text-2xl font-semibold">Free</h2><span className="rounded-full bg-[var(--mk-acc)] px-3 py-1 text-xs font-semibold text-[var(--mk-acc-fg)]">Available now</span></div>
++              <p className="mt-4 font-mono text-5xl font-semibold">$0</p>
++              <p className="mt-2 text-base text-[var(--mk-mute)]">Every feature, while AlphaMine is in its free period.</p>
++              <ul className="mt-8 grid gap-3 sm:grid-cols-2">{included.map((i) => <li key={i} className="flex items-start gap-2 text-base"><Check size={18} weight="bold" className="mt-1 shrink-0 text-[var(--mk-acc)]" />{i}</li>)}</ul>
++              <Link to="/auth" search={{ mode: "signup" }} className="mk-btn mk-btn-pri mt-8">Create free account</Link>
++            </div>
++          </Rv>
++          <Rv delay={100}>
++            <div className="h-full rounded-2xl border border-dashed border-[var(--mk-line)] p-8">
++              <div className="flex items-center justify-between"><h2 className="text-2xl font-semibold">Paid plans</h2><span className="rounded-full border border-[var(--mk-line)] px-3 py-1 text-xs font-semibold text-[var(--mk-mute)]">Coming soon</span></div>
++              <p className="mt-4 text-base text-[var(--mk-mute)]">We are working on paid plans for traders who want more. Pricing and what each plan includes will be published here before anything launches.</p>
++            </div>
++          </Rv>
++        </div>
++      </section>
++      <Section n="01" label="Pricing FAQ" title="Questions about cost" split>
++        <div className="divide-y divide-[var(--mk-line)] border-y border-[var(--mk-line)]">
++          {faqs.map((f) => (
++            <details key={f.q} className="py-5"><summary className="flex items-center justify-between gap-4 text-lg font-semibold">{f.q}<Plus size={20} className="mk-plus shrink-0 text-[var(--mk-mute)]" /></summary><p className="mt-3 text-base text-[var(--mk-mute)]">{f.a}</p></details>
++          ))}
++        </div>
++      </Section>
++      <CtaBand title="Start free and keep every trade you log" />
++    </SiteLayout>
++  ),
++});
+diff --git a/src/routes/privacy.tsx b/src/routes/privacy.tsx
+index 332b9af..91c9829 100644
+--- a/src/routes/privacy.tsx
++++ b/src/routes/privacy.tsx
+@@ -5,7 +5,7 @@ const DESC = "How AlphaMine collects, uses and protects your account and trading
+ export const Route = createFileRoute("/privacy")({
+   head: () => ({ meta: [{ title: "Privacy policy | AlphaMine" }, { name: "description", content: DESC }, { property: "og:title", content: "Privacy policy | AlphaMine" }, { property: "og:description", content: DESC }, { property: "og:type", content: "website" }] }),
+   component: () => <LegalPage title="Privacy policy" updated="26 October 2026" other={{ to: "/terms", label: "Read the terms of service" }}
+-    intro="AlphaMine is a trading journal. This page explains what information the app holds, why, and what control you have over it." sections={sections} />,
++    intro="AlphaMine is a trading journal published by IZ Technologies Limited. This page explains what information the app holds, why, and what control you have over it." sections={sections} />,
+ });
+ 
+ const sections: LegalSection[] = [
+diff --git a/src/routes/terms.tsx b/src/routes/terms.tsx
+index 8e6d1da..b7a1bef 100644
+--- a/src/routes/terms.tsx
++++ b/src/routes/terms.tsx
+@@ -9,7 +9,7 @@ export const Route = createFileRoute("/terms")({
+ });
+ 
+ const sections: LegalSection[] = [
+-  { h: "Using AlphaMine", p: ["AlphaMine is a journal and analytics tool for traders. You must be at least 18 and able to enter a binding agreement to use it."] },
++  { h: "Using AlphaMine", p: ["AlphaMine is a journal and analytics tool for traders, published by IZ Technologies Limited. You must be at least 18 and able to enter a binding agreement to use it."] },
+   { h: "Your account", p: ["Keep your sign in details secure. You are responsible for activity on your account, so tell us promptly if you think someone else has access."] },
+   { h: "Your data", p: [
+     "You own the content you add to AlphaMine. You give us permission to store and process it only as needed to run the service for you, such as saving your trades, calculating statistics and showing charts.",

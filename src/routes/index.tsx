@@ -1,7 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { ArrowRight, Brain, CalendarDots, ChartLineUp, FileArrowDown, Flask, MagnifyingGlass, Plus, type Icon } from "@phosphor-icons/react";
-import { MkShell, Rv, ThemeToggle, Words, BrandLink } from "@/components/marketing-shell";
+import { Rv, Words } from "@/components/marketing-shell";
+import { Section, SiteLayout } from "@/components/site";
+import { Cal, Meter } from "@/components/visuals";
 
 const TITLE = "AlphaMine: the trading journal that finds your edge";
 const DESC = "Journal trades, measure discipline with the tilt meter, and analyse performance with 16 Chart Lab reports. Imports MetaTrader 5 reports.";
@@ -18,7 +20,6 @@ export const Route = createFileRoute("/")({
   component: Landing,
 });
 
-const nav = [{ href: "#features", label: "Features" }, { href: "#how", label: "How it works" }, { href: "#faq", label: "FAQ" }];
 
 const steps = [
   { t: "Bring your trades in", d: "Import a MetaTrader 5 report, upload a spreadsheet, or log a trade by hand with screenshots." },
@@ -36,36 +37,9 @@ const faqs = [
 ];
 
 function Landing() {
-  const [open, setOpen] = useState(false);
   return (
-    <MkShell>
-      {/* Floating navigation */}
-      <header className="fixed inset-x-0 top-3 z-40 mx-auto w-fit max-w-[calc(100%-24px)]">
-        <nav aria-label="Primary" className="flex items-center gap-4 rounded-2xl border border-[var(--mk-line)] bg-[var(--mk-nav)] px-3 py-2 backdrop-blur-xl">
-          <BrandLink />
-          <div className="hidden items-center gap-1 md:flex">
-            {nav.map((l) => <a key={l.href} href={l.href} className="rounded-lg px-3 py-2 text-sm font-semibold text-[var(--mk-mute)] transition-colors duration-300 hover:text-[var(--mk-fg)]">{l.label}</a>)}
-          </div>
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <Link to="/auth" className="mk-btn mk-btn-sec hidden text-sm md:inline-flex">Sign in</Link>
-            <button type="button" aria-label={open ? "Close menu" : "Open menu"} aria-expanded={open} onClick={() => setOpen((o) => !o)} className="relative z-50 h-9 w-9 rounded-lg border border-[var(--mk-line)] md:hidden">
-              <span className="absolute left-2.5 top-3.5 h-0.5 w-4 rounded-full bg-[var(--mk-fg)] transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]" style={{ transform: open ? "translateY(3px) rotate(45deg)" : "none" }} />
-              <span className="absolute left-2.5 top-[21px] h-0.5 w-4 rounded-full bg-[var(--mk-fg)] transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]" style={{ transform: open ? "translateY(-4px) rotate(-45deg)" : "none" }} />
-            </button>
-          </div>
-        </nav>
-      </header>
-      <div className={`fixed inset-0 z-30 bg-[var(--mk-panel)] backdrop-blur-2xl transition-opacity duration-500 md:hidden ${open ? "opacity-100" : "pointer-events-none opacity-0"}`} aria-hidden={!open}>
-        <div className="flex h-full flex-col justify-center gap-6 px-6">
-          {[...nav, { href: "/auth", label: "Sign in" }].map((l, i) => (
-            <a key={l.href} href={l.href} tabIndex={open ? 0 : -1} onClick={() => setOpen(false)} className="text-4xl font-semibold transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
-              style={{ transitionDelay: open ? `${Math.min(i * 60, 400)}ms` : "0ms", opacity: open ? 1 : 0, transform: open ? "none" : "translateY(24px)" }}>{l.label}</a>
-          ))}
-        </div>
-      </div>
-
-      <main id="main">
+    <SiteLayout>
+      <main>
         {/* Hero */}
         <section className="mk-wrap pb-24 pt-40 text-center md:pt-48">
           <h1 className="mk-grad mx-auto text-5xl font-semibold md:text-7xl" style={{ maxWidth: 680 }}>Your trades already contain your edge.<br />Mine it.</h1>
@@ -150,33 +124,7 @@ function Landing() {
         </section>
       </main>
 
-      <footer className="border-t border-[var(--mk-line)] py-8">
-        <div className="mk-wrap flex flex-col items-center justify-between gap-4 text-sm text-[var(--mk-mute)] sm:flex-row">
-          <BrandLink />
-          <div className="flex items-center gap-6">{nav.map((l) => <a key={l.href} href={l.href} className="transition-colors duration-300 hover:text-[var(--mk-fg)]">{l.label}</a>)}<Link to="/privacy" className="transition-colors duration-300 hover:text-[var(--mk-fg)]">Privacy</Link><Link to="/terms" className="transition-colors duration-300 hover:text-[var(--mk-fg)]">Terms</Link><Link to="/auth" className="transition-colors duration-300 hover:text-[var(--mk-fg)]">Sign in</Link></div>
-          <p>© {new Date().getFullYear()} AlphaMine</p>
-        </div>
-      </footer>
-    </MkShell>
-  );
-}
-
-/** One section template: ruled top edge, numbered eyebrow, left aligned title. `split` puts the title beside the content. */
-function Section({ id, n, label, title, split, children }: { id?: string; n?: string; label?: string; title?: string; split?: boolean; children: ReactNode }) {
-  return (
-    <section id={id} className="mk-wrap scroll-mt-24">
-      <div className="border-t border-[var(--mk-line)] py-24">
-        {title ? (
-          <div className={split ? "grid gap-12 lg:grid-cols-[1fr_1.5fr]" : ""}>
-            <Rv className={split ? "" : "mb-12"}>
-              <p className="font-mono text-sm text-[var(--mk-acc)]">{n} {label}</p>
-              <h2 className="mt-3 text-3xl font-semibold md:text-4xl" style={{ maxWidth: 560 }}>{title}</h2>
-            </Rv>
-            {children}
-          </div>
-        ) : children}
-      </div>
-    </section>
+    </SiteLayout>
   );
 }
 
@@ -190,15 +138,6 @@ function Bento({ span, icon: I, title, body, children }: { span: string; icon: I
     </Rv>
   );
 }
-
-const Meter = ({ label, value }: { label: string; value: number }) => (
-  <div><div className="flex justify-between text-xs text-[var(--mk-mute)]"><span>{label}</span><span className="font-mono">{value}</span></div>
-    <div className="mt-1 h-1.5 rounded-full bg-[var(--mk-line)]"><div className="h-full rounded-full bg-[var(--mk-acc)]" style={{ width: `${value}%` }} /></div></div>
-);
-
-const CAL = [0, 1, 1, 2, -1, 0, 0, 1, 2, 1, -1, 1, 0, 0, 2, 1, -1, 1, 1, 0, 0, 1, 1, 2, 0, 1, 0, 0, -1, 1, 2, 1, 1, 0, 0];
-const calBg = (v: number) => v === 2 ? "var(--mk-acc)" : v === 1 ? "color-mix(in srgb, var(--mk-acc) 45%, transparent)" : v === -1 ? "color-mix(in srgb, #ef4444 60%, transparent)" : "var(--mk-s2)";
-const Cal = () => <div className="grid grid-cols-7 gap-1" aria-hidden>{CAL.map((v, i) => <div key={i} className="aspect-square" style={{ background: calBg(v), borderRadius: 4 }} />)}</div>;
 
 const Stage = ({ children }: { children: ReactNode }) => (
   <div className="mk-stage mx-auto rounded-2xl border border-[var(--mk-line)] bg-[var(--mk-s1)] p-3 md:p-8" style={{ maxWidth: 1040 }}>{children}</div>
