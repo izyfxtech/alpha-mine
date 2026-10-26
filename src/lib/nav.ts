@@ -27,12 +27,12 @@ export type ChartSlug = (typeof CHARTS)[number][0];
 export const SETTINGS = [
   ["account", "Account"],
   ["journal", "Journal"],
+  ["cashflows", "Deposits & Withdrawals"],
   ["instruments", "Instruments"],
   ["setups", "Setups"],
   ["comments", "Trade Comments"],
+  ["sessions", "Sessions"],
   ["custom-statistics", "Custom Statistics"],
-  ["sessions", "Session Categories"],
-  ["cashflows", "Deposits & Withdrawals"],
 ] as const;
 
 export type NavChild = { label: string; to: string; params?: Record<string, string> };

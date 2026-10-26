@@ -111,6 +111,8 @@ function JournalPage() {
       journal_id: t.journal_id, instrument_id: t.instrument_id, setup_id: t.setup_id, direction: t.direction, trade_type: t.trade_type,
       entry_at: t.entry_at, exit_at: t.exit_at, entry_price: t.entry_price, exit_price: t.exit_price, quantity: t.quantity, stop_loss: t.stop_loss,
       take_profit: t.take_profit, gross_pnl: t.gross_pnl, fees: t.fees, net_pnl: t.net_pnl, risk_amount: t.risk_amount, notes: t.notes,
+      // keep imported P&L as it is (otherwise the auto-P&L trigger would recompute it from prices) but never copy external_id: it must stay unique
+      pnl_manual: t.pnl_manual, is_break_even: t.is_break_even, commission: t.commission, swap: t.swap, raw_symbol: t.raw_symbol,
     }));
     await supabase.from("trades").insert(rows);
     setSel(new Set()); qc.invalidateQueries(); toast.success("Duplicated");

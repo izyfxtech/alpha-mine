@@ -5,7 +5,7 @@ import { ChevronDown } from "lucide-react";
 import { useLookups, useTrades } from "@/lib/journal-context";
 import { useTradeDrawer } from "@/components/TradeDrawer";
 import { CHARTS } from "@/lib/nav";
-import { computeStats, fmtMoney, fmtNum, groupBy, isLoss, isWin, stdev, type Trade } from "@/lib/metrics";
+import { computeStats, fmtMoney, fmtNum, groupBy, isLoss, isWin, potentialR, stdev, type Trade } from "@/lib/metrics";
 import { AccentStat, Empty, StatGrid, axis, niceTicks, pctScale, seriesValues, tradeAxis, yScale } from "@/components/kit";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
@@ -724,22 +724,6 @@ function CustomStatistics({ trades, start, cur }: { trades: Trade[]; start: numb
 }
 
 /* ---------------- Trade Management (actual vs set-and-forget potential) ---------------- */
-function potentialR(t: Trade): number | null {
-  if (t.stop_loss == null || t.take_profit == null) return null;
-  const long = t.direction !== "short";
-  const risk = Math.abs(t.entry_price - Number(t.stop_loss));
-  if (!risk) return null;
-  const tpR = Math.abs(Number(t.take_profit) - t.entry_price) / risk;
-  if (t.otp_hit === true) return tpR;
-  if (t.otp_hit === false) return -1;
-  if (t.high_price != null && t.low_price != null) {
-    const hitTp = long ? Number(t.high_price) >= Number(t.take_profit) : Number(t.low_price) <= Number(t.take_profit);
-    const hitSl = long ? Number(t.low_price) <= Number(t.stop_loss) : Number(t.high_price) >= Number(t.stop_loss);
-    if (hitTp && !hitSl) return tpR;
-    if (hitSl && !hitTp) return -1;
-  }
-  return t.r ?? null;
-}
 
 function TradeManagement({ trades }: { trades: Trade[] }) {
   const drawer = useTradeDrawer();

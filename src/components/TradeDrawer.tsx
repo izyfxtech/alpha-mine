@@ -139,8 +139,8 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
   const net = grossVal == null ? null : +(grossVal - (Number(f.fees) || 0)).toFixed(2);
 
   const opts = useMemo(() => ({
-    instruments: (lk?.instruments ?? []).map((i) => ({ id: i.id, label: i.symbol })) as Opt[],
-    setups: (lk?.setups ?? []).map((s) => ({ id: s.id, label: s.name })) as Opt[],
+    instruments: [...(lk?.instruments ?? []).map((i) => ({ id: i.id, label: i.symbol })), ...(lk?.all.instruments ?? []).filter((i) => i.disabled && i.id === trade?.instrument_id).map((i) => ({ id: i.id, label: `${i.symbol} (disabled)` }))] as Opt[],
+    setups: [...(lk?.setups ?? []).map((s) => ({ id: s.id, label: s.name })), ...(lk?.all.setups ?? []).filter((s) => s.disabled && s.id === trade?.setup_id).map((s) => ({ id: s.id, label: `${s.name} (disabled)` }))] as Opt[],
     comments: (phase: string) => (lk?.comments ?? []).filter((c) => c.phase === phase).map((c) => ({ id: c.id, label: c.label })) as Opt[],
     stat: (cat: string) => (lk?.statOptions ?? []).filter((o) => o.category_id === cat).map((o) => ({ id: o.id, label: o.label })) as Opt[],
   }), [lk]);

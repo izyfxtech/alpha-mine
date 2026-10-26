@@ -149,6 +149,7 @@ export type Database = {
           phase: string
           position: number
           sentiment: string
+          disabled: boolean
         }
         Insert: {
           created_at?: string
@@ -158,6 +159,7 @@ export type Database = {
           phase: string
           position?: number
           sentiment?: string
+          disabled?: boolean
         }
         Update: {
           created_at?: string
@@ -167,6 +169,7 @@ export type Database = {
           phase?: string
           position?: number
           sentiment?: string
+          disabled?: boolean
         }
         Relationships: [
           {
@@ -185,6 +188,7 @@ export type Database = {
           journal_id: string
           name: string
           position: number
+          disabled: boolean
         }
         Insert: {
           created_at?: string
@@ -192,6 +196,7 @@ export type Database = {
           journal_id: string
           name: string
           position?: number
+          disabled?: boolean
         }
         Update: {
           created_at?: string
@@ -199,6 +204,7 @@ export type Database = {
           journal_id?: string
           name?: string
           position?: number
+          disabled?: boolean
         }
         Relationships: [
           {
@@ -218,6 +224,7 @@ export type Database = {
           journal_id: string
           label: string
           position: number
+          disabled: boolean
         }
         Insert: {
           category_id: string
@@ -226,6 +233,7 @@ export type Database = {
           journal_id: string
           label: string
           position?: number
+          disabled?: boolean
         }
         Update: {
           category_id?: string
@@ -234,6 +242,7 @@ export type Database = {
           journal_id?: string
           label?: string
           position?: number
+          disabled?: boolean
         }
         Relationships: [
           {
@@ -316,6 +325,7 @@ export type Database = {
           journal_id: string
           position: number
           symbol: string
+          disabled: boolean
         }
         Insert: {
           asset_class?: string | null
@@ -324,6 +334,7 @@ export type Database = {
           journal_id: string
           position?: number
           symbol: string
+          disabled?: boolean
         }
         Update: {
           asset_class?: string | null
@@ -332,6 +343,7 @@ export type Database = {
           journal_id?: string
           position?: number
           symbol?: string
+          disabled?: boolean
         }
         Relationships: [
           {
@@ -394,6 +406,10 @@ export type Database = {
           share_token: string | null
           starting_balance: number
           trade_type: string
+          mt_platform: string | null
+          mt_server: string | null
+          mt_login: string | null
+          disabled_session_categories: string[]
         }
         Insert: {
           auto_pnl?: boolean
@@ -410,6 +426,10 @@ export type Database = {
           share_token?: string | null
           starting_balance?: number
           trade_type?: string
+          mt_platform?: string | null
+          mt_server?: string | null
+          mt_login?: string | null
+          disabled_session_categories?: string[]
         }
         Update: {
           auto_pnl?: boolean
@@ -426,6 +446,10 @@ export type Database = {
           share_token?: string | null
           starting_balance?: number
           trade_type?: string
+          mt_platform?: string | null
+          mt_server?: string | null
+          mt_login?: string | null
+          disabled_session_categories?: string[]
         }
         Relationships: []
       }
@@ -759,6 +783,7 @@ export type Database = {
           journal_id: string
           name: string
           position: number
+          disabled: boolean
         }
         Insert: {
           created_at?: string
@@ -767,6 +792,7 @@ export type Database = {
           journal_id: string
           name: string
           position?: number
+          disabled?: boolean
         }
         Update: {
           created_at?: string
@@ -775,6 +801,7 @@ export type Database = {
           journal_id?: string
           name?: string
           position?: number
+          disabled?: boolean
         }
         Relationships: [
           {
@@ -785,6 +812,12 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      sync_jobs: {
+        Row: { attempts: number; created_at: string; error: string | null; finished_at: string | null; id: string; journal_id: string | null; mode: string; platform: string; started_at: string | null; status: string; trades_imported: number; user_id: string }
+        Insert: { attempts?: number; created_at?: string; error?: string | null; finished_at?: string | null; id?: string; journal_id?: string | null; mode: string; platform: string; started_at?: string | null; status?: string; trades_imported?: number; user_id: string }
+        Update: { attempts?: number; created_at?: string; error?: string | null; finished_at?: string | null; id?: string; journal_id?: string | null; mode?: string; platform?: string; started_at?: string | null; status?: string; trades_imported?: number; user_id?: string }
+        Relationships: []
       }
       trade_comments: {
         Row: {
@@ -957,6 +990,11 @@ export type Database = {
           trade_no: number
           trade_type: string
           trading_plan_id: string | null
+          source: string
+          external_id: string | null
+          raw_symbol: string | null
+          commission: number | null
+          swap: number | null
         }
         Insert: {
           created_at?: string
@@ -986,6 +1024,11 @@ export type Database = {
           trade_no?: number
           trade_type?: string
           trading_plan_id?: string | null
+          source?: string
+          external_id?: string | null
+          raw_symbol?: string | null
+          commission?: number | null
+          swap?: number | null
         }
         Update: {
           created_at?: string
@@ -1015,6 +1058,11 @@ export type Database = {
           trade_no?: number
           trade_type?: string
           trading_plan_id?: string | null
+          source?: string
+          external_id?: string | null
+          raw_symbol?: string | null
+          commission?: number | null
+          swap?: number | null
         }
         Relationships: [
           {

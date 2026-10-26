@@ -22,6 +22,20 @@
       "when": 1791100000000,
       "tag": "0002_plans_missed_option_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791200000000,
+      "tag": "0003_mt_import",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791300000000,
+      "tag": "0004_disable_items",
+      "breakpoints": true
     }
   ]
 }

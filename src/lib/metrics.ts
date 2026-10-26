@@ -28,6 +28,12 @@ export interface TradeRow {
   created_at: string;
   is_break_even: boolean;
   trade_no: number;
+  pnl_manual?: boolean; // set by the MetaTrader import / trigger
+  source?: string; // set by the MetaTrader import / trigger
+  external_id?: string | null; // set by the MetaTrader import / trigger
+  raw_symbol?: string | null; // set by the MetaTrader import / trigger
+  commission?: number | null; // set by the MetaTrader import / trigger
+  swap?: number | null; // set by the MetaTrader import / trigger
 }
 
 export interface Trade extends TradeRow {
@@ -307,3 +313,21 @@ export function bucketPerformance<K extends string | number>(trades: Trade[], ke
   });
 }
 export const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/** R the trade would have made if left alone (set-and-forget): TP, SL or unknown. Used by Chart Lab and Edge Finder. */
+export function potentialR(t: Trade): number | null {
+  if (t.stop_loss == null || t.take_profit == null) return null;
+  const long = t.direction !== "short";
+  const risk = Math.abs(t.entry_price - Number(t.stop_loss));
+  if (!risk) return null;
+  const tpR = Math.abs(Number(t.take_profit) - t.entry_price) / risk;
+  if (t.otp_hit === true) return tpR;
+  if (t.otp_hit === false) return -1;
+  if (t.high_price != null && t.low_price != null) {
+    const hitTp = long ? Number(t.high_price) >= Number(t.take_profit) : Number(t.low_price) <= Number(t.take_profit);
+    const hitSl = long ? Number(t.low_price) <= Number(t.stop_loss) : Number(t.high_price) >= Number(t.stop_loss);
+    if (hitTp && !hitSl) return tpR;
+    if (hitSl && !hitTp) return -1;
+  }
+  return t.r ?? null;
+}

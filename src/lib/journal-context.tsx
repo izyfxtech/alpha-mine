@@ -14,8 +14,15 @@ export interface Journal {
   trade_type: string;
   auto_pnl: boolean;
   session_categories: string[];
+  /** Session categories that were retired; kept on old sessions but hidden from pickers. */
+  disabled_session_categories?: string[];
   last_used_at: string;
   share_token: string | null;
+  created_at?: string;
+  /** Set when the journal is linked to a MetaTrader account (import is matched by ticket). */
+  mt_platform?: string | null;
+  mt_server?: string | null;
+  mt_login?: string | null;
 }
 export type Range = { min?: number | undefined; max?: number | undefined };
 export interface Filters {
@@ -161,13 +168,18 @@ export function useLookups(journalId?: string) {
         supabase.from("custom_stat_categories").select("*").eq("journal_id", journalId!).order("position"),
         supabase.from("custom_stat_options").select("*").eq("journal_id", journalId!).order("position").order("created_at"),
       ]);
+      // Disabled ("retired") items stay on the trades that use them but are hidden from every picker.
+      const on = <T extends { disabled?: boolean }>(rows: T[] | null) => (rows ?? []).filter((r) => !r.disabled);
+      const comments = (c.data ?? []) as { id: string; phase: string; label: string; sentiment: Sentiment; journal_id: string; disabled?: boolean }[];
       return {
-        instruments: i.data ?? [],
-        setups: s.data ?? [],
-        comments: (c.data ?? []) as { id: string; phase: string; label: string; sentiment: Sentiment; journal_id: string }[],
+        instruments: on(i.data),
+        setups: on(s.data),
+        comments: on(comments),
         plans: p.data ?? [],
-        statCategories: sc.data ?? [],
-        statOptions: so.data ?? [],
+        statCategories: on(sc.data),
+        statOptions: on(so.data).filter((o) => !(sc.data ?? []).some((cat) => cat.id === o.category_id && cat.disabled)),
+        /** Everything including disabled items, for screens that must still show retired entries. */
+        all: { instruments: i.data ?? [], setups: s.data ?? [] },
       };
     },
   });
