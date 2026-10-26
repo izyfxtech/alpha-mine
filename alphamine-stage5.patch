@@ -1,0 +1,490 @@
+diff --git a/src/components/site.tsx b/src/components/site.tsx
+new file mode 100644
+index 0000000..7495c70
+--- /dev/null
++++ b/src/components/site.tsx
+@@ -0,0 +1,116 @@
++import { Link } from "@tanstack/react-router";
++import { useState, type ReactNode } from "react";
++import { CaretDown } from "@phosphor-icons/react";
++import { BrandLink, MkShell, Rv, ThemeToggle } from "@/components/marketing-shell";
++import { FEATURES } from "@/lib/site-content";
++
++const linkCls = "rounded-lg px-3 py-2 text-sm font-semibold text-[var(--mk-mute)] transition-colors duration-300 hover:text-[var(--mk-fg)]";
++const ease = "ease-[cubic-bezier(0.22,1,0.36,1)]";
++
++function Nav() {
++  const [open, setOpen] = useState(false);
++  const mobile = [{ to: "/features", label: "Features" }, { to: "/import", label: "Import" }, { to: "/auth", label: "Sign in" }] as const;
++  return (
++    <>
++      <header className="fixed inset-x-0 top-3 z-40 mx-auto w-fit max-w-[calc(100%-24px)]">
++        <nav aria-label="Primary" className="flex items-center gap-4 rounded-2xl border border-[var(--mk-line)] bg-[var(--mk-nav)] px-3 py-2 backdrop-blur-xl">
++          <BrandLink />
++          <div className="hidden items-center gap-1 md:flex">
++            <div className="group relative">
++              <Link to="/features" className={`${linkCls} inline-flex items-center gap-1`}>Features<CaretDown size={12} weight="bold" className={`transition-transform duration-300 group-hover:rotate-180 group-focus-within:rotate-180`} /></Link>
++              <div className="invisible absolute left-0 top-full pt-2 opacity-0 transition-opacity duration-300 group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
++                <div className="w-72 rounded-2xl border border-[var(--mk-line)] bg-[var(--mk-s1)] p-2">
++                  {FEATURES.map((f) => (
++                    <Link key={f.slug} to="/features/$slug" params={{ slug: f.slug }} className="flex items-start gap-3 rounded-lg p-3 transition-colors duration-300 hover:bg-[var(--mk-s2)]">
++                      <f.icon size={20} className="mt-0.5 shrink-0 text-[var(--mk-acc)]" />
++                      <span><span className="block text-sm font-semibold">{f.name}</span><span className="block text-xs text-[var(--mk-mute)]">{f.short}</span></span>
++                    </Link>
++                  ))}
++                </div>
++              </div>
++            </div>
++            <Link to="/import" className={linkCls}>Import</Link>
++          </div>
++          <div className="flex items-center gap-2">
++            <ThemeToggle />
++            <Link to="/auth" className="mk-btn mk-btn-sec hidden text-sm md:inline-flex">Sign in</Link>
++            <button type="button" aria-label={open ? "Close menu" : "Open menu"} aria-expanded={open} onClick={() => setOpen((o) => !o)} className="relative z-50 h-9 w-9 rounded-lg border border-[var(--mk-line)] md:hidden">
++              <span className={`absolute left-2.5 top-3.5 h-0.5 w-4 rounded-full bg-[var(--mk-fg)] transition-transform duration-500 ${ease}`} style={{ transform: open ? "translateY(3px) rotate(45deg)" : "none" }} />
++              <span className={`absolute left-2.5 top-[21px] h-0.5 w-4 rounded-full bg-[var(--mk-fg)] transition-transform duration-500 ${ease}`} style={{ transform: open ? "translateY(-4px) rotate(-45deg)" : "none" }} />
++            </button>
++          </div>
++        </nav>
++      </header>
++      <div className={`fixed inset-0 z-30 bg-[var(--mk-panel)] backdrop-blur-2xl transition-opacity duration-500 md:hidden ${open ? "opacity-100" : "pointer-events-none opacity-0"}`} aria-hidden={!open}>
++        <div className="flex h-full flex-col justify-center gap-6 px-6">
++          {mobile.map((l, i) => (
++            <Link key={l.to} to={l.to} tabIndex={open ? 0 : -1} onClick={() => setOpen(false)} className={`text-4xl font-semibold transition-all duration-500 ${ease}`}
++              style={{ transitionDelay: open ? `${Math.min(i * 60, 400)}ms` : "0ms", opacity: open ? 1 : 0, transform: open ? "none" : "translateY(24px)" }}>{l.label}</Link>
++          ))}
++        </div>
++      </div>
++    </>
++  );
++}
++
++const fl = "transition-colors duration-300 hover:text-[var(--mk-fg)]";
++function Footer() {
++  return (
++    <footer className="border-t border-[var(--mk-line)] py-16">
++      <div className="mk-wrap grid gap-10 text-sm text-[var(--mk-mute)] sm:grid-cols-2 lg:grid-cols-4">
++        <div><BrandLink /><p className="mt-4" style={{ maxWidth: 240 }}>The trading journal that finds your edge.</p></div>
++        <div><p className="font-semibold text-[var(--mk-fg)]">Product</p><ul className="mt-4 space-y-3">{FEATURES.map((f) => <li key={f.slug}><Link to="/features/$slug" params={{ slug: f.slug }} className={fl}>{f.name}</Link></li>)}<li><Link to="/import" className={fl}>Import</Link></li></ul></div>
++        <div><p className="font-semibold text-[var(--mk-fg)]">Account</p><ul className="mt-4 space-y-3"><li><Link to="/auth" className={fl}>Sign in</Link></li><li><Link to="/auth" search={{ mode: "signup" }} className={fl}>Create account</Link></li></ul></div>
++        <div><p className="font-semibold text-[var(--mk-fg)]">Legal</p><ul className="mt-4 space-y-3"><li><Link to="/privacy" className={fl}>Privacy policy</Link></li><li><Link to="/terms" className={fl}>Terms of service</Link></li></ul></div>
++      </div>
++      <div className="mk-wrap mt-12 border-t border-[var(--mk-line)] pt-6 text-sm text-[var(--mk-mute)]">© {new Date().getFullYear()} AlphaMine</div>
++    </footer>
++  );
++}
++
++export function SiteLayout({ children }: { children: ReactNode }) {
++  return <MkShell><Nav /><div id="main">{children}</div><Footer /></MkShell>;
++}
++
++/** One section template: ruled top edge, optional numbered eyebrow and left aligned title. `split` puts the title beside the content. */
++export function Section({ id, n, label, title, split, children }: { id?: string; n?: string; label?: string; title?: string; split?: boolean; children: ReactNode }) {
++  return (
++    <section id={id} className="mk-wrap scroll-mt-24">
++      <div className="border-t border-[var(--mk-line)] py-24">
++        {title ? (
++          <div className={split ? "grid gap-12 lg:grid-cols-[1fr_1.5fr]" : ""}>
++            <Rv className={split ? "" : "mb-12"}>
++              <p className="font-mono text-sm text-[var(--mk-acc)]">{n} {label}</p>
++              <h2 className="mt-3 text-3xl font-semibold md:text-4xl" style={{ maxWidth: 560 }}>{title}</h2>
++            </Rv>
++            {children}
++          </div>
++        ) : children}
++      </div>
++    </section>
++  );
++}
++
++export function CtaBand({ title }: { title: string }) {
++  return (
++    <section className="mk-wrap pb-24 pt-8">
++      <Rv>
++        <div className="mk-stage rounded-2xl border border-[var(--mk-line)] bg-[var(--mk-s1)] px-6 py-20 text-center">
++          <h2 className="mx-auto text-4xl font-semibold md:text-5xl" style={{ maxWidth: 680 }}>{title}</h2>
++          <Link to="/auth" search={{ mode: "signup" }} className="mk-btn mk-btn-pri mt-8">Start journaling free</Link>
++        </div>
++      </Rv>
++    </section>
++  );
++}
++
++export function PageHero({ eyebrow, title, lead, children }: { eyebrow: string; title: string; lead: string; children?: ReactNode }) {
++  return (
++    <section className="mk-wrap pb-16 pt-40 md:pt-48">
++      <p className="font-mono text-sm text-[var(--mk-acc)]">{eyebrow}</p>
++      <h1 className="mk-grad mt-4 text-5xl font-semibold md:text-7xl" style={{ maxWidth: 820 }}>{title}</h1>
++      <p className="mt-6 text-lg text-[var(--mk-mute)]" style={{ maxWidth: 680 }}>{lead}</p>
++      {children && <div className="mt-8 flex flex-wrap items-center gap-3">{children}</div>}
++    </section>
++  );
++}
+diff --git a/src/components/visuals.tsx b/src/components/visuals.tsx
+new file mode 100644
+index 0000000..683cd04
+--- /dev/null
++++ b/src/components/visuals.tsx
+@@ -0,0 +1,28 @@
++/** Small illustrative graphics shared by the landing page and feature pages. All figures are sample data. */
++export const Meter = ({ label, value }: { label: string; value: number }) => (
++  <div><div className="flex justify-between text-xs text-[var(--mk-mute)]"><span>{label}</span><span className="font-mono">{value}</span></div>
++    <div className="mt-1 h-1.5 rounded-full bg-[var(--mk-line)]"><div className="h-full rounded-full bg-[var(--mk-acc)]" style={{ width: `${value}%` }} /></div></div>
++);
++
++const CAL = [0, 1, 1, 2, -1, 0, 0, 1, 2, 1, -1, 1, 0, 0, 2, 1, -1, 1, 1, 0, 0, 1, 1, 2, 0, 1, 0, 0, -1, 1, 2, 1, 1, 0, 0];
++const calBg = (v: number) => v === 2 ? "var(--mk-acc)" : v === 1 ? "color-mix(in srgb, var(--mk-acc) 45%, transparent)" : v === -1 ? "color-mix(in srgb, #ef4444 60%, transparent)" : "var(--mk-s2)";
++export const Cal = () => <div className="grid grid-cols-7 gap-1" aria-hidden>{CAL.map((v, i) => <div key={i} className="aspect-square" style={{ background: calBg(v), borderRadius: 4 }} />)}</div>;
++
++export const Bars = () => (
++  <div className="flex h-40 items-end gap-3" aria-hidden>{[30, 52, 40, 68, 56, 80, 64, 92].map((h, i) => <div key={i} className="flex-1 rounded-t" style={{ height: `${h}%`, background: i === 7 ? "var(--mk-acc)" : "var(--mk-line)" }} />)}</div>
++);
++
++export const Monte = () => (
++  <svg viewBox="0 0 200 80" className="h-40 w-full" aria-hidden fill="none" strokeWidth="2" strokeLinecap="round">
++    {[["M0 60 L50 52 L100 40 L150 28 L200 8", 1], ["M0 60 L50 56 L100 50 L150 46 L200 40", 0.5], ["M0 60 L50 58 L100 56 L150 62 L200 58", 0.35], ["M0 60 L50 64 L100 62 L150 70 L200 74", 0.35]].map(([d, o], i) => <path key={i} d={String(d)} stroke="var(--mk-acc)" opacity={Number(o)} />)}
++  </svg>
++);
++
++export const JournalRows = () => (
++  <div className="text-sm" aria-hidden>
++    <div className="grid grid-cols-4 gap-2 border-b border-[var(--mk-line)] pb-2 text-xs text-[var(--mk-mute)]"><span>Date</span><span>Setup</span><span>Result</span><span className="text-right">P&L</span></div>
++    {[["Mon", "Breakout", "1.8R", "+$214", 1], ["Tue", "Pullback", "0.6R", "+$72", 1], ["Wed", "Range fade", "-1.0R", "$120", 0], ["Thu", "Breakout", "1.2R", "+$143", 1]].map(([d, s, r, p, w]) => (
++      <div key={String(d)} className="grid grid-cols-4 gap-2 border-b border-[var(--mk-line)] py-3 last:border-0"><span>{d}</span><span>{s}</span><span className="font-mono">{r}</span><span className={`text-right font-mono ${w ? "text-[var(--mk-acc)]" : "text-red-500"}`}>{w ? p : `-${p}`}</span></div>
++    ))}
++  </div>
++);
+diff --git a/src/lib/site-content.ts b/src/lib/site-content.ts
+new file mode 100644
+index 0000000..95f1c65
+--- /dev/null
++++ b/src/lib/site-content.ts
+@@ -0,0 +1,54 @@
++import { Brain, CalendarDots, ChartLineUp, Flask, MagnifyingGlass, NotePencil, type Icon } from "@phosphor-icons/react";
++
++export type Feature = { slug: string; name: string; icon: Icon; visual: "journal" | "calendar" | "tilt" | "bars" | "edge" | "monte"; short: string; headline: string; lead: string; points: { t: string; d: string }[] };
++
++export const FEATURES: Feature[] = [
++  { slug: "journal", name: "Journal", icon: NotePencil, visual: "journal", short: "Log every trade with setups, comments and screenshots.",
++    headline: "A journal you will actually keep up", lead: "Log each trade with its setup, instrument, comments and screenshots, then work from a table that fits the way you review.",
++    points: [
++      { t: "A trade table that fits you", d: "Choose which columns you see, reorder them and keep your layout between sessions." },
++      { t: "Your own vocabulary", d: "Define your setups, instruments and comment tags, plus custom statistics for anything else you want to measure." },
++      { t: "Screenshots on every trade", d: "Attach screenshots to a trade so the chart behind the decision stays with the result." },
++    ] },
++  { slug: "profit-calendar", name: "Profit calendar", icon: CalendarDots, visual: "calendar", short: "Daily results, trade counts and discipline on one calendar.",
++    headline: "See every trading day at a glance", lead: "A calendar of your results, so a good week or a bad one is obvious before you open a single trade.",
++    points: [
++      { t: "Daily results in colour", d: "Green and red days show where the month was won or lost." },
++      { t: "Monthly and annual views", d: "Step through months with the arrows, or zoom out to an annual overview with a mini calendar for each month." },
++      { t: "Discipline beside profit", d: "Each day carries its tilt score, so how you traded sits next to what you made." },
++    ] },
++  { slug: "tilt-meter", name: "Tilt meter", icon: Brain, visual: "tilt", short: "Turn discipline tags into a daily score.",
++    headline: "Measure discipline, not just profit", lead: "Profit can hide bad process and punish good process. The tilt meter keeps score of the decisions you control.",
++    points: [
++      { t: "Tag decisions as you log", d: "Mark entries, management and exits as disciplined or not." },
++      { t: "A score for each day", d: "Tags roll up into a tilt score per day, so you can see exactly when your process slipped." },
++      { t: "Plans you can follow", d: "Write a trading plan, then track how often you followed it." },
++    ] },
++  { slug: "chart-lab", name: "Chart Lab", icon: ChartLineUp, visual: "bars", short: "Sixteen reports, from drawdown to SQN by setup.",
++    headline: "Sixteen reports that show how you really trade", lead: "From drawdown to exit analysis, Chart Lab turns your journal into charts you can act on.",
++    points: [
++      { t: "Reports that matter", d: "Drawdown, efficiency, exit analysis, holding time, trade management and SQN by setup are among them." },
++      { t: "Click through to the trades", d: "Select part of a chart to open the trades behind it, so every pattern can be checked." },
++      { t: "Slice by what you track", d: "Use the custom statistics picker to break results down by the things you chose to measure." },
++    ] },
++  { slug: "edge-finder", name: "Edge Finder", icon: MagnifyingGlass, visual: "edge", short: "Finds the strong and weak parts of your trading.",
++    headline: "Let your data point at your edge", lead: "Edge Finder scans your journal and rates the strong and weak parts of your trading, so you start from evidence.",
++    points: [
++      { t: "Clear ratings", d: "Each area is marked Strong, Average or Needs attention." },
++      { t: "Trends, not snapshots", d: "A trend marker shows whether an area is moving up or down." },
++      { t: "Detail behind every card", d: "Open a card to see the numbers behind its rating." },
++    ] },
++  { slug: "strategy-lab", name: "Strategy Lab", icon: Flask, visual: "monte", short: "Simulate outcomes and test alternative exits.",
++    headline: "Test ideas on your own history", lead: "Strategy Lab lets you ask what if without risking a trade: simulate your edge, or replay trades with different exits.",
++    points: [
++      { t: "Monte Carlo simulator", d: "Enter your average win, average loss and win rate, run many simulations, and see the range of outcomes and streaks." },
++      { t: "Alternative strategies", d: "Replay your trades under different exit rules and compare the results." },
++      { t: "A home for backtests", d: "Record backtest sessions so you can set them beside live trading." },
++    ] },
++];
++
++export const MORE = [
++  ["Trading plans", "Write the rules, then track whether you followed them."], ["Missed trades", "Log setups you skipped and analyse what they would have done."],
++  ["Diary and notebook", "Session notes and a notebook with folders, next to your numbers."], ["Milestones", "Targets and achievements that follow your progress."],
++  ["Portfolio and equity", "Balance, deposits, withdrawals and the equity curve across journals."], ["Monthly and annual reports", "Review a month or a whole year on one page."],
++] as const;
+diff --git a/src/routes/features.$slug.tsx b/src/routes/features.$slug.tsx
+new file mode 100644
+index 0000000..b5ebd34
+--- /dev/null
++++ b/src/routes/features.$slug.tsx
+@@ -0,0 +1,63 @@
++import { createFileRoute, Link, notFound } from "@tanstack/react-router";
++import { ArrowRight } from "@phosphor-icons/react";
++import { CtaBand, PageHero, Section, SiteLayout } from "@/components/site";
++import { Rv } from "@/components/marketing-shell";
++import { Bars, Cal, JournalRows, Meter, Monte } from "@/components/visuals";
++import { FEATURES, type Feature } from "@/lib/site-content";
++
++export const Route = createFileRoute("/features/$slug")({
++  loader: ({ params }) => { if (!FEATURES.some((x) => x.slug === params.slug)) throw notFound(); return { slug: params.slug }; },
++  head: ({ loaderData }) => { const f = FEATURES.find((x) => x.slug === loaderData?.slug); return {
++    meta: f ? [{ title: `${f.name} | AlphaMine` }, { name: "description", content: f.lead }, { property: "og:title", content: `${f.name} | AlphaMine` }, { property: "og:description", content: f.lead }, { property: "og:type", content: "website" }] : [],
++    links: [{ rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" }],
++  }; },
++  component: FeaturePage,
++});
++
++function Visual({ v }: { v: Feature["visual"] }) {
++  const m = (items: [string, number][]) => <div className="space-y-4" style={{ maxWidth: 420 }}>{items.map(([k, n]) => <Meter key={k} label={k} value={n} />)}</div>;
++  if (v === "calendar") return <div style={{ maxWidth: 420 }}><Cal /></div>;
++  if (v === "tilt") return m([["Entries", 84], ["Management", 71], ["Exits", 90]]);
++  if (v === "edge") return m([["Session", 78], ["Setup", 55], ["Instrument", 34]]);
++  if (v === "bars") return <Bars />;
++  if (v === "monte") return <Monte />;
++  return <JournalRows />;
++}
++
++function FeaturePage() {
++  const { slug } = Route.useLoaderData();
++  const f = FEATURES.find((x) => x.slug === slug)!;
++  const related = FEATURES.filter((x) => x.slug !== f.slug).slice(0, 3);
++  return (
++    <SiteLayout>
++      <PageHero eyebrow={`Features / ${f.name}`} title={f.headline} lead={f.lead}>
++        <Link to="/auth" search={{ mode: "signup" }} className="mk-btn mk-btn-pri">Start journaling free <ArrowRight size={18} weight="bold" /></Link>
++        <Link to="/features" className="mk-btn mk-btn-sec">All features</Link>
++      </PageHero>
++      <section className="mk-wrap pb-24">
++        <Rv>
++          <div className="mk-stage rounded-2xl border border-[var(--mk-line)] bg-[var(--mk-s1)] p-3 md:p-8">
++            <div className="rounded-xl border border-[var(--mk-line)] bg-[var(--mk-bg)] p-6 md:p-10"><Visual v={f.visual} /><p className="mt-6 text-xs text-[var(--mk-mute)]">Sample data</p></div>
++          </div>
++        </Rv>
++      </section>
++      <Section n="01" label="What you get" title={`How ${f.name} helps`}>
++        <div className="grid gap-10 md:grid-cols-3 md:gap-8">
++          {f.points.map((p, i) => (
++            <Rv key={p.t} delay={i * 100}>
++              <div className="border-t border-[var(--mk-acc)] pt-5"><h3 className="text-xl font-semibold">{p.t}</h3><p className="mt-2 text-base text-[var(--mk-mute)]">{p.d}</p></div>
++            </Rv>
++          ))}
++        </div>
++      </Section>
++      <Section n="02" label="Keep exploring" title="Works best alongside">
++        <div className="grid gap-4 md:grid-cols-3">
++          {related.map((r) => (
++            <Link key={r.slug} to="/features/$slug" params={{ slug: r.slug }} className="mk-card flex flex-col p-6"><r.icon size={24} className="text-[var(--mk-acc)]" /><h3 className="mt-3 text-lg font-semibold">{r.name}</h3><p className="mt-1 text-base text-[var(--mk-mute)]">{r.short}</p></Link>
++          ))}
++        </div>
++      </Section>
++      <CtaBand title={`Try ${f.name} on your own trades`} />
++    </SiteLayout>
++  );
++}
+diff --git a/src/routes/features.index.tsx b/src/routes/features.index.tsx
+new file mode 100644
+index 0000000..177f86f
+--- /dev/null
++++ b/src/routes/features.index.tsx
+@@ -0,0 +1,37 @@
++import { createFileRoute, Link } from "@tanstack/react-router";
++import { ArrowRight } from "@phosphor-icons/react";
++import { CtaBand, PageHero, Section, SiteLayout } from "@/components/site";
++import { Rv } from "@/components/marketing-shell";
++import { FEATURES, MORE } from "@/lib/site-content";
++
++const DESC = "Journal, profit calendar, tilt meter, Chart Lab, Edge Finder and Strategy Lab: the tools inside AlphaMine.";
++export const Route = createFileRoute("/features/")({
++  head: () => ({ meta: [{ title: "Features | AlphaMine" }, { name: "description", content: DESC }, { property: "og:title", content: "Features | AlphaMine" }, { property: "og:description", content: DESC }, { property: "og:type", content: "website" }], links: [{ rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" }] }),
++  component: () => (
++    <SiteLayout>
++      <PageHero eyebrow="Features" title="One journal, every angle on your trading" lead="Log trades, score your discipline, read sixteen reports and test ideas on your own history, all in one place.">
++        <Link to="/auth" search={{ mode: "signup" }} className="mk-btn mk-btn-pri">Start journaling free <ArrowRight size={18} weight="bold" /></Link>
++      </PageHero>
++      <Section n="01" label="The core tools" title="Six tools that work from the same trade data">
++        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
++          {FEATURES.map((f, i) => (
++            <Rv key={f.slug} delay={(i % 3) * 80}>
++              <Link to="/features/$slug" params={{ slug: f.slug }} className="mk-card group flex h-full flex-col p-6">
++                <f.icon size={28} className="text-[var(--mk-acc)]" />
++                <h3 className="mt-4 text-xl font-semibold">{f.name}</h3>
++                <p className="mt-2 text-base text-[var(--mk-mute)]">{f.short}</p>
++                <span className="mt-auto inline-flex items-center gap-1 pt-6 text-sm font-semibold text-[var(--mk-acc)]">Learn more <ArrowRight size={14} weight="bold" className="transition-transform duration-300 group-hover:translate-x-1" /></span>
++              </Link>
++            </Rv>
++          ))}
++        </div>
++      </Section>
++      <Section n="02" label="And more" title="Everything around the trade, too" split>
++        <dl className="divide-y divide-[var(--mk-line)] border-y border-[var(--mk-line)]">
++          {MORE.map(([t, d]) => <div key={t} className="grid gap-1 py-5 sm:grid-cols-[200px_1fr] sm:gap-6"><dt className="text-lg font-semibold">{t}</dt><dd className="text-base text-[var(--mk-mute)]">{d}</dd></div>)}
++        </dl>
++      </Section>
++      <CtaBand title="See which parts of your trading actually pay" />
++    </SiteLayout>
++  ),
++});
+diff --git a/src/routes/import.tsx b/src/routes/import.tsx
+new file mode 100644
+index 0000000..e976e79
+--- /dev/null
++++ b/src/routes/import.tsx
+@@ -0,0 +1,42 @@
++import { createFileRoute, Link } from "@tanstack/react-router";
++import { ArrowRight, FileArrowDown, Table, PencilSimpleLine } from "@phosphor-icons/react";
++import { CtaBand, PageHero, Section, SiteLayout } from "@/components/site";
++import { Rv } from "@/components/marketing-shell";
++
++const DESC = "Bring your history into AlphaMine from MetaTrader 5 reports, CSV or Excel files, or log trades by hand.";
++const methods = [
++  { icon: FileArrowDown, t: "MetaTrader 5 reports", d: "Import the HTML or Excel report exported from MetaTrader 5. Each trade keeps its platform ticket, commission and swap, and P&L is recomputed in your journal." },
++  { icon: Table, t: "CSV and Excel files", d: "Already keep a spreadsheet? Upload a CSV or Excel file and your trades land in the journal ready to tag." },
++  { icon: PencilSimpleLine, t: "Manual entry", d: "Log a trade by hand with its setup, comments and screenshots, for platforms or markets you do not export from." },
++];
++const steps = [
++  { t: "Export from your platform", d: "In MetaTrader 5, export your account history as an HTML or Excel report." },
++  { t: "Choose a journal", d: "Pick the journal the trades belong to. Each journal has its own broker, currency and starting balance." },
++  { t: "Import and review", d: "Upload the file, check the trades, then tag your setups and decisions." },
++];
++export const Route = createFileRoute("/import")({
++  head: () => ({ meta: [{ title: "Import trades | AlphaMine" }, { name: "description", content: DESC }, { property: "og:title", content: "Import trades | AlphaMine" }, { property: "og:description", content: DESC }, { property: "og:type", content: "website" }], links: [{ rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" }] }),
++  component: () => (
++    <SiteLayout>
++      <PageHero eyebrow="Import" title="Bring your trading history with you" lead="Start with months of results instead of an empty journal. Import a MetaTrader 5 report, upload a spreadsheet, or log trades by hand.">
++        <Link to="/auth" search={{ mode: "signup" }} className="mk-btn mk-btn-pri">Start journaling free <ArrowRight size={18} weight="bold" /></Link>
++      </PageHero>
++      <Section n="01" label="Ways to import" title="Pick the route that matches your platform">
++        <div className="grid gap-4 md:grid-cols-3">
++          {methods.map((m, i) => (
++            <Rv key={m.t} delay={i * 80}><article className="mk-card h-full p-6"><m.icon size={28} className="text-[var(--mk-acc)]" /><h3 className="mt-4 text-xl font-semibold">{m.t}</h3><p className="mt-2 text-base text-[var(--mk-mute)]">{m.d}</p></article></Rv>
++          ))}
++        </div>
++      </Section>
++      <Section n="02" label="How it works" title="From a platform export to a tagged journal">
++        <ol className="relative grid gap-10 md:grid-cols-3 md:gap-8">
++          <div className="absolute left-0 right-0 top-5 hidden h-px bg-[var(--mk-line)] md:block" aria-hidden />
++          {steps.map((s, i) => (
++            <Rv key={s.t} delay={i * 100}><li className="relative list-none"><span className="relative z-10 grid h-10 w-10 place-items-center rounded-full border border-[var(--mk-line)] bg-[var(--mk-bg)] font-mono text-sm text-[var(--mk-acc)]">{i + 1}</span><h3 className="mt-5 text-xl font-semibold">{s.t}</h3><p className="mt-2 text-base text-[var(--mk-mute)]">{s.d}</p></li></Rv>
++          ))}
++        </ol>
++      </Section>
++      <CtaBand title="Import your first report in minutes" />
++    </SiteLayout>
++  ),
++});
+diff --git a/src/routes/index.tsx b/src/routes/index.tsx
+index db32bcd..dfa5921 100644
+--- a/src/routes/index.tsx
++++ b/src/routes/index.tsx
+@@ -1,7 +1,9 @@
+ import { createFileRoute, Link } from "@tanstack/react-router";
+-import { useState, type ReactNode } from "react";
++import { type ReactNode } from "react";
+ import { ArrowRight, Brain, CalendarDots, ChartLineUp, FileArrowDown, Flask, MagnifyingGlass, Plus, type Icon } from "@phosphor-icons/react";
+-import { MkShell, Rv, ThemeToggle, Words, BrandLink } from "@/components/marketing-shell";
++import { Rv, Words } from "@/components/marketing-shell";
++import { Section, SiteLayout } from "@/components/site";
++import { Cal, Meter } from "@/components/visuals";
+ 
+ const TITLE = "AlphaMine: the trading journal that finds your edge";
+ const DESC = "Journal trades, measure discipline with the tilt meter, and analyse performance with 16 Chart Lab reports. Imports MetaTrader 5 reports.";
+@@ -18,7 +20,6 @@ export const Route = createFileRoute("/")({
+   component: Landing,
+ });
+ 
+-const nav = [{ href: "#features", label: "Features" }, { href: "#how", label: "How it works" }, { href: "#faq", label: "FAQ" }];
+ 
+ const steps = [
+   { t: "Bring your trades in", d: "Import a MetaTrader 5 report, upload a spreadsheet, or log a trade by hand with screenshots." },
+@@ -36,36 +37,9 @@ const faqs = [
+ ];
+ 
+ function Landing() {
+-  const [open, setOpen] = useState(false);
+   return (
+-    <MkShell>
+-      {/* Floating navigation */}
+-      <header className="fixed inset-x-0 top-3 z-40 mx-auto w-fit max-w-[calc(100%-24px)]">
+-        <nav aria-label="Primary" className="flex items-center gap-4 rounded-2xl border border-[var(--mk-line)] bg-[var(--mk-nav)] px-3 py-2 backdrop-blur-xl">
+-          <BrandLink />
+-          <div className="hidden items-center gap-1 md:flex">
+-            {nav.map((l) => <a key={l.href} href={l.href} className="rounded-lg px-3 py-2 text-sm font-semibold text-[var(--mk-mute)] transition-colors duration-300 hover:text-[var(--mk-fg)]">{l.label}</a>)}
+-          </div>
+-          <div className="flex items-center gap-2">
+-            <ThemeToggle />
+-            <Link to="/auth" className="mk-btn mk-btn-sec hidden text-sm md:inline-flex">Sign in</Link>
+-            <button type="button" aria-label={open ? "Close menu" : "Open menu"} aria-expanded={open} onClick={() => setOpen((o) => !o)} className="relative z-50 h-9 w-9 rounded-lg border border-[var(--mk-line)] md:hidden">
+-              <span className="absolute left-2.5 top-3.5 h-0.5 w-4 rounded-full bg-[var(--mk-fg)] transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]" style={{ transform: open ? "translateY(3px) rotate(45deg)" : "none" }} />
+-              <span className="absolute left-2.5 top-[21px] h-0.5 w-4 rounded-full bg-[var(--mk-fg)] transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]" style={{ transform: open ? "translateY(-4px) rotate(-45deg)" : "none" }} />
+-            </button>
+-          </div>
+-        </nav>
+-      </header>
+-      <div className={`fixed inset-0 z-30 bg-[var(--mk-panel)] backdrop-blur-2xl transition-opacity duration-500 md:hidden ${open ? "opacity-100" : "pointer-events-none opacity-0"}`} aria-hidden={!open}>
+-        <div className="flex h-full flex-col justify-center gap-6 px-6">
+-          {[...nav, { href: "/auth", label: "Sign in" }].map((l, i) => (
+-            <a key={l.href} href={l.href} tabIndex={open ? 0 : -1} onClick={() => setOpen(false)} className="text-4xl font-semibold transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
+-              style={{ transitionDelay: open ? `${Math.min(i * 60, 400)}ms` : "0ms", opacity: open ? 1 : 0, transform: open ? "none" : "translateY(24px)" }}>{l.label}</a>
+-          ))}
+-        </div>
+-      </div>
+-
+-      <main id="main">
++    <SiteLayout>
++      <main>
+         {/* Hero */}
+         <section className="mk-wrap pb-24 pt-40 text-center md:pt-48">
+           <h1 className="mk-grad mx-auto text-5xl font-semibold md:text-7xl" style={{ maxWidth: 680 }}>Your trades already contain your edge.<br />Mine it.</h1>
+@@ -150,33 +124,7 @@ function Landing() {
+         </section>
+       </main>
+ 
+-      <footer className="border-t border-[var(--mk-line)] py-8">
+-        <div className="mk-wrap flex flex-col items-center justify-between gap-4 text-sm text-[var(--mk-mute)] sm:flex-row">
+-          <BrandLink />
+-          <div className="flex items-center gap-6">{nav.map((l) => <a key={l.href} href={l.href} className="transition-colors duration-300 hover:text-[var(--mk-fg)]">{l.label}</a>)}<Link to="/privacy" className="transition-colors duration-300 hover:text-[var(--mk-fg)]">Privacy</Link><Link to="/terms" className="transition-colors duration-300 hover:text-[var(--mk-fg)]">Terms</Link><Link to="/auth" className="transition-colors duration-300 hover:text-[var(--mk-fg)]">Sign in</Link></div>
+-          <p>© {new Date().getFullYear()} AlphaMine</p>
+-        </div>
+-      </footer>
+-    </MkShell>
+-  );
+-}
+-
+-/** One section template: ruled top edge, numbered eyebrow, left aligned title. `split` puts the title beside the content. */
+-function Section({ id, n, label, title, split, children }: { id?: string; n?: string; label?: string; title?: string; split?: boolean; children: ReactNode }) {
+-  return (
+-    <section id={id} className="mk-wrap scroll-mt-24">
+-      <div className="border-t border-[var(--mk-line)] py-24">
+-        {title ? (
+-          <div className={split ? "grid gap-12 lg:grid-cols-[1fr_1.5fr]" : ""}>
+-            <Rv className={split ? "" : "mb-12"}>
+-              <p className="font-mono text-sm text-[var(--mk-acc)]">{n} {label}</p>
+-              <h2 className="mt-3 text-3xl font-semibold md:text-4xl" style={{ maxWidth: 560 }}>{title}</h2>
+-            </Rv>
+-            {children}
+-          </div>
+-        ) : children}
+-      </div>
+-    </section>
++    </SiteLayout>
+   );
+ }
+ 
+@@ -191,15 +139,6 @@ function Bento({ span, icon: I, title, body, children }: { span: string; icon: I
+   );
+ }
+ 
+-const Meter = ({ label, value }: { label: string; value: number }) => (
+-  <div><div className="flex justify-between text-xs text-[var(--mk-mute)]"><span>{label}</span><span className="font-mono">{value}</span></div>
+-    <div className="mt-1 h-1.5 rounded-full bg-[var(--mk-line)]"><div className="h-full rounded-full bg-[var(--mk-acc)]" style={{ width: `${value}%` }} /></div></div>
+-);
+-
+-const CAL = [0, 1, 1, 2, -1, 0, 0, 1, 2, 1, -1, 1, 0, 0, 2, 1, -1, 1, 1, 0, 0, 1, 1, 2, 0, 1, 0, 0, -1, 1, 2, 1, 1, 0, 0];
+-const calBg = (v: number) => v === 2 ? "var(--mk-acc)" : v === 1 ? "color-mix(in srgb, var(--mk-acc) 45%, transparent)" : v === -1 ? "color-mix(in srgb, #ef4444 60%, transparent)" : "var(--mk-s2)";
+-const Cal = () => <div className="grid grid-cols-7 gap-1" aria-hidden>{CAL.map((v, i) => <div key={i} className="aspect-square" style={{ background: calBg(v), borderRadius: 4 }} />)}</div>;
+-
+ const Stage = ({ children }: { children: ReactNode }) => (
+   <div className="mk-stage mx-auto rounded-2xl border border-[var(--mk-line)] bg-[var(--mk-s1)] p-3 md:p-8" style={{ maxWidth: 1040 }}>{children}</div>
+ );

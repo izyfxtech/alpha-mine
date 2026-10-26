@@ -1,0 +1,152 @@
+diff --git a/src/components/legal.tsx b/src/components/legal.tsx
+new file mode 100644
+index 0000000..b00d817
+--- /dev/null
++++ b/src/components/legal.tsx
+@@ -0,0 +1,37 @@
++import { Link } from "@tanstack/react-router";
++import { ArrowLeft } from "@phosphor-icons/react";
++import { BrandLink, MkShell, ThemeToggle } from "@/components/marketing-shell";
++
++/** Set this to your support address. While empty, the contact sentence is left out. */
++export const CONTACT_EMAIL = "";
++
++export type LegalSection = { h: string; p: string[] };
++
++export function LegalPage({ title, updated, intro, sections, other }: { title: string; updated: string; intro: string; sections: LegalSection[]; other: { to: "/privacy" | "/terms"; label: string } }) {
++  return (
++    <MkShell>
++      <header className="mk-wrap flex items-center justify-between py-4">
++        <BrandLink />
++        <div className="flex items-center gap-2">
++          <Link to="/" className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-[var(--mk-mute)] transition-colors duration-300 hover:text-[var(--mk-fg)]"><ArrowLeft size={16} />Back to home</Link>
++          <ThemeToggle />
++        </div>
++      </header>
++      <main id="main" className="mk-wrap pb-24 pt-16">
++        <article style={{ maxWidth: 720 }} className="mx-auto">
++          <p className="text-sm text-[var(--mk-mute)]">Last updated {updated}</p>
++          <h1 className="mk-grad mt-3 text-5xl font-semibold">{title}</h1>
++          <p className="mt-6 text-lg text-[var(--mk-mute)]">{intro}</p>
++          {sections.map((s, i) => (
++            <section key={s.h} className="mt-12">
++              <h2 className="text-2xl font-semibold"><span className="mr-3 font-mono text-base text-[var(--mk-acc)]">{String(i + 1).padStart(2, "0")}</span>{s.h}</h2>
++              {s.p.map((t, j) => <p key={j} className="mt-4 text-base text-[var(--mk-mute)]">{t}</p>)}
++            </section>
++          ))}
++          {CONTACT_EMAIL && <p className="mt-12 text-base text-[var(--mk-mute)]">Questions? Email <a className="font-semibold text-[var(--mk-acc)] underline" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.</p>}
++          <div className="mt-12 border-t border-[var(--mk-line)] pt-6"><Link to={other.to} className="mk-btn mk-btn-sec">{other.label}</Link></div>
++        </article>
++      </main>
++    </MkShell>
++  );
++}
+diff --git a/src/routes/auth.tsx b/src/routes/auth.tsx
+index 1c13a9d..03ccffb 100644
+--- a/src/routes/auth.tsx
++++ b/src/routes/auth.tsx
+@@ -1,4 +1,4 @@
+-import { createFileRoute, useNavigate } from "@tanstack/react-router";
++import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+ import { useEffect, useState } from "react";
+ import { Eye, EyeSlash, GoogleLogo, EnvelopeSimple } from "@phosphor-icons/react";
+ import { supabase } from "@/integrations/supabase/client";
+@@ -102,6 +102,7 @@ function AuthPage() {
+           <button type="button" onClick={google} className="mk-btn mk-btn-sec w-full"><GoogleLogo size={18} weight="bold" />Continue with Google</button>
+         )}
+       </form>
++      {mode !== "forgot" && <p className="mt-6 text-sm text-[var(--mk-mute)]">By continuing you agree to the <Link to="/terms" className="font-semibold underline">Terms</Link> and <Link to="/privacy" className="font-semibold underline">Privacy policy</Link>.</p>}
+       <div className="mt-6 flex justify-between text-sm text-[var(--mk-mute)]">
+         <button type="button" onClick={() => switchTo(mode === "in" ? "up" : "in")} className="rounded-lg transition-colors duration-300 hover:text-[var(--mk-fg)]">{mode === "in" ? "Create an account" : "Have an account? Sign in"}</button>
+         {mode === "in" && <button type="button" onClick={() => switchTo("forgot")} className="rounded-lg transition-colors duration-300 hover:text-[var(--mk-fg)]">Forgot password?</button>}
+diff --git a/src/routes/index.tsx b/src/routes/index.tsx
+index 20bc674..33252a0 100644
+--- a/src/routes/index.tsx
++++ b/src/routes/index.tsx
+@@ -163,7 +163,7 @@ function Landing() {
+       <footer className="border-t border-[var(--mk-line)] py-8">
+         <div className="mk-wrap flex flex-col items-center justify-between gap-4 text-sm text-[var(--mk-mute)] sm:flex-row">
+           <BrandLink />
+-          <div className="flex items-center gap-6">{nav.map((l) => <a key={l.href} href={l.href} className="transition-colors duration-300 hover:text-[var(--mk-fg)]">{l.label}</a>)}<Link to="/auth" className="transition-colors duration-300 hover:text-[var(--mk-fg)]">Sign in</Link></div>
++          <div className="flex items-center gap-6">{nav.map((l) => <a key={l.href} href={l.href} className="transition-colors duration-300 hover:text-[var(--mk-fg)]">{l.label}</a>)}<Link to="/privacy" className="transition-colors duration-300 hover:text-[var(--mk-fg)]">Privacy</Link><Link to="/terms" className="transition-colors duration-300 hover:text-[var(--mk-fg)]">Terms</Link><Link to="/auth" className="transition-colors duration-300 hover:text-[var(--mk-fg)]">Sign in</Link></div>
+           <p>© {new Date().getFullYear()} AlphaMine</p>
+         </div>
+       </footer>
+diff --git a/src/routes/privacy.tsx b/src/routes/privacy.tsx
+new file mode 100644
+index 0000000..332b9af
+--- /dev/null
++++ b/src/routes/privacy.tsx
+@@ -0,0 +1,37 @@
++import { createFileRoute } from "@tanstack/react-router";
++import { LegalPage, type LegalSection } from "@/components/legal";
++
++const DESC = "How AlphaMine collects, uses and protects your account and trading journal data.";
++export const Route = createFileRoute("/privacy")({
++  head: () => ({ meta: [{ title: "Privacy policy | AlphaMine" }, { name: "description", content: DESC }, { property: "og:title", content: "Privacy policy | AlphaMine" }, { property: "og:description", content: DESC }, { property: "og:type", content: "website" }] }),
++  component: () => <LegalPage title="Privacy policy" updated="26 October 2026" other={{ to: "/terms", label: "Read the terms of service" }}
++    intro="AlphaMine is a trading journal. This page explains what information the app holds, why, and what control you have over it." sections={sections} />,
++});
++
++const sections: LegalSection[] = [
++  { h: "What we collect", p: [
++    "Account details: your email address, your name if you give one, and your password. Passwords are handled by our authentication provider and are never stored in readable form. If you sign in with Google, we receive your name and email address from Google.",
++    "Journal content: everything you enter or import, including trades, trading plans, notes, diary entries, setups, custom statistics, deposits and withdrawals, and trade screenshots.",
++    "Browser storage: your sign in session, plus display choices such as your theme and table layout, are kept in your browser so the app remembers them.",
++  ] },
++  { h: "How we use it", p: [
++    "We use your information to run the service: to store your journals, calculate statistics, draw charts, and send account emails such as sign up confirmations and password resets.",
++    "We do not sell your data. The app currently has no advertising and no analytics trackers.",
++  ] },
++  { h: "Where it is stored", p: [
++    "Your data is stored with Supabase, which provides our database, authentication and file storage. Database rules restrict each journal to the account that owns it.",
++    "Screenshots are kept in a private storage bucket and are opened through short lived signed links.",
++    "Our pages load fonts from Google Fonts, so your browser contacts Google servers when a page loads. If you choose Google sign in, Google processes that sign in under its own policy.",
++  ] },
++  { h: "Share links", p: [
++    "You can create a read only public link to a journal's performance. Anyone who has the link can view what it shows, without signing in, so treat it like a password. You can create a new link, which replaces the old one, or stop sharing at any time from the Share Journal button.",
++  ] },
++  { h: "Keeping and deleting your data", p: [
++    "We keep your data for as long as your account exists. You can delete trades, journals and screenshots inside the app whenever you like. To delete your whole account, or to ask for a copy of your data, contact us using the details on this page.",
++  ] },
++  { h: "Your rights", p: [
++    "Depending on where you live, data protection law may give you the right to access, correct, export or delete your personal data, and to object to certain uses. Contact us and we will help you use those rights.",
++  ] },
++  { h: "Children", p: ["AlphaMine is meant for adults. Do not create an account if you are under 18."] },
++  { h: "Changes to this policy", p: ["If we change this policy in a meaningful way, we will update the date at the top of this page and, for major changes, tell you in the app or by email."] },
++];
+diff --git a/src/routes/terms.tsx b/src/routes/terms.tsx
+new file mode 100644
+index 0000000..8e6d1da
+--- /dev/null
++++ b/src/routes/terms.tsx
+@@ -0,0 +1,29 @@
++import { createFileRoute } from "@tanstack/react-router";
++import { LegalPage, type LegalSection } from "@/components/legal";
++
++const DESC = "The terms for using AlphaMine, including your data, acceptable use and trading risk.";
++export const Route = createFileRoute("/terms")({
++  head: () => ({ meta: [{ title: "Terms of service | AlphaMine" }, { name: "description", content: DESC }, { property: "og:title", content: "Terms of service | AlphaMine" }, { property: "og:description", content: DESC }, { property: "og:type", content: "website" }] }),
++  component: () => <LegalPage title="Terms of service" updated="26 October 2026" other={{ to: "/privacy", label: "Read the privacy policy" }}
++    intro="These terms apply when you use AlphaMine. By creating an account or using the app, you agree to them." sections={sections} />,
++});
++
++const sections: LegalSection[] = [
++  { h: "Using AlphaMine", p: ["AlphaMine is a journal and analytics tool for traders. You must be at least 18 and able to enter a binding agreement to use it."] },
++  { h: "Your account", p: ["Keep your sign in details secure. You are responsible for activity on your account, so tell us promptly if you think someone else has access."] },
++  { h: "Your data", p: [
++    "You own the content you add to AlphaMine. You give us permission to store and process it only as needed to run the service for you, such as saving your trades, calculating statistics and showing charts.",
++    "Make sure you have the right to upload anything you add, including screenshots and broker reports.",
++  ] },
++  { h: "Acceptable use", p: ["Do not misuse the service. That includes trying to access other people's data, probing or disrupting the app, uploading harmful files, or using automated tools to overload it."] },
++  { h: "Not financial advice", p: [
++    "AlphaMine shows statistics about your own past trades. It does not give investment, trading, tax or legal advice, and nothing in the app is a recommendation to buy or sell anything.",
++    "Trading carries a real risk of loss, and past results do not predict future results. Decisions you make are your own.",
++  ] },
++  { h: "Imports and calculations", p: ["Figures in AlphaMine depend on the reports and entries you provide. Imports can contain gaps or formatting differences, so check important numbers against your broker statements before relying on them."] },
++  { h: "Sharing", p: ["If you create a share link, anyone with that link can view what it shows. You are responsible for deciding who receives it, and you can stop sharing at any time."] },
++  { h: "Availability and changes", p: ["We work to keep AlphaMine running and your data safe, but we cannot promise the service will always be available or free of errors. Features may change or be removed over time."] },
++  { h: "Ending your use", p: ["You can stop using AlphaMine at any time. We may suspend or close accounts that break these terms. Contact us if you want your account and data deleted."] },
++  { h: "Limits of liability", p: ["AlphaMine is provided as is. To the extent the law allows, we are not liable for trading losses, lost profits or indirect damages arising from your use of the app, and our total responsibility to you is limited to the amount you paid us in the previous twelve months."] },
++  { h: "Changes to these terms", p: ["We may update these terms. We will change the date above, and continuing to use AlphaMine after an update means you accept it."] },
++];

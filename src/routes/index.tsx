@@ -80,7 +80,7 @@ function Landing() {
           <h1 className="mk-grad mx-auto text-5xl font-semibold md:text-7xl" style={{ maxWidth: 680 }}>Your trades already contain your edge.<br />Mine it.</h1>
           <p className="mx-auto mt-6 text-lg text-[var(--mk-mute)]" style={{ maxWidth: 680 }}>AlphaMine is a trading journal that puts hard numbers on your results and on your discipline. Import from MetaTrader 5, tag your decisions, and see what actually pays.</p>
           <div className="mt-8 flex flex-col items-center gap-3">
-            <Link to="/auth" className="mk-btn mk-btn-pri">Start journaling free <ArrowRight size={18} weight="bold" /></Link>
+            <Link to="/auth" search={{ mode: "signup" }} className="mk-btn mk-btn-pri">Start journaling free <ArrowRight size={18} weight="bold" /></Link>
             <p className="text-sm text-[var(--mk-mute)]">Sixteen Chart Lab reports. Private to your account.</p>
           </div>
           <Rv className="mt-16"><ProductMock /></Rv>
@@ -154,7 +154,7 @@ function Landing() {
           <Rv>
             <div className="rounded-2xl border border-[var(--mk-line)] bg-[var(--mk-s1)] px-6 py-16">
               <h2 className="mx-auto text-4xl font-semibold md:text-5xl" style={{ maxWidth: 680 }}>Find out what your trades have been telling you</h2>
-              <Link to="/auth" className="mk-btn mk-btn-pri mt-8">Start journaling free <ArrowRight size={18} weight="bold" /></Link>
+              <Link to="/auth" search={{ mode: "signup" }} className="mk-btn mk-btn-pri mt-8">Start journaling free <ArrowRight size={18} weight="bold" /></Link>
             </div>
           </Rv>
         </section>

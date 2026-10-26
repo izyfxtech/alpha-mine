@@ -13,21 +13,23 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { MkShell } from "@/components/marketing-shell";
 
 function NotFoundComponent() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
-        <p className="mt-2 text-sm text-muted-foreground">The page you're looking for doesn't exist or has been moved.</p>
-        <div className="mt-6">
-          <Link to="/" className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-            Go home
-          </Link>
+    <MkShell>
+      <main id="main" className="grid min-h-screen place-items-center px-6 text-center">
+        <div>
+          <p className="font-mono text-sm text-[var(--mk-acc)]">Error 404</p>
+          <h1 className="mk-grad mt-3 text-5xl font-semibold md:text-7xl">Page not found</h1>
+          <p className="mx-auto mt-4 text-lg text-[var(--mk-mute)]" style={{ maxWidth: 480 }}>That link is broken or the page has moved. Your journal is exactly where you left it.</p>
+          <div className="mt-8 flex justify-center gap-3">
+            <Link to="/" className="mk-btn mk-btn-pri">Back to home</Link>
+            <Link to="/auth" className="mk-btn mk-btn-sec">Sign in</Link>
+          </div>
         </div>
-      </div>
-    </div>
+      </main>
+    </MkShell>
   );
 }
 
@@ -69,6 +71,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "icon", type: "image/png", href: "/favicon.png" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" },
       { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" },
     ],
   }),
