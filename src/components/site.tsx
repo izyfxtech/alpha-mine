@@ -9,7 +9,7 @@ const ease = "ease-[cubic-bezier(0.22,1,0.36,1)]";
 
 function Nav() {
   const [open, setOpen] = useState(false);
-  const mobile = [{ to: "/features", label: "Features" }, { to: "/import", label: "Import" }, { to: "/auth", label: "Sign in" }] as const;
+  const mobile = [{ to: "/features", label: "Features" }, { to: "/import", label: "Import" }, { to: "/pricing", label: "Pricing" }, { to: "/about", label: "About" }, { to: "/help", label: "Help" }, { to: "/auth", label: "Sign in" }] as const;
   return (
     <>
       <header className="fixed inset-x-0 top-3 z-40 mx-auto w-fit max-w-[calc(100%-24px)]">
@@ -30,6 +30,8 @@ function Nav() {
               </div>
             </div>
             <Link to="/import" className={linkCls}>Import</Link>
+            <Link to="/pricing" className={linkCls}>Pricing</Link>
+            <Link to="/about" className={linkCls}>About</Link>
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
@@ -57,13 +59,14 @@ const fl = "transition-colors duration-300 hover:text-[var(--mk-fg)]";
 function Footer() {
   return (
     <footer className="border-t border-[var(--mk-line)] py-16">
-      <div className="mk-wrap grid gap-10 text-sm text-[var(--mk-mute)] sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mk-wrap grid gap-10 text-sm text-[var(--mk-mute)] sm:grid-cols-2 lg:grid-cols-5">
         <div><BrandLink /><p className="mt-4" style={{ maxWidth: 240 }}>The trading journal that finds your edge.</p></div>
         <div><p className="font-semibold text-[var(--mk-fg)]">Product</p><ul className="mt-4 space-y-3">{FEATURES.map((f) => <li key={f.slug}><Link to="/features/$slug" params={{ slug: f.slug }} className={fl}>{f.name}</Link></li>)}<li><Link to="/import" className={fl}>Import</Link></li></ul></div>
+        <div><p className="font-semibold text-[var(--mk-fg)]">Company</p><ul className="mt-4 space-y-3"><li><Link to="/about" className={fl}>About</Link></li><li><Link to="/pricing" className={fl}>Pricing</Link></li><li><Link to="/help" className={fl}>Help centre</Link></li></ul></div>
         <div><p className="font-semibold text-[var(--mk-fg)]">Account</p><ul className="mt-4 space-y-3"><li><Link to="/auth" className={fl}>Sign in</Link></li><li><Link to="/auth" search={{ mode: "signup" }} className={fl}>Create account</Link></li></ul></div>
         <div><p className="font-semibold text-[var(--mk-fg)]">Legal</p><ul className="mt-4 space-y-3"><li><Link to="/privacy" className={fl}>Privacy policy</Link></li><li><Link to="/terms" className={fl}>Terms of service</Link></li></ul></div>
       </div>
-      <div className="mk-wrap mt-12 border-t border-[var(--mk-line)] pt-6 text-sm text-[var(--mk-mute)]">© {new Date().getFullYear()} AlphaMine</div>
+      <div className="mk-wrap mt-12 border-t border-[var(--mk-line)] pt-6 text-sm text-[var(--mk-mute)]">© {new Date().getFullYear()} IZ Technologies Limited. AlphaMine is built by traders, for traders.</div>
     </footer>
   );
 }

@@ -9,7 +9,7 @@ export const Route = createFileRoute("/terms")({
 });
 
 const sections: LegalSection[] = [
-  { h: "Using AlphaMine", p: ["AlphaMine is a journal and analytics tool for traders. You must be at least 18 and able to enter a binding agreement to use it."] },
+  { h: "Using AlphaMine", p: ["AlphaMine is a journal and analytics tool for traders, published by IZ Technologies Limited. You must be at least 18 and able to enter a binding agreement to use it."] },
   { h: "Your account", p: ["Keep your sign in details secure. You are responsible for activity on your account, so tell us promptly if you think someone else has access."] },
   { h: "Your data", p: [
     "You own the content you add to AlphaMine. You give us permission to store and process it only as needed to run the service for you, such as saving your trades, calculating statistics and showing charts.",

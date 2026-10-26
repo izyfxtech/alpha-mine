@@ -5,7 +5,7 @@ const DESC = "How AlphaMine collects, uses and protects your account and trading
 export const Route = createFileRoute("/privacy")({
   head: () => ({ meta: [{ title: "Privacy policy | AlphaMine" }, { name: "description", content: DESC }, { property: "og:title", content: "Privacy policy | AlphaMine" }, { property: "og:description", content: DESC }, { property: "og:type", content: "website" }] }),
   component: () => <LegalPage title="Privacy policy" updated="26 October 2026" other={{ to: "/terms", label: "Read the terms of service" }}
-    intro="AlphaMine is a trading journal. This page explains what information the app holds, why, and what control you have over it." sections={sections} />,
+    intro="AlphaMine is a trading journal published by IZ Technologies Limited. This page explains what information the app holds, why, and what control you have over it." sections={sections} />,
 });
 
 const sections: LegalSection[] = [
