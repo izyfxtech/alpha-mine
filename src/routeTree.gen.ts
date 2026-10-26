@@ -11,8 +11,14 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AboutRouteImport } from './routes/about'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as HelpRouteImport } from './routes/help'
+import { Route as ImportRouteImport } from './routes/import'
+import { Route as PricingRouteImport } from './routes/pricing'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AuthenticatedAnalyticsRouteImport } from './routes/_authenticated/analytics'
 import { Route as AuthenticatedEdgeFinderRouteImport } from './routes/_authenticated/edge-finder'
 import { Route as AuthenticatedEquityRouteImport } from './routes/_authenticated/equity'
@@ -23,6 +29,8 @@ import { Route as AuthenticatedMissedTradesRouteImport } from './routes/_authent
 import { Route as AuthenticatedMissedTradesAnalysisRouteImport } from './routes/_authenticated/missed-trades-analysis'
 import { Route as AuthenticatedPlansRouteImport } from './routes/_authenticated/plans'
 import { Route as AuthenticatedPortfolioRouteImport } from './routes/_authenticated/portfolio'
+import { Route as FeaturesIndexRouteImport } from './routes/features.index'
+import { Route as FeaturesSlugRouteImport } from './routes/features.$slug'
 import { Route as ShareTokenRouteImport } from './routes/share.$token'
 import { Route as AuthenticatedChartLabChartRouteImport } from './routes/_authenticated/chart-lab.$chart'
 import { Route as AuthenticatedDiaryNotebookRouteImport } from './routes/_authenticated/diary.notebook'
@@ -45,14 +53,44 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HelpRoute = HelpRouteImport.update({
+  id: '/help',
+  path: '/help',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ImportRoute = ImportRouteImport.update({
+  id: '/import',
+  path: '/import',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PricingRoute = PricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAnalyticsRoute = AuthenticatedAnalyticsRouteImport.update({
@@ -106,6 +144,16 @@ const AuthenticatedPortfolioRoute = AuthenticatedPortfolioRouteImport.update({
   id: '/portfolio',
   path: '/portfolio',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const FeaturesIndexRoute = FeaturesIndexRouteImport.update({
+  id: '/features/',
+  path: '/features/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FeaturesSlugRoute = FeaturesSlugRouteImport.update({
+  id: '/features/$slug',
+  path: '/features/$slug',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ShareTokenRoute = ShareTokenRouteImport.update({
   id: '/share/$token',
@@ -181,8 +229,14 @@ const AuthenticatedStrategyLabSimulatorRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
+  '/help': typeof HelpRoute
+  '/import': typeof ImportRoute
+  '/pricing': typeof PricingRoute
+  '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/terms': typeof TermsRoute
   '/analytics': typeof AuthenticatedAnalyticsRoute
   '/edge-finder': typeof AuthenticatedEdgeFinderRoute
   '/equity': typeof AuthenticatedEquityRoute
@@ -193,7 +247,9 @@ export interface FileRoutesByFullPath {
   '/missed-trades-analysis': typeof AuthenticatedMissedTradesAnalysisRoute
   '/plans': typeof AuthenticatedPlansRoute
   '/portfolio': typeof AuthenticatedPortfolioRoute
+  '/features/$slug': typeof FeaturesSlugRoute
   '/share/$token': typeof ShareTokenRoute
+  '/features/': typeof FeaturesIndexRoute
   '/chart-lab/$chart': typeof AuthenticatedChartLabChartRoute
   '/diary/notebook': typeof AuthenticatedDiaryNotebookRoute
   '/diary/sessions': typeof AuthenticatedDiarySessionsRoute
@@ -208,8 +264,14 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
+  '/help': typeof HelpRoute
+  '/import': typeof ImportRoute
+  '/pricing': typeof PricingRoute
+  '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/terms': typeof TermsRoute
   '/analytics': typeof AuthenticatedAnalyticsRoute
   '/edge-finder': typeof AuthenticatedEdgeFinderRoute
   '/equity': typeof AuthenticatedEquityRoute
@@ -220,7 +282,9 @@ export interface FileRoutesByTo {
   '/missed-trades-analysis': typeof AuthenticatedMissedTradesAnalysisRoute
   '/plans': typeof AuthenticatedPlansRoute
   '/portfolio': typeof AuthenticatedPortfolioRoute
+  '/features/$slug': typeof FeaturesSlugRoute
   '/share/$token': typeof ShareTokenRoute
+  '/features': typeof FeaturesIndexRoute
   '/chart-lab/$chart': typeof AuthenticatedChartLabChartRoute
   '/diary/notebook': typeof AuthenticatedDiaryNotebookRoute
   '/diary/sessions': typeof AuthenticatedDiarySessionsRoute
@@ -237,8 +301,14 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
+  '/help': typeof HelpRoute
+  '/import': typeof ImportRoute
+  '/pricing': typeof PricingRoute
+  '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/terms': typeof TermsRoute
   '/_authenticated/analytics': typeof AuthenticatedAnalyticsRoute
   '/_authenticated/edge-finder': typeof AuthenticatedEdgeFinderRoute
   '/_authenticated/equity': typeof AuthenticatedEquityRoute
@@ -249,7 +319,9 @@ export interface FileRoutesById {
   '/_authenticated/missed-trades-analysis': typeof AuthenticatedMissedTradesAnalysisRoute
   '/_authenticated/plans': typeof AuthenticatedPlansRoute
   '/_authenticated/portfolio': typeof AuthenticatedPortfolioRoute
+  '/features/$slug': typeof FeaturesSlugRoute
   '/share/$token': typeof ShareTokenRoute
+  '/features/': typeof FeaturesIndexRoute
   '/_authenticated/chart-lab/$chart': typeof AuthenticatedChartLabChartRoute
   '/_authenticated/diary/notebook': typeof AuthenticatedDiaryNotebookRoute
   '/_authenticated/diary/sessions': typeof AuthenticatedDiarySessionsRoute
@@ -266,8 +338,14 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/about'
     | '/auth'
+    | '/help'
+    | '/import'
+    | '/pricing'
+    | '/privacy'
     | '/reset-password'
+    | '/terms'
     | '/analytics'
     | '/edge-finder'
     | '/equity'
@@ -278,7 +356,9 @@ export interface FileRouteTypes {
     | '/missed-trades-analysis'
     | '/plans'
     | '/portfolio'
+    | '/features/$slug'
     | '/share/$token'
+    | '/features/'
     | '/chart-lab/$chart'
     | '/diary/notebook'
     | '/diary/sessions'
@@ -293,8 +373,14 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/about'
     | '/auth'
+    | '/help'
+    | '/import'
+    | '/pricing'
+    | '/privacy'
     | '/reset-password'
+    | '/terms'
     | '/analytics'
     | '/edge-finder'
     | '/equity'
@@ -305,7 +391,9 @@ export interface FileRouteTypes {
     | '/missed-trades-analysis'
     | '/plans'
     | '/portfolio'
+    | '/features/$slug'
     | '/share/$token'
+    | '/features'
     | '/chart-lab/$chart'
     | '/diary/notebook'
     | '/diary/sessions'
@@ -321,8 +409,14 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/about'
     | '/auth'
+    | '/help'
+    | '/import'
+    | '/pricing'
+    | '/privacy'
     | '/reset-password'
+    | '/terms'
     | '/_authenticated/analytics'
     | '/_authenticated/edge-finder'
     | '/_authenticated/equity'
@@ -333,7 +427,9 @@ export interface FileRouteTypes {
     | '/_authenticated/missed-trades-analysis'
     | '/_authenticated/plans'
     | '/_authenticated/portfolio'
+    | '/features/$slug'
     | '/share/$token'
+    | '/features/'
     | '/_authenticated/chart-lab/$chart'
     | '/_authenticated/diary/notebook'
     | '/_authenticated/diary/sessions'
@@ -350,9 +446,17 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AboutRoute: typeof AboutRoute
   AuthRoute: typeof AuthRoute
+  HelpRoute: typeof HelpRoute
+  ImportRoute: typeof ImportRoute
+  PricingRoute: typeof PricingRoute
+  PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  TermsRoute: typeof TermsRoute
+  FeaturesSlugRoute: typeof FeaturesSlugRoute
   ShareTokenRoute: typeof ShareTokenRoute
+  FeaturesIndexRoute: typeof FeaturesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -371,6 +475,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -378,11 +489,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/help': {
+      id: '/help'
+      path: '/help'
+      fullPath: '/help'
+      preLoaderRoute: typeof HelpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/import': {
+      id: '/import'
+      path: '/import'
+      fullPath: '/import'
+      preLoaderRoute: typeof ImportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pricing': {
+      id: '/pricing'
+      path: '/pricing'
+      fullPath: '/pricing'
+      preLoaderRoute: typeof PricingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reset-password': {
       id: '/reset-password'
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/analytics': {
@@ -454,6 +600,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/portfolio'
       preLoaderRoute: typeof AuthenticatedPortfolioRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/features/': {
+      id: '/features/'
+      path: '/features'
+      fullPath: '/features/'
+      preLoaderRoute: typeof FeaturesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/features/$slug': {
+      id: '/features/$slug'
+      path: '/features/$slug'
+      fullPath: '/features/$slug'
+      preLoaderRoute: typeof FeaturesSlugRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/share/$token': {
       id: '/share/$token'
@@ -600,9 +760,17 @@ const AuthenticatedRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AboutRoute: AboutRoute,
   AuthRoute: AuthRoute,
+  HelpRoute: HelpRoute,
+  ImportRoute: ImportRoute,
+  PricingRoute: PricingRoute,
+  PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  TermsRoute: TermsRoute,
+  FeaturesSlugRoute: FeaturesSlugRoute,
   ShareTokenRoute: ShareTokenRoute,
+  FeaturesIndexRoute: FeaturesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
