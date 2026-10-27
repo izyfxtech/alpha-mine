@@ -13,8 +13,8 @@ export const Bars = () => (
 );
 
 export const Monte = () => (
-  <svg viewBox="0 0 200 80" className="h-40 w-full" aria-hidden fill="none" strokeWidth="2" strokeLinecap="round">
-    {[["M0 60 L50 52 L100 40 L150 28 L200 8", 1], ["M0 60 L50 56 L100 50 L150 46 L200 40", 0.5], ["M0 60 L50 58 L100 56 L150 62 L200 58", 0.35], ["M0 60 L50 64 L100 62 L150 70 L200 74", 0.35]].map(([d, o], i) => <path key={i} d={String(d)} stroke="var(--mk-acc)" opacity={Number(o)} />)}
+  <svg viewBox="0 0 200 80" preserveAspectRatio="none" className="h-40 w-full" aria-hidden fill="none" strokeWidth="2" strokeLinecap="round">
+    {[["M0 60 L50 52 L100 40 L150 28 L200 8", 1], ["M0 60 L50 56 L100 50 L150 46 L200 40", 0.5], ["M0 60 L50 58 L100 56 L150 62 L200 58", 0.35], ["M0 60 L50 64 L100 62 L150 70 L200 74", 0.35]].map(([d, o], i) => <path key={i} d={String(d)} stroke="var(--mk-acc)" vectorEffect="non-scaling-stroke" opacity={Number(o)} />)}
   </svg>
 );
 

@@ -19,7 +19,7 @@ export const Route = createFileRoute("/pricing")({
       <PageHero eyebrow="Pricing" title="Free while we build. Paid plans are coming." lead="Everything in AlphaMine is free today. We will add paid plans later, and publish their pricing here before they launch.">
         <Link to="/auth" search={{ mode: "signup" }} className="mk-btn mk-btn-pri">Start journaling free <ArrowRight size={18} weight="bold" /></Link>
       </PageHero>
-      <section className="mk-wrap pb-24">
+      <section className="mk-wrap pb-8">
         <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
           <Rv>
             <div className="h-full rounded-2xl border border-[var(--mk-acc)] bg-[var(--mk-s1)] p-8">

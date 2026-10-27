@@ -29,6 +29,8 @@ import { Route as AuthenticatedMissedTradesRouteImport } from './routes/_authent
 import { Route as AuthenticatedMissedTradesAnalysisRouteImport } from './routes/_authenticated/missed-trades-analysis'
 import { Route as AuthenticatedPlansRouteImport } from './routes/_authenticated/plans'
 import { Route as AuthenticatedPortfolioRouteImport } from './routes/_authenticated/portfolio'
+import { Route as BlogIndexRouteImport } from './routes/blog.index'
+import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
 import { Route as FeaturesIndexRouteImport } from './routes/features.index'
 import { Route as FeaturesSlugRouteImport } from './routes/features.$slug'
 import { Route as ShareTokenRouteImport } from './routes/share.$token'
@@ -145,6 +147,16 @@ const AuthenticatedPortfolioRoute = AuthenticatedPortfolioRouteImport.update({
   path: '/portfolio',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const BlogIndexRoute = BlogIndexRouteImport.update({
+  id: '/blog/',
+  path: '/blog/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BlogSlugRoute = BlogSlugRouteImport.update({
+  id: '/blog/$slug',
+  path: '/blog/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FeaturesIndexRoute = FeaturesIndexRouteImport.update({
   id: '/features/',
   path: '/features/',
@@ -247,8 +259,10 @@ export interface FileRoutesByFullPath {
   '/missed-trades-analysis': typeof AuthenticatedMissedTradesAnalysisRoute
   '/plans': typeof AuthenticatedPlansRoute
   '/portfolio': typeof AuthenticatedPortfolioRoute
+  '/blog/$slug': typeof BlogSlugRoute
   '/features/$slug': typeof FeaturesSlugRoute
   '/share/$token': typeof ShareTokenRoute
+  '/blog/': typeof BlogIndexRoute
   '/features/': typeof FeaturesIndexRoute
   '/chart-lab/$chart': typeof AuthenticatedChartLabChartRoute
   '/diary/notebook': typeof AuthenticatedDiaryNotebookRoute
@@ -282,8 +296,10 @@ export interface FileRoutesByTo {
   '/missed-trades-analysis': typeof AuthenticatedMissedTradesAnalysisRoute
   '/plans': typeof AuthenticatedPlansRoute
   '/portfolio': typeof AuthenticatedPortfolioRoute
+  '/blog/$slug': typeof BlogSlugRoute
   '/features/$slug': typeof FeaturesSlugRoute
   '/share/$token': typeof ShareTokenRoute
+  '/blog': typeof BlogIndexRoute
   '/features': typeof FeaturesIndexRoute
   '/chart-lab/$chart': typeof AuthenticatedChartLabChartRoute
   '/diary/notebook': typeof AuthenticatedDiaryNotebookRoute
@@ -319,8 +335,10 @@ export interface FileRoutesById {
   '/_authenticated/missed-trades-analysis': typeof AuthenticatedMissedTradesAnalysisRoute
   '/_authenticated/plans': typeof AuthenticatedPlansRoute
   '/_authenticated/portfolio': typeof AuthenticatedPortfolioRoute
+  '/blog/$slug': typeof BlogSlugRoute
   '/features/$slug': typeof FeaturesSlugRoute
   '/share/$token': typeof ShareTokenRoute
+  '/blog/': typeof BlogIndexRoute
   '/features/': typeof FeaturesIndexRoute
   '/_authenticated/chart-lab/$chart': typeof AuthenticatedChartLabChartRoute
   '/_authenticated/diary/notebook': typeof AuthenticatedDiaryNotebookRoute
@@ -356,8 +374,10 @@ export interface FileRouteTypes {
     | '/missed-trades-analysis'
     | '/plans'
     | '/portfolio'
+    | '/blog/$slug'
     | '/features/$slug'
     | '/share/$token'
+    | '/blog/'
     | '/features/'
     | '/chart-lab/$chart'
     | '/diary/notebook'
@@ -391,8 +411,10 @@ export interface FileRouteTypes {
     | '/missed-trades-analysis'
     | '/plans'
     | '/portfolio'
+    | '/blog/$slug'
     | '/features/$slug'
     | '/share/$token'
+    | '/blog'
     | '/features'
     | '/chart-lab/$chart'
     | '/diary/notebook'
@@ -427,8 +449,10 @@ export interface FileRouteTypes {
     | '/_authenticated/missed-trades-analysis'
     | '/_authenticated/plans'
     | '/_authenticated/portfolio'
+    | '/blog/$slug'
     | '/features/$slug'
     | '/share/$token'
+    | '/blog/'
     | '/features/'
     | '/_authenticated/chart-lab/$chart'
     | '/_authenticated/diary/notebook'
@@ -454,8 +478,10 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   TermsRoute: typeof TermsRoute
+  BlogSlugRoute: typeof BlogSlugRoute
   FeaturesSlugRoute: typeof FeaturesSlugRoute
   ShareTokenRoute: typeof ShareTokenRoute
+  BlogIndexRoute: typeof BlogIndexRoute
   FeaturesIndexRoute: typeof FeaturesIndexRoute
 }
 
@@ -600,6 +626,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/portfolio'
       preLoaderRoute: typeof AuthenticatedPortfolioRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/blog/': {
+      id: '/blog/'
+      path: '/blog'
+      fullPath: '/blog/'
+      preLoaderRoute: typeof BlogIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/blog/$slug': {
+      id: '/blog/$slug'
+      path: '/blog/$slug'
+      fullPath: '/blog/$slug'
+      preLoaderRoute: typeof BlogSlugRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/features/': {
       id: '/features/'
@@ -768,8 +808,10 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   TermsRoute: TermsRoute,
+  BlogSlugRoute: BlogSlugRoute,
   FeaturesSlugRoute: FeaturesSlugRoute,
   ShareTokenRoute: ShareTokenRoute,
+  BlogIndexRoute: BlogIndexRoute,
   FeaturesIndexRoute: FeaturesIndexRoute,
 }
 export const routeTree = rootRouteImport

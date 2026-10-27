@@ -41,9 +41,9 @@ function Landing() {
     <SiteLayout>
       <main>
         {/* Hero */}
-        <section className="mk-wrap pb-24 pt-40 text-center md:pt-48">
-          <h1 className="mk-grad mx-auto text-5xl font-semibold md:text-7xl" style={{ maxWidth: 680 }}>Your trades already contain your edge.<br />Mine it.</h1>
-          <p className="mx-auto mt-6 text-lg text-[var(--mk-mute)]" style={{ maxWidth: 680 }}>AlphaMine is a trading journal that puts hard numbers on your results and on your discipline. Import from MetaTrader 5, tag your decisions, and see what actually pays.</p>
+        <section className="mk-wrap pb-12 pt-36 text-center md:pt-44">
+          <h1 className="mk-grad mx-auto text-5xl font-semibold leading-[1.05] md:text-6xl" style={{ maxWidth: 680 }}>Your trades already contain your edge.<br />Mine it.</h1>
+          <p className="mx-auto mt-6 text-lg text-[var(--mk-mute)]" style={{ maxWidth: 600, textWrap: "balance" }}>AlphaMine is a trading journal that puts hard numbers on your results and on your discipline. Import from MetaTrader 5, tag your decisions, and see what actually pays.</p>
           <div className="mt-8 flex flex-col items-center gap-3">
             <Link to="/auth" search={{ mode: "signup" }} className="mk-btn mk-btn-pri">Start journaling free <ArrowRight size={18} weight="bold" /></Link>
             <p className="text-sm text-[var(--mk-mute)]">Sixteen Chart Lab reports. Private to your account.</p>
@@ -53,7 +53,7 @@ function Landing() {
 
         {/* Statement */}
         <Section>
-          <p className="text-4xl font-semibold md:text-5xl" style={{ maxWidth: 820 }}>
+          <p className="mx-auto text-center text-3xl font-medium leading-snug md:text-4xl" style={{ maxWidth: 820 }}>
             <Words text="Most traders review their results. Few review their decisions. AlphaMine shows you both, so the next trade starts from evidence instead of memory." />
           </p>
         </Section>
@@ -74,8 +74,8 @@ function Landing() {
               <div className="space-y-3" aria-hidden>{[["Session", 78], ["Setup", 55], ["Instrument", 34]].map(([k, v]) => <Meter key={k} label={String(k)} value={Number(v)} />)}</div>
             </Bento>
             <Bento span="lg:col-span-2" icon={Flask} title="Strategy Lab" body="Test what if exits and run Monte Carlo simulations on your own trade history.">
-              <svg viewBox="0 0 200 80" className="h-20 w-full" aria-hidden fill="none" strokeWidth="2" strokeLinecap="round">
-                {[["M0 60 L50 52 L100 40 L150 28 L200 8", 1], ["M0 60 L50 56 L100 50 L150 46 L200 40", 0.5], ["M0 60 L50 58 L100 56 L150 62 L200 58", 0.35], ["M0 60 L50 64 L100 62 L150 70 L200 74", 0.35]].map(([d, o], i) => <path key={i} d={String(d)} stroke="var(--mk-acc)" opacity={Number(o)} />)}
+              <svg viewBox="0 0 200 80" preserveAspectRatio="none" className="h-20 w-full" aria-hidden fill="none" strokeWidth="2" strokeLinecap="round">
+                {[["M0 60 L50 52 L100 40 L150 28 L200 8", 1], ["M0 60 L50 56 L100 50 L150 46 L200 40", 0.5], ["M0 60 L50 58 L100 56 L150 62 L200 58", 0.35], ["M0 60 L50 64 L100 62 L150 70 L200 74", 0.35]].map(([d, o], i) => <path key={i} d={String(d)} stroke="var(--mk-acc)" vectorEffect="non-scaling-stroke" opacity={Number(o)} />)}
               </svg>
             </Bento>
             <Bento span="lg:col-span-6" icon={FileArrowDown} title="MetaTrader 5 import" body="Drop in an HTML or Excel report and your trades land in the journal with P&L recomputed.">
@@ -116,8 +116,8 @@ function Landing() {
         {/* Final CTA */}
         <section className="mk-wrap pb-24 pt-8">
           <Rv>
-            <div className="mk-stage rounded-2xl border border-[var(--mk-line)] bg-[var(--mk-s1)] px-6 py-20 text-center">
-              <h2 className="mx-auto text-4xl font-semibold md:text-5xl" style={{ maxWidth: 680 }}>Find out what your trades have been telling you</h2>
+            <div className="rounded-2xl bg-[var(--mk-s1)] px-6 py-20 text-center">
+              <h2 className="mx-auto text-3xl font-semibold md:text-4xl" style={{ maxWidth: 680 }}>Find out what your trades have been telling you</h2>
               <Link to="/auth" search={{ mode: "signup" }} className="mk-btn mk-btn-pri mt-8">Start journaling free <ArrowRight size={18} weight="bold" /></Link>
             </div>
           </Rv>
@@ -140,7 +140,7 @@ function Bento({ span, icon: I, title, body, children }: { span: string; icon: I
 }
 
 const Stage = ({ children }: { children: ReactNode }) => (
-  <div className="mk-stage mx-auto rounded-2xl border border-[var(--mk-line)] bg-[var(--mk-s1)] p-3 md:p-8" style={{ maxWidth: 1040 }}>{children}</div>
+  <div className="mx-auto" style={{ maxWidth: 1040 }}>{children}</div>
 );
 
 /** Hero product preview. The same calendar, meters and curve reappear in the feature cards below. */
