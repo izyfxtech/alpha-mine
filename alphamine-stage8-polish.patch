@@ -1,0 +1,283 @@
+diff --git a/src/components/auth-bits.tsx b/src/components/auth-bits.tsx
+index 28e5ad6..2d6880d 100644
+--- a/src/components/auth-bits.tsx
++++ b/src/components/auth-bits.tsx
+@@ -2,6 +2,7 @@ import { type InputHTMLAttributes, type ReactNode } from "react";
+ import { Link } from "@tanstack/react-router";
+ import { ArrowLeft } from "@phosphor-icons/react";
+ import { BrandLink, ThemeToggle } from "@/components/marketing-shell";
++import { Meter } from "@/components/visuals";
+ 
+ export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+ 
+@@ -14,6 +15,11 @@ export function AuthFrame({ children }: { children: ReactNode }) {
+         <div>
+           <h2 className="mk-grad text-5xl font-semibold" style={{ maxWidth: 480 }}>Mine your trades for the edge you already have.</h2>
+           <p className="mt-6 text-lg text-[var(--mk-mute)]" style={{ maxWidth: 480 }}>Journal every trade, measure discipline with the tilt meter, and let sixteen Chart Lab reports show what actually works.</p>
++          <div className="mt-10 rounded-2xl border border-[var(--mk-line)] bg-[var(--mk-bg)] p-5" style={{ maxWidth: 400 }} aria-hidden>
++            <p className="text-sm font-semibold">Tilt meter</p>
++            <div className="mt-4 space-y-3">{[["Entries", 84], ["Management", 71], ["Exits", 90]].map(([k, v]) => <Meter key={k} label={String(k)} value={Number(v)} />)}</div>
++            <p className="mt-4 text-xs text-[var(--mk-mute)]">Sample data</p>
++          </div>
+         </div>
+         <p className="text-sm text-[var(--mk-mute)]">Your journals stay private to your account.</p>
+       </aside>
+diff --git a/src/components/site.tsx b/src/components/site.tsx
+index dc65797..75f455c 100644
+--- a/src/components/site.tsx
++++ b/src/components/site.tsx
+@@ -67,7 +67,7 @@ function Footer() {
+         <div><p className="font-semibold text-[var(--mk-fg)]">Account</p><ul className="mt-4 space-y-3"><li><Link to="/auth" className={fl}>Sign in</Link></li><li><Link to="/auth" search={{ mode: "signup" }} className={fl}>Create account</Link></li></ul></div>
+         <div><p className="font-semibold text-[var(--mk-fg)]">Legal</p><ul className="mt-4 space-y-3"><li><Link to="/privacy" className={fl}>Privacy policy</Link></li><li><Link to="/terms" className={fl}>Terms of service</Link></li></ul></div>
+       </div>
+-      <div className="mk-wrap mt-12 border-t border-[var(--mk-line)] pt-6 text-sm text-[var(--mk-mute)]">© {new Date().getFullYear()} IZ Technologies Limited. AlphaMine is built by traders, for traders.</div>
++      <div className="mk-wrap mt-12 text-sm text-[var(--mk-mute)]"><div className="border-t border-[var(--mk-line)] pt-6">© {new Date().getFullYear()} IZ Technologies Limited. AlphaMine is built by traders, for traders.</div></div>
+     </footer>
+   );
+ }
+@@ -80,11 +80,11 @@ export function SiteLayout({ children }: { children: ReactNode }) {
+ export function Section({ id, n, label, title, split, children }: { id?: string; n?: string; label?: string; title?: string; split?: boolean; children: ReactNode }) {
+   return (
+     <section id={id} className="mk-wrap scroll-mt-24">
+-      <div className="border-t border-[var(--mk-line)] py-24">
++      <div className="py-16 md:py-24">
+         {title ? (
+           <div className={split ? "grid gap-12 lg:grid-cols-[1fr_1.5fr]" : ""}>
+             <Rv className={split ? "" : "mb-12"}>
+-              <p className="font-mono text-sm text-[var(--mk-acc)]">{n} {label}</p>
++              <p className="text-sm font-semibold text-[var(--mk-acc)]">{label}</p>
+               <h2 className="mt-3 text-3xl font-semibold md:text-4xl" style={{ maxWidth: 560 }}>{title}</h2>
+             </Rv>
+             {children}
+@@ -97,9 +97,9 @@ export function Section({ id, n, label, title, split, children }: { id?: string;
+ 
+ export function CtaBand({ title }: { title: string }) {
+   return (
+-    <section className="mk-wrap pb-24 pt-8">
++    <section className="mk-wrap pb-24">
+       <Rv>
+-        <div className="mk-stage rounded-2xl border border-[var(--mk-line)] bg-[var(--mk-s1)] px-6 py-20 text-center">
++        <div className="rounded-2xl bg-[var(--mk-s1)] px-6 py-20 text-center">
+           <h2 className="mx-auto text-4xl font-semibold md:text-5xl" style={{ maxWidth: 680 }}>{title}</h2>
+           <Link to="/auth" search={{ mode: "signup" }} className="mk-btn mk-btn-pri mt-8">Start journaling free</Link>
+         </div>
+@@ -110,9 +110,9 @@ export function CtaBand({ title }: { title: string }) {
+ 
+ export function PageHero({ eyebrow, title, lead, children }: { eyebrow: string; title: string; lead: string; children?: ReactNode }) {
+   return (
+-    <section className="mk-wrap pb-16 pt-40 md:pt-48">
+-      <p className="font-mono text-sm text-[var(--mk-acc)]">{eyebrow}</p>
+-      <h1 className="mk-grad mt-4 text-5xl font-semibold md:text-7xl" style={{ maxWidth: 820 }}>{title}</h1>
++    <section className="mk-wrap pb-8 pt-36 md:pt-44">
++      <p className="text-sm font-semibold text-[var(--mk-acc)]">{eyebrow}</p>
++      <h1 className="mk-grad mt-4 text-5xl font-semibold leading-[1.05] md:text-6xl" style={{ maxWidth: 820 }}>{title}</h1>
+       <p className="mt-6 text-lg text-[var(--mk-mute)]" style={{ maxWidth: 680 }}>{lead}</p>
+       {children && <div className="mt-8 flex flex-wrap items-center gap-3">{children}</div>}
+     </section>
+diff --git a/src/components/visuals.tsx b/src/components/visuals.tsx
+index 683cd04..84c5af0 100644
+--- a/src/components/visuals.tsx
++++ b/src/components/visuals.tsx
+@@ -13,8 +13,8 @@ export const Bars = () => (
+ );
+ 
+ export const Monte = () => (
+-  <svg viewBox="0 0 200 80" className="h-40 w-full" aria-hidden fill="none" strokeWidth="2" strokeLinecap="round">
+-    {[["M0 60 L50 52 L100 40 L150 28 L200 8", 1], ["M0 60 L50 56 L100 50 L150 46 L200 40", 0.5], ["M0 60 L50 58 L100 56 L150 62 L200 58", 0.35], ["M0 60 L50 64 L100 62 L150 70 L200 74", 0.35]].map(([d, o], i) => <path key={i} d={String(d)} stroke="var(--mk-acc)" opacity={Number(o)} />)}
++  <svg viewBox="0 0 200 80" preserveAspectRatio="none" className="h-40 w-full" aria-hidden fill="none" strokeWidth="2" strokeLinecap="round">
++    {[["M0 60 L50 52 L100 40 L150 28 L200 8", 1], ["M0 60 L50 56 L100 50 L150 46 L200 40", 0.5], ["M0 60 L50 58 L100 56 L150 62 L200 58", 0.35], ["M0 60 L50 64 L100 62 L150 70 L200 74", 0.35]].map(([d, o], i) => <path key={i} d={String(d)} stroke="var(--mk-acc)" vectorEffect="non-scaling-stroke" opacity={Number(o)} />)}
+   </svg>
+ );
+ 
+diff --git a/src/routes/blog.$slug.tsx b/src/routes/blog.$slug.tsx
+index 6c84d7a..71a23a5 100644
+--- a/src/routes/blog.$slug.tsx
++++ b/src/routes/blog.$slug.tsx
+@@ -21,7 +21,7 @@ function Article() {
+       <article className="mk-wrap pb-24 pt-40 md:pt-48">
+         <div className="mx-auto" style={{ maxWidth: 680 }}>
+           <Link to="/blog" className="inline-flex items-center gap-2 rounded-lg text-sm font-semibold text-[var(--mk-mute)] transition-colors duration-300 hover:text-[var(--mk-fg)]"><ArrowLeft size={16} />All articles</Link>
+-          <p className="mt-8 font-mono text-sm text-[var(--mk-acc)]">{p.tag}</p>
++          <p className="mt-8 text-sm font-semibold text-[var(--mk-acc)]">{p.tag}</p>
+           <h1 className="mk-grad mt-3 text-4xl font-semibold md:text-5xl">{p.title}</h1>
+           <p className="mt-4 text-sm text-[var(--mk-mute)]">{fmtDate(p.date)} · {readingMinutes(p)} min read · IZ Technologies Limited</p>
+           <div className="mt-12 space-y-6">
+@@ -36,7 +36,7 @@ function Article() {
+       <section className="mk-wrap pb-24">
+         <div className="border-t border-[var(--mk-line)] pt-16">
+           <h2 className="text-2xl font-semibold">Keep reading</h2>
+-          <div className="mt-8 grid gap-4 md:grid-cols-3">{more.map((m) => <Link key={m.slug} to="/blog/$slug" params={{ slug: m.slug }} className="mk-card p-6"><p className="font-mono text-xs text-[var(--mk-acc)]">{m.tag}</p><h3 className="mt-2 text-lg font-semibold">{m.title}</h3></Link>)}</div>
++          <div className="mt-8 grid gap-4 md:grid-cols-3">{more.map((m) => <Link key={m.slug} to="/blog/$slug" params={{ slug: m.slug }} className="mk-card p-6"><p className="text-xs font-semibold text-[var(--mk-acc)]">{m.tag}</p><h3 className="mt-2 text-lg font-semibold">{m.title}</h3></Link>)}</div>
+         </div>
+       </section>
+       <CtaBand title="Put it into practice in your own journal" />
+diff --git a/src/routes/blog.index.tsx b/src/routes/blog.index.tsx
+index 88fe313..313b3bc 100644
+--- a/src/routes/blog.index.tsx
++++ b/src/routes/blog.index.tsx
+@@ -13,11 +13,11 @@ export const Route = createFileRoute("/blog/")({
+     return (
+       <SiteLayout>
+         <PageHero eyebrow="Blog" title="Notes for traders who keep a journal" lead="Practical writing on process, psychology and the numbers behind your results." />
+-        <section className="mk-wrap pb-16">
++        <section className="mk-wrap">
+           <Rv>
+-            <Link to="/blog/$slug" params={{ slug: first.slug }} className="mk-stage mk-card group block rounded-2xl p-8 md:p-12">
+-              <p className="font-mono text-sm text-[var(--mk-acc)]">{first.tag} · {readingMinutes(first)} min read</p>
+-              <h2 className="mt-4 text-4xl font-semibold md:text-5xl" style={{ maxWidth: 680 }}>{first.title}</h2>
++            <Link to="/blog/$slug" params={{ slug: first.slug }} className="mk-card group block rounded-2xl p-8 md:p-12">
++              <p className="text-sm font-semibold text-[var(--mk-acc)]">{first.tag} · {readingMinutes(first)} min read</p>
++              <h2 className="mt-4 text-3xl font-semibold md:text-4xl" style={{ maxWidth: 680 }}>{first.title}</h2>
+               <p className="mt-4 text-lg text-[var(--mk-mute)]" style={{ maxWidth: 680 }}>{first.description}</p>
+               <span className="mt-8 inline-flex items-center gap-1 text-base font-semibold text-[var(--mk-acc)]">Read article <ArrowRight size={16} weight="bold" className="transition-transform duration-300 group-hover:translate-x-1" /></span>
+             </Link>
+@@ -28,7 +28,7 @@ export const Route = createFileRoute("/blog/")({
+             {rest.map((p, i) => (
+               <Rv key={p.slug} delay={i * 80}>
+                 <Link to="/blog/$slug" params={{ slug: p.slug }} className="mk-card flex h-full flex-col p-6">
+-                  <p className="font-mono text-xs text-[var(--mk-acc)]">{p.tag} · {readingMinutes(p)} min read</p>
++                  <p className="text-xs font-semibold text-[var(--mk-acc)]">{p.tag} · {readingMinutes(p)} min read</p>
+                   <h3 className="mt-3 text-xl font-semibold">{p.title}</h3>
+                   <p className="mt-2 text-base text-[var(--mk-mute)]">{p.description}</p>
+                   <p className="mt-auto pt-6 text-sm text-[var(--mk-mute)]">{fmtDate(p.date)}</p>
+diff --git a/src/routes/features.$slug.tsx b/src/routes/features.$slug.tsx
+index b5ebd34..e192546 100644
+--- a/src/routes/features.$slug.tsx
++++ b/src/routes/features.$slug.tsx
+@@ -34,11 +34,9 @@ function FeaturePage() {
+         <Link to="/auth" search={{ mode: "signup" }} className="mk-btn mk-btn-pri">Start journaling free <ArrowRight size={18} weight="bold" /></Link>
+         <Link to="/features" className="mk-btn mk-btn-sec">All features</Link>
+       </PageHero>
+-      <section className="mk-wrap pb-24">
++      <section className="mk-wrap pb-8">
+         <Rv>
+-          <div className="mk-stage rounded-2xl border border-[var(--mk-line)] bg-[var(--mk-s1)] p-3 md:p-8">
+-            <div className="rounded-xl border border-[var(--mk-line)] bg-[var(--mk-bg)] p-6 md:p-10"><Visual v={f.visual} /><p className="mt-6 text-xs text-[var(--mk-mute)]">Sample data</p></div>
+-          </div>
++          <div className="rounded-2xl border border-[var(--mk-line)] bg-[var(--mk-s1)] p-6 md:p-10"><Visual v={f.visual} /><p className="mt-6 text-xs text-[var(--mk-mute)]">Sample data</p></div>
+         </Rv>
+       </section>
+       <Section n="01" label="What you get" title={`How ${f.name} helps`}>
+diff --git a/src/routes/help.tsx b/src/routes/help.tsx
+index a6adb95..ecd4267 100644
+--- a/src/routes/help.tsx
++++ b/src/routes/help.tsx
+@@ -33,8 +33,8 @@ export const Route = createFileRoute("/help")({
+   component: () => (
+     <SiteLayout>
+       <PageHero eyebrow="Help centre" title="Answers, grouped by what you are doing" lead="Getting started, importing, the tools, and keeping your data private." />
+-      <section className="mk-wrap pb-24">
+-        <div className="grid gap-12 border-t border-[var(--mk-line)] pt-16 lg:grid-cols-[220px_1fr]">
++      <section className="mk-wrap pb-16">
++        <div className="grid gap-12 pt-8 lg:grid-cols-[220px_1fr]">
+           <nav aria-label="Help topics" className="hidden lg:block"><ul className="sticky top-24 space-y-1">{groups.map((g) => <li key={g.id}><a href={`#${g.id}`} className="block rounded-lg px-3 py-2 text-sm font-semibold text-[var(--mk-mute)] transition-colors duration-300 hover:bg-[var(--mk-s1)] hover:text-[var(--mk-fg)]">{g.title}</a></li>)}</ul></nav>
+           <div className="space-y-16">
+             {groups.map((g) => (
+diff --git a/src/routes/index.tsx b/src/routes/index.tsx
+index dfa5921..0e16845 100644
+--- a/src/routes/index.tsx
++++ b/src/routes/index.tsx
+@@ -41,9 +41,9 @@ function Landing() {
+     <SiteLayout>
+       <main>
+         {/* Hero */}
+-        <section className="mk-wrap pb-24 pt-40 text-center md:pt-48">
+-          <h1 className="mk-grad mx-auto text-5xl font-semibold md:text-7xl" style={{ maxWidth: 680 }}>Your trades already contain your edge.<br />Mine it.</h1>
+-          <p className="mx-auto mt-6 text-lg text-[var(--mk-mute)]" style={{ maxWidth: 680 }}>AlphaMine is a trading journal that puts hard numbers on your results and on your discipline. Import from MetaTrader 5, tag your decisions, and see what actually pays.</p>
++        <section className="mk-wrap pb-12 pt-36 text-center md:pt-44">
++          <h1 className="mk-grad mx-auto text-5xl font-semibold leading-[1.05] md:text-6xl" style={{ maxWidth: 680 }}>Your trades already contain your edge.<br />Mine it.</h1>
++          <p className="mx-auto mt-6 text-lg text-[var(--mk-mute)]" style={{ maxWidth: 600, textWrap: "balance" }}>AlphaMine is a trading journal that puts hard numbers on your results and on your discipline. Import from MetaTrader 5, tag your decisions, and see what actually pays.</p>
+           <div className="mt-8 flex flex-col items-center gap-3">
+             <Link to="/auth" search={{ mode: "signup" }} className="mk-btn mk-btn-pri">Start journaling free <ArrowRight size={18} weight="bold" /></Link>
+             <p className="text-sm text-[var(--mk-mute)]">Sixteen Chart Lab reports. Private to your account.</p>
+@@ -53,7 +53,7 @@ function Landing() {
+ 
+         {/* Statement */}
+         <Section>
+-          <p className="text-4xl font-semibold md:text-5xl" style={{ maxWidth: 820 }}>
++          <p className="mx-auto text-center text-3xl font-medium leading-snug md:text-4xl" style={{ maxWidth: 820 }}>
+             <Words text="Most traders review their results. Few review their decisions. AlphaMine shows you both, so the next trade starts from evidence instead of memory." />
+           </p>
+         </Section>
+@@ -74,8 +74,8 @@ function Landing() {
+               <div className="space-y-3" aria-hidden>{[["Session", 78], ["Setup", 55], ["Instrument", 34]].map(([k, v]) => <Meter key={k} label={String(k)} value={Number(v)} />)}</div>
+             </Bento>
+             <Bento span="lg:col-span-2" icon={Flask} title="Strategy Lab" body="Test what if exits and run Monte Carlo simulations on your own trade history.">
+-              <svg viewBox="0 0 200 80" className="h-20 w-full" aria-hidden fill="none" strokeWidth="2" strokeLinecap="round">
+-                {[["M0 60 L50 52 L100 40 L150 28 L200 8", 1], ["M0 60 L50 56 L100 50 L150 46 L200 40", 0.5], ["M0 60 L50 58 L100 56 L150 62 L200 58", 0.35], ["M0 60 L50 64 L100 62 L150 70 L200 74", 0.35]].map(([d, o], i) => <path key={i} d={String(d)} stroke="var(--mk-acc)" opacity={Number(o)} />)}
++              <svg viewBox="0 0 200 80" preserveAspectRatio="none" className="h-20 w-full" aria-hidden fill="none" strokeWidth="2" strokeLinecap="round">
++                {[["M0 60 L50 52 L100 40 L150 28 L200 8", 1], ["M0 60 L50 56 L100 50 L150 46 L200 40", 0.5], ["M0 60 L50 58 L100 56 L150 62 L200 58", 0.35], ["M0 60 L50 64 L100 62 L150 70 L200 74", 0.35]].map(([d, o], i) => <path key={i} d={String(d)} stroke="var(--mk-acc)" vectorEffect="non-scaling-stroke" opacity={Number(o)} />)}
+               </svg>
+             </Bento>
+             <Bento span="lg:col-span-6" icon={FileArrowDown} title="MetaTrader 5 import" body="Drop in an HTML or Excel report and your trades land in the journal with P&L recomputed.">
+@@ -116,8 +116,8 @@ function Landing() {
+         {/* Final CTA */}
+         <section className="mk-wrap pb-24 pt-8">
+           <Rv>
+-            <div className="mk-stage rounded-2xl border border-[var(--mk-line)] bg-[var(--mk-s1)] px-6 py-20 text-center">
+-              <h2 className="mx-auto text-4xl font-semibold md:text-5xl" style={{ maxWidth: 680 }}>Find out what your trades have been telling you</h2>
++            <div className="rounded-2xl bg-[var(--mk-s1)] px-6 py-20 text-center">
++              <h2 className="mx-auto text-3xl font-semibold md:text-4xl" style={{ maxWidth: 680 }}>Find out what your trades have been telling you</h2>
+               <Link to="/auth" search={{ mode: "signup" }} className="mk-btn mk-btn-pri mt-8">Start journaling free <ArrowRight size={18} weight="bold" /></Link>
+             </div>
+           </Rv>
+@@ -140,7 +140,7 @@ function Bento({ span, icon: I, title, body, children }: { span: string; icon: I
+ }
+ 
+ const Stage = ({ children }: { children: ReactNode }) => (
+-  <div className="mk-stage mx-auto rounded-2xl border border-[var(--mk-line)] bg-[var(--mk-s1)] p-3 md:p-8" style={{ maxWidth: 1040 }}>{children}</div>
++  <div className="mx-auto" style={{ maxWidth: 1040 }}>{children}</div>
+ );
+ 
+ /** Hero product preview. The same calendar, meters and curve reappear in the feature cards below. */
+diff --git a/src/routes/pricing.tsx b/src/routes/pricing.tsx
+index e56812c..a673045 100644
+--- a/src/routes/pricing.tsx
++++ b/src/routes/pricing.tsx
+@@ -19,7 +19,7 @@ export const Route = createFileRoute("/pricing")({
+       <PageHero eyebrow="Pricing" title="Free while we build. Paid plans are coming." lead="Everything in AlphaMine is free today. We will add paid plans later, and publish their pricing here before they launch.">
+         <Link to="/auth" search={{ mode: "signup" }} className="mk-btn mk-btn-pri">Start journaling free <ArrowRight size={18} weight="bold" /></Link>
+       </PageHero>
+-      <section className="mk-wrap pb-24">
++      <section className="mk-wrap pb-8">
+         <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+           <Rv>
+             <div className="h-full rounded-2xl border border-[var(--mk-acc)] bg-[var(--mk-s1)] p-8">
+diff --git a/src/styles.css b/src/styles.css
+index 1a0b0c1..7633b13 100644
+--- a/src/styles.css
++++ b/src/styles.css
+@@ -241,6 +241,7 @@
+ .slim-scroll::-webkit-scrollbar-thumb:hover { background: #a9a4b2; background-clip: content-box; }
+ .slim-scroll::-webkit-scrollbar-corner { background: transparent; }
+ 
++@layer components {
+ /* Marketing + auth scope (.mk). Own type scale in px so the app's 12px root size does not shrink it. */
+ .mk {
+   --spacing: 4px;
+@@ -259,20 +260,20 @@
+ .mk h1, .mk h2, .mk h3 { text-wrap: balance; letter-spacing: -0.02em; }
+ .mk p { text-wrap: pretty; }
+ .mk-wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+-.mk-grad { background: linear-gradient(90deg, var(--mk-g1), var(--mk-g2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
++.mk-grad { color: var(--mk-fg); }
+ .mk-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 12px; border-radius: 8px; font-size: 16px; font-weight: 600; transition: background-color 300ms var(--mk-ease), transform 200ms var(--mk-ease), opacity 300ms var(--mk-ease); }
+ .mk-btn:active { transform: scale(0.98); }
+ .mk-btn:focus-visible, .mk a:focus-visible, .mk button:focus-visible, .mk summary:focus-visible { outline: 2px solid var(--mk-acc); outline-offset: 2px; }
+ .mk-btn-pri { background: var(--mk-acc); color: var(--mk-acc-fg); } .mk-btn-pri:hover { opacity: 0.88; }
+ .mk-btn-sec { background: var(--mk-s1); color: var(--mk-fg); border: 1px solid var(--mk-line); } .mk-btn-sec:hover { background: var(--mk-s2); }
+-.mk-card { background: var(--mk-s1); border: 1px solid var(--mk-line); border-radius: 16px; transition: background-color 300ms var(--mk-ease), transform 500ms var(--mk-ease); }
+-.mk-card:hover { background: var(--mk-s2); transform: translateY(-2px); }
++.mk-card { background: var(--mk-s1); border: 1px solid var(--mk-line); border-radius: 16px; transition: background-color 300ms var(--mk-ease); }
++.mk-card:hover { background: var(--mk-s2); }
+ .mk-js .mk-rv { opacity: 0; transform: translateY(32px); transition: opacity 700ms var(--mk-ease), transform 700ms var(--mk-ease); }
+ .mk-js .mk-rv.in { opacity: 1; transform: none; }
+ .mk-w { opacity: 0.3; transition: opacity 500ms var(--mk-ease); } .mk-w.in { opacity: 1; }
+ .mk details > summary { list-style: none; cursor: pointer; } .mk details > summary::-webkit-details-marker { display: none; }
+ .mk details[open] .mk-plus { transform: rotate(45deg); } .mk-plus { transition: transform 500ms var(--mk-ease); }
+ @media (prefers-reduced-motion: reduce) {
+-  .mk-js .mk-rv { transform: none; } .mk-card:hover, .mk-btn:active { transform: none; } .mk-plus { transition: none; }
++  .mk-js .mk-rv { transform: none; } .mk-btn:active { transform: none; } .mk-plus { transition: none; }
++}
+ }
+-.mk-stage { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Cpath d='M32 0H0V32' fill='none' stroke='%23888' stroke-opacity='.16'/%3E%3C/svg%3E"); }
