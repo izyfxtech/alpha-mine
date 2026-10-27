@@ -241,6 +241,7 @@
 .slim-scroll::-webkit-scrollbar-thumb:hover { background: #a9a4b2; background-clip: content-box; }
 .slim-scroll::-webkit-scrollbar-corner { background: transparent; }
 
+@layer components {
 /* Marketing + auth scope (.mk). Own type scale in px so the app's 12px root size does not shrink it. */
 .mk {
   --spacing: 4px;
@@ -259,20 +260,20 @@
 .mk h1, .mk h2, .mk h3 { text-wrap: balance; letter-spacing: -0.02em; }
 .mk p { text-wrap: pretty; }
 .mk-wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
-.mk-grad { background: linear-gradient(90deg, var(--mk-g1), var(--mk-g2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.mk-grad { color: var(--mk-fg); }
 .mk-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 12px; border-radius: 8px; font-size: 16px; font-weight: 600; transition: background-color 300ms var(--mk-ease), transform 200ms var(--mk-ease), opacity 300ms var(--mk-ease); }
 .mk-btn:active { transform: scale(0.98); }
 .mk-btn:focus-visible, .mk a:focus-visible, .mk button:focus-visible, .mk summary:focus-visible { outline: 2px solid var(--mk-acc); outline-offset: 2px; }
 .mk-btn-pri { background: var(--mk-acc); color: var(--mk-acc-fg); } .mk-btn-pri:hover { opacity: 0.88; }
 .mk-btn-sec { background: var(--mk-s1); color: var(--mk-fg); border: 1px solid var(--mk-line); } .mk-btn-sec:hover { background: var(--mk-s2); }
-.mk-card { background: var(--mk-s1); border: 1px solid var(--mk-line); border-radius: 16px; transition: background-color 300ms var(--mk-ease), transform 500ms var(--mk-ease); }
-.mk-card:hover { background: var(--mk-s2); transform: translateY(-2px); }
+.mk-card { background: var(--mk-s1); border: 1px solid var(--mk-line); border-radius: 16px; transition: background-color 300ms var(--mk-ease); }
+.mk-card:hover { background: var(--mk-s2); }
 .mk-js .mk-rv { opacity: 0; transform: translateY(32px); transition: opacity 700ms var(--mk-ease), transform 700ms var(--mk-ease); }
 .mk-js .mk-rv.in { opacity: 1; transform: none; }
 .mk-w { opacity: 0.3; transition: opacity 500ms var(--mk-ease); } .mk-w.in { opacity: 1; }
 .mk details > summary { list-style: none; cursor: pointer; } .mk details > summary::-webkit-details-marker { display: none; }
 .mk details[open] .mk-plus { transform: rotate(45deg); } .mk-plus { transition: transform 500ms var(--mk-ease); }
 @media (prefers-reduced-motion: reduce) {
-  .mk-js .mk-rv { transform: none; } .mk-card:hover, .mk-btn:active { transform: none; } .mk-plus { transition: none; }
+  .mk-js .mk-rv { transform: none; } .mk-btn:active { transform: none; } .mk-plus { transition: none; }
 }
-.mk-stage { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Cpath d='M32 0H0V32' fill='none' stroke='%23888' stroke-opacity='.16'/%3E%3C/svg%3E"); }
+}

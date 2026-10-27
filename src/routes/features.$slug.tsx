@@ -34,11 +34,9 @@ function FeaturePage() {
         <Link to="/auth" search={{ mode: "signup" }} className="mk-btn mk-btn-pri">Start journaling free <ArrowRight size={18} weight="bold" /></Link>
         <Link to="/features" className="mk-btn mk-btn-sec">All features</Link>
       </PageHero>
-      <section className="mk-wrap pb-24">
+      <section className="mk-wrap pb-8">
         <Rv>
-          <div className="mk-stage rounded-2xl border border-[var(--mk-line)] bg-[var(--mk-s1)] p-3 md:p-8">
-            <div className="rounded-xl border border-[var(--mk-line)] bg-[var(--mk-bg)] p-6 md:p-10"><Visual v={f.visual} /><p className="mt-6 text-xs text-[var(--mk-mute)]">Sample data</p></div>
-          </div>
+          <div className="rounded-2xl border border-[var(--mk-line)] bg-[var(--mk-s1)] p-6 md:p-10"><Visual v={f.visual} /><p className="mt-6 text-xs text-[var(--mk-mute)]">Sample data</p></div>
         </Rv>
       </section>
       <Section n="01" label="What you get" title={`How ${f.name} helps`}>

@@ -67,7 +67,7 @@ function Footer() {
         <div><p className="font-semibold text-[var(--mk-fg)]">Account</p><ul className="mt-4 space-y-3"><li><Link to="/auth" className={fl}>Sign in</Link></li><li><Link to="/auth" search={{ mode: "signup" }} className={fl}>Create account</Link></li></ul></div>
         <div><p className="font-semibold text-[var(--mk-fg)]">Legal</p><ul className="mt-4 space-y-3"><li><Link to="/privacy" className={fl}>Privacy policy</Link></li><li><Link to="/terms" className={fl}>Terms of service</Link></li></ul></div>
       </div>
-      <div className="mk-wrap mt-12 border-t border-[var(--mk-line)] pt-6 text-sm text-[var(--mk-mute)]">© {new Date().getFullYear()} IZ Technologies Limited. AlphaMine is built by traders, for traders.</div>
+      <div className="mk-wrap mt-12 text-sm text-[var(--mk-mute)]"><div className="border-t border-[var(--mk-line)] pt-6">© {new Date().getFullYear()} IZ Technologies Limited. AlphaMine is built by traders, for traders.</div></div>
     </footer>
   );
 }
@@ -80,11 +80,11 @@ export function SiteLayout({ children }: { children: ReactNode }) {
 export function Section({ id, n, label, title, split, children }: { id?: string; n?: string; label?: string; title?: string; split?: boolean; children: ReactNode }) {
   return (
     <section id={id} className="mk-wrap scroll-mt-24">
-      <div className="border-t border-[var(--mk-line)] py-24">
+      <div className="py-16 md:py-24">
         {title ? (
           <div className={split ? "grid gap-12 lg:grid-cols-[1fr_1.5fr]" : ""}>
             <Rv className={split ? "" : "mb-12"}>
-              <p className="font-mono text-sm text-[var(--mk-acc)]">{n} {label}</p>
+              <p className="text-sm font-semibold text-[var(--mk-acc)]">{label}</p>
               <h2 className="mt-3 text-3xl font-semibold md:text-4xl" style={{ maxWidth: 560 }}>{title}</h2>
             </Rv>
             {children}
@@ -97,9 +97,9 @@ export function Section({ id, n, label, title, split, children }: { id?: string;
 
 export function CtaBand({ title }: { title: string }) {
   return (
-    <section className="mk-wrap pb-24 pt-8">
+    <section className="mk-wrap pb-24">
       <Rv>
-        <div className="mk-stage rounded-2xl border border-[var(--mk-line)] bg-[var(--mk-s1)] px-6 py-20 text-center">
+        <div className="rounded-2xl bg-[var(--mk-s1)] px-6 py-20 text-center">
           <h2 className="mx-auto text-4xl font-semibold md:text-5xl" style={{ maxWidth: 680 }}>{title}</h2>
           <Link to="/auth" search={{ mode: "signup" }} className="mk-btn mk-btn-pri mt-8">Start journaling free</Link>
         </div>
@@ -110,9 +110,9 @@ export function CtaBand({ title }: { title: string }) {
 
 export function PageHero({ eyebrow, title, lead, children }: { eyebrow: string; title: string; lead: string; children?: ReactNode }) {
   return (
-    <section className="mk-wrap pb-16 pt-40 md:pt-48">
-      <p className="font-mono text-sm text-[var(--mk-acc)]">{eyebrow}</p>
-      <h1 className="mk-grad mt-4 text-5xl font-semibold md:text-7xl" style={{ maxWidth: 820 }}>{title}</h1>
+    <section className="mk-wrap pb-8 pt-36 md:pt-44">
+      <p className="text-sm font-semibold text-[var(--mk-acc)]">{eyebrow}</p>
+      <h1 className="mk-grad mt-4 text-5xl font-semibold leading-[1.05] md:text-6xl" style={{ maxWidth: 820 }}>{title}</h1>
       <p className="mt-6 text-lg text-[var(--mk-mute)]" style={{ maxWidth: 680 }}>{lead}</p>
       {children && <div className="mt-8 flex flex-wrap items-center gap-3">{children}</div>}
     </section>

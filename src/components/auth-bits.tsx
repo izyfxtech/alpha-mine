@@ -2,6 +2,7 @@ import { type InputHTMLAttributes, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "@phosphor-icons/react";
 import { BrandLink, ThemeToggle } from "@/components/marketing-shell";
+import { Meter } from "@/components/visuals";
 
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -14,6 +15,11 @@ export function AuthFrame({ children }: { children: ReactNode }) {
         <div>
           <h2 className="mk-grad text-5xl font-semibold" style={{ maxWidth: 480 }}>Mine your trades for the edge you already have.</h2>
           <p className="mt-6 text-lg text-[var(--mk-mute)]" style={{ maxWidth: 480 }}>Journal every trade, measure discipline with the tilt meter, and let sixteen Chart Lab reports show what actually works.</p>
+          <div className="mt-10 rounded-2xl border border-[var(--mk-line)] bg-[var(--mk-bg)] p-5" style={{ maxWidth: 400 }} aria-hidden>
+            <p className="text-sm font-semibold">Tilt meter</p>
+            <div className="mt-4 space-y-3">{[["Entries", 84], ["Management", 71], ["Exits", 90]].map(([k, v]) => <Meter key={k} label={String(k)} value={Number(v)} />)}</div>
+            <p className="mt-4 text-xs text-[var(--mk-mute)]">Sample data</p>
+          </div>
         </div>
         <p className="text-sm text-[var(--mk-mute)]">Your journals stay private to your account.</p>
       </aside>

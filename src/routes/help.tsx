@@ -33,8 +33,8 @@ export const Route = createFileRoute("/help")({
   component: () => (
     <SiteLayout>
       <PageHero eyebrow="Help centre" title="Answers, grouped by what you are doing" lead="Getting started, importing, the tools, and keeping your data private." />
-      <section className="mk-wrap pb-24">
-        <div className="grid gap-12 border-t border-[var(--mk-line)] pt-16 lg:grid-cols-[220px_1fr]">
+      <section className="mk-wrap pb-16">
+        <div className="grid gap-12 pt-8 lg:grid-cols-[220px_1fr]">
           <nav aria-label="Help topics" className="hidden lg:block"><ul className="sticky top-24 space-y-1">{groups.map((g) => <li key={g.id}><a href={`#${g.id}`} className="block rounded-lg px-3 py-2 text-sm font-semibold text-[var(--mk-mute)] transition-colors duration-300 hover:bg-[var(--mk-s1)] hover:text-[var(--mk-fg)]">{g.title}</a></li>)}</ul></nav>
           <div className="space-y-16">
             {groups.map((g) => (

@@ -13,11 +13,11 @@ export const Route = createFileRoute("/blog/")({
     return (
       <SiteLayout>
         <PageHero eyebrow="Blog" title="Notes for traders who keep a journal" lead="Practical writing on process, psychology and the numbers behind your results." />
-        <section className="mk-wrap pb-16">
+        <section className="mk-wrap">
           <Rv>
-            <Link to="/blog/$slug" params={{ slug: first.slug }} className="mk-stage mk-card group block rounded-2xl p-8 md:p-12">
-              <p className="font-mono text-sm text-[var(--mk-acc)]">{first.tag} · {readingMinutes(first)} min read</p>
-              <h2 className="mt-4 text-4xl font-semibold md:text-5xl" style={{ maxWidth: 680 }}>{first.title}</h2>
+            <Link to="/blog/$slug" params={{ slug: first.slug }} className="mk-card group block rounded-2xl p-8 md:p-12">
+              <p className="text-sm font-semibold text-[var(--mk-acc)]">{first.tag} · {readingMinutes(first)} min read</p>
+              <h2 className="mt-4 text-3xl font-semibold md:text-4xl" style={{ maxWidth: 680 }}>{first.title}</h2>
               <p className="mt-4 text-lg text-[var(--mk-mute)]" style={{ maxWidth: 680 }}>{first.description}</p>
               <span className="mt-8 inline-flex items-center gap-1 text-base font-semibold text-[var(--mk-acc)]">Read article <ArrowRight size={16} weight="bold" className="transition-transform duration-300 group-hover:translate-x-1" /></span>
             </Link>
@@ -28,7 +28,7 @@ export const Route = createFileRoute("/blog/")({
             {rest.map((p, i) => (
               <Rv key={p.slug} delay={i * 80}>
                 <Link to="/blog/$slug" params={{ slug: p.slug }} className="mk-card flex h-full flex-col p-6">
-                  <p className="font-mono text-xs text-[var(--mk-acc)]">{p.tag} · {readingMinutes(p)} min read</p>
+                  <p className="text-xs font-semibold text-[var(--mk-acc)]">{p.tag} · {readingMinutes(p)} min read</p>
                   <h3 className="mt-3 text-xl font-semibold">{p.title}</h3>
                   <p className="mt-2 text-base text-[var(--mk-mute)]">{p.description}</p>
                   <p className="mt-auto pt-6 text-sm text-[var(--mk-mute)]">{fmtDate(p.date)}</p>
