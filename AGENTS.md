@@ -8,3 +8,4 @@
 - Trade screenshots live in a private storage bucket under `<user_id>/…` and are shown via signed URLs; rows whose path starts with `http` are external URLs.
 - Custom stats are category → option rows linked to trades via `trade_custom_stats` — user-defined tags without schema changes.
 - tsconfig has `noUncheckedIndexedAccess`/`exactOptionalPropertyTypes`/`noImplicitReturns` off — ported code was written without them.
+- MetaTrader 5 reports (HTML/Excel) are parsed in `src/lib/mt5/` from the Positions table by anchors, not header index; imported trades carry the broker's profit (`pnl_manual`, `source='mt5'`, `external_id` = position ticket) and are audited, never recomputed, by the P&L engine. Server time is converted with `serverWallToUtcMs`.

@@ -326,6 +326,10 @@ export type Database = {
           position: number
           symbol: string
           disabled: boolean
+          contract_size: number | null
+          digits: number | null
+          profit_currency: string | null
+          kind: string | null
         }
         Insert: {
           asset_class?: string | null
@@ -335,6 +339,10 @@ export type Database = {
           position?: number
           symbol: string
           disabled?: boolean
+          contract_size?: number | null
+          digits?: number | null
+          profit_currency?: string | null
+          kind?: string | null
         }
         Update: {
           asset_class?: string | null
@@ -344,6 +352,10 @@ export type Database = {
           position?: number
           symbol?: string
           disabled?: boolean
+          contract_size?: number | null
+          digits?: number | null
+          profit_currency?: string | null
+          kind?: string | null
         }
         Relationships: [
           {
@@ -410,6 +422,7 @@ export type Database = {
           mt_server: string | null
           mt_login: string | null
           disabled_session_categories: string[]
+          quantity_unit: string | null
         }
         Insert: {
           auto_pnl?: boolean
@@ -430,6 +443,7 @@ export type Database = {
           mt_server?: string | null
           mt_login?: string | null
           disabled_session_categories?: string[]
+          quantity_unit?: string | null
         }
         Update: {
           auto_pnl?: boolean
@@ -450,6 +464,7 @@ export type Database = {
           mt_server?: string | null
           mt_login?: string | null
           disabled_session_categories?: string[]
+          quantity_unit?: string | null
         }
         Relationships: []
       }
