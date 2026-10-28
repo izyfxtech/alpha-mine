@@ -1,8 +1,13 @@
 /**
  * compute-pnl: runs the P&L engine over a journal's closed trades and records the result in
- * `trade_pnl_audit` next to the values currently stored. AUDIT MODE: this function never writes to `trades`.
+ * `trade_pnl_audit` next to the values currently stored. By default this is AUDIT MODE: it never writes to `trades`.
  *
- * POST { journal_id: uuid, trade_ids?: uuid[] }  with the caller's JWT.
+ * Opt-in `apply: true` additionally copies the engine's planned risk into `trades.risk_amount`, but ONLY where
+ * that column is still empty (imported trades are exempt from the DB risk trigger, so R-multiples were missing).
+ * Gross, net and fees are never changed. Each applied audit row is flagged `applied`, and `prev_risk_amount`
+ * (null) allows an exact rollback. Writes use the caller's JWT, so row level security still decides.
+ *
+ * POST { journal_id: uuid, trade_ids?: uuid[], apply?: boolean }  with the caller's JWT.
  * Processes up to BATCH not yet audited trades per call and returns `remaining`; the client calls again until 0.
  *
  * Secrets: MASSIVE_API_KEY (optional, enables minute rates). SUPABASE_URL, SUPABASE_ANON_KEY and
@@ -13,7 +18,7 @@ import {
   FrankfurterProvider, ImpliedRateProvider, MassiveMinuteProvider, PnlEngine, RateResolver,
   type ClosedTrade, type PnlResult, type RateObservation, type RateProvider,
 } from '../_shared/pnl-engine/index.ts';
-import { guessDigits, mapTrade, type InstrumentRow, type JournalRow, type TradeRow } from '../_shared/pnl-map.ts';
+import { guessDigits, mapTrade, pickRiskApplications, type InstrumentRow, type JournalRow, type TradeRow } from '../_shared/pnl-map.ts';
 
 const ENGINE_VERSION = '0.1.1';
 const BATCH = 200;
@@ -40,7 +45,7 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'POST only' }, 405);
   const auth = req.headers.get('Authorization');
   if (!auth) return json({ error: 'Missing Authorization header' }, 401);
-  const body = await req.json().catch(() => null) as { journal_id?: string; trade_ids?: string[] } | null;
+  const body = await req.json().catch(() => null) as { journal_id?: string; trade_ids?: string[]; apply?: boolean } | null;
   if (!body?.journal_id || !UUID.test(body.journal_id)) return json({ error: 'journal_id (uuid) is required' }, 400);
   if (body.trade_ids && !(Array.isArray(body.trade_ids) && body.trade_ids.every((i) => UUID.test(i)))) return json({ error: 'trade_ids must be uuids' }, 400);
 
@@ -61,10 +66,30 @@ Deno.serve(async (req) => {
     });
     const done = new Set((await pageAll<{ trade_id: string }>((a, b) =>
       user.from('trade_pnl_audit').select('trade_id').eq('journal_id', j.id).eq('engine_version', ENGINE_VERSION).range(a, b))).map((r) => r.trade_id));
+    // Apply phase: runs first so it also works when every trade was audited by an earlier call.
+    let applied = 0;
+    const applyRisk = async () => {
+      if (body.apply !== true) return;
+      const audited = await pageAll<{ trade_id: string; status: string; planned_risk: number | string | null; applied: boolean }>((a, b) =>
+        user.from('trade_pnl_audit').select('trade_id,status,planned_risk,applied').eq('journal_id', j.id).eq('engine_version', ENGINE_VERSION).eq('status', 'computed').eq('applied', false).not('planned_risk', 'is', null).range(a, b));
+      const wanted = new Set(all.map((t) => t.id));
+      const picks = pickRiskApplications(audited).filter((p) => wanted.has(p.trade_id));
+      for (let i = 0; i < picks.length; i += 25) {
+        await Promise.all(picks.slice(i, i + 25).map(async (p) => {
+          // `.is('risk_amount', null)` makes this a no-op for any trade that has a risk figure already.
+          const { data, error } = await user.from('trades').update({ risk_amount: p.risk_amount }).eq('id', p.trade_id).is('risk_amount', null).select('id');
+          if (error) throw new Error(`could not apply risk: ${error.message}`);
+          if (!data?.length) return;
+          await admin.from('trade_pnl_audit').update({ applied: true, applied_at: new Date().toISOString() }).eq('trade_id', p.trade_id).eq('engine_version', ENGINE_VERSION);
+          applied++;
+        }));
+      }
+    };
+
     const pending = all.filter((t) => !done.has(t.id));
     const todo = pending.slice(0, BATCH);
     const remaining = pending.length - todo.length;
-    if (!todo.length) return json({ ok: true, processed: 0, remaining: 0 });
+    if (!todo.length) { await applyRisk(); return json({ ok: true, processed: 0, remaining: 0, applied }); }
 
     const instruments = new Map((await pageAll<InstrumentRow>((a, b) =>
       user.from('instruments').select('id,symbol,contract_size,digits,profit_currency,kind').eq('journal_id', j.id).range(a, b))).map((i) => [i.id, i]));
@@ -129,7 +154,8 @@ Deno.serve(async (req) => {
     const { error } = await admin.from('trade_pnl_audit').upsert(audit, { onConflict: 'trade_id,engine_version' });
     if (error) throw new Error(`could not store audit rows: ${error.message}`);
 
-    return json({ ok: true, processed: todo.length, computed, skipped: skippedCount, errors, reconciliation: recon, remaining, provider_errors: providerErrors });
+    await applyRisk();
+    return json({ ok: true, processed: todo.length, applied, computed, skipped: skippedCount, errors, reconciliation: recon, remaining, provider_errors: providerErrors });
   } catch (e) {
     return json({ error: (e as Error).message }, 500);
   }

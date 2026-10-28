@@ -109,3 +109,22 @@ export function mapTrade(row: TradeRow, ins: InstrumentRow | undefined, journal:
     },
   };
 }
+
+export interface AuditRow { trade_id: string; status: string; planned_risk: number | string | null; applied?: boolean | null }
+
+/**
+ * Which audited trades may receive a planned risk. Only computed rows with a positive risk qualify, and only once.
+ * Gross, net and fees are never part of this: for broker-sourced trades those are the broker's own numbers.
+ */
+export function pickRiskApplications(rows: AuditRow[]): { trade_id: string; risk_amount: number }[] {
+  const out: { trade_id: string; risk_amount: number }[] = [];
+  const seen = new Set<string>();
+  for (const r of rows) {
+    if (r.status !== 'computed' || r.applied || seen.has(r.trade_id) || !has(r.planned_risk)) continue;
+    const risk = Number(r.planned_risk);
+    if (!Number.isFinite(risk) || risk <= 0) continue;
+    seen.add(r.trade_id);
+    out.push({ trade_id: r.trade_id, risk_amount: risk });
+  }
+  return out;
+}

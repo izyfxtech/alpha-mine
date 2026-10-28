@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { guessDigits, mapTrade, type InstrumentRow, type JournalRow, type TradeRow } from '../../supabase/functions/_shared/pnl-map.ts';
+import { guessDigits, mapTrade, pickRiskApplications, type InstrumentRow, type JournalRow, type TradeRow } from '../../supabase/functions/_shared/pnl-map.ts';
 
 const base: TradeRow = {
   id: 't1', direction: 'long', entry_at: '2026-10-22T12:00:00Z', exit_at: '2026-10-22T13:00:00Z',
@@ -49,5 +49,20 @@ describe('mapTrade', () => {
     expect(mapTrade({ ...base, is_break_even: true }, ins, lotsJournal, new Map())).toHaveProperty('skip');
     expect(mapTrade({ ...base, exit_price: null }, ins, lotsJournal, new Map())).toHaveProperty('skip');
     expect(mapTrade({ ...base, raw_symbol: 'GER40' }, { ...ins, symbol: 'GER40' }, lotsJournal, new Map())).toHaveProperty('skip');
+  });
+});
+
+describe('pickRiskApplications', () => {
+  it('keeps only computed, not yet applied rows with a positive planned risk, once per trade', () => {
+    const rows = [
+      { trade_id: 'a', status: 'computed', planned_risk: '12.5' },
+      { trade_id: 'a', status: 'computed', planned_risk: '99' }, // duplicate trade: first wins
+      { trade_id: 'b', status: 'computed', planned_risk: null },
+      { trade_id: 'c', status: 'skipped', planned_risk: 5 },
+      { trade_id: 'd', status: 'computed', planned_risk: 0 },
+      { trade_id: 'e', status: 'computed', planned_risk: 3, applied: true },
+      { trade_id: 'f', status: 'computed', planned_risk: 7 },
+    ];
+    expect(pickRiskApplications(rows)).toEqual([{ trade_id: 'a', risk_amount: 12.5 }, { trade_id: 'f', risk_amount: 7 }]);
   });
 });
