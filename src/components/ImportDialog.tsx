@@ -7,12 +7,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useJournal } from "@/lib/journal-context";
 import { seedDemoTrades } from "@/lib/demo";
 import { fillsToTrades, type RawFill } from "@/lib/fills-import";
+import { FIELDS, detectHeaderRow, looksLikeFills, parseCsv, suggestMapping } from "@/lib/csv-mapping";
 import { auditJournalPnl } from "@/lib/pnl-audit";
 import { parseMt5Report, type Mt5Report } from "@/lib/mt5/parse-report";
 import { balanceOpsToCashflows, checkCompatibility, reportToTrades, summarize } from "@/lib/mt5/to-trades";
 import type { ServerTz } from "../../supabase/functions/_shared/pnl-engine/time.ts";
-
-const FIELDS = ["entry_at", "exit_at", "instrument", "setup", "direction", "entry_price", "exit_price", "quantity", "stop_loss", "take_profit", "gross_pnl", "fees", "net_pnl"] as const;
 
 const TZ_OPTIONS: { value: string; label: string; tz: ServerTz }[] = [
   { value: "ny-close", label: "GMT+2 / GMT+3 (New York close, most brokers)", tz: { kind: "ny-close" } },
@@ -22,11 +21,6 @@ const TZ_OPTIONS: { value: string; label: string; tz: ServerTz }[] = [
   { value: "p3", label: "Fixed GMT+3 (no DST)", tz: { kind: "fixed", offsetMinutes: 180 } },
 ];
 const CHUNK = 500;
-
-function parseCSV(text: string) {
-  const rows = text.trim().split(/\r?\n/).map((l) => l.split(",").map((c) => c.trim().replace(/^"|"$/g, "")));
-  return { header: rows[0] ?? [], rows: rows.slice(1) };
-}
 
 export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const { journal } = useJournal();
@@ -51,14 +45,14 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
       return;
     }
     setMt5(null);
-    const p = parseCSV(await file.text());
+    const raw = parseCsv(await file.text());
+    if (!raw.length) return void toast.error("That file has no rows.");
+    const h = detectHeaderRow(raw);
+    const p = { header: raw[h] ?? [], rows: raw.slice(h + 1) };
     setCsv(p);
-    const auto: Record<string, string> = {};
-    FIELDS.forEach((f) => {
-      const hit = p.header.find((h) => h.toLowerCase().replace(/[^a-z]/g, "") === f.replace(/_/g, ""));
-      if (hit) auto[f] = hit;
-    });
-    setMap(auto);
+    const auto = suggestMapping(p.header);
+    setMap(auto as Record<string, string>);
+    setAsFills(looksLikeFills(auto));
   }
 
   async function run() {
