@@ -1,6 +1,6 @@
 import {
   Home, Briefcase, BookOpen, BarChart3, LineChart, BookMarked, NotebookPen, FlaskRound,
-  FileBarChart, FlaskConical, Settings, Sparkles, type LucideIcon,
+  FileBarChart, FlaskConical, Settings, Sparkles, Target, type LucideIcon,
 } from "lucide-react";
 
 export const CHARTS = [
@@ -45,6 +45,7 @@ export const NAV: NavItem[] = [
   { label: "Trade Analytics", icon: BarChart3, to: "/analytics" },
   { label: "Equity Graph", icon: LineChart, to: "/equity" },
   { label: "Edge Finder", icon: Sparkles, to: "/edge-finder" },
+  { label: "Prop Challenge", icon: Target, to: "/prop-challenge" },
   {
     label: "Advanced Journaling", icon: BookMarked, children: [
       { label: "Trading Plans", to: "/plans" },

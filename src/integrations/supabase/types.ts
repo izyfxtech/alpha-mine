@@ -701,6 +701,47 @@ export type Database = {
           },
         ]
       }
+      prop_challenges: {
+        Row: {
+          created_at: string
+          id: string
+          journal_id: string
+          name: string
+          rules: Json
+          start_balance: number
+          started_on: string | null
+          time_zone: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          journal_id: string
+          name: string
+          rules?: Json
+          start_balance: number
+          started_on?: string | null
+          time_zone?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          journal_id?: string
+          name?: string
+          rules?: Json
+          start_balance?: number
+          started_on?: string | null
+          time_zone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prop_challenges_journal_id_fkey"
+            columns: ["journal_id"]
+            isOneToOne: false
+            referencedRelation: "journals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       planned_trades: {
         Row: {
           created_at: string
