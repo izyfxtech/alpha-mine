@@ -6,6 +6,7 @@ export * from './time.ts';
 export * from './calc.ts';
 export * from './reconcile.ts';
 export * from './matching.ts';
+export * from './positions.ts';
 export { PnlEngine } from './engine.ts';
 export type { BatchItem, EngineOptions, PnlResult, FloatingResult, GrossSource } from './engine.ts';
 export * from './rates/types.ts';

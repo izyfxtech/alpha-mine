@@ -6,12 +6,12 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useJournal } from "@/lib/journal-context";
 import { seedDemoTrades } from "@/lib/demo";
+import { fillsToTrades, type RawFill } from "@/lib/fills-import";
+import { FIELDS, detectHeaderRow, looksLikeFills, parseCsv, suggestMapping } from "@/lib/csv-mapping";
 import { auditJournalPnl } from "@/lib/pnl-audit";
 import { parseMt5Report, type Mt5Report } from "@/lib/mt5/parse-report";
 import { balanceOpsToCashflows, checkCompatibility, reportToTrades, summarize } from "@/lib/mt5/to-trades";
 import type { ServerTz } from "../../supabase/functions/_shared/pnl-engine/time.ts";
-
-const FIELDS = ["entry_at", "exit_at", "instrument", "setup", "direction", "entry_price", "exit_price", "quantity", "stop_loss", "take_profit", "gross_pnl", "fees", "net_pnl"] as const;
 
 const TZ_OPTIONS: { value: string; label: string; tz: ServerTz }[] = [
   { value: "ny-close", label: "GMT+2 / GMT+3 (New York close, most brokers)", tz: { kind: "ny-close" } },
@@ -22,11 +22,6 @@ const TZ_OPTIONS: { value: string; label: string; tz: ServerTz }[] = [
 ];
 const CHUNK = 500;
 
-function parseCSV(text: string) {
-  const rows = text.trim().split(/\r?\n/).map((l) => l.split(",").map((c) => c.trim().replace(/^"|"$/g, "")));
-  return { header: rows[0] ?? [], rows: rows.slice(1) };
-}
-
 export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const { journal } = useJournal();
   const qc = useQueryClient();
@@ -36,6 +31,7 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   const [mt5, setMt5] = useState<Mt5Report | null>(null);
   const [tzKey, setTzKey] = useState("ny-close");
   const [withCash, setWithCash] = useState(false);
+  const [asFills, setAsFills] = useState(false);
 
   async function onFile(file: File) {
     if (/\.(html?|xlsx)$/i.test(file.name)) {
@@ -49,14 +45,14 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
       return;
     }
     setMt5(null);
-    const p = parseCSV(await file.text());
+    const raw = parseCsv(await file.text());
+    if (!raw.length) return void toast.error("That file has no rows.");
+    const h = detectHeaderRow(raw);
+    const p = { header: raw[h] ?? [], rows: raw.slice(h + 1) };
     setCsv(p);
-    const auto: Record<string, string> = {};
-    FIELDS.forEach((f) => {
-      const hit = p.header.find((h) => h.toLowerCase().replace(/[^a-z]/g, "") === f.replace(/_/g, ""));
-      if (hit) auto[f] = hit;
-    });
-    setMap(auto);
+    const auto = suggestMapping(p.header);
+    setMap(auto as Record<string, string>);
+    setAsFills(looksLikeFills(auto));
   }
 
   async function run() {
@@ -95,6 +91,61 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
       const { error } = await supabase.from("trades").insert(rows);
       if (error) throw error;
       toast.success(`Imported ${rows.length} trades`);
+      qc.invalidateQueries();
+      setCsv(null);
+      onOpenChange(false);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** CSV rows that are individual fills: group into trades (scale-in, partial exits) and keep the legs. */
+  async function runFills() {
+    if (!csv || !journal) return;
+    const need = ["entry_at", "direction", "quantity", "entry_price", "instrument"] as const;
+    const missing = need.filter((f) => !map[f]);
+    if (missing.length) return void toast.error(`Map these columns first: ${missing.map((m) => m.replace(/_/g, " ")).join(", ")}.`);
+    setBusy(true);
+    try {
+      const col = (r: string[], f: string) => (map[f] ? r[csv.header.indexOf(map[f])] : undefined);
+      const num = (v?: string) => (v == null || v === "" ? 0 : Math.abs(Number(v.replace(/,/g, ""))));
+      const fills: RawFill[] = csv.rows.map((r) => ({
+        symbol: (col(r, "instrument") ?? "").trim(),
+        side: ((col(r, "direction") ?? "").trim().toLowerCase().startsWith("s") ? "sell" : "buy") as RawFill["side"],
+        quantity: num(col(r, "quantity")),
+        price: num(col(r, "entry_price")),
+        timeMs: Date.parse(col(r, "entry_at") ?? ""),
+        cost: num(col(r, "fees")),
+      })).filter((f) => f.symbol);
+      const res = fillsToTrades(fills);
+      if (!res.trades.length) return void toast.error(res.open.length ? "No position was fully closed in this file, so nothing was imported." : "No trades could be built from this file.");
+
+      const { data: ins } = await supabase.from("instruments").select("id,symbol").eq("journal_id", journal.id);
+      const im = new Map((ins ?? []).map((i) => [i.symbol, i.id]));
+      const newSyms = [...new Set(res.trades.map((t) => t.symbol))].filter((x) => !im.has(x));
+      if (newSyms.length) {
+        const { data, error } = await supabase.from("instruments").insert(newSyms.map((symbol) => ({ symbol, journal_id: journal.id }))).select("id,symbol");
+        if (error) throw error;
+        data?.forEach((i) => im.set(i.symbol, i.id));
+      }
+      const rows = res.trades.map(({ legs: _legs, symbol, ...t }) => ({ ...t, journal_id: journal.id, instrument_id: im.get(symbol) ?? null }));
+      const idByExternal = new Map<string, string>();
+      for (let k = 0; k < rows.length; k += CHUNK) {
+        const { data, error } = await supabase.from("trades").upsert(rows.slice(k, k + CHUNK), { onConflict: "journal_id,external_id", ignoreDuplicates: true }).select("id,external_id");
+        if (error) throw error;
+        data?.forEach((d) => d.external_id && idByExternal.set(d.external_id, d.id));
+      }
+      // Legs only for trades that were actually inserted now; existing ones keep their legs.
+      const legs = res.trades.flatMap((t) => (idByExternal.has(t.external_id) ? t.legs.map((l) => ({ ...l, trade_id: idByExternal.get(t.external_id)!, journal_id: journal.id })) : []));
+      for (let k = 0; k < legs.length; k += CHUNK) {
+        const { error } = await supabase.from("trade_executions").insert(legs.slice(k, k + CHUNK));
+        if (error) throw error;
+      }
+      const added = idByExternal.size;
+      const extra = [res.open.length ? `${res.open.length} position${res.open.length === 1 ? "" : "s"} still open (not imported)` : "", res.errors.length ? `${res.errors.length} unreadable row${res.errors.length === 1 ? "" : "s"} skipped` : "", rows.length - added ? `${rows.length - added} already imported` : ""].filter(Boolean).join(", ");
+      toast.success(`Imported ${added} trade${added === 1 ? "" : "s"} from ${fills.length} fills${extra ? ` · ${extra}` : ""}`);
       qc.invalidateQueries();
       setCsv(null);
       onOpenChange(false);
@@ -195,6 +246,15 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
         <input type="file" accept=".csv,.html,.htm,.xlsx" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} className="text-sm" />
         {mt5 && <Mt5Preview report={mt5} journalCurrency={journal?.currency} tzKey={tzKey} onTz={setTzKey} withCash={withCash} onCash={setWithCash} />}
         {csv && (
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" className="mt-1" checked={asFills} onChange={(e) => setAsFills(e.target.checked)} />
+            <span>
+              Each row is a single fill (execution)
+              <span className="block text-xs text-muted-foreground">Fills are grouped into trades per instrument, including scaling in and partial exits. Map time → entry at, buy/sell → direction, price → entry price, commission → fees. Positions still open are not imported.</span>
+            </span>
+          </label>
+        )}
+        {csv && (
           <div className="grid max-h-72 grid-cols-2 gap-2 overflow-y-auto text-sm">
             {FIELDS.map((f) => (
               <label key={f} className="flex flex-col gap-1">
@@ -212,7 +272,7 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
           {mt5 ? (
             <Button onClick={runMt5} disabled={busy || mt5.positions.length === 0}>Import {mt5.positions.length} trades</Button>
           ) : (
-            <Button onClick={run} disabled={!csv || busy}>Import {csv ? `${csv.rows.length} rows` : ""}</Button>
+            <Button onClick={asFills ? runFills : run} disabled={!csv || busy}>Import {csv ? `${csv.rows.length} rows` : ""}</Button>
           )}
         </div>
       </DialogContent>

@@ -958,6 +958,59 @@ export type Database = {
           },
         ]
       }
+      trade_executions: {
+        Row: {
+          commission: number
+          created_at: string
+          executed_at: string
+          fee: number
+          id: string
+          journal_id: string
+          kind: string
+          price: number
+          quantity: number
+          side: string
+          swap: number
+          trade_id: string
+        }
+        Insert: {
+          commission?: number
+          created_at?: string
+          executed_at: string
+          fee?: number
+          id?: string
+          journal_id: string
+          kind: string
+          price: number
+          quantity: number
+          side: string
+          swap?: number
+          trade_id: string
+        }
+        Update: {
+          commission?: number
+          created_at?: string
+          executed_at?: string
+          fee?: number
+          id?: string
+          journal_id?: string
+          kind?: string
+          price?: number
+          quantity?: number
+          side?: string
+          swap?: number
+          trade_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trade_executions_trade_id_fkey"
+            columns: ["trade_id"]
+            isOneToOne: false
+            referencedRelation: "trades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trade_screenshots: {
         Row: {
           caption: string | null
