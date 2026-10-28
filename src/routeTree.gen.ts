@@ -29,6 +29,7 @@ import { Route as AuthenticatedMissedTradesRouteImport } from './routes/_authent
 import { Route as AuthenticatedMissedTradesAnalysisRouteImport } from './routes/_authenticated/missed-trades-analysis'
 import { Route as AuthenticatedPlansRouteImport } from './routes/_authenticated/plans'
 import { Route as AuthenticatedPortfolioRouteImport } from './routes/_authenticated/portfolio'
+import { Route as AuthenticatedPropChallengeRouteImport } from './routes/_authenticated/prop-challenge'
 import { Route as BlogIndexRouteImport } from './routes/blog.index'
 import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
 import { Route as FeaturesIndexRouteImport } from './routes/features.index'
@@ -147,6 +148,12 @@ const AuthenticatedPortfolioRoute = AuthenticatedPortfolioRouteImport.update({
   path: '/portfolio',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedPropChallengeRoute =
+  AuthenticatedPropChallengeRouteImport.update({
+    id: '/prop-challenge',
+    path: '/prop-challenge',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const BlogIndexRoute = BlogIndexRouteImport.update({
   id: '/blog/',
   path: '/blog/',
@@ -259,6 +266,7 @@ export interface FileRoutesByFullPath {
   '/missed-trades-analysis': typeof AuthenticatedMissedTradesAnalysisRoute
   '/plans': typeof AuthenticatedPlansRoute
   '/portfolio': typeof AuthenticatedPortfolioRoute
+  '/prop-challenge': typeof AuthenticatedPropChallengeRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/features/$slug': typeof FeaturesSlugRoute
   '/share/$token': typeof ShareTokenRoute
@@ -296,6 +304,7 @@ export interface FileRoutesByTo {
   '/missed-trades-analysis': typeof AuthenticatedMissedTradesAnalysisRoute
   '/plans': typeof AuthenticatedPlansRoute
   '/portfolio': typeof AuthenticatedPortfolioRoute
+  '/prop-challenge': typeof AuthenticatedPropChallengeRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/features/$slug': typeof FeaturesSlugRoute
   '/share/$token': typeof ShareTokenRoute
@@ -335,6 +344,7 @@ export interface FileRoutesById {
   '/_authenticated/missed-trades-analysis': typeof AuthenticatedMissedTradesAnalysisRoute
   '/_authenticated/plans': typeof AuthenticatedPlansRoute
   '/_authenticated/portfolio': typeof AuthenticatedPortfolioRoute
+  '/_authenticated/prop-challenge': typeof AuthenticatedPropChallengeRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/features/$slug': typeof FeaturesSlugRoute
   '/share/$token': typeof ShareTokenRoute
@@ -374,6 +384,7 @@ export interface FileRouteTypes {
     | '/missed-trades-analysis'
     | '/plans'
     | '/portfolio'
+    | '/prop-challenge'
     | '/blog/$slug'
     | '/features/$slug'
     | '/share/$token'
@@ -411,6 +422,7 @@ export interface FileRouteTypes {
     | '/missed-trades-analysis'
     | '/plans'
     | '/portfolio'
+    | '/prop-challenge'
     | '/blog/$slug'
     | '/features/$slug'
     | '/share/$token'
@@ -449,6 +461,7 @@ export interface FileRouteTypes {
     | '/_authenticated/missed-trades-analysis'
     | '/_authenticated/plans'
     | '/_authenticated/portfolio'
+    | '/_authenticated/prop-challenge'
     | '/blog/$slug'
     | '/features/$slug'
     | '/share/$token'
@@ -627,6 +640,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPortfolioRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/prop-challenge': {
+      id: '/_authenticated/prop-challenge'
+      path: '/prop-challenge'
+      fullPath: '/prop-challenge'
+      preLoaderRoute: typeof AuthenticatedPropChallengeRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/blog/': {
       id: '/blog/'
       path: '/blog'
@@ -753,6 +773,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMissedTradesAnalysisRoute: typeof AuthenticatedMissedTradesAnalysisRoute
   AuthenticatedPlansRoute: typeof AuthenticatedPlansRoute
   AuthenticatedPortfolioRoute: typeof AuthenticatedPortfolioRoute
+  AuthenticatedPropChallengeRoute: typeof AuthenticatedPropChallengeRoute
   AuthenticatedChartLabChartRoute: typeof AuthenticatedChartLabChartRoute
   AuthenticatedDiaryNotebookRoute: typeof AuthenticatedDiaryNotebookRoute
   AuthenticatedDiarySessionsRoute: typeof AuthenticatedDiarySessionsRoute
@@ -778,6 +799,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedMissedTradesAnalysisRoute,
   AuthenticatedPlansRoute: AuthenticatedPlansRoute,
   AuthenticatedPortfolioRoute: AuthenticatedPortfolioRoute,
+  AuthenticatedPropChallengeRoute: AuthenticatedPropChallengeRoute,
   AuthenticatedChartLabChartRoute: AuthenticatedChartLabChartRoute,
   AuthenticatedDiaryNotebookRoute: AuthenticatedDiaryNotebookRoute,
   AuthenticatedDiarySessionsRoute: AuthenticatedDiarySessionsRoute,
