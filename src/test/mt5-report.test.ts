@@ -4,7 +4,7 @@ import { parseMt5Report, parseMt5Rows, parseNumber, parseWallTime, Mt5ParseError
 import { D, PnlEngine, RateResolver } from "../../supabase/functions/_shared/pnl-engine/index.ts";
 import { mapTrade, type TradeRow } from "../../supabase/functions/_shared/pnl-map.ts";
 import { StaticProvider } from "./pnl-engine/helpers.ts";
-import { checkCompatibility, positionToTrade, reportToTrades, summarize } from "@/lib/mt5/to-trades";
+import { balanceOpsToCashflows, checkCompatibility, positionToTrade, reportToTrades, summarize } from "@/lib/mt5/to-trades";
 
 const th = (cells: string[]) => `<tr>${cells.map((c) => `<th>${c}</th>`).join("")}</tr>`;
 const td = (cells: string[]) => `<tr>${cells.map((c) => `<td>${c}</td>`).join("")}</tr>`;
@@ -138,6 +138,13 @@ describe("to-trades", () => {
   it("applies New York close DST: Oct 20 is GMT+3", () => {
     const t = positionToTrade(report.positions[0]!, "j1", null, { kind: "ny-close" });
     expect(t.entry_at).toBe("2026-10-20T05:15:00.000Z");
+  });
+
+  it("maps deposits and withdrawals to idempotent cashflows", () => {
+    expect(balanceOpsToCashflows(report, "j1", { kind: "fixed", offsetMinutes: 0 })).toEqual([
+      { journal_id: "j1", occurred_on: "2026-10-01", amount: 10000, note: "MT5: Deposit", external_id: "mt5-deal:1" },
+      { journal_id: "j1", occurred_on: "2026-10-25", amount: -500, note: "MT5: Withdrawal", external_id: "mt5-deal:9" },
+    ]);
   });
 
   it("summarises the report", () => {

@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useJournal } from "@/lib/journal-context";
 import { seedDemoTrades } from "@/lib/demo";
+import { auditJournalPnl } from "@/lib/pnl-audit";
 import { parseMt5Report, type Mt5Report } from "@/lib/mt5/parse-report";
-import { checkCompatibility, reportToTrades, summarize } from "@/lib/mt5/to-trades";
+import { balanceOpsToCashflows, checkCompatibility, reportToTrades, summarize } from "@/lib/mt5/to-trades";
 import type { ServerTz } from "../../supabase/functions/_shared/pnl-engine/time.ts";
 
 const FIELDS = ["entry_at", "exit_at", "instrument", "setup", "direction", "entry_price", "exit_price", "quantity", "stop_loss", "take_profit", "gross_pnl", "fees", "net_pnl"] as const;
@@ -34,6 +35,7 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   const [busy, setBusy] = useState(false);
   const [mt5, setMt5] = useState<Mt5Report | null>(null);
   const [tzKey, setTzKey] = useState("ny-close");
+  const [withCash, setWithCash] = useState(false);
 
   async function onFile(file: File) {
     if (/\.(html?|xlsx)$/i.test(file.name)) {
@@ -139,7 +141,25 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
         added += data?.length ?? 0;
       }
       const dupes = rows.length - added;
-      toast.success(`Imported ${added} trade${added === 1 ? "" : "s"}${dupes ? `, ${dupes} already in this journal` : ""}`);
+
+      // 4. Optional deposits/withdrawals, idempotent on the MT5 deal ticket.
+      let cash = 0;
+      if (withCash) {
+        const flows = balanceOpsToCashflows(mt5, journal.id, tz);
+        if (flows.length) {
+          const { data, error } = await supabase.from("journal_cashflows").upsert(flows, { onConflict: "journal_id,external_id", ignoreDuplicates: true }).select("id");
+          if (error) throw error;
+          cash = data?.length ?? 0;
+        }
+      }
+      toast.success(`Imported ${added} trade${added === 1 ? "" : "s"}${dupes ? `, ${dupes} already in this journal` : ""}${withCash ? `, ${cash} deposits/withdrawals` : ""}`);
+
+      // 5. Audit the new trades and fill in R-multiples. Failure here never undoes the import.
+      if (added > 0) {
+        auditJournalPnl(journal.id, { apply: true })
+          .then((r) => { qc.invalidateQueries(); if (r.reconciliation.MISMATCH) toast.warning(`${r.reconciliation.MISMATCH} trades differ from an independent P&L check`); })
+          .catch(() => toast.warning("Trades imported, but the P&L check could not run. R-multiples will be missing until it does."));
+      }
       qc.invalidateQueries();
       setMt5(null);
       onOpenChange(false);
@@ -173,7 +193,7 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
           <DialogDescription>Upload a MetaTrader 5 report (HTML or Excel), or a CSV export and match its columns.</DialogDescription>
         </DialogHeader>
         <input type="file" accept=".csv,.html,.htm,.xlsx" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} className="text-sm" />
-        {mt5 && <Mt5Preview report={mt5} journalCurrency={journal?.currency} tzKey={tzKey} onTz={setTzKey} />}
+        {mt5 && <Mt5Preview report={mt5} journalCurrency={journal?.currency} tzKey={tzKey} onTz={setTzKey} withCash={withCash} onCash={setWithCash} />}
         {csv && (
           <div className="grid max-h-72 grid-cols-2 gap-2 overflow-y-auto text-sm">
             {FIELDS.map((f) => (
@@ -200,7 +220,7 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   );
 }
 
-function Mt5Preview({ report, journalCurrency, tzKey, onTz }: { report: Mt5Report; journalCurrency?: string | undefined; tzKey: string; onTz: (k: string) => void }) {
+function Mt5Preview({ report, journalCurrency, tzKey, onTz, withCash, onCash }: { report: Mt5Report; journalCurrency?: string | undefined; tzKey: string; onTz: (k: string) => void; withCash: boolean; onCash: (v: boolean) => void }) {
   const sum = summarize(report);
   const a = report.account;
   const money = (n: number) => `${n < 0 ? "-" : ""}${Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${a?.currency || journalCurrency || ""}`;
@@ -211,8 +231,16 @@ function Mt5Preview({ report, journalCurrency, tzKey, onTz }: { report: Mt5Repor
         <div className="text-muted-foreground">
           {a ? `Account ${a.login}${a.server ? ` · ${a.server}` : ""}${a.type ? ` · ${a.type}` : ""} · ` : ""}Net {money(sum.net)} after commission and swap
         </div>
-        {report.balanceOps.length > 0 && <div className="text-muted-foreground">{report.balanceOps.length} deposits/withdrawals found (not imported as trades)</div>}
       </div>
+      {report.balanceOps.length > 0 && (
+        <label className="flex items-start gap-2">
+          <input type="checkbox" className="mt-1" checked={withCash} onChange={(e) => onCash(e.target.checked)} />
+          <span>
+            Also import {report.balanceOps.length} deposits/withdrawals
+            <span className="block text-xs text-muted-foreground">Leave off if your journal's starting balance already includes the first deposit, or it will be counted twice.</span>
+          </span>
+        </label>
+      )}
       <label className="flex flex-col gap-1">
         <span className="text-xs text-muted-foreground">Broker server time zone (MT5 reports use server time, not UTC)</span>
         <select className="h-8 rounded-md border bg-background px-2" value={tzKey} onChange={(e) => onTz(e.target.value)}>

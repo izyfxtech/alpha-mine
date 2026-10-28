@@ -123,3 +123,24 @@ export function summarize(report: Mt5Report): ReportSummary {
     lastCloseWallMs: closes.length ? Math.max(...closes) : null,
   };
 }
+
+export interface CashflowInsertRow {
+  journal_id: string;
+  occurred_on: string;
+  amount: number;
+  note: string;
+  external_id: string;
+}
+
+/** Deposits (positive) and withdrawals (negative) as journal cashflows, keyed by MT5 deal ticket. */
+export function balanceOpsToCashflows(report: Mt5Report, journalId: string, tz: ServerTz): CashflowInsertRow[] {
+  return report.balanceOps
+    .filter((b) => b.amount !== 0 && b.deal)
+    .map((b) => ({
+      journal_id: journalId,
+      occurred_on: new Date(serverWallToUtcMs(b.wallMs, tz)).toISOString().slice(0, 10),
+      amount: b.amount,
+      note: b.comment ? `MT5: ${b.comment}` : "MT5 balance operation",
+      external_id: `mt5-deal:${b.deal}`,
+    }));
+}

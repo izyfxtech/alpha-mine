@@ -375,6 +375,7 @@ export type Database = {
           journal_id: string
           note: string | null
           occurred_on: string
+          external_id: string | null
         }
         Insert: {
           amount: number
@@ -383,6 +384,7 @@ export type Database = {
           journal_id: string
           note?: string | null
           occurred_on?: string
+          external_id?: string | null
         }
         Update: {
           amount?: number
@@ -391,6 +393,7 @@ export type Database = {
           journal_id?: string
           note?: string | null
           occurred_on?: string
+          external_id?: string | null
         }
         Relationships: [
           {
