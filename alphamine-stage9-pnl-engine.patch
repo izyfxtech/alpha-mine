@@ -1,0 +1,3285 @@
+diff --git a/README.md b/README.md
+index c3f08bc..1f643f9 100644
+--- a/README.md
++++ b/README.md
+@@ -60,3 +60,26 @@ If your remote database already has the old manual migrations applied, mark them
+ ```
+ pnpm supabase migration repair --status applied 20261003080104 20261004074640 20261005113320 20261006152000
+ ```
++
++## P&L engine (audit mode)
++
++An exact decimal P&L engine with currency conversion and broker reconciliation runs in the `compute-pnl`
++Edge Function (`supabase/functions/_shared/pnl-engine`). In this phase it **never writes to `trades`**. It records
++what it computed next to the values currently stored, in `trade_pnl_audit`, so the two can be compared first.
++
++```
++pnpm supabase db push                                   # adds instrument/journal columns and the audit tables
++pnpm supabase functions deploy compute-pnl
++pnpm supabase secrets set MASSIVE_API_KEY=...           # optional: minute rates (Frankfurter daily rates need no key)
++```
++
++Run it for a journal (the client calls it until `remaining` is 0):
++
++```ts
++const { data } = await supabase.functions.invoke("compute-pnl", { body: { journal_id } });
++```
++
++Journals linked to a MetaTrader account are set to `lots`. For any other journal set `journals.quantity_unit`
++to `lots` or `units`; until then its trades are skipped, never guessed. Trades with hand typed P&L are never touched.
++Review: `select status, recon_status, count(*) from trade_pnl_audit group by 1, 2;`
++
+diff --git a/src/test/pnl-engine/fixes.test.ts b/src/test/pnl-engine/fixes.test.ts
+new file mode 100644
+index 0000000..3be5df7
+--- /dev/null
++++ b/src/test/pnl-engine/fixes.test.ts
+@@ -0,0 +1,127 @@
++// @vitest-environment node
++import { describe, expect, it } from 'vitest';
++import {
++  D,
++  FrankfurterProvider,
++  ImpliedRateProvider,
++  MassiveMinuteProvider,
++  PnlEngine,
++  ProviderError,
++  RateResolver,
++  UnsupportedInstrumentError,
++  inferInstrument,
++  type ClosedTrade,
++  type FetchLike,
++} from '../../../supabase/functions/_shared/pnl-engine/index.ts';
++import { StaticProvider } from './helpers.ts';
++
++const T0 = Date.UTC(2026, 9, 22, 12, 0, 0);
++const T1 = Date.UTC(2026, 9, 22, 13, 0, 0);
++const usdjpy = inferInstrument('USDJPY', { digits: 3, contractSize: 100000 });
++const eurusd = inferInstrument('EURUSD', { digits: 5, contractSize: 100000 });
++
++const jpy = (over: Partial<ClosedTrade> = {}): ClosedTrade => ({
++  id: 't', spec: usdjpy, side: 'buy', lots: D(1), openPrice: D('150.000'), closePrice: D('150.500'),
++  openTimeMs: T0, closeTimeMs: T1, accountCurrency: 'USD', ...over,
++});
++const resolver = (table: Record<string, string>) => new RateResolver({ providers: [new StaticProvider('ext', table)] });
++
++describe('fix 1: circular validation is refused', () => {
++  it('throws when implied is set without validationRates', () => {
++    const implied = new ImpliedRateProvider({ scope: 's' });
++    expect(() => new PnlEngine({ rates: resolver({}), implied })).toThrow(/validationRates/);
++  });
++  it('accepts implied together with validationRates', () => {
++    const implied = new ImpliedRateProvider({ scope: 's' });
++    expect(() => new PnlEngine({ rates: resolver({}), implied, validationRates: resolver({}) })).not.toThrow();
++  });
++});
++
++describe('fix 2: provider requests are time limited', () => {
++  const hangingFetch: FetchLike = (_url, init) =>
++    new Promise((_res, rej) => init?.signal?.addEventListener('abort', () => rej(new Error('aborted'))));
++
++  it('passes an AbortSignal on every request', async () => {
++    const seen: Array<AbortSignal | undefined> = [];
++    const f: FetchLike = async (_u, init) => { seen.push(init?.signal); return { ok: true, status: 200, json: async () => ({ date: '2026-10-22', rate: 150.5 }) }; };
++    await new FrankfurterProvider({ fetchImpl: f }).get('USD', 'JPY', T1);
++    expect(seen[0]).toBeInstanceOf(AbortSignal);
++  });
++  it('Frankfurter gives up on a hung socket instead of waiting forever', async () => {
++    const p = new FrankfurterProvider({ fetchImpl: hangingFetch, timeoutMs: 20, maxRetries: 0 });
++    await expect(p.get('USD', 'JPY', T1)).rejects.toBeInstanceOf(ProviderError);
++  });
++  it('Massive gives up on a hung socket instead of waiting forever', async () => {
++    const p = new MassiveMinuteProvider({ apiKey: 'k', fetchImpl: hangingFetch, timeoutMs: 20, maxRetries: 0 });
++    await expect(p.get('USD', 'JPY', T1)).rejects.toBeInstanceOf(ProviderError);
++  });
++});
++
++describe('fix 3: the entry-time rate behind R is returned', () => {
++  it('exposes openConversion alongside plannedRisk', async () => {
++    const eng = new PnlEngine({ rates: resolver({ USDJPY: '150.0' }) });
++    const r = await eng.computeClosed(jpy({ stopLoss: D('149.500') }));
++    expect(r.plannedRisk).not.toBeNull();
++    expect(r.openConversion?.base).toBe('JPY');
++    expect(r.openConversion?.rate.toFixed(8)).toBe(D(1).div(150).toFixed(8));
++  });
++  it('is null without a stop loss', async () => {
++    const r = await new PnlEngine({ rates: resolver({ USDJPY: '150.0' }) }).computeClosed(jpy());
++    expect(r.openConversion).toBeNull();
++  });
++});
++
++describe('fix 4: implied rates are learned only from trades we can trust', () => {
++  const build = (rates: RateResolver) => {
++    const implied = new ImpliedRateProvider({ scope: 's' });
++    return { implied, eng: new PnlEngine({ rates, implied, validationRates: rates }) };
++  };
++  it('learns from an OK trade', async () => {
++    const { implied, eng } = build(resolver({ USDJPY: '150.5' }));
++    expect((await eng.computeClosed(jpy({ broker: { profit: D('332.00') } }))).reconciliation!.status).toBe('OK');
++    expect(implied.size()).toBe(1);
++  });
++  it('does NOT learn from a WARN trade that has an independent figure', async () => {
++    const { implied, eng } = build(resolver({ USDJPY: '150.5' }));
++    expect((await eng.computeClosed(jpy({ broker: { profit: D('335.00') } }))).reconciliation!.status).toBe('WARN');
++    expect(implied.size()).toBe(0);
++  });
++  it('still learns when no independent rate exists to check against', async () => {
++    const { implied, eng } = build(new RateResolver({ providers: [] }));
++    const r = await eng.computeClosed(jpy({ broker: { profit: D('332.00') } }));
++    expect(r.reconciliation!.status).toBe('WARN');
++    expect(implied.size()).toBe(1);
++  });
++});
++
++describe('fix 5: instruments that are not currency pairs', () => {
++  it('keeps US500 whole instead of slicing "US5" / "00"', () => {
++    const s = inferInstrument('US500', { digits: 1, profitCurrency: 'USD', contractSize: 1 });
++    expect([s.kind, s.base, s.quote, s.profitCurrency]).toEqual(['cfd', 'US500', 'USD', 'USD']);
++  });
++  it('requires a profit currency for an explicit index', () => {
++    expect(() => inferInstrument('GER40', { digits: 1, kind: 'index', contractSize: 1 })).toThrow(UnsupportedInstrumentError);
++  });
++  it('parses four letter crypto codes', () => {
++    const d = inferInstrument('DOGEUSD', { digits: 5 });
++    expect([d.kind, d.base, d.quote]).toEqual(['crypto', 'DOGE', 'USD']);
++    const b = inferInstrument('BTCUSDT', { digits: 2 });
++    expect([b.base, b.quote, b.profitCurrency]).toEqual(['BTC', 'USDT', 'USDT']);
++  });
++  it('still handles broker suffixes and ordinary pairs', () => {
++    expect(inferInstrument('EURUSDm', { digits: 5 }).quote).toBe('USD');
++    expect(inferInstrument('XAUUSD.a', { digits: 2 }).kind).toBe('metal');
++    expect(inferInstrument('USDCAD', { digits: 5 }).base).toBe('USD');
++  });
++});
++
++describe('fix 6: one bad row does not abort a batch', () => {
++  it('returns an error entry for the bad trade and results for the rest, in order', async () => {
++    const eng = new PnlEngine({ rates: resolver({ USDJPY: '150.5' }) });
++    const out = await eng.computeMany([jpy({ id: 'a' }), jpy({ id: 'bad', lots: D(0) }), jpy({ id: 'c', spec: eurusd, openPrice: D('1.085'), closePrice: D('1.09') })]);
++    expect(out.map((o) => o.tradeId)).toEqual(['a', 'bad', 'c']);
++    expect('result' in out[0]!).toBe(true);
++    expect(out[1]).toMatchObject({ error: expect.stringMatching(/lots must be > 0/) });
++    expect('result' in out[2]!).toBe(true);
++  });
++});
+diff --git a/src/test/pnl-engine/helpers.ts b/src/test/pnl-engine/helpers.ts
+new file mode 100644
+index 0000000..dc54561
+--- /dev/null
++++ b/src/test/pnl-engine/helpers.ts
+@@ -0,0 +1,39 @@
++import { D, type RateKind, type RateObservation, type RateProvider } from '../../../supabase/functions/_shared/pnl-engine/index.ts';
++
++/** Deterministic provider for tests: fixed pair table, controllable freshness. */
++export class StaticProvider implements RateProvider {
++  constructor(
++    public readonly name: string,
++    private readonly table: Record<string, string>,
++    private readonly opts: { lagMs?: number; maxStalenessMs?: number; kind?: RateKind } = {},
++  ) {}
++
++  get maxStalenessMs(): number {
++    return this.opts.maxStalenessMs ?? 5 * 60_000;
++  }
++
++  async get(base: string, quote: string, atMs: number): Promise<RateObservation | null> {
++    const r = this.table[`${base}${quote}`];
++    if (r === undefined) return null;
++    return {
++      base,
++      quote,
++      rate: D(r),
++      observedAtMs: atMs - (this.opts.lagMs ?? 0),
++      source: this.name,
++      kind: this.opts.kind ?? 'minute',
++      side: 'mid',
++    };
++  }
++}
++
++export class ThrowingProvider implements RateProvider {
++  readonly name = 'boom';
++  readonly maxStalenessMs = 1000;
++  async get(): Promise<RateObservation | null> {
++    throw new Error('provider down');
++  }
++}
++
++export const T0 = Date.UTC(2026, 9, 23, 10, 0, 0); // Fri 23 Oct 2026 10:00 UTC
++export const HOUR = 3_600_000;
+diff --git a/src/test/pnl-engine/instruments-time.test.ts b/src/test/pnl-engine/instruments-time.test.ts
+new file mode 100644
+index 0000000..74c691f
+--- /dev/null
++++ b/src/test/pnl-engine/instruments-time.test.ts
+@@ -0,0 +1,98 @@
++// @vitest-environment node
++import { describe, expect, it } from 'vitest';
++import {
++  UnsupportedInstrumentError,
++  deriveFxPipSize,
++  ecbFixingUtcMs,
++  inferInstrument,
++  normalizeSymbol,
++  roundMoney,
++  D,
++  serverWallToUtcMs,
++  zoneOffsetMs,
++} from '../../../supabase/functions/_shared/pnl-engine/index.ts';
++
++describe('instruments', () => {
++  it('strips broker suffixes', () => {
++    for (const s of ['EURUSD.a', 'EURUSDm', 'eurusd#', 'EURUSD_i']) {
++      expect(normalizeSymbol(s).startsWith('EURUSD')).toBe(true);
++      const spec = inferInstrument(s, { digits: 5 });
++      expect([spec.base, spec.quote, spec.kind]).toEqual(['EUR', 'USD', 'fx']);
++    }
++  });
++
++  it('derives pip size from digits (fractional-pip quotes)', () => {
++    expect(deriveFxPipSize(5).toString()).toBe('0.0001');
++    expect(deriveFxPipSize(4).toString()).toBe('0.0001');
++    expect(deriveFxPipSize(3).toString()).toBe('0.01'); // JPY pairs, 3 digits
++    expect(deriveFxPipSize(2).toString()).toBe('0.01'); // JPY pairs, 2 digits
++  });
++
++  it('classifies metals and gives pip=null (points are the honest unit)', () => {
++    const gold = inferInstrument('XAUUSD', { digits: 2 });
++    expect(gold.kind).toBe('metal');
++    expect(gold.pipSize).toBeNull();
++    expect(gold.contractSize.toString()).toBe('100');
++    expect(gold.contractSizeSource).toBe('default');
++  });
++
++  it('broker-supplied contract size overrides defaults and is marked as such', () => {
++    const gold = inferInstrument('XAUUSD', { digits: 2, contractSize: 1 });
++    expect(gold.contractSize.toString()).toBe('1');
++    expect(gold.contractSizeSource).toBe('broker');
++  });
++
++  it('refuses to guess for unclassifiable CFDs; accepts them with explicit profit currency', () => {
++    expect(() => inferInstrument('GER40', { digits: 1 })).toThrow(UnsupportedInstrumentError);
++    const dax = inferInstrument('GER40', { digits: 1, profitCurrency: 'EUR', contractSize: 1, kind: 'index' });
++    expect(dax.profitCurrency).toBe('EUR');
++    expect(dax.pipSize).toBeNull();
++  });
++
++  it('rejects absurd digits', () => {
++    expect(() => inferInstrument('EURUSD', { digits: 12 })).toThrow(/digits/);
++  });
++});
++
++describe('money rounding', () => {
++  it('uses ISO minor units', () => {
++    expect(roundMoney(D('1234.5678'), 'USD').toString()).toBe('1234.57');
++    expect(roundMoney(D('1234.5678'), 'JPY').toString()).toBe('1235');
++    expect(roundMoney(D('1.23456'), 'BHD').toString()).toBe('1.235');
++  });
++  it('rounds half up (away from zero for positives)', () => {
++    expect(roundMoney(D('0.125'), 'USD').toString()).toBe('0.13');
++  });
++});
++
++describe('server time -> UTC', () => {
++  const wall = (y: number, mo: number, d: number, h = 12, mi = 0) => Date.UTC(y, mo - 1, d, h, mi, 0);
++
++  it("'ny-close' is GMT+3 in summer, GMT+2 in winter", () => {
++    expect(serverWallToUtcMs(wall(2026, 7, 1), { kind: 'ny-close' })).toBe(wall(2026, 7, 1, 9));
++    expect(serverWallToUtcMs(wall(2026, 1, 15), { kind: 'ny-close' })).toBe(wall(2026, 1, 15, 10));
++  });
++
++  it("'ny-close' switches on US DST dates (8 Mar 2026 start, 1 Nov 2026 end)", () => {
++    expect(serverWallToUtcMs(wall(2026, 3, 7, 23, 59), { kind: 'ny-close' })).toBe(wall(2026, 3, 7, 21, 59)); // +2
++    expect(serverWallToUtcMs(wall(2026, 3, 8, 0, 0), { kind: 'ny-close' })).toBe(wall(2026, 3, 7, 21, 0)); // +3
++    expect(serverWallToUtcMs(wall(2026, 10, 31, 23, 59), { kind: 'ny-close' })).toBe(wall(2026, 10, 31, 20, 59)); // +3
++    expect(serverWallToUtcMs(wall(2026, 11, 1, 0, 0), { kind: 'ny-close' })).toBe(wall(2026, 10, 31, 22, 0)); // +2
++  });
++
++  it('fixed offsets and IANA zones', () => {
++    expect(serverWallToUtcMs(wall(2026, 7, 1), { kind: 'fixed', offsetMinutes: 120 })).toBe(wall(2026, 7, 1, 10));
++    expect(serverWallToUtcMs(wall(2026, 7, 1), { kind: 'iana', zone: 'Europe/Athens' })).toBe(wall(2026, 7, 1, 9));
++    expect(serverWallToUtcMs(wall(2026, 1, 15), { kind: 'iana', zone: 'Europe/Athens' })).toBe(wall(2026, 1, 15, 10));
++  });
++
++  it('zoneOffsetMs reflects DST', () => {
++    expect(zoneOffsetMs('Europe/Berlin', wall(2026, 7, 1))).toBe(2 * 3_600_000);
++    expect(zoneOffsetMs('Europe/Berlin', wall(2026, 1, 15))).toBe(3_600_000);
++  });
++
++  it('ECB fixing is 16:00 Berlin time (14:00 UTC in CEST, 15:00 UTC in CET)', () => {
++    expect(ecbFixingUtcMs('2026-10-23')).toBe(Date.UTC(2026, 9, 23, 14, 0, 0));
++    expect(ecbFixingUtcMs('2026-01-15')).toBe(Date.UTC(2026, 0, 15, 15, 0, 0));
++  });
++});
+diff --git a/src/test/pnl-engine/matching.test.ts b/src/test/pnl-engine/matching.test.ts
+new file mode 100644
+index 0000000..b2bb80e
+--- /dev/null
++++ b/src/test/pnl-engine/matching.test.ts
+@@ -0,0 +1,112 @@
++// @vitest-environment node
++import { describe, expect, it } from 'vitest';
++import { D, matchAverage, matchFifo, segmentToClosedTrade, inferInstrument, type Fill, type Side } from '../../../supabase/functions/_shared/pnl-engine/index.ts';
++
++const fill = (id: string, side: Side, lots: string, price: string, t: number, extra: Partial<Fill> = {}): Fill => ({
++  id,
++  side,
++  lots: D(lots),
++  price: D(price),
++  timeMs: t,
++  ...extra,
++});
++
++describe('matchFifo', () => {
++  it('splits a partial close across lots oldest-first and allocates costs pro rata', () => {
++    const { segments, open } = matchFifo([
++      fill('b1', 'buy', '1', '1.1000', 1, { commission: D('-3.5') }),
++      fill('b2', 'buy', '1', '1.1020', 2),
++      fill('s1', 'sell', '1.5', '1.1050', 3, { commission: D('-5.25'), swap: D('-0.3') }),
++    ]);
++    expect(segments).toHaveLength(2);
++
++    // first segment consumes the whole first lot
++    expect(segments[0]!.lots.toString()).toBe('1');
++    expect(segments[0]!.openPrice.toString()).toBe('1.1');
++    expect(segments[0]!.closePrice.toString()).toBe('1.105');
++    expect(segments[0]!.commission.toString()).toBe('-7'); // -3.5 (open) + -3.5 (close share)
++    expect(segments[0]!.swap.toString()).toBe('-0.2');
++
++    // second segment consumes half of the second lot
++    expect(segments[1]!.lots.toString()).toBe('0.5');
++    expect(segments[1]!.openPrice.toString()).toBe('1.102');
++    expect(segments[1]!.commission.toString()).toBe('-1.75'); // only the closing share; b2 had no commission
++    expect(segments[1]!.swap.toString()).toBe('-0.1');
++
++    // conservation: allocated closing commission equals what was charged
++    const total = segments.reduce((a, s) => a.plus(s.commission), D(0));
++    expect(total.toString()).toBe('-8.75'); // -3.5 (b1) + -5.25 (s1)
++
++    expect(open).toHaveLength(1);
++    expect(open[0]!.lots.toString()).toBe('0.5');
++    expect(open[0]!.price.toString()).toBe('1.102');
++  });
++
++  it('a fill larger than the open position closes it and flips the remainder', () => {
++    const { segments, open } = matchFifo([
++      fill('b1', 'buy', '1', '1.1000', 1),
++      fill('s1', 'sell', '2', '1.2000', 2),
++    ]);
++    expect(segments).toHaveLength(1);
++    expect(segments[0]!.side).toBe('buy');
++    expect(open).toHaveLength(1);
++    expect(open[0]!.side).toBe('sell');
++    expect(open[0]!.lots.toString()).toBe('1');
++    expect(open[0]!.price.toString()).toBe('1.2');
++  });
++
++  it('is order-stable for fills with identical timestamps', () => {
++    const { segments } = matchFifo([
++      fill('b1', 'buy', '1', '1.1', 5),
++      fill('s1', 'sell', '1', '1.2', 5),
++    ]);
++    expect(segments).toHaveLength(1);
++    expect(segments[0]!.openFillId).toBe('b1');
++  });
++
++  it('rejects zero-lot fills', () => {
++    expect(() => matchFifo([fill('x', 'buy', '0', '1.1', 1)])).toThrow(/lots/);
++  });
++
++  it('adapts a segment into an engine trade, attaching only non-zero costs', () => {
++    const spec = inferInstrument('EURUSD', { digits: 5, contractSize: 100000 });
++    const { segments } = matchFifo([fill('b', 'buy', '1', '1.1', 1, { commission: D('-3') }), fill('s', 'sell', '1', '1.2', 2)]);
++    const t = segmentToClosedTrade(segments[0]!, spec, 'USD', 'seg-1');
++    expect(t.broker!.commission!.toString()).toBe('-3');
++    expect(t.broker!.swap).toBeUndefined();
++  });
++});
++
++describe('matchAverage', () => {
++  it('closes against the volume-weighted average entry', () => {
++    const { segments, open } = matchAverage([
++      fill('b1', 'buy', '1', '1.10', 1),
++      fill('b2', 'buy', '1', '1.20', 2),
++      fill('s1', 'sell', '1', '1.30', 3),
++    ]);
++    expect(segments).toHaveLength(1);
++    expect(segments[0]!.openPrice.toString()).toBe('1.15');
++    expect(segments[0]!.closePrice.toString()).toBe('1.3');
++    expect(open[0]!.lots.toString()).toBe('1');
++    expect(open[0]!.price.toString()).toBe('1.15'); // average is unchanged by a partial close
++  });
++
++  it('flips direction on an over-sized closing fill', () => {
++    const { segments, open } = matchAverage([fill('b', 'buy', '1', '1.1', 1), fill('s', 'sell', '3', '1.2', 2)]);
++    expect(segments).toHaveLength(1);
++    expect(open[0]!.side).toBe('sell');
++    expect(open[0]!.lots.toString()).toBe('2');
++  });
++
++  it('FIFO and average-cost differ per trade but agree on total P&L (price component)', () => {
++    const fills = [
++      fill('b1', 'buy', '1', '1.10', 1),
++      fill('b2', 'buy', '1', '1.20', 2),
++      fill('s1', 'sell', '2', '1.30', 3),
++    ];
++    const pnl = (segs: ReturnType<typeof matchFifo>['segments']) =>
++      segs.reduce((a, s) => a.plus(s.closePrice.minus(s.openPrice).times(s.lots)), D(0));
++    expect(pnl(matchFifo(fills).segments).toString()).toBe('0.3'); // 0.2 + 0.1
++    expect(pnl(matchAverage(fills).segments).toString()).toBe('0.3'); // 0.15 x 2
++  });
++});
+diff --git a/src/test/pnl-engine/pnl.test.ts b/src/test/pnl-engine/pnl.test.ts
+new file mode 100644
+index 0000000..df14df6
+--- /dev/null
++++ b/src/test/pnl-engine/pnl.test.ts
+@@ -0,0 +1,282 @@
++// @vitest-environment node
++import { describe, expect, it } from 'vitest';
++import {
++  D,
++  ImpliedRateProvider,
++  PnlEngine,
++  RateResolver,
++  inferInstrument,
++  roundMoney,
++  type ClosedTrade,
++  type Side,
++} from '../../../supabase/functions/_shared/pnl-engine/index.ts';
++import { HOUR, StaticProvider, T0 } from './helpers.ts';
++
++const eurusd = inferInstrument('EURUSD', { digits: 5, contractSize: 100000 });
++const usdjpy = inferInstrument('USDJPY', { digits: 3, contractSize: 100000 });
++const eurgbp = inferInstrument('EURGBP', { digits: 5, contractSize: 100000 });
++
++function trade(p: {
++  spec: ClosedTrade['spec'];
++  side: Side;
++  lots: string;
++  open: string;
++  close: string;
++  acct: string;
++  id?: string;
++  closeAt?: number;
++  broker?: ClosedTrade['broker'];
++  sl?: string;
++}): ClosedTrade {
++  return {
++    id: p.id ?? 't1',
++    spec: p.spec,
++    side: p.side,
++    lots: D(p.lots),
++    openPrice: D(p.open),
++    closePrice: D(p.close),
++    openTimeMs: T0,
++    closeTimeMs: p.closeAt ?? T0 + HOUR,
++    accountCurrency: p.acct,
++    ...(p.broker ? { broker: p.broker } : {}),
++    ...(p.sl ? { stopLoss: D(p.sl) } : {}),
++  };
++}
++
++function engineWith(table: Record<string, string>) {
++  const rates = new RateResolver({ providers: [new StaticProvider('static', table)] });
++  return new PnlEngine({ rates });
++}
++
++describe('computed path: textbook examples', () => {
++  it('EURUSD buy 1 lot 1.0850 -> 1.0900 in a USD account = +$500, 50 pips', async () => {
++    const r = await engineWith({}).computeClosed(
++      trade({ spec: eurusd, side: 'buy', lots: '1', open: '1.0850', close: '1.0900', acct: 'USD' }),
++    );
++    expect(r.grossAccount!.toString()).toBe('500');
++    expect(r.pips!.toString()).toBe('50');
++    expect(r.grossSource).toBe('computed');
++    expect(r.conversion!.source).toBe('identity');
++    expect(r.pipValueAccount!.toString()).toBe('10');
++  });
++
++  it('USDJPY buy 1 lot 150.000 -> 150.500 in a USD account converts JPY at the close rate', async () => {
++    const r = await engineWith({ USDJPY: '150.5' }).computeClosed(
++      trade({ spec: usdjpy, side: 'buy', lots: '1', open: '150.000', close: '150.500', acct: 'USD' }),
++    );
++    expect(r.grossInProfitCurrency.toString()).toBe('50000'); // JPY
++    expect(r.pips!.toString()).toBe('50');
++    expect(roundMoney(r.grossAccount!, 'USD').toFixed(2)).toBe('332.23'); // 50000 / 150.5
++    expect(roundMoney(r.pipValueAccount!, 'USD').toFixed(2)).toBe('6.64'); // 1000 / 150.5
++  });
++
++  it('EURGBP sell 0.5 lot 0.8600 -> 0.8550 in a USD account multiplies by GBPUSD', async () => {
++    const r = await engineWith({ GBPUSD: '1.30' }).computeClosed(
++      trade({ spec: eurgbp, side: 'sell', lots: '0.5', open: '0.8600', close: '0.8550', acct: 'USD' }),
++    );
++    expect(r.grossInProfitCurrency.toString()).toBe('250'); // GBP
++    expect(r.pips!.toString()).toBe('50');
++    expect(roundMoney(r.grossAccount!, 'USD').toFixed(2)).toBe('325.00');
++  });
++
++  it('EURUSD in a EUR account divides by EURUSD (inverse leg)', async () => {
++    const r = await engineWith({ EURUSD: '1.12' }).computeClosed(
++      trade({ spec: eurusd, side: 'buy', lots: '0.1', open: '1.1000', close: '1.1010', acct: 'EUR' }),
++    );
++    expect(r.grossInProfitCurrency.toString()).toBe('10'); // USD
++    expect(roundMoney(r.grossAccount!, 'EUR').toFixed(2)).toBe('8.93'); // 10 / 1.12
++  });
++
++  it('a losing short is negative', async () => {
++    const r = await engineWith({}).computeClosed(
++      trade({ spec: eurusd, side: 'sell', lots: '1', open: '1.1000', close: '1.1020', acct: 'USD' }),
++    );
++    expect(r.grossAccount!.toString()).toBe('-200');
++    expect(r.pips!.toString()).toBe('-20');
++  });
++
++  it('decimal math is exact where floating point is not', async () => {
++    // 0.07 lot x 100000 x 0.00033 -> 2.31 exactly; JS floats give 2.3100000000000005 territory
++    const r = await engineWith({}).computeClosed(
++      trade({ spec: eurusd, side: 'buy', lots: '0.07', open: '1.10000', close: '1.10033', acct: 'USD' }),
++    );
++    expect(r.grossAccount!.toString()).toBe('2.31');
++  });
++});
++
++describe('unpriced and costs', () => {
++  it('refuses to guess when no rate is fresh enough', async () => {
++    const stale = new StaticProvider('stale', { USDJPY: '150.5' }, { lagMs: HOUR, maxStalenessMs: 5 * 60_000 });
++    const eng = new PnlEngine({ rates: new RateResolver({ providers: [stale] }) });
++    const r = await eng.computeClosed(
++      trade({ spec: usdjpy, side: 'buy', lots: '1', open: '150.000', close: '150.500', acct: 'USD' }),
++    );
++    expect(r.grossSource).toBe('unpriced');
++    expect(r.grossAccount).toBeNull();
++    expect(r.netAccount).toBeNull();
++    expect(r.warnings.join(' ')).toMatch(/No JPY->USD rate/);
++  });
++
++  it('net = gross + swap + commission + fee with costs as signed amounts', async () => {
++    const r = await engineWith({}).computeClosed(
++      trade({
++        spec: eurusd,
++        side: 'buy',
++        lots: '1',
++        open: '1.0850',
++        close: '1.0900',
++        acct: 'USD',
++        broker: { swap: D('-1.5'), commission: D('-7'), fee: D('-0.25') },
++      }),
++    );
++    expect(r.grossAccount!.toString()).toBe('500');
++    expect(r.netAccount!.toString()).toBe('491.25');
++    expect(r.costsReported).toBe(true);
++  });
++
++  it('warns when no costs were supplied', async () => {
++    const r = await engineWith({}).computeClosed(
++      trade({ spec: eurusd, side: 'buy', lots: '1', open: '1.0850', close: '1.0900', acct: 'USD' }),
++    );
++    expect(r.costsReported).toBe(false);
++    expect(r.warnings.join(' ')).toMatch(/No swap\/commission\/fee/);
++  });
++
++  it('warns when contract size is only a default', async () => {
++    const spec = inferInstrument('EURUSD', { digits: 5 });
++    const r = await engineWith({}).computeClosed(
++      trade({ spec, side: 'buy', lots: '1', open: '1.0850', close: '1.0900', acct: 'USD' }),
++    );
++    expect(r.warnings.join(' ')).toMatch(/default assumption/);
++  });
++});
++
++describe('broker-authoritative path and reconciliation', () => {
++  const jpyTrade = (broker: ClosedTrade['broker'], id = 'j1', closeAt = T0 + HOUR) =>
++    trade({ spec: usdjpy, side: 'buy', lots: '1', open: '150.000', close: '150.500', acct: 'USD', id, closeAt, broker });
++
++  it("stores the broker's number and reconciles it against an independent rate", async () => {
++    const eng = engineWith({ USDJPY: '150.5' });
++    const r = await eng.computeClosed(
++      jpyTrade({ profit: D('332.00'), commission: D('-7'), swap: D('-1.5') }),
++    );
++    expect(r.grossSource).toBe('broker');
++    expect(r.grossAccount!.toString()).toBe('332');
++    expect(r.netAccount!.toString()).toBe('323.5');
++    expect(r.reconciliation!.status).toBe('OK'); // 0.23 off, well inside 0.05 + 0.3%
++    expect(roundMoney(r.computedGross!, 'USD').toFixed(2)).toBe('332.23');
++  });
++
++  it('with no independent rate, keeps the broker figure, reports WARN and says why', async () => {
++    const r = await engineWith({}).computeClosed(jpyTrade({ profit: D('332.00') }));
++    expect(r.grossSource).toBe('broker');
++    expect(r.grossAccount!.toString()).toBe('332');
++    expect(r.reconciliation!.status).toBe('WARN');
++    expect(r.computedGross).toBeNull();
++    expect(r.warnings.join(' ')).toMatch(/stored unverified: no independent JPY->USD rate/);
++    // the implied rate is still learned: it does not depend on an external rate
++    expect(r.impliedRate!.rate.toString()).toBe('0.00664');
++  });
++
++  it('back-solves the exact broker conversion rate', async () => {
++    const r = await engineWith({ USDJPY: '150.5' }).computeClosed(jpyTrade({ profit: D('332.00') }));
++    expect(r.impliedRate!.base).toBe('JPY');
++    expect(r.impliedRate!.quote).toBe('USD');
++    expect(r.impliedRate!.rate.toString()).toBe('0.00664'); // 332 / 50000
++    expect(r.impliedRate!.kind).toBe('implied');
++  });
++
++  it('flags a power-of-ten error and does NOT learn a rate from a bad trade', async () => {
++    const implied = new ImpliedRateProvider({ scope: 'acct-1' });
++    const rates = new RateResolver({ providers: [new StaticProvider('ext', { USDJPY: '150.5' })] });
++    const eng = new PnlEngine({ rates, implied, validationRates: rates });
++    const r = await eng.computeClosed(jpyTrade({ profit: D('3322.26') }));
++    expect(r.reconciliation!.status).toBe('MISMATCH');
++    expect(r.reconciliation!.diagnosis.join(' ')).toMatch(/power of ten/);
++    expect(r.warnings.join(' ')).toMatch(/disagrees/);
++    expect(implied.size()).toBe(0);
++  });
++
++  it('flags opposite signs as a probable side reversal', async () => {
++    const r = await engineWith({ USDJPY: '150.5' }).computeClosed(jpyTrade({ profit: D('-332.00') }));
++    expect(r.reconciliation!.status).toBe('MISMATCH');
++    expect(r.reconciliation!.diagnosis.join(' ')).toMatch(/Opposite signs/);
++    expect(r.warnings.join(' ')).toMatch(/sign contradicts/);
++  });
++
++  it('uses a rate learned from one trade to price the next trade the broker never valued', async () => {
++    const implied = new ImpliedRateProvider({ scope: 'acct-1' });
++    const ext = new StaticProvider('ext', { USDJPY: '150.5' });
++    const eng = new PnlEngine({
++      rates: new RateResolver({ providers: [implied, ext] }), // implied first: most accurate
++      validationRates: new RateResolver({ providers: [ext] }), // external only: no circular check
++      implied,
++    });
++
++    const first = await eng.computeClosed(jpyTrade({ profit: D('332.00') }, 'j1', T0 + HOUR));
++    expect(first.reconciliation!.status).toBe('OK');
++    expect(implied.size()).toBe(1);
++
++    // Ten minutes later, no broker profit supplied (e.g. a CSV row without a profit column):
++    const second = await eng.computeClosed(
++      trade({ spec: usdjpy, side: 'buy', lots: '0.5', open: '148.000', close: '148.200', acct: 'USD', id: 'j2', closeAt: T0 + HOUR + 600_000 }),
++    );
++    expect(second.grossSource).toBe('computed');
++    expect(second.conversion!.kind).toBe('implied');
++    expect(second.grossAccount!.toString()).toBe('66.4'); // 0.2 * 50000 * 0.00664
++  });
++});
++
++describe('planned risk and R-multiple', () => {
++  it('R = net / (|entry - SL| x units x entry-time rate)', async () => {
++    const r = await engineWith({}).computeClosed(
++      trade({ spec: eurusd, side: 'buy', lots: '1', open: '1.1000', close: '1.1050', acct: 'USD', sl: '1.0950' }),
++    );
++    expect(r.plannedRisk!.toString()).toBe('500');
++    expect(r.rMultiple!.toString()).toBe('1');
++  });
++
++  it('skips R when the stop was trailed to/over break-even', async () => {
++    const r = await engineWith({}).computeClosed(
++      trade({ spec: eurusd, side: 'buy', lots: '1', open: '1.1000', close: '1.1050', acct: 'USD', sl: '1.1010' }),
++    );
++    expect(r.plannedRisk).toBeNull();
++    expect(r.rMultiple).toBeNull();
++    expect(r.warnings.join(' ')).toMatch(/trailed/);
++  });
++});
++
++describe('mark-to-market', () => {
++  const pos = (side: Side) => ({
++    id: 'p1',
++    spec: eurusd,
++    side,
++    lots: D('1'),
++    openPrice: D('1.1000'),
++    openTimeMs: T0,
++    accountCurrency: 'USD',
++  });
++  const q = { bid: D('1.1010'), ask: D('1.1012') };
++
++  it('values longs at BID', async () => {
++    const f = await engineWith({}).markToMarket(pos('buy'), q, T0 + HOUR);
++    expect(f.grossAccount!.toString()).toBe('100');
++    expect(f.pips!.toString()).toBe('10');
++  });
++
++  it('values shorts at ASK', async () => {
++    const f = await engineWith({}).markToMarket(pos('sell'), q, T0 + HOUR);
++    expect(f.grossAccount!.toString()).toBe('-120');
++  });
++});
++
++describe('input validation', () => {
++  it('rejects non-positive lots, bad prices and time travel', async () => {
++    const eng = engineWith({});
++    await expect(eng.computeClosed(trade({ spec: eurusd, side: 'buy', lots: '0', open: '1', close: '1', acct: 'USD' }))).rejects.toThrow(/lots/);
++    await expect(eng.computeClosed(trade({ spec: eurusd, side: 'buy', lots: '1', open: '0', close: '1', acct: 'USD' }))).rejects.toThrow(/prices/);
++    await expect(
++      eng.computeClosed(trade({ spec: eurusd, side: 'buy', lots: '1', open: '1', close: '1', acct: 'USD', closeAt: T0 - 1 })),
++    ).rejects.toThrow(/closeTime/);
++  });
++});
+diff --git a/src/test/pnl-engine/providers.test.ts b/src/test/pnl-engine/providers.test.ts
+new file mode 100644
+index 0000000..1ea45cf
+--- /dev/null
++++ b/src/test/pnl-engine/providers.test.ts
+@@ -0,0 +1,179 @@
++// @vitest-environment node
++import { describe, expect, it } from 'vitest';
++import {
++  FrankfurterProvider,
++  MassiveMinuteProvider,
++  ProviderError,
++  RateResolver,
++  type FetchLike,
++  type HttpResponse,
++} from '../../../supabase/functions/_shared/pnl-engine/index.ts';
++
++const ok = (body: unknown): HttpResponse => ({ ok: true, status: 200, json: async () => body });
++const status = (s: number): HttpResponse => ({ ok: false, status: s, json: async () => ({}) });
++const noSleep = async () => undefined;
++
++describe('FrankfurterProvider (ECB daily fix)', () => {
++  const row = (date: string, rate: number) => ({ date, base: 'USD', quote: 'JPY', rate });
++
++  function stub(byDate: Record<string, number>) {
++    const urls: string[] = [];
++    const f: FetchLike = async (url) => {
++      urls.push(url);
++      const date = /date=(\d{4}-\d{2}-\d{2})/.exec(url)![1]!;
++      const r = byDate[date];
++      return r === undefined ? status(404) : ok(row(date, r));
++    };
++    return { f, urls };
++  }
++
++  it('Saturday -> uses Friday fixing, pinned to the ECB provider, v2 URL shape', async () => {
++    const { f, urls } = stub({ '2026-10-23': 156.8 });
++    const p = new FrankfurterProvider({ fetchImpl: f });
++    const atMs = Date.UTC(2026, 9, 24, 10, 0, 0); // Saturday
++    const o = (await p.get('USD', 'JPY', atMs))!;
++    expect(urls[0]).toBe('https://api.frankfurter.dev/v2/rate/USD/JPY?date=2026-10-23&providers=ECB');
++    expect(o.rate.toString()).toBe('156.8');
++    expect(o.kind).toBe('daily-fix');
++    expect(o.observedAtMs).toBe(Date.UTC(2026, 9, 23, 14, 0, 0)); // 16:00 CEST
++  });
++
++  it('before today\'s 16:00 CET fixing it must use the previous business day (no look-ahead)', async () => {
++    const { f, urls } = stub({ '2026-10-23': 156.8, '2026-10-22': 156.0 });
++    const p = new FrankfurterProvider({ fetchImpl: f });
++    const o = (await p.get('USD', 'JPY', Date.UTC(2026, 9, 23, 10, 0, 0)))!; // Fri 10:00 UTC, fix at 14:00 UTC
++    expect(urls[0]).toContain('date=2026-10-22');
++    expect(o.rate.toString()).toBe('156');
++  });
++
++  it('after the fixing the same day is allowed', async () => {
++    const { f } = stub({ '2026-10-23': 156.8 });
++    const o = (await new FrankfurterProvider({ fetchImpl: f }).get('USD', 'JPY', Date.UTC(2026, 9, 23, 14, 0, 1)))!;
++    expect(o.rate.toString()).toBe('156.8');
++  });
++
++  it('walks back over a holiday gap (404) to the last published day', async () => {
++    const { f } = stub({ '2026-10-21': 155.5 }); // 22nd and 23rd missing
++    const o = (await new FrankfurterProvider({ fetchImpl: f }).get('USD', 'JPY', Date.UTC(2026, 9, 23, 20, 0, 0)))!;
++    expect(o.observedAtMs).toBe(Date.UTC(2026, 9, 21, 14, 0, 0));
++  });
++
++  it('returns null for an unsupported pair', async () => {
++    const { f } = stub({});
++    expect(await new FrankfurterProvider({ fetchImpl: f }).get('USD', 'XXX', Date.UTC(2026, 9, 23, 20, 0, 0))).toBeNull();
++  });
++
++  it('retries 429 with backoff then succeeds', async () => {
++    let calls = 0;
++    const f: FetchLike = async (url) => {
++      calls++;
++      return calls === 1 ? status(429) : ok(row(/date=(\S+?)&/.exec(url)![1]!, 156.8));
++    };
++    const o = await new FrankfurterProvider({ fetchImpl: f, sleep: noSleep }).get('USD', 'JPY', Date.UTC(2026, 9, 23, 20, 0, 0));
++    expect(o!.rate.toString()).toBe('156.8');
++    expect(calls).toBe(2);
++  });
++
++  it('throws ProviderError on persistent server errors', async () => {
++    const f: FetchLike = async () => status(503);
++    await expect(
++      new FrankfurterProvider({ fetchImpl: f, sleep: noSleep }).get('USD', 'JPY', Date.UTC(2026, 9, 23, 20, 0, 0)),
++    ).rejects.toBeInstanceOf(ProviderError);
++  });
++
++  it('rejects malformed payloads instead of trusting them', async () => {
++    const f: FetchLike = async () => ok({ date: '2026-10-23', rate: 'abc' });
++    await expect(new FrankfurterProvider({ fetchImpl: f }).get('USD', 'JPY', Date.UTC(2026, 9, 23, 20, 0, 0))).rejects.toThrow(/unexpected response/);
++  });
++
++  it('caches per pair/date', async () => {
++    const { f, urls } = stub({ '2026-10-23': 156.8 });
++    const p = new FrankfurterProvider({ fetchImpl: f });
++    await p.get('USD', 'JPY', Date.UTC(2026, 9, 23, 15, 0, 0));
++    await p.get('USD', 'JPY', Date.UTC(2026, 9, 23, 18, 0, 0));
++    expect(urls).toHaveLength(1);
++  });
++});
++
++describe('MassiveMinuteProvider (1-minute bars)', () => {
++  const base = Date.UTC(2026, 9, 23, 10, 5, 0);
++  const bars = [
++    { t: base, o: 1.1, c: 1.101, h: 1.102, l: 1.099, v: 10 },
++    { t: base + 60_000, o: 1.101, c: 1.102, h: 1.103, l: 1.1, v: 12 },
++  ];
++  const now = () => Date.UTC(2026, 9, 26);
++
++  function make(opts: { body?: unknown; resp?: HttpResponse } = {}) {
++    const calls: Array<{ url: string; headers?: Record<string, string> }> = [];
++    const f: FetchLike = async (url, init) => {
++      calls.push({ url, ...(init?.headers ? { headers: init.headers } : {}) });
++      return opts.resp ?? ok(opts.body ?? { status: 'OK', results: bars, resultsCount: bars.length });
++    };
++    return { p: new MassiveMinuteProvider({ apiKey: 'k', fetchImpl: f, now, sleep: noSleep }), calls };
++  }
++
++  it('inside a bar -> that bar\'s OPEN, observed at bar start (knowable at that instant)', async () => {
++    const { p } = make();
++    const o = (await p.get('EUR', 'USD', base + 30_000))!;
++    expect(o.rate.toString()).toBe('1.1');
++    expect(o.observedAtMs).toBe(base);
++    expect(o.kind).toBe('minute');
++  });
++
++  it('just inside the next bar -> next bar\'s open', async () => {
++    const { p } = make();
++    expect((await p.get('EUR', 'USD', base + 60_010))!.rate.toString()).toBe('1.101');
++  });
++
++  it('after a quote gap -> last completed bar\'s CLOSE, observed at its end', async () => {
++    const { p } = make();
++    const o = (await p.get('EUR', 'USD', base + 150_000))!;
++    expect(o.rate.toString()).toBe('1.102');
++    expect(o.observedAtMs).toBe(base + 120_000);
++  });
++
++  it('never returns a bar that starts after the requested instant', async () => {
++    const { p } = make();
++    expect(await p.get('EUR', 'USD', base - 1)).toBeNull();
++  });
++
++  it('requests the right endpoint with bearer auth, and caches complete hours', async () => {
++    const { p, calls } = make();
++    await p.get('EUR', 'USD', base + 1000);
++    await p.get('EUR', 'USD', base + 2000);
++    expect(calls).toHaveLength(1);
++    expect(calls[0]!.url).toContain('https://api.massive.com/v2/aggs/ticker/C:EURUSD/range/1/minute/');
++    expect(calls[0]!.url).toContain('sort=asc');
++    expect(calls[0]!.headers).toEqual({ Authorization: 'Bearer k' });
++  });
++
++  it('does not cache the still-incomplete current hour', async () => {
++    const calls: string[] = [];
++    const f: FetchLike = async (url) => {
++      calls.push(url);
++      return ok({ results: bars });
++    };
++    const p = new MassiveMinuteProvider({ apiKey: 'k', fetchImpl: f, now: () => base + 120_000, sleep: noSleep });
++    await p.get('EUR', 'USD', base + 1000);
++    await p.get('EUR', 'USD', base + 2000);
++    expect(calls).toHaveLength(2);
++  });
++
++  it('empty history -> null (honest gap, not a guess)', async () => {
++    const { p } = make({ body: { status: 'OK', results: [], resultsCount: 0 } });
++    expect(await p.get('EUR', 'USD', base)).toBeNull();
++  });
++
++  it('auth/plan failures surface as errors, and the resolver falls through', async () => {
++    const { p } = make({ resp: status(403) });
++    await expect(p.get('EUR', 'USD', base)).rejects.toBeInstanceOf(ProviderError);
++    const seen: string[] = [];
++    const r = new RateResolver({ providers: [p], onProviderError: (n) => seen.push(n) });
++    expect(await r.resolve('EUR', 'USD', base)).toBeNull();
++    expect(seen).toEqual(['massive-1m']);
++  });
++
++  it('requires an api key', () => {
++    expect(() => new MassiveMinuteProvider({ apiKey: '' })).toThrow(/apiKey/);
++  });
++});
+diff --git a/src/test/pnl-engine/resolver.test.ts b/src/test/pnl-engine/resolver.test.ts
+new file mode 100644
+index 0000000..8057a53
+--- /dev/null
++++ b/src/test/pnl-engine/resolver.test.ts
+@@ -0,0 +1,112 @@
++// @vitest-environment node
++import { describe, expect, it } from 'vitest';
++import { ImpliedRateProvider, RateResolver, D } from '../../../supabase/functions/_shared/pnl-engine/index.ts';
++import { HOUR, StaticProvider, T0, ThrowingProvider } from './helpers.ts';
++
++describe('RateResolver', () => {
++  it('identity: same currency is exactly 1', async () => {
++    const r = new RateResolver({ providers: [] });
++    const o = await r.resolve('USD', 'USD', T0);
++    expect(o!.rate.toString()).toBe('1');
++    expect(o!.source).toBe('identity');
++  });
++
++  it('direct pair', async () => {
++    const r = new RateResolver({ providers: [new StaticProvider('p', { GBPUSD: '1.30' })] });
++    expect((await r.resolve('GBP', 'USD', T0))!.rate.toString()).toBe('1.3');
++  });
++
++  it('inverse pair is 1/rate and flagged derived with lineage', async () => {
++    const r = new RateResolver({ providers: [new StaticProvider('p', { EURUSD: '1.25' })] });
++    const o = (await r.resolve('USD', 'EUR', T0))!;
++    expect(o.rate.toString()).toBe('0.8');
++    expect(o.kind).toBe('derived');
++    expect(o.lineage).toHaveLength(1);
++  });
++
++  it('triangulates through a pivot when no direct or inverse pair exists', async () => {
++    const r = new RateResolver({ providers: [new StaticProvider('p', { EURUSD: '1.10', EURZAR: '20' })] });
++    const o = (await r.resolve('USD', 'ZAR', T0))!; // USD->EUR (inverse) x EUR->ZAR
++    expect(o.rate.toFixed(6)).toBe('18.181818');
++    expect(o.kind).toBe('derived');
++    expect(o.lineage).toHaveLength(2);
++  });
++
++  it('skips a pivot equal to an endpoint (no USD->USD->X loop)', async () => {
++    const r = new RateResolver({ providers: [new StaticProvider('p', { EURZAR: '20' })], pivots: ['USD'] });
++    expect(await r.resolve('USD', 'ZAR', T0)).toBeNull();
++  });
++
++  it('returns null rather than a stale rate', async () => {
++    const p = new StaticProvider('p', { GBPUSD: '1.30' }, { lagMs: HOUR, maxStalenessMs: 60_000 });
++    expect(await new RateResolver({ providers: [p] }).resolve('GBP', 'USD', T0)).toBeNull();
++  });
++
++  it('rejects look-ahead observations', async () => {
++    const p = new StaticProvider('p', { GBPUSD: '1.30' }, { lagMs: -5000 });
++    expect(await new RateResolver({ providers: [p] }).resolve('GBP', 'USD', T0)).toBeNull();
++  });
++
++  it('a chain is as stale as its stalest link', async () => {
++    const r = new RateResolver({ providers: [new StaticProvider('p', { EURUSD: '1.10', EURZAR: '20' }, { lagMs: 1000 })] });
++    const o = (await r.resolve('USD', 'ZAR', T0))!;
++    expect(o.observedAtMs).toBe(T0 - 1000);
++  });
++
++  it('falls through to the next provider when one throws, and reports it', async () => {
++    const errs: string[] = [];
++    const r = new RateResolver({
++      providers: [new ThrowingProvider(), new StaticProvider('backup', { GBPUSD: '1.30' })],
++      onProviderError: (name) => errs.push(name),
++    });
++    const o = await r.resolve('GBP', 'USD', T0);
++    expect(o!.source).toBe('backup');
++    expect(errs).toEqual(['boom']);
++  });
++
++  it('honours provider priority: first able provider wins', async () => {
++    const r = new RateResolver({
++      providers: [new StaticProvider('best', { GBPUSD: '1.31' }), new StaticProvider('worse', { GBPUSD: '1.30' })],
++    });
++    expect((await r.resolve('GBP', 'USD', T0))!.source).toBe('best');
++  });
++
++  it('inversion swaps bid/ask', async () => {
++    const bidProvider = {
++      name: 'b',
++      maxStalenessMs: 1000,
++      get: async (base: string, quote: string, at: number) =>
++        base === 'EUR' && quote === 'USD'
++          ? { base, quote, rate: D('1.25'), observedAtMs: at, source: 'b', kind: 'tick' as const, side: 'bid' as const }
++          : null,
++    };
++    const o = (await new RateResolver({ providers: [bidProvider] }).resolve('USD', 'EUR', T0))!;
++    expect(o.side).toBe('ask');
++  });
++});
++
++describe('ImpliedRateProvider', () => {
++  const obs = (at: number, rate: string) => ({
++    base: 'JPY',
++    quote: 'USD',
++    rate: D(rate),
++    observedAtMs: at,
++    source: 'x',
++    kind: 'implied' as const,
++    side: 'unspecified' as const,
++  });
++
++  it('returns the latest observation at or before the instant, even if recorded out of order', async () => {
++    const p = new ImpliedRateProvider({ scope: 'a' });
++    p.record(obs(T0 + 2000, '0.0066'));
++    p.record(obs(T0 + 1000, '0.0065'));
++    p.record(obs(T0 + 3000, '0.0067'));
++    expect((await p.get('JPY', 'USD', T0 + 2500))!.rate.toString()).toBe('0.0066');
++    expect((await p.get('JPY', 'USD', T0 + 500))).toBeNull();
++    expect((await p.get('JPY', 'USD', T0 + 9999))!.rate.toString()).toBe('0.0067');
++  });
++
++  it('is empty for unseen pairs', async () => {
++    expect(await new ImpliedRateProvider({ scope: 'a' }).get('EUR', 'USD', T0)).toBeNull();
++  });
++});
+diff --git a/src/test/pnl-map.test.ts b/src/test/pnl-map.test.ts
+new file mode 100644
+index 0000000..4ac23d5
+--- /dev/null
++++ b/src/test/pnl-map.test.ts
+@@ -0,0 +1,53 @@
++// @vitest-environment node
++import { describe, expect, it } from 'vitest';
++import { guessDigits, mapTrade, type InstrumentRow, type JournalRow, type TradeRow } from '../../supabase/functions/_shared/pnl-map.ts';
++
++const base: TradeRow = {
++  id: 't1', direction: 'long', entry_at: '2026-10-22T12:00:00Z', exit_at: '2026-10-22T13:00:00Z',
++  entry_price: '150.000', exit_price: '150.500', quantity: 1, stop_loss: null, take_profit: null,
++  gross_pnl: 332, net_pnl: 332, fees: 0, commission: null, swap: null, risk_amount: null,
++  source: 'mt5', raw_symbol: 'USDJPY', is_break_even: false, pnl_manual: true, instrument_id: 'i1',
++};
++const ins: InstrumentRow = { id: 'i1', symbol: 'USDJPY', contract_size: null, digits: null, profit_currency: null, kind: null };
++const lotsJournal: JournalRow = { id: 'j', currency: 'usd', quantity_unit: 'lots' };
++
++describe('mapTrade', () => {
++  it('maps an imported MT5 trade, using the file profit as the broker figure', () => {
++    const m = mapTrade(base, ins, lotsJournal, guessDigits([base]));
++    if (!('trade' in m)) throw new Error(m.skip);
++    expect(m.trade.side).toBe('buy');
++    expect(m.trade.lots.toString()).toBe('1');
++    expect(m.trade.accountCurrency).toBe('USD');
++    expect(m.trade.broker?.profit?.toString()).toBe('332');
++    expect(m.trade.spec.digits).toBe(3);
++    expect(m.notes.join(' ')).toMatch(/digits inferred/);
++  });
++  it('never overwrites P&L typed in by hand', () => {
++    expect(mapTrade({ ...base, source: 'manual' }, ins, lotsJournal, new Map())).toEqual({ skip: 'P&L entered by hand is never overwritten' });
++  });
++  it('skips instead of guessing when the journal quantity unit is unknown', () => {
++    const m = mapTrade(base, ins, { ...lotsJournal, quantity_unit: null }, new Map());
++    expect(m).toEqual({ skip: 'journal quantity unit (lots or units) is not set' });
++  });
++  it('converts units to lots with the contract size', () => {
++    const m = mapTrade({ ...base, quantity: 50000 }, ins, { ...lotsJournal, quantity_unit: 'units' }, new Map());
++    if (!('trade' in m)) throw new Error(m.skip);
++    expect(m.trade.lots.toString()).toBe('0.5');
++  });
++  it('treats short as a sell and passes costs through', () => {
++    const m = mapTrade({ ...base, direction: 'short', commission: -7, swap: -1.5 }, ins, lotsJournal, new Map());
++    if (!('trade' in m)) throw new Error(m.skip);
++    expect(m.trade.side).toBe('sell');
++    expect([m.trade.broker?.commission?.toString(), m.trade.broker?.swap?.toString()]).toEqual(['-7', '-1.5']);
++  });
++  it('falls back to AlphaMine fees (a positive cost) as a negative fee', () => {
++    const m = mapTrade({ ...base, fees: 4.2 }, ins, lotsJournal, new Map());
++    if (!('trade' in m)) throw new Error(m.skip);
++    expect(m.trade.broker?.fee?.toString()).toBe('-4.2');
++  });
++  it('skips break even, unclosed and unsupported rows with a reason', () => {
++    expect(mapTrade({ ...base, is_break_even: true }, ins, lotsJournal, new Map())).toHaveProperty('skip');
++    expect(mapTrade({ ...base, exit_price: null }, ins, lotsJournal, new Map())).toHaveProperty('skip');
++    expect(mapTrade({ ...base, raw_symbol: 'GER40' }, { ...ins, symbol: 'GER40' }, lotsJournal, new Map())).toHaveProperty('skip');
++  });
++});
+diff --git a/src/test/setup.ts b/src/test/setup.ts
+index e61962d..2b01e1e 100644
+--- a/src/test/setup.ts
++++ b/src/test/setup.ts
+@@ -1,20 +1,23 @@
+ import "@testing-library/jest-dom/vitest";
+ 
+-Object.defineProperty(window, "scrollTo", {
+-  writable: true,
+-  value: () => {},
+-});
++// Pure logic suites (e.g. the P&L engine) opt into `@vitest-environment node`, where there is no window.
++if (typeof window !== "undefined") {
++  Object.defineProperty(window, "scrollTo", {
++    writable: true,
++    value: () => {},
++  });
+ 
+-Object.defineProperty(window, "matchMedia", {
+-  writable: true,
+-  value: (query: string) => ({
+-    matches: false,
+-    media: query,
+-    onchange: null,
+-    addListener: () => {},
+-    removeListener: () => {},
+-    addEventListener: () => {},
+-    removeEventListener: () => {},
+-    dispatchEvent: () => {},
+-  }),
+-});
++  Object.defineProperty(window, "matchMedia", {
++    writable: true,
++    value: (query: string) => ({
++      matches: false,
++      media: query,
++      onchange: null,
++      addListener: () => {},
++      removeListener: () => {},
++      addEventListener: () => {},
++      removeEventListener: () => {},
++      dispatchEvent: () => {},
++    }),
++  });
++}
+diff --git a/supabase/functions/_shared/pnl-engine/calc.ts b/supabase/functions/_shared/pnl-engine/calc.ts
+new file mode 100644
+index 0000000..cb5f1f1
+--- /dev/null
++++ b/supabase/functions/_shared/pnl-engine/calc.ts
+@@ -0,0 +1,44 @@
++/**
++ * Pure P&L formulas. No I/O, no clocks, no rates: fully deterministic and the
++ * easiest part of the engine to test exhaustively.
++ *
++ * Definitions (for spot FX, pair BASE/QUOTE):
++ *   units       = lots x contractSize                       (units of BASE)
++ *   priceDelta  = close - open        (buy)   |  open - close (sell)
++ *   gross(Q)    = priceDelta x units                         (in QUOTE currency)
++ *   pips        = priceDelta / pipSize
++ *   pipValue(Q) = pipSize x units                            (in QUOTE currency per pip)
++ *   gross(A)    = gross(Q) x rate(Q -> A)                    (A = account currency)
++ */
++import type { Dec } from './decimal.ts';
++import type { InstrumentSpec, Side } from './types.ts';
++
++export function priceDelta(side: Side, open: Dec, close: Dec): Dec {
++  return side === 'buy' ? close.minus(open) : open.minus(close);
++}
++
++export function unitsOf(spec: InstrumentSpec, lots: Dec): Dec {
++  return lots.times(spec.contractSize);
++}
++
++/** Raw result in the instrument's profit currency (quote currency for FX). */
++export function grossInProfitCurrency(spec: InstrumentSpec, side: Side, lots: Dec, open: Dec, close: Dec): Dec {
++  return priceDelta(side, open, close).times(unitsOf(spec, lots));
++}
++
++/** Pips gained (negative = lost). null when the instrument has no meaningful pip. */
++export function pipsMoved(spec: InstrumentSpec, side: Side, open: Dec, close: Dec): Dec | null {
++  if (!spec.pipSize) return null;
++  return priceDelta(side, open, close).div(spec.pipSize);
++}
++
++/** Money value of one pip for this position size, in the profit currency. */
++export function pipValueInProfitCurrency(spec: InstrumentSpec, lots: Dec): Dec | null {
++  if (!spec.pipSize) return null;
++  return spec.pipSize.times(unitsOf(spec, lots));
++}
++
++/** Price move in broker points (works for every instrument kind). */
++export function pointsMoved(spec: InstrumentSpec, side: Side, open: Dec, close: Dec): Dec {
++  return priceDelta(side, open, close).div(spec.pointSize);
++}
+diff --git a/supabase/functions/_shared/pnl-engine/currency.ts b/supabase/functions/_shared/pnl-engine/currency.ts
+new file mode 100644
+index 0000000..68aed94
+--- /dev/null
++++ b/supabase/functions/_shared/pnl-engine/currency.ts
+@@ -0,0 +1,33 @@
++import { Dec } from './decimal.ts';
++
++/** ISO 4217 minor-unit exponents that differ from the default of 2. */
++const ZERO_DP = new Set(['JPY', 'KRW', 'VND', 'CLP', 'ISK', 'UGX', 'PYG', 'XOF', 'XAF']);
++const THREE_DP = new Set(['BHD', 'KWD', 'OMR', 'JOD', 'TND', 'IQD', 'LYD']);
++
++export function minorUnits(ccy: string): number {
++  const c = ccy.toUpperCase();
++  if (ZERO_DP.has(c)) return 0;
++  if (THREE_DP.has(c)) return 3;
++  return 2;
++}
++
++/**
++ * Round to the currency's minor unit. Use ONLY for display/aggregation
++ * boundaries. Stored values keep full precision.
++ */
++export function roundMoney(amount: Dec, ccy: string): Dec {
++  return amount.toDecimalPlaces(minorUnits(ccy), Dec.ROUND_HALF_UP);
++}
++
++export const FIAT_CODES: ReadonlySet<string> = new Set([
++  'USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD', 'SEK', 'NOK', 'DKK',
++  'PLN', 'CZK', 'HUF', 'TRY', 'ZAR', 'MXN', 'SGD', 'HKD', 'CNH', 'CNY', 'ILS',
++  'THB', 'RON', 'BRL', 'INR', 'KRW', 'AED', 'SAR', 'NGN', 'KES', 'GHS',
++]);
++
++export const METAL_CODES: ReadonlySet<string> = new Set(['XAU', 'XAG', 'XPT', 'XPD']);
++
++export const CRYPTO_CODES: ReadonlySet<string> = new Set([
++  'BTC', 'ETH', 'LTC', 'XRP', 'BCH', 'ADA', 'SOL', 'DOT', 'BNB',
++  'USDT', 'USDC', 'DOGE', 'AVAX', 'LINK', 'MATIC', 'TRX', 'XLM', 'XMR', 'DASH',
++]);
+diff --git a/supabase/functions/_shared/pnl-engine/decimal.ts b/supabase/functions/_shared/pnl-engine/decimal.ts
+new file mode 100644
+index 0000000..bb66db3
+--- /dev/null
++++ b/supabase/functions/_shared/pnl-engine/decimal.ts
+@@ -0,0 +1,35 @@
++/**
++ * All money, price and rate arithmetic in the engine goes through this Decimal
++ * clone. Never use JS `number` for P&L math: 0.1 + 0.2 !== 0.3, and the error
++ * compounds across thousands of trades.
++ *
++ * Precision 40 significant digits is far beyond any broker's resolution, so
++ * intermediates are effectively exact. We only round at the *presentation*
++ * boundary (see roundMoney in currency.ts), never between steps.
++ */
++import { Decimal } from 'decimal.js';
++
++export const Dec = Decimal.clone({
++  precision: 40,
++  rounding: Decimal.ROUND_HALF_UP,
++  toExpNeg: -40,
++  toExpPos: 40,
++});
++export type Dec = InstanceType<typeof Dec>;
++export type DecimalLike = string | number | bigint | Dec;
++
++/** Parse any numeric input into a Dec. Rejects NaN/Infinity loudly. */
++export function D(v: DecimalLike): Dec {
++  if (typeof v === 'bigint') return new Dec(v.toString());
++  if (typeof v === 'number' && !Number.isFinite(v)) {
++    throw new RangeError(`D(): non-finite number ${String(v)}`);
++  }
++  return new Dec(v);
++}
++
++export const ZERO = new Dec(0);
++export const ONE = new Dec(1);
++
++export function pow10(exp: number): Dec {
++  return new Dec(10).pow(exp);
++}
+diff --git a/supabase/functions/_shared/pnl-engine/engine.ts b/supabase/functions/_shared/pnl-engine/engine.ts
+new file mode 100644
+index 0000000..41fb1f2
+--- /dev/null
++++ b/supabase/functions/_shared/pnl-engine/engine.ts
+@@ -0,0 +1,284 @@
++import { calcSignOk } from './guards.ts';
++import { D, Dec, ZERO } from './decimal.ts';
++import { grossInProfitCurrency, pipValueInProfitCurrency, pipsMoved, priceDelta, unitsOf } from './calc.ts';
++import { deriveImpliedRate, type ImpliedRateProvider } from './rates/implied.ts';
++import type { RateResolver } from './rates/resolver.ts';
++import type { RateObservation } from './rates/types.ts';
++import {
++  absoluteToleranceFor,
++  reconcile,
++  relativeToleranceFor,
++  type Reconciliation,
++  type Tolerance,
++} from './reconcile.ts';
++import type { ClosedTrade, OpenPosition } from './types.ts';
++
++export interface EngineOptions {
++  /**
++   * Resolver used to PRICE trades when the broker gave no profit figure.
++   * May include broker-implied rates: they are the most accurate source.
++   */
++  rates: RateResolver;
++  /**
++   * Resolver used to VALIDATE broker-reported profit. Must NOT include the
++   * implied-rate provider, otherwise the check is circular (a trade would be
++   * validated against a rate back-solved from itself). Defaults to `rates`.
++   */
++  validationRates?: RateResolver;
++  /** When set, every broker-profit trade teaches the engine a conversion rate. */
++  implied?: ImpliedRateProvider;
++  /** Override tolerance policy. Default adapts to rate quality and account currency. */
++  tolerance?: (accountCurrency: string, conversion: RateObservation | null) => Tolerance;
++}
++
++export type BatchItem = { tradeId: string; result: PnlResult } | { tradeId: string; error: string };
++
++export type GrossSource = 'broker' | 'computed' | 'unpriced';
++
++export interface PnlResult {
++  tradeId: string;
++  accountCurrency: string;
++  profitCurrency: string;
++
++  /** Raw result in the instrument's profit currency. */
++  grossInProfitCurrency: Dec;
++  pips: Dec | null;
++  /** Value of one pip for this size, in account currency, at the close-time rate. null if unpriced. */
++  pipValueAccount: Dec | null;
++
++  /** Conversion used for our own calculation (null if profit currency == account currency is NOT the case and nothing could be priced). */
++  conversion: RateObservation | null;
++  /** Our independent gross figure in account currency. */
++  computedGross: Dec | null;
++  /** The number of record. Broker's when supplied, else ours. */
++  grossAccount: Dec | null;
++  grossSource: GrossSource;
++
++  /** Signed, account currency; zero when not reported. */
++  swap: Dec;
++  commission: Dec;
++  fee: Dec;
++  costsReported: boolean;
++  netAccount: Dec | null;
++
++  reconciliation: Reconciliation | null;
++  /** The conversion rate back-solved from the broker's own number (if learnable). */
++  impliedRate: RateObservation | null;
++
++  /** Planned risk in account currency at ENTRY-time rate. null without a valid initial SL. */
++  plannedRisk: Dec | null;
++  /** The entry-time conversion behind plannedRisk. Persist it so R-multiples are reproducible. */
++  openConversion: RateObservation | null;
++  /**
++   * NET result (after swap, commission and fee) divided by planned risk. A trade that wins
++   * 1.0 gross but pays costs therefore shows slightly under 1R. Divide grossAccount by
++   * plannedRisk yourself if you prefer a gross basis.
++   */
++  rMultiple: Dec | null;
++
++  warnings: string[];
++}
++
++export interface FloatingResult {
++  positionId: string;
++  grossAccount: Dec | null;
++  netAccount: Dec | null;
++  pips: Dec | null;
++  conversion: RateObservation | null;
++  warnings: string[];
++}
++
++export class PnlEngine {
++  constructor(private readonly o: EngineOptions) {
++    // Without a separate validation resolver, broker profits would be checked against rates
++    // learned from other broker profits: the check could no longer catch a systematic error.
++    if (o.implied && !o.validationRates) {
++      throw new Error(
++        'PnlEngine: `implied` requires `validationRates` (an external-only resolver). ' +
++          'Validating broker profit against broker-implied rates is circular.',
++      );
++    }
++  }
++
++  async computeClosed(t: ClosedTrade): Promise<PnlResult> {
++    const warnings: string[] = [];
++    this.validate(t, warnings);
++
++    const acct = t.accountCurrency.toUpperCase();
++    const pc = t.spec.profitCurrency;
++    const grossQ = grossInProfitCurrency(t.spec, t.side, t.lots, t.openPrice, t.closePrice);
++    const pips = pipsMoved(t.spec, t.side, t.openPrice, t.closePrice);
++    const pipValQ = pipValueInProfitCurrency(t.spec, t.lots);
++
++    if (t.spec.contractSizeSource === 'default') {
++      warnings.push(`Contract size for ${t.spec.symbol} is a default assumption, not broker-confirmed.`);
++    }
++
++    // ---- which resolver prices this trade? -----------------------------------
++    const brokerProfit = t.broker?.profit;
++    const hasBrokerProfit = brokerProfit !== undefined;
++    const pricingResolver = hasBrokerProfit ? (this.o.validationRates ?? this.o.rates) : this.o.rates;
++
++    const conversion = await pricingResolver.resolve(pc, acct, t.closeTimeMs);
++    const computedGross = conversion ? grossQ.times(conversion.rate) : null;
++
++    // ---- number of record ----------------------------------------------------
++    let grossAccount: Dec | null;
++    let grossSource: GrossSource;
++    let reconciliation: Reconciliation | null = null;
++    let impliedRate: RateObservation | null = null;
++
++    if (hasBrokerProfit) {
++      grossAccount = brokerProfit;
++      grossSource = 'broker';
++      const tol = this.o.tolerance
++        ? this.o.tolerance(acct, conversion)
++        : { absolute: absoluteToleranceFor(acct), relative: relativeToleranceFor(conversion) };
++      reconciliation = reconcile(brokerProfit, computedGross, tol, conversion ? conversion.source : null);
++      if (reconciliation.status === 'MISMATCH') warnings.push('Broker profit disagrees with independent calculation.');
++      if (computedGross === null) {
++        warnings.push(`Broker profit stored unverified: no independent ${pc}->${acct} rate was available.`);
++      }
++
++      impliedRate = deriveImpliedRate({
++        spec: t.spec,
++        side: t.side,
++        lots: t.lots,
++        openPrice: t.openPrice,
++        closePrice: t.closePrice,
++        brokerProfit,
++        accountCurrency: acct,
++        closeTimeMs: t.closeTimeMs,
++        source: `broker-implied:${t.id}`,
++      });
++      // Learn only from trades we can trust: those that reconcile (OK), or that cannot be checked at
++      // all because no independent rate exists. A WARN or MISMATCH WITH an independent figure means
++      // the numbers disagree, and recording it would poison the rate series.
++      const trusted = reconciliation.status === 'OK' || computedGross === null;
++      if (impliedRate && this.o.implied && trusted) this.o.implied.record(impliedRate);
++    } else if (computedGross) {
++      grossAccount = computedGross;
++      grossSource = 'computed';
++      if (conversion && conversion.kind !== 'implied' && conversion.source !== 'identity') {
++        const worst = describeQuality(conversion);
++        if (worst === 'daily-fix') warnings.push('Converted at a daily reference rate: approximate (can differ by ~1%).');
++      }
++    } else {
++      grossAccount = null;
++      grossSource = 'unpriced';
++      warnings.push(`No ${pc}->${acct} rate available at close time: P&L left unpriced rather than guessed.`);
++    }
++
++    // ---- costs ---------------------------------------------------------------
++    const swap = t.broker?.swap ?? ZERO;
++    const commission = t.broker?.commission ?? ZERO;
++    const fee = t.broker?.fee ?? ZERO;
++    const costsReported =
++      t.broker?.swap !== undefined || t.broker?.commission !== undefined || t.broker?.fee !== undefined;
++    if (!costsReported) warnings.push('No swap/commission/fee supplied: net equals gross and may overstate results.');
++    const netAccount = grossAccount ? grossAccount.plus(swap).plus(commission).plus(fee) : null;
++
++    // ---- planned risk & R ----------------------------------------------------
++    let plannedRisk: Dec | null = null;
++    let rMultiple: Dec | null = null;
++    let openConversion: RateObservation | null = null;
++    if (t.stopLoss) {
++      const riskDelta = priceDelta(t.side, t.openPrice, t.stopLoss); // negative when SL is on the loss side
++      if (riskDelta.gte(0)) {
++        warnings.push('Stop loss is at/beyond break-even (likely trailed): planned risk unknown, R-multiple skipped.');
++      } else {
++        const openConv = await this.o.rates.resolve(pc, acct, t.openTimeMs);
++        if (openConv) {
++          openConversion = openConv;
++          plannedRisk = riskDelta.abs().times(unitsOf(t.spec, t.lots)).times(openConv.rate);
++          if (netAccount && plannedRisk.gt(0)) rMultiple = netAccount.div(plannedRisk);
++        } else warnings.push('No entry-time rate for planned risk.');
++      }
++    }
++
++    const pipValueAccount = pipValQ && conversion ? pipValQ.times(conversion.rate) : null;
++
++    return {
++      tradeId: t.id,
++      accountCurrency: acct,
++      profitCurrency: pc,
++      grossInProfitCurrency: grossQ,
++      pips,
++      pipValueAccount,
++      conversion,
++      computedGross,
++      grossAccount,
++      grossSource,
++      swap,
++      commission,
++      fee,
++      costsReported,
++      netAccount,
++      reconciliation,
++      impliedRate,
++      plannedRisk,
++      openConversion,
++      rMultiple,
++      warnings,
++    };
++  }
++
++  /**
++   * Compute many trades without letting one bad row abort the batch. Runs sequentially and in the
++   * order given, because implied rates learned from earlier trades feed later ones.
++   * Invalid trades (bad lots, prices or timestamps) come back as `{ error }` instead of throwing.
++   */
++  async computeMany(trades: ClosedTrade[]): Promise<BatchItem[]> {
++    const out: BatchItem[] = [];
++    for (const t of trades) {
++      try {
++        out.push({ tradeId: t.id, result: await this.computeClosed(t) });
++      } catch (err) {
++        out.push({ tradeId: t.id, error: err instanceof Error ? err.message : String(err) });
++      }
++    }
++    return out;
++  }
++
++  /**
++   * Floating (unrealised) P&L. A long exits at BID, a short exits at ASK:
++   * valuing open trades at mid flatters them by half the spread.
++   */
++  async markToMarket(p: OpenPosition, quote: { bid: Dec; ask: Dec }, atMs: number): Promise<FloatingResult> {
++    const warnings: string[] = [];
++    const exit = p.side === 'buy' ? quote.bid : quote.ask;
++    const acct = p.accountCurrency.toUpperCase();
++    const pc = p.spec.profitCurrency;
++    const grossQ = grossInProfitCurrency(p.spec, p.side, p.lots, p.openPrice, exit);
++    const conversion = await this.o.rates.resolve(pc, acct, atMs);
++    const gross = conversion ? grossQ.times(conversion.rate) : null;
++    if (!gross) warnings.push(`No ${pc}->${acct} rate at ${new Date(atMs).toISOString()}.`);
++    const costs = (p.broker?.swap ?? ZERO).plus(p.broker?.commission ?? ZERO).plus(p.broker?.fee ?? ZERO);
++    return {
++      positionId: p.id,
++      grossAccount: gross,
++      netAccount: gross ? gross.plus(costs) : null,
++      pips: pipsMoved(p.spec, p.side, p.openPrice, exit),
++      conversion,
++      warnings,
++    };
++  }
++
++  private validate(t: ClosedTrade, warnings: string[]): void {
++    if (!t.lots.gt(0)) throw new RangeError(`Trade ${t.id}: lots must be > 0`);
++    if (!t.openPrice.gt(0) || !t.closePrice.gt(0)) throw new RangeError(`Trade ${t.id}: prices must be > 0`);
++    if (t.closeTimeMs < t.openTimeMs) throw new RangeError(`Trade ${t.id}: closeTime precedes openTime`);
++    calcSignOk(t, warnings);
++  }
++}
++
++/** Loosest rate kind in a conversion chain. */
++function describeQuality(o: RateObservation): RateObservation['kind'] {
++  if (o.lineage && o.lineage.length > 0) {
++    const kinds = o.lineage.map(describeQuality);
++    return kinds.includes('daily-fix') ? 'daily-fix' : kinds[0]!;
++  }
++  return o.kind;
++}
++
++export { D };
+diff --git a/supabase/functions/_shared/pnl-engine/guards.ts b/supabase/functions/_shared/pnl-engine/guards.ts
+new file mode 100644
+index 0000000..a92c3a4
+--- /dev/null
++++ b/supabase/functions/_shared/pnl-engine/guards.ts
+@@ -0,0 +1,21 @@
++import type { ClosedTrade } from './types.ts';
++
++/**
++ * Cheap sanity checks that catch the most common bad-import symptoms before
++ * they become wrong numbers on a dashboard. These add warnings; they never
++ * silently "fix" data.
++ */
++export function calcSignOk(t: ClosedTrade, warnings: string[]): void {
++  const digitsFactor = 10 ** Math.min(t.spec.digits, 8);
++  const openScaled = t.openPrice.times(digitsFactor);
++  if (!openScaled.eq(openScaled.toDecimalPlaces(0)) && t.spec.digits > 0) {
++    // A price with more decimals than the broker's digits is a sign of a symbol/digits mapping error.
++    warnings.push(`Open price has more decimals than the symbol's ${t.spec.digits} digits: check symbol mapping.`);
++  }
++  if (t.broker?.profit) {
++    const moved = t.side === 'buy' ? t.closePrice.minus(t.openPrice) : t.openPrice.minus(t.closePrice);
++    if (!moved.isZero() && moved.isPositive() !== t.broker.profit.isPositive() && !t.broker.profit.isZero()) {
++      warnings.push('Broker profit sign contradicts price move: side or prices may be wrong.');
++    }
++  }
++}
+diff --git a/supabase/functions/_shared/pnl-engine/index.ts b/supabase/functions/_shared/pnl-engine/index.ts
+new file mode 100644
+index 0000000..fe29a18
+--- /dev/null
++++ b/supabase/functions/_shared/pnl-engine/index.ts
+@@ -0,0 +1,16 @@
++export * from './decimal.ts';
++export * from './currency.ts';
++export * from './types.ts';
++export * from './instruments.ts';
++export * from './time.ts';
++export * from './calc.ts';
++export * from './reconcile.ts';
++export * from './matching.ts';
++export { PnlEngine } from './engine.ts';
++export type { BatchItem, EngineOptions, PnlResult, FloatingResult, GrossSource } from './engine.ts';
++export * from './rates/types.ts';
++export * from './rates/resolver.ts';
++export * from './rates/implied.ts';
++export * from './rates/frankfurter.ts';
++export * from './rates/massive.ts';
++export type { FetchLike, HttpResponse } from './rates/http.ts';
+diff --git a/supabase/functions/_shared/pnl-engine/instruments.ts b/supabase/functions/_shared/pnl-engine/instruments.ts
+new file mode 100644
+index 0000000..66f3623
+--- /dev/null
++++ b/supabase/functions/_shared/pnl-engine/instruments.ts
+@@ -0,0 +1,137 @@
++import { CRYPTO_CODES, FIAT_CODES, METAL_CODES } from './currency.ts';
++import { D, Dec, pow10, type DecimalLike } from './decimal.ts';
++import type { InstrumentKind, InstrumentSpec } from './types.ts';
++
++export class UnsupportedInstrumentError extends Error {
++  constructor(message: string) {
++    super(message);
++    this.name = 'UnsupportedInstrumentError';
++  }
++}
++
++/** Strip broker decorations: "EURUSD.a", "EURUSDm", "EURUSD#", "eurusd_i" -> upper-case alphanumerics. */
++export function normalizeSymbol(raw: string): string {
++  return raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
++}
++
++/**
++ * Fallback contract sizes. These are common conventions, NOT guarantees: brokers
++ * differ (XAUUSD is 100 oz at most, 1 oz at some; crypto CFDs vary). The engine
++ * flags any spec built from a default so the UI/reconciler can warn.
++ */
++const DEFAULT_CONTRACT_SIZE: Record<string, number> = {
++  fx: 100_000,
++  XAU: 100,
++  XAG: 5_000,
++  XPT: 100,
++  XPD: 100,
++  crypto: 1,
++};
++
++/**
++ * FX pip size from broker digits.
++ *  - 5-digit (EURUSD 1.08505) and 3-digit (USDJPY 150.123) quotes carry a
++ *    fractional pip -> pip = 10^-(digits-1)
++ *  - 4-digit and 2-digit quotes -> pip = 10^-digits
++ */
++export function deriveFxPipSize(digits: number): Dec {
++  return digits === 3 || digits === 5 ? pow10(-(digits - 1)) : pow10(-digits);
++}
++
++const isKnownCode = (c: string) => FIAT_CODES.has(c) || METAL_CODES.has(c) || CRYPTO_CODES.has(c);
++
++/**
++ * Split a normalized symbol into two KNOWN currency codes of 3 to 5 letters. Longer quote codes are
++ * tried first so BTCUSDT is BTC/USDT, not BTC/USD. Broker suffix letters after the quote are ignored.
++ */
++export function splitKnownPair(s: string): { base: string; quote: string } | null {
++  for (const bl of [3, 4, 5]) {
++    for (const ql of [5, 4, 3]) {
++      const b = s.slice(0, bl);
++      const q = s.slice(bl, bl + ql);
++      if (b.length === bl && q.length === ql && isKnownCode(b) && isKnownCode(q)) return { base: b, quote: q };
++    }
++  }
++  return null;
++}
++
++export interface InferOptions {
++  /** SYMBOL_DIGITS from the broker. Required: it is the only reliable pip-size signal. */
++  digits: number;
++  /** SYMBOL_TRADE_CONTRACT_SIZE from the broker. Strongly recommended. */
++  contractSize?: DecimalLike;
++  base?: string;
++  quote?: string;
++  /** Required for index/stock CFDs where profit currency is not derivable from the name. */
++  profitCurrency?: string;
++  kind?: InstrumentKind;
++  /** Override for exotic instruments where "pip" is non-standard. */
++  pipSize?: DecimalLike | null;
++}
++
++export function inferInstrument(rawSymbol: string, o: InferOptions): InstrumentSpec {
++  if (!Number.isInteger(o.digits) || o.digits < 0 || o.digits > 8) {
++    throw new UnsupportedInstrumentError(`digits must be an integer 0..8, got ${o.digits}`);
++  }
++  const s = normalizeSymbol(rawSymbol);
++  const split = splitKnownPair(s);
++  // Provisional codes, used only to classify. Opaque CFD/index symbols get real values below.
++  let base = (o.base ?? split?.base ?? s.slice(0, 3)).toUpperCase();
++  let quote = (o.quote ?? split?.quote ?? s.slice(3, 6)).toUpperCase();
++
++  let kind = o.kind;
++  if (!kind) {
++    if (FIAT_CODES.has(base) && FIAT_CODES.has(quote)) kind = 'fx';
++    else if (METAL_CODES.has(base) && FIAT_CODES.has(quote)) kind = 'metal';
++    else if (CRYPTO_CODES.has(base) && (FIAT_CODES.has(quote) || CRYPTO_CODES.has(quote))) kind = 'crypto';
++    else if (o.profitCurrency) kind = 'cfd';
++    else {
++      throw new UnsupportedInstrumentError(
++        `Cannot classify "${rawSymbol}". Pass profitCurrency (and kind) explicitly.`,
++      );
++    }
++  }
++
++  if ((kind === 'cfd' || kind === 'index') && !o.profitCurrency) {
++    throw new UnsupportedInstrumentError(`${rawSymbol}: pass profitCurrency for ${kind} instruments.`);
++  }
++  // A CFD or index symbol (US500, GER40) is not a currency pair: never slice currency codes out of it.
++  if (kind === 'cfd' || kind === 'index') {
++    if (o.base === undefined) base = s;
++    if (o.quote === undefined) quote = o.profitCurrency!.toUpperCase();
++  }
++
++  const profitCurrency = (o.profitCurrency ?? quote).toUpperCase();
++
++  let contractSize: Dec;
++  let source: 'broker' | 'default';
++  if (o.contractSize !== undefined) {
++    contractSize = D(o.contractSize);
++    source = 'broker';
++  } else {
++    const fallback = kind === 'fx' ? DEFAULT_CONTRACT_SIZE['fx'] : DEFAULT_CONTRACT_SIZE[base] ?? DEFAULT_CONTRACT_SIZE[kind];
++    if (fallback === undefined) {
++      throw new UnsupportedInstrumentError(`No default contract size for ${rawSymbol}; pass contractSize.`);
++    }
++    contractSize = D(fallback);
++    source = 'default';
++  }
++  if (contractSize.lte(0)) throw new UnsupportedInstrumentError('contractSize must be > 0');
++
++  let pipSize: Dec | null;
++  if (o.pipSize !== undefined) pipSize = o.pipSize === null ? null : D(o.pipSize);
++  else pipSize = kind === 'fx' ? deriveFxPipSize(o.digits) : null;
++
++  return {
++    symbol: rawSymbol,
++    base,
++    quote,
++    profitCurrency,
++    kind,
++    digits: o.digits,
++    contractSize,
++    contractSizeSource: source,
++    pointSize: pow10(-o.digits),
++    pipSize,
++  };
++}
+diff --git a/supabase/functions/_shared/pnl-engine/matching.ts b/supabase/functions/_shared/pnl-engine/matching.ts
+new file mode 100644
+index 0000000..b6d715e
+--- /dev/null
++++ b/supabase/functions/_shared/pnl-engine/matching.ts
+@@ -0,0 +1,226 @@
++/**
++ * Turning raw fills into closed trades.
++ *
++ * Hedging accounts (MT4 tickets, MT5 hedging positions) need NO matching:
++ * every position already has an id and its own deals, so use position ids.
++ *
++ * Netting accounts (MT5 netting, many futures/crypto venues, CSV exports with
++ * only executions) need a policy for which entry a partial close consumes.
++ * FIFO is the common tax/reporting default. Average-cost is what netting
++ * brokers literally carry. Choose per account and store the choice, because
++ * the two give different per-trade results (never different totals).
++ *
++ * Cost allocation: per-lot cost of a fill x lots consumed. Commission and fee
++ * follow the fill they were charged on. Swap follows the CLOSING fill (that is
++ * where MT5 books it).
++ */
++import { D, Dec, ZERO } from './decimal.ts';
++import type { ClosedTrade, InstrumentSpec, Side } from './types.ts';
++
++export interface Fill {
++  id: string;
++  side: Side;
++  lots: Dec;
++  price: Dec;
++  timeMs: number;
++  /** Signed account-currency amounts. */
++  commission?: Dec;
++  swap?: Dec;
++  fee?: Dec;
++}
++
++export interface Segment {
++  /** Direction of the position that was reduced. */
++  side: Side;
++  lots: Dec;
++  openPrice: Dec;
++  closePrice: Dec;
++  openTimeMs: number;
++  closeTimeMs: number;
++  openFillId: string;
++  closeFillId: string;
++  commission: Dec;
++  swap: Dec;
++  fee: Dec;
++}
++
++export interface OpenLot {
++  fillId: string;
++  side: Side;
++  lots: Dec;
++  price: Dec;
++  timeMs: number;
++  commissionPerLot: Dec;
++  feePerLot: Dec;
++}
++
++export interface MatchResult {
++  segments: Segment[];
++  open: OpenLot[];
++}
++
++function sortFills(fills: Fill[]): Fill[] {
++  return fills
++    .map((f, i) => ({ f, i }))
++    .sort((a, b) => a.f.timeMs - b.f.timeMs || a.i - b.i)
++    .map((x) => x.f);
++}
++
++function perLot(total: Dec | undefined, lots: Dec): Dec {
++  return total ? total.div(lots) : ZERO;
++}
++
++export function matchFifo(fills: Fill[]): MatchResult {
++  const queue: OpenLot[] = [];
++  const segments: Segment[] = [];
++
++  for (const fill of sortFills(fills)) {
++    if (!fill.lots.gt(0)) throw new RangeError(`Fill ${fill.id}: lots must be > 0`);
++    const cPer = perLot(fill.commission, fill.lots);
++    const fPer = perLot(fill.fee, fill.lots);
++    const sPer = perLot(fill.swap, fill.lots);
++    let remaining = fill.lots;
++
++    // Queue invariant: every lot in it has the same direction.
++    while (remaining.gt(0) && queue.length > 0 && queue[0]!.side !== fill.side) {
++      const lot = queue[0]!;
++      const m = Dec.min(lot.lots, remaining);
++      segments.push({
++        side: lot.side,
++        lots: m,
++        openPrice: lot.price,
++        closePrice: fill.price,
++        openTimeMs: lot.timeMs,
++        closeTimeMs: fill.timeMs,
++        openFillId: lot.fillId,
++        closeFillId: fill.id,
++        commission: lot.commissionPerLot.times(m).plus(cPer.times(m)),
++        fee: lot.feePerLot.times(m).plus(fPer.times(m)),
++        swap: sPer.times(m),
++      });
++      lot.lots = lot.lots.minus(m);
++      remaining = remaining.minus(m);
++      if (lot.lots.isZero()) queue.shift();
++    }
++
++    if (remaining.gt(0)) {
++      queue.push({
++        fillId: fill.id,
++        side: fill.side,
++        lots: remaining,
++        price: fill.price,
++        timeMs: fill.timeMs,
++        commissionPerLot: cPer,
++        feePerLot: fPer,
++      });
++    }
++  }
++  return { segments, open: queue };
++}
++
++export function matchAverage(fills: Fill[]): MatchResult {
++  const segments: Segment[] = [];
++  let pos: {
++    side: Side;
++    lots: Dec;
++    avg: Dec;
++    commissionTotal: Dec;
++    feeTotal: Dec;
++    timeMs: number;
++    fillId: string;
++  } | null = null;
++
++  for (const fill of sortFills(fills)) {
++    if (!fill.lots.gt(0)) throw new RangeError(`Fill ${fill.id}: lots must be > 0`);
++    const cPer = perLot(fill.commission, fill.lots);
++    const fPer = perLot(fill.fee, fill.lots);
++    const sPer = perLot(fill.swap, fill.lots);
++    let remaining = fill.lots;
++
++    if (pos && pos.side !== fill.side) {
++      const m = Dec.min(pos.lots, remaining);
++      const share = m.div(pos.lots);
++      const openC = pos.commissionTotal.times(share);
++      const openF = pos.feeTotal.times(share);
++      segments.push({
++        side: pos.side,
++        lots: m,
++        openPrice: pos.avg,
++        closePrice: fill.price,
++        openTimeMs: pos.timeMs,
++        closeTimeMs: fill.timeMs,
++        openFillId: pos.fillId,
++        closeFillId: fill.id,
++        commission: openC.plus(cPer.times(m)),
++        fee: openF.plus(fPer.times(m)),
++        swap: sPer.times(m),
++      });
++      pos.commissionTotal = pos.commissionTotal.minus(openC);
++      pos.feeTotal = pos.feeTotal.minus(openF);
++      pos.lots = pos.lots.minus(m);
++      remaining = remaining.minus(m);
++      if (pos.lots.isZero()) pos = null;
++    }
++
++    if (remaining.gt(0)) {
++      if (!pos) {
++        pos = {
++          side: fill.side,
++          lots: remaining,
++          avg: fill.price,
++          commissionTotal: cPer.times(remaining),
++          feeTotal: fPer.times(remaining),
++          timeMs: fill.timeMs,
++          fillId: fill.id,
++        };
++      } else {
++        pos.avg = pos.avg.times(pos.lots).plus(fill.price.times(remaining)).div(pos.lots.plus(remaining));
++        pos.lots = pos.lots.plus(remaining);
++        pos.commissionTotal = pos.commissionTotal.plus(cPer.times(remaining));
++        pos.feeTotal = pos.feeTotal.plus(fPer.times(remaining));
++      }
++    }
++  }
++
++  const open: OpenLot[] = pos
++    ? [
++        {
++          fillId: pos.fillId,
++          side: pos.side,
++          lots: pos.lots,
++          price: pos.avg,
++          timeMs: pos.timeMs,
++          commissionPerLot: pos.commissionTotal.div(pos.lots),
++          feePerLot: pos.feeTotal.div(pos.lots),
++        },
++      ]
++    : [];
++  return { segments, open };
++}
++
++/** Adapt a matched segment into the engine's input. Costs are attached only when non-zero. */
++export function segmentToClosedTrade(
++  seg: Segment,
++  spec: InstrumentSpec,
++  accountCurrency: string,
++  id: string,
++): ClosedTrade {
++  const broker: NonNullable<ClosedTrade['broker']> = {};
++  if (!seg.commission.isZero()) broker.commission = seg.commission;
++  if (!seg.swap.isZero()) broker.swap = seg.swap;
++  if (!seg.fee.isZero()) broker.fee = seg.fee;
++  return {
++    id,
++    spec,
++    side: seg.side,
++    lots: seg.lots,
++    openPrice: seg.openPrice,
++    closePrice: seg.closePrice,
++    openTimeMs: seg.openTimeMs,
++    closeTimeMs: seg.closeTimeMs,
++    accountCurrency,
++    ...(Object.keys(broker).length > 0 ? { broker } : {}),
++  };
++}
++
++export { D };
+diff --git a/supabase/functions/_shared/pnl-engine/rates/frankfurter.ts b/supabase/functions/_shared/pnl-engine/rates/frankfurter.ts
+new file mode 100644
+index 0000000..2399662
+--- /dev/null
++++ b/supabase/functions/_shared/pnl-engine/rates/frankfurter.ts
+@@ -0,0 +1,118 @@
++import { D } from '../decimal.ts';
++import { addDaysIso, ecbFixingUtcMs, isoDateUtc, isWeekendIso } from '../time.ts';
++import { DEFAULT_TIMEOUT_MS, defaultFetch, isRetryable, sleep, type FetchLike } from './http.ts';
++import { ProviderError, type RateObservation, type RateProvider } from './types.ts';
++
++/**
++ * ECB euro foreign exchange reference rates via the Frankfurter API (v2).
++ *
++ * VERIFIED against the live API (Oct 2026):
++ *   GET {base}/v2/rate/{BASE}/{QUOTE}?date=YYYY-MM-DD&providers=ECB
++ *   -> {"date":"2026-10-23","base":"USD","quote":"JPY","rate":156.8}
++ *
++ * What these rates are: one fixing per TARGET business day (~16:00 CET).
++ * Fine for: reporting, EOD valuation, backfilling when nothing better exists.
++ * Not fine for: intraday-accurate conversion. The error budget is a day's FX
++ * move on the quote currency (typically 0.3-0.8% for majors; can be several
++ * percent for volatile quote currencies). Use it as the LAST fallback and
++ * label results with kind 'daily-fix' so the UI can show an "approximate" badge.
++ *
++ * Only ~30 currencies are covered; unsupported pairs return null.
++ */
++export class FrankfurterProvider implements RateProvider {
++  readonly name = 'ecb-fix';
++  /** Covers a long weekend plus a TARGET holiday. */
++  readonly maxStalenessMs = 6 * 24 * 3600 * 1000;
++
++  private readonly baseUrl: string;
++  private readonly fetchImpl: FetchLike;
++  private readonly provider: string;
++  private readonly maxRetries: number;
++  private readonly timeoutMs: number;
++  private readonly sleepFn: (ms: number) => Promise<void>;
++  private readonly cache = new Map<string, { date: string; rate: number } | null>();
++
++  constructor(
++    o: {
++      baseUrl?: string;
++      fetchImpl?: FetchLike;
++      /** Frankfurter blends many central banks by default; pin to ECB for a single auditable source. */
++      provider?: string;
++      maxRetries?: number;
++      /** Per request timeout. Default 10s. */
++      timeoutMs?: number;
++      sleep?: (ms: number) => Promise<void>;
++    } = {},
++  ) {
++    this.baseUrl = (o.baseUrl ?? 'https://api.frankfurter.dev').replace(/\/$/, '');
++    this.fetchImpl = o.fetchImpl ?? defaultFetch;
++    this.provider = o.provider ?? 'ECB';
++    this.maxRetries = o.maxRetries ?? 2;
++    this.timeoutMs = o.timeoutMs ?? DEFAULT_TIMEOUT_MS;
++    this.sleepFn = o.sleep ?? sleep;
++  }
++
++  async get(base: string, quote: string, atMs: number): Promise<RateObservation | null> {
++    // Latest business day whose fixing has already happened at `atMs`.
++    let date = isoDateUtc(atMs);
++    if (atMs < ecbFixingUtcMs(date)) date = addDaysIso(date, -1);
++    while (isWeekendIso(date)) date = addDaysIso(date, -1);
++
++    for (let attempt = 0; attempt < 8; attempt++) {
++      const row = await this.fetchDate(base, quote, date);
++      if (row) {
++        const observedAtMs = ecbFixingUtcMs(row.date);
++        if (observedAtMs <= atMs) {
++          return {
++            base,
++            quote,
++            rate: D(row.rate),
++            observedAtMs,
++            source: this.name,
++            kind: 'daily-fix',
++            side: 'mid',
++          };
++        }
++      }
++      date = addDaysIso(date, -1);
++      while (isWeekendIso(date)) date = addDaysIso(date, -1);
++    }
++    return null;
++  }
++
++  private async fetchDate(base: string, quote: string, date: string): Promise<{ date: string; rate: number } | null> {
++    const key = `${base}/${quote}/${date}`;
++    if (this.cache.has(key)) return this.cache.get(key)!;
++
++    const url = `${this.baseUrl}/v2/rate/${base}/${quote}?date=${date}&providers=${this.provider}`;
++    for (let attempt = 0; ; attempt++) {
++      let res;
++      try {
++        res = await this.fetchImpl(url, { signal: AbortSignal.timeout(this.timeoutMs) });
++      } catch (err) {
++        if (attempt >= this.maxRetries) throw new ProviderError(this.name, `network error for ${url}`, err);
++        await this.sleepFn(250 * 2 ** attempt);
++        continue;
++      }
++      if (res.ok) {
++        const body = (await res.json()) as { date?: unknown; rate?: unknown };
++        if (typeof body.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.date) && typeof body.rate === 'number' && body.rate > 0) {
++          const row = { date: body.date, rate: body.rate };
++          this.cache.set(key, row);
++          return row;
++        }
++        throw new ProviderError(this.name, `unexpected response shape from ${url}`);
++      }
++      if (res.status === 404 || res.status === 422) {
++        // Unknown pair or no data for this date: cache the negative so we do not hammer the API.
++        this.cache.set(key, null);
++        return null;
++      }
++      if (isRetryable(res.status) && attempt < this.maxRetries) {
++        await this.sleepFn(250 * 2 ** attempt);
++        continue;
++      }
++      throw new ProviderError(this.name, `HTTP ${res.status} for ${url}`);
++    }
++  }
++}
+diff --git a/supabase/functions/_shared/pnl-engine/rates/http.ts b/supabase/functions/_shared/pnl-engine/rates/http.ts
+new file mode 100644
+index 0000000..d7a8c1d
+--- /dev/null
++++ b/supabase/functions/_shared/pnl-engine/rates/http.ts
+@@ -0,0 +1,21 @@
++/** Minimal fetch surface so providers can be unit-tested with a stub and no network. */
++export interface HttpResponse {
++  ok: boolean;
++  status: number;
++  json(): Promise<unknown>;
++}
++export type FetchLike = (
++  url: string,
++  init?: { headers?: Record<string, string>; signal?: AbortSignal },
++) => Promise<HttpResponse>;
++
++/** Hard ceiling for any single provider request. A hung socket must not stall an import. */
++export const DEFAULT_TIMEOUT_MS = 10_000;
++
++export const defaultFetch: FetchLike = (url, init) =>
++  fetch(url, { ...init, signal: init?.signal ?? AbortSignal.timeout(DEFAULT_TIMEOUT_MS) });
++
++export const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
++
++/** True for responses worth retrying: rate-limit and transient server errors. */
++export const isRetryable = (status: number) => status === 429 || (status >= 500 && status <= 599);
+diff --git a/supabase/functions/_shared/pnl-engine/rates/implied.ts b/supabase/functions/_shared/pnl-engine/rates/implied.ts
+new file mode 100644
+index 0000000..89e9cec
+--- /dev/null
++++ b/supabase/functions/_shared/pnl-engine/rates/implied.ts
+@@ -0,0 +1,105 @@
++import { D, Dec, type DecimalLike } from '../decimal.ts';
++import type { InstrumentSpec, Side } from '../types.ts';
++import type { RateObservation, RateProvider } from './types.ts';
++
++export interface ImpliedRateInput {
++  spec: InstrumentSpec;
++  side: Side;
++  lots: DecimalLike;
++  openPrice: DecimalLike;
++  closePrice: DecimalLike;
++  /** Broker's GROSS profit for the trade in account currency (MT5 DEAL_PROFIT; MT4 OrderProfit()). Excludes swap/commission. */
++  brokerProfit: DecimalLike;
++  accountCurrency: string;
++  closeTimeMs: number;
++  source: string;
++  /** Below this absolute profit the broker's 2-dp rounding makes the back-solved rate too noisy. Default 5 account units (<= ~0.1% error). */
++  minAbsProfit?: DecimalLike;
++}
++
++/**
++ * Back-solve the exact conversion rate the broker applied:
++ *
++ *   brokerProfit(account) = priceDelta * units * rate(profitCcy -> account)
++ *   =>  rate = brokerProfit / (priceDelta * units)
++ *
++ * This is the most accurate rate source available because it IS the broker's
++ * number, at the broker's timestamp, with the broker's spread baked in, and it
++ * costs nothing. Returns null when the trade teaches us nothing (profit already
++ * in account currency, zero move, or too small to back-solve cleanly).
++ */
++export function deriveImpliedRate(i: ImpliedRateInput): RateObservation | null {
++  if (i.spec.profitCurrency === i.accountCurrency.toUpperCase()) return null;
++  const open = D(i.openPrice);
++  const close = D(i.closePrice);
++  const delta = i.side === 'buy' ? close.minus(open) : open.minus(close);
++  const gross = delta.times(D(i.lots)).times(i.spec.contractSize);
++  const profit = D(i.brokerProfit);
++  const floor = D(i.minAbsProfit ?? 5);
++  if (gross.isZero() || profit.abs().lt(floor)) return null;
++  const rate = profit.div(gross);
++  if (!rate.isFinite() || rate.lte(0)) return null; // sign mismatch = bad data, learn nothing
++  return {
++    base: i.spec.profitCurrency,
++    quote: i.accountCurrency.toUpperCase(),
++    rate,
++    observedAtMs: i.closeTimeMs,
++    source: i.source,
++    kind: 'implied',
++    side: 'unspecified',
++  };
++}
++
++/**
++ * Rates learned from the broker's own booked trades, scoped to ONE broker
++ * account (different brokers apply different conversion quotes).
++ *
++ * In production, back this with a table (see the plan's SQL) and a
++ * binary-search/index lookup; the in-memory version here is the reference.
++ */
++export class ImpliedRateProvider implements RateProvider {
++  readonly name: string;
++  readonly maxStalenessMs: number;
++  private readonly series = new Map<string, RateObservation[]>();
++
++  constructor(opts: { scope: string; maxStalenessMs?: number }) {
++    this.name = `implied:${opts.scope}`;
++    // 30 min default: conversion rates drift ~0.1-0.3% in that window on majors.
++    this.maxStalenessMs = opts.maxStalenessMs ?? 30 * 60_000;
++  }
++
++  record(obs: RateObservation): void {
++    const key = `${obs.base}/${obs.quote}`;
++    const arr = this.series.get(key) ?? [];
++    // keep sorted by time; insertion is O(n) but trades arrive roughly in order
++    let idx = arr.length;
++    while (idx > 0 && arr[idx - 1]!.observedAtMs > obs.observedAtMs) idx--;
++    arr.splice(idx, 0, obs);
++    this.series.set(key, arr);
++  }
++
++  async get(base: string, quote: string, atMs: number): Promise<RateObservation | null> {
++    const arr = this.series.get(`${base}/${quote}`);
++    if (!arr || arr.length === 0) return null;
++    let lo = 0;
++    let hi = arr.length - 1;
++    let best = -1;
++    while (lo <= hi) {
++      const mid = (lo + hi) >> 1;
++      if (arr[mid]!.observedAtMs <= atMs) {
++        best = mid;
++        lo = mid + 1;
++      } else hi = mid - 1;
++    }
++    return best >= 0 ? arr[best]! : null;
++  }
++
++  /** Test/diagnostic helper. */
++  size(): number {
++    let n = 0;
++    for (const a of this.series.values()) n += a.length;
++    return n;
++  }
++}
++
++export { Dec };
+diff --git a/supabase/functions/_shared/pnl-engine/rates/massive.ts b/supabase/functions/_shared/pnl-engine/rates/massive.ts
+new file mode 100644
+index 0000000..5ec2012
+--- /dev/null
++++ b/supabase/functions/_shared/pnl-engine/rates/massive.ts
+@@ -0,0 +1,145 @@
++import { D } from '../decimal.ts';
++import { DEFAULT_TIMEOUT_MS, defaultFetch, isRetryable, sleep, type FetchLike } from './http.ts';
++import { ProviderError, type RateObservation, type RateProvider } from './types.ts';
++
++const HOUR_MS = 3_600_000;
++const MINUTE_MS = 60_000;
++
++interface Bar {
++  t: number;
++  o: number;
++  c: number;
++}
++
++/**
++ * 1-minute FX bars from Massive (formerly Polygon.io).
++ *
++ * VERIFIED from Massive's API reference:
++ *   GET https://api.massive.com/v2/aggs/ticker/C:EURUSD/range/1/minute/{from}/{to}
++ *   from/to accept YYYY-MM-DD or millisecond timestamps; limit max 50000.
++ *   results[]: { o, h, l, c, v, t (bar START, unix ms), n?, vw? }
++ *   Bars are built from quoted bid/ask (not trades). A minute with no quotes has no bar.
++ *   Plans: Currencies Basic = free, EOD only, 2y history. Starter = all history (to Sep 2009).
++ *   Minute history therefore needs a paid plan; confirm current terms before relying on it.
++ *
++ * NOT confirmed by the docs: whether bar prices are bid, ask or mid. Side is
++ * therefore labelled 'unspecified'. If side matters to you, validate against a
++ * broker feed once and record the finding.
++ *
++ * No look-ahead rule. For an instant `at` inside bar B (start t, t <= at < t+60s)
++ * we use B.open: the price at the start of the minute, which was knowable at
++ * `at`. If `at` is past a completed bar with no bar after it (a quote gap), we
++ * use that bar's close, observed at t+60s.
++ *
++ * Bars are fetched and cached by whole UTC hour, which amortises API calls
++ * across trades. The current (incomplete) hour is never cached.
++ */
++export class MassiveMinuteProvider implements RateProvider {
++  readonly name = 'massive-1m';
++  readonly maxStalenessMs: number;
++
++  private readonly apiKey: string;
++  private readonly baseUrl: string;
++  private readonly fetchImpl: FetchLike;
++  private readonly auth: 'header' | 'query';
++  private readonly nowFn: () => number;
++  private readonly maxRetries: number;
++  private readonly timeoutMs: number;
++  private readonly sleepFn: (ms: number) => Promise<void>;
++  private readonly hourCache = new Map<string, Bar[]>();
++
++  constructor(o: {
++    apiKey: string;
++    baseUrl?: string;
++    fetchImpl?: FetchLike;
++    /** 'header' sends Authorization: Bearer; 'query' sends ?apiKey=. Docs show query; Bearer is also accepted by the Polygon-compatible API. */
++    auth?: 'header' | 'query';
++    maxStalenessMs?: number;
++    now?: () => number;
++    maxRetries?: number;
++    /** Per request timeout. Default 10s. */
++    timeoutMs?: number;
++    sleep?: (ms: number) => Promise<void>;
++  }) {
++    if (!o.apiKey) throw new Error('MassiveMinuteProvider: apiKey required');
++    this.apiKey = o.apiKey;
++    this.baseUrl = (o.baseUrl ?? 'https://api.massive.com').replace(/\/$/, '');
++    this.fetchImpl = o.fetchImpl ?? defaultFetch;
++    this.auth = o.auth ?? 'header';
++    this.maxStalenessMs = o.maxStalenessMs ?? 15 * MINUTE_MS;
++    this.nowFn = o.now ?? Date.now;
++    this.maxRetries = o.maxRetries ?? 2;
++    this.timeoutMs = o.timeoutMs ?? DEFAULT_TIMEOUT_MS;
++    this.sleepFn = o.sleep ?? sleep;
++  }
++
++  async get(base: string, quote: string, atMs: number): Promise<RateObservation | null> {
++    const ticker = `C:${base}${quote}`;
++    const lastHour = Math.floor(atMs / HOUR_MS) * HOUR_MS;
++    const hoursBack = Math.ceil(this.maxStalenessMs / HOUR_MS) + 1;
++
++    for (let k = 0; k <= hoursBack; k++) {
++      const bars = await this.hourBars(ticker, lastHour - k * HOUR_MS);
++      // bars are ascending; find the last bar starting at or before atMs
++      let pick: Bar | undefined;
++      for (let i = bars.length - 1; i >= 0; i--) {
++        if (bars[i]!.t <= atMs) {
++          pick = bars[i];
++          break;
++        }
++      }
++      if (!pick) continue;
++      const inside = atMs - pick.t < MINUTE_MS;
++      const observedAtMs = inside ? pick.t : pick.t + MINUTE_MS;
++      if (atMs - observedAtMs > this.maxStalenessMs) return null;
++      return {
++        base,
++        quote,
++        rate: D(inside ? pick.o : pick.c),
++        observedAtMs,
++        source: this.name,
++        kind: 'minute',
++        side: 'unspecified',
++      };
++    }
++    return null;
++  }
++
++  private async hourBars(ticker: string, hourStart: number): Promise<Bar[]> {
++    const key = `${ticker}@${hourStart}`;
++    const cached = this.hourCache.get(key);
++    if (cached) return cached;
++
++    const url =
++      `${this.baseUrl}/v2/aggs/ticker/${ticker}/range/1/minute/${hourStart}/${hourStart + HOUR_MS - 1}` +
++      `?adjusted=true&sort=asc&limit=50000` +
++      (this.auth === 'query' ? `&apiKey=${encodeURIComponent(this.apiKey)}` : '');
++    const headers: Record<string, string> = this.auth === 'header' ? { Authorization: `Bearer ${this.apiKey}` } : {};
++
++    for (let attempt = 0; ; attempt++) {
++      let res;
++      try {
++        res = await this.fetchImpl(url, { headers, signal: AbortSignal.timeout(this.timeoutMs) });
++      } catch (err) {
++        if (attempt >= this.maxRetries) throw new ProviderError(this.name, `network error for ${ticker}`, err);
++        await this.sleepFn(500 * 2 ** attempt);
++        continue;
++      }
++      if (res.ok) {
++        const body = (await res.json()) as { results?: Array<{ t?: number; o?: number; c?: number }> };
++        const bars: Bar[] = (body.results ?? [])
++          .filter((r): r is Bar => typeof r.t === 'number' && typeof r.o === 'number' && typeof r.c === 'number')
++          .sort((a, b) => a.t - b.t);
++        if (hourStart + HOUR_MS <= this.nowFn()) this.hourCache.set(key, bars); // only complete hours
++        return bars;
++      }
++      if (res.status === 404) return [];
++      if (isRetryable(res.status) && attempt < this.maxRetries) {
++        await this.sleepFn(500 * 2 ** attempt);
++        continue;
++      }
++      // 401/403 = key/plan problem: surface loudly, do not paper over with an empty answer.
++      throw new ProviderError(this.name, `HTTP ${res.status} for ${ticker}`);
++    }
++  }
++}
+diff --git a/supabase/functions/_shared/pnl-engine/rates/resolver.ts b/supabase/functions/_shared/pnl-engine/rates/resolver.ts
+new file mode 100644
+index 0000000..127fb2c
+--- /dev/null
++++ b/supabase/functions/_shared/pnl-engine/rates/resolver.ts
+@@ -0,0 +1,108 @@
++import { ONE } from '../decimal.ts';
++import type { RateObservation, RateProvider } from './types.ts';
++
++export interface ResolverOptions {
++  /** Priority order: most accurate first. The first provider able to price the pair wins. */
++  providers: RateProvider[];
++  /**
++   * Intermediate currencies for triangulation, tried in order. USD first
++   * (deepest liquidity), then EUR. A currency equal to either endpoint is skipped.
++   */
++  pivots?: string[];
++  /** Called when a provider throws (network, auth, quota). The resolver then falls through to the next provider. */
++  onProviderError?: (provider: string, err: unknown) => void;
++}
++
++const sameInstant = (a: number, b: number) => a === b;
++
++/**
++ * Answers: "what is 1 FROM worth in TO at instant t?"
++ *
++ * Order of attempts, per provider (providers are NOT mixed within one answer,
++ * so both legs of a triangulation share a timestamp basis):
++ *   1. identity                  (FROM === TO)
++ *   2. direct pair   FROM/TO
++ *   3. inverse pair  TO/FROM  -> 1/rate
++ *   4. triangulation FROM -> pivot -> TO, each leg direct or inverse
++ */
++export class RateResolver {
++  private readonly providers: RateProvider[];
++  private readonly pivots: string[];
++  private readonly onErr: (provider: string, err: unknown) => void;
++
++  constructor(opts: ResolverOptions) {
++    this.providers = opts.providers;
++    this.pivots = (opts.pivots ?? ['USD', 'EUR']).map((c) => c.toUpperCase());
++    this.onErr = opts.onProviderError ?? (() => undefined);
++  }
++
++  async resolve(from: string, to: string, atMs: number): Promise<RateObservation | null> {
++    const f = from.toUpperCase();
++    const t = to.toUpperCase();
++    if (f === t) {
++      return { base: f, quote: t, rate: ONE, observedAtMs: atMs, source: 'identity', kind: 'derived', side: 'mid' };
++    }
++    for (const p of this.providers) {
++      try {
++        const hit = await this.viaProvider(p, f, t, atMs);
++        if (hit) return hit;
++      } catch (err) {
++        this.onErr(p.name, err);
++      }
++    }
++    return null;
++  }
++
++  private async viaProvider(p: RateProvider, f: string, t: string, atMs: number): Promise<RateObservation | null> {
++    const direct = await this.directOrInverse(p, f, t, atMs);
++    if (direct) return direct;
++
++    for (const pivot of this.pivots) {
++      if (pivot === f || pivot === t) continue;
++      const leg1 = await this.directOrInverse(p, f, pivot, atMs);
++      if (!leg1) continue;
++      const leg2 = await this.directOrInverse(p, pivot, t, atMs);
++      if (!leg2) continue;
++      return {
++        base: f,
++        quote: t,
++        rate: leg1.rate.times(leg2.rate),
++        // A chain is only as fresh as its stalest link.
++        observedAtMs: Math.min(leg1.observedAtMs, leg2.observedAtMs),
++        source: p.name,
++        kind: 'derived',
++        side: leg1.side === leg2.side ? leg1.side : 'unspecified',
++        lineage: [leg1, leg2],
++      };
++    }
++    return null;
++  }
++
++  private async directOrInverse(p: RateProvider, f: string, t: string, atMs: number): Promise<RateObservation | null> {
++    const d = await this.fetchChecked(p, f, t, atMs);
++    if (d) return d;
++    const i = await this.fetchChecked(p, t, f, atMs);
++    if (!i) return null;
++    return {
++      base: f,
++      quote: t,
++      rate: ONE.div(i.rate),
++      observedAtMs: i.observedAtMs,
++      source: i.source,
++      kind: 'derived',
++      // Inverting swaps bid<->ask.
++      side: i.side === 'bid' ? 'ask' : i.side === 'ask' ? 'bid' : i.side,
++      lineage: [i],
++    };
++  }
++
++  /** Enforce the provider contract: positive rate, no look-ahead, inside staleness window. */
++  private async fetchChecked(p: RateProvider, b: string, q: string, atMs: number): Promise<RateObservation | null> {
++    const o = await p.get(b, q, atMs);
++    if (!o) return null;
++    if (!o.rate.isFinite() || o.rate.lte(0)) return null;
++    if (o.observedAtMs > atMs && !sameInstant(o.observedAtMs, atMs)) return null; // look-ahead
++    if (atMs - o.observedAtMs > p.maxStalenessMs) return null;
++    return o;
++  }
++}
+diff --git a/supabase/functions/_shared/pnl-engine/rates/types.ts b/supabase/functions/_shared/pnl-engine/rates/types.ts
+new file mode 100644
+index 0000000..825c51c
+--- /dev/null
++++ b/supabase/functions/_shared/pnl-engine/rates/types.ts
+@@ -0,0 +1,57 @@
++import type { Dec } from '../decimal.ts';
++
++/**
++ * Where an observation sits on the accuracy ladder (best first):
++ *  implied   - back-solved from the broker's own booked profit (exactly what the broker used)
++ *  tick      - tick/quote-level market data
++ *  minute    - 1-minute bars
++ *  daily-fix - once-a-day central-bank reference rate
++ *  derived   - inverted or triangulated from the above
++ */
++export type RateKind = 'implied' | 'tick' | 'minute' | 'daily-fix' | 'derived';
++export type RateSide = 'mid' | 'bid' | 'ask' | 'unspecified';
++
++/**
++ * A rate observation: 1 unit of `base` is worth `rate` units of `quote`,
++ * valid as of `observedAtMs` (UTC). Observations are immutable facts; persist
++ * the one used for every conversion so historical P&L is reproducible and
++ * auditable even if a vendor later revises its data.
++ */
++export interface RateObservation {
++  base: string;
++  quote: string;
++  rate: Dec;
++  observedAtMs: number;
++  source: string;
++  kind: RateKind;
++  side: RateSide;
++  /** For derived rates: the observations this one was built from. */
++  lineage?: RateObservation[];
++}
++
++export interface RateProvider {
++  readonly name: string;
++  /**
++   * Oldest observation (relative to the requested instant) this provider may
++   * answer with. Beyond it, "no rate" is the honest answer: a 3-day-old rate
++   * silently applied to a minute-resolution trade is worse than a flagged gap.
++   */
++  readonly maxStalenessMs: number;
++  /**
++   * Latest observation at or BEFORE `atMs` for 1 `base` in `quote`.
++   * Must never look ahead of `atMs`. Return null if the pair is unsupported
++   * or no observation exists inside the staleness window.
++   */
++  get(base: string, quote: string, atMs: number): Promise<RateObservation | null>;
++}
++
++export class ProviderError extends Error {
++  constructor(
++    public readonly provider: string,
++    message: string,
++    public override readonly cause?: unknown,
++  ) {
++    super(`[${provider}] ${message}`);
++    this.name = 'ProviderError';
++  }
++}
+diff --git a/supabase/functions/_shared/pnl-engine/reconcile.ts b/supabase/functions/_shared/pnl-engine/reconcile.ts
+new file mode 100644
+index 0000000..5cb5799
+--- /dev/null
++++ b/supabase/functions/_shared/pnl-engine/reconcile.ts
+@@ -0,0 +1,119 @@
++import { D, Dec, pow10 } from './decimal.ts';
++import { minorUnits } from './currency.ts';
++import type { RateObservation } from './rates/types.ts';
++
++export type ReconStatus = 'OK' | 'WARN' | 'MISMATCH';
++
++export interface Tolerance {
++  /** Flat allowance in account currency (covers the broker's own rounding). */
++  absolute: Dec;
++  /** Fraction of |imported| (covers conversion-rate differences between sources). */
++  relative: Dec;
++}
++
++export interface Reconciliation {
++  status: ReconStatus;
++  imported: Dec;
++  computed: Dec | null;
++  diff: Dec | null;
++  allowed: Dec;
++  /** Ordered, human-readable hypotheses for a failed match. Surface these in the UI. */
++  diagnosis: string[];
++  /** Rate source the independent calculation relied on. */
++  rateSource: string | null;
++}
++
++/**
++ * Relative tolerance by rate quality. The broker converted at its own quote at
++ * its own instant; our independent calculation can only approximate that, and
++ * how closely depends on the source:
++ *   identity  - no conversion involved: only broker rounding differs
++ *   tick/minute/implied - sub-0.5% on majors
++ *   daily-fix - a whole day's move in the quote currency
++ * A chain (inversion/triangulation) is as loose as its loosest leg.
++ */
++export function relativeToleranceFor(obs: RateObservation | null): Dec {
++  if (!obs) return D('0.003');
++  if (obs.source === 'identity') return D('0.0001');
++  if (obs.lineage && obs.lineage.length > 0) {
++    return obs.lineage.map(relativeToleranceFor).reduce((a, b) => (a.gt(b) ? a : b));
++  }
++  switch (obs.kind) {
++    case 'daily-fix':
++      return D('0.015');
++    case 'tick':
++      return D('0.002');
++    case 'minute':
++    case 'implied':
++    case 'derived':
++      return D('0.003');
++  }
++}
++
++/** Absolute floor: five minor units of the account currency (0.05 USD, 5 JPY, 0.005 BHD). */
++export function absoluteToleranceFor(accountCurrency: string): Dec {
++  return D(5).times(pow10(-minorUnits(accountCurrency)));
++}
++
++export function reconcile(imported: Dec, computed: Dec | null, tol: Tolerance, rateSource: string | null = null): Reconciliation {
++  const allowed = tol.absolute.plus(tol.relative.times(imported.abs()));
++  if (computed === null) {
++    return {
++      status: 'WARN',
++      imported,
++      computed: null,
++      diff: null,
++      allowed,
++      diagnosis: ['No independent rate available: broker figure stored unverified.'],
++      rateSource,
++    };
++  }
++  const diff = imported.minus(computed);
++  const absDiff = diff.abs();
++  let status: ReconStatus;
++  if (absDiff.lte(allowed)) status = 'OK';
++  else if (absDiff.lte(allowed.times(3))) status = 'WARN';
++  else status = 'MISMATCH';
++  return {
++    status,
++    imported,
++    computed,
++    diff,
++    allowed,
++    diagnosis: status === 'OK' ? [] : diagnose(imported, computed),
++    rateSource,
++  };
++}
++
++/** Heuristics that turn "numbers differ" into "here is probably why". */
++export function diagnose(imported: Dec, computed: Dec): string[] {
++  const out: string[] = [];
++  if (imported.isZero()) {
++    out.push('Broker profit is zero: this may be an opening deal, a balance operation, or a zero-move trade.');
++    return out;
++  }
++  if (computed.isZero()) {
++    out.push('Computed result is zero but broker booked a result: check open/close prices and symbol mapping.');
++    return out;
++  }
++  const ratio = imported.div(computed);
++  if (ratio.isNegative()) {
++    out.push('Opposite signs: trade side (buy/sell) is probably reversed.');
++  }
++  const abs = ratio.abs();
++  const log = Math.log10(abs.toNumber());
++  const nearest = Math.round(log);
++  if (nearest !== 0 && Math.abs(log - nearest) < 0.01) {
++    out.push(
++      `Ratio is ~10^${nearest}: contract size, lot unit (0.01 vs 1.0) or pip/digit scaling is off by a power of ten.`,
++    );
++  } else if (abs.gt('0.85') && abs.lt('1.15')) {
++    out.push('Within ~15% but outside tolerance: conversion rate differs (stale source, wrong timestamp/timezone, or broker markup).');
++  } else if (abs.gt('0.4') && abs.lt('2.5')) {
++    out.push('Off by a factor between 0.4x and 2.5x: check lots, partial-close allocation, and whether the broker row is a full or partial close.');
++  }
++  if (out.length === 0) out.push('Unexplained: verify symbol mapping, contract size, lot units and timestamps.');
++  return out;
++}
++
++export { Dec };
+diff --git a/supabase/functions/_shared/pnl-engine/time.ts b/supabase/functions/_shared/pnl-engine/time.ts
+new file mode 100644
+index 0000000..8a75c9f
+--- /dev/null
++++ b/supabase/functions/_shared/pnl-engine/time.ts
+@@ -0,0 +1,101 @@
++/**
++ * Time handling. Rate lookups are only as good as the timestamp you feed them,
++ * and MetaTrader reports SERVER time, not UTC. A 2-3 hour error here means
++ * you convert a Friday-evening close at a Monday rate.
++ */
++
++/** How the broker's server clock relates to UTC. */
++export type ServerTz =
++  | { kind: 'fixed'; offsetMinutes: number }
++  /** The dominant FX convention: GMT+2 in winter, GMT+3 during US DST ("New York close" servers). */
++  | { kind: 'ny-close' }
++  /** Server follows an IANA zone's own DST rules, e.g. "Europe/Athens" (EET/EEST, EU DST). */
++  | { kind: 'iana'; zone: string };
++
++const dtfCache = new Map<string, Intl.DateTimeFormat>();
++
++/** Offset of `zone` from UTC (ms, positive east) at the given UTC instant. */
++export function zoneOffsetMs(zone: string, utcMs: number): number {
++  let f = dtfCache.get(zone);
++  if (!f) {
++    f = new Intl.DateTimeFormat('en-US', {
++      timeZone: zone,
++      hourCycle: 'h23',
++      year: 'numeric',
++      month: '2-digit',
++      day: '2-digit',
++      hour: '2-digit',
++      minute: '2-digit',
++      second: '2-digit',
++    });
++    dtfCache.set(zone, f);
++  }
++  const p: Record<string, number> = {};
++  for (const part of f.formatToParts(new Date(utcMs))) {
++    if (part.type !== 'literal') p[part.type] = Number(part.value);
++  }
++  const asUtc = Date.UTC(p['year']!, p['month']! - 1, p['day']!, p['hour']!, p['minute']!, p['second']!);
++  return asUtc - Math.floor(utcMs / 1000) * 1000;
++}
++
++/** Wall-clock time in an IANA zone (expressed as if it were UTC ms) -> true UTC ms. */
++export function zoneWallToUtcMs(zone: string, wallMs: number): number {
++  let utc = wallMs - zoneOffsetMs(zone, wallMs);
++  utc = wallMs - zoneOffsetMs(zone, utc); // second pass settles DST boundaries
++  return utc;
++}
++
++/** n-th Sunday (1-based) of a month, as 00:00 UTC ms. monthIdx is 0-based. */
++function nthSundayMs(year: number, monthIdx: number, n: number): number {
++  const firstDow = new Date(Date.UTC(year, monthIdx, 1)).getUTCDay();
++  const firstSunday = 1 + ((7 - firstDow) % 7);
++  return Date.UTC(year, monthIdx, firstSunday + 7 * (n - 1));
++}
++
++/**
++ * Convert a MetaTrader server timestamp to UTC epoch ms.
++ *
++ * `serverWallMs` is the number MT gives you: wall-clock server time encoded
++ * as if it were UTC (MT5 history times, MT4 OrderOpenTime() etc.).
++ *
++ * 'ny-close' note: US DST starts the 2nd Sunday of March and ends the 1st
++ * Sunday of November. FX is closed across the real switch instant, and the
++ * Sunday-evening reopen is already on the new regime, so treating the whole
++ * switch Sunday as the new regime is exact for every tradable moment.
++ */
++export function serverWallToUtcMs(serverWallMs: number, tz: ServerTz): number {
++  switch (tz.kind) {
++    case 'fixed':
++      return serverWallMs - tz.offsetMinutes * 60_000;
++    case 'iana':
++      return zoneWallToUtcMs(tz.zone, serverWallMs);
++    case 'ny-close': {
++      const y = new Date(serverWallMs).getUTCFullYear();
++      const dstStart = nthSundayMs(y, 2, 2);
++      const dstEnd = nthSundayMs(y, 10, 1);
++      const dst = serverWallMs >= dstStart && serverWallMs < dstEnd;
++      return serverWallMs - (dst ? 180 : 120) * 60_000;
++    }
++  }
++}
++
++/** ECB reference rates are published ~16:00 Central European Time on TARGET business days. */
++export function ecbFixingUtcMs(dateIso: string): number {
++  const [y, m, d] = dateIso.split('-').map(Number) as [number, number, number];
++  return zoneWallToUtcMs('Europe/Berlin', Date.UTC(y, m - 1, d, 16, 0, 0));
++}
++
++export function isoDateUtc(ms: number): string {
++  return new Date(ms).toISOString().slice(0, 10);
++}
++
++export function addDaysIso(dateIso: string, days: number): string {
++  const [y, m, d] = dateIso.split('-').map(Number) as [number, number, number];
++  return isoDateUtc(Date.UTC(y, m - 1, d + days));
++}
++
++export function isWeekendIso(dateIso: string): boolean {
++  const [y, m, d] = dateIso.split('-').map(Number) as [number, number, number];
++  const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
++  return dow === 0 || dow === 6;
++}
+diff --git a/supabase/functions/_shared/pnl-engine/types.ts b/supabase/functions/_shared/pnl-engine/types.ts
+new file mode 100644
+index 0000000..6107806
+--- /dev/null
++++ b/supabase/functions/_shared/pnl-engine/types.ts
+@@ -0,0 +1,67 @@
++import type { Dec } from './decimal.ts';
++
++export type Side = 'buy' | 'sell';
++
++export type InstrumentKind = 'fx' | 'metal' | 'crypto' | 'index' | 'cfd';
++
++/**
++ * Everything the engine needs to know about a tradable symbol. For MT4/MT5
++ * accounts, populate from SymbolInfo (digits, contract size) rather than
++ * relying on defaults: contract size is per-broker.
++ */
++export interface InstrumentSpec {
++  /** Broker symbol exactly as it appears in the account, e.g. "EURUSDm". */
++  symbol: string;
++  base: string;
++  quote: string;
++  /** Currency in which the broker books raw P&L. For spot FX this is the quote currency. */
++  profitCurrency: string;
++  kind: InstrumentKind;
++  /** Decimal places in the broker's quote (5 for EURUSD, 3 for USDJPY). */
++  digits: number;
++  /** Units of base per 1.0 lot (100_000 for FX). */
++  contractSize: Dec;
++  contractSizeSource: 'broker' | 'default';
++  /** Smallest price step the broker quotes: 10^-digits. */
++  pointSize: Dec;
++  /** FX pip size. null for instruments where "pip" is not a meaningful unit. */
++  pipSize: Dec | null;
++}
++
++/** Amounts the broker reported, in ACCOUNT currency, signed (costs negative). */
++export interface BrokerReported {
++  /** Gross trading result only: MT5 DEAL_PROFIT / MT4 OrderProfit(). Excludes swap/commission/fee. */
++  profit?: Dec;
++  swap?: Dec;
++  commission?: Dec;
++  fee?: Dec;
++}
++
++/** One fully closed position (or closed segment of a position). */
++export interface ClosedTrade {
++  id: string;
++  spec: InstrumentSpec;
++  side: Side;
++  lots: Dec;
++  openPrice: Dec;
++  closePrice: Dec;
++  /** UTC epoch milliseconds. Convert broker server time first (see time.ts). */
++  openTimeMs: number;
++  closeTimeMs: number;
++  accountCurrency: string;
++  broker?: BrokerReported;
++  /** Initial stop loss, used for planned risk / R-multiple. */
++  stopLoss?: Dec;
++  takeProfit?: Dec;
++}
++
++export interface OpenPosition {
++  id: string;
++  spec: InstrumentSpec;
++  side: Side;
++  lots: Dec;
++  openPrice: Dec;
++  openTimeMs: number;
++  accountCurrency: string;
++  broker?: { swap?: Dec; commission?: Dec; fee?: Dec };
++}
+diff --git a/supabase/functions/_shared/pnl-map.ts b/supabase/functions/_shared/pnl-map.ts
+new file mode 100644
+index 0000000..5c3b066
+--- /dev/null
++++ b/supabase/functions/_shared/pnl-map.ts
+@@ -0,0 +1,111 @@
++/**
++ * Pure mapping from AlphaMine rows to engine inputs. No I/O, so it is unit tested in Vitest and
++ * reused unchanged by the Edge Function.
++ */
++import { D, type ClosedTrade, inferInstrument, UnsupportedInstrumentError } from './pnl-engine/index.ts';
++
++export interface TradeRow {
++  id: string;
++  direction: 'long' | 'short';
++  entry_at: string | null;
++  exit_at: string | null;
++  entry_price: number | string | null;
++  exit_price: number | string | null;
++  quantity: number | string | null;
++  stop_loss: number | string | null;
++  take_profit: number | string | null;
++  gross_pnl: number | string | null;
++  net_pnl: number | string | null;
++  fees: number | string | null;
++  commission: number | string | null;
++  swap: number | string | null;
++  risk_amount: number | string | null;
++  source: string | null;
++  raw_symbol: string | null;
++  is_break_even: boolean | null;
++  pnl_manual: boolean | null;
++  instrument_id: string | null;
++}
++export interface InstrumentRow {
++  id: string;
++  symbol: string;
++  contract_size: number | string | null;
++  digits: number | null;
++  profit_currency: string | null;
++  kind: 'fx' | 'metal' | 'crypto' | 'index' | 'cfd' | null;
++}
++export interface JournalRow { id: string; currency: string; quantity_unit: 'lots' | 'units' | null }
++
++export type Mapped = { trade: ClosedTrade; notes: string[] } | { skip: string };
++
++const has = (v: unknown): v is number | string => v !== null && v !== undefined && v !== '';
++const decimals = (v: number | string | null) => (has(v) ? (String(v).split('.')[1] ?? '').length : 0);
++
++/** Highest price precision seen per instrument, used only when `instruments.digits` is empty. */
++export function guessDigits(rows: TradeRow[]): Map<string, number> {
++  const out = new Map<string, number>();
++  for (const r of rows) {
++    if (!r.instrument_id) continue;
++    const d = Math.max(decimals(r.entry_price), decimals(r.exit_price));
++    out.set(r.instrument_id, Math.min(8, Math.max(out.get(r.instrument_id) ?? 0, d)));
++  }
++  return out;
++}
++
++export function mapTrade(row: TradeRow, ins: InstrumentRow | undefined, journal: JournalRow, digitsGuess: Map<string, number>): Mapped {
++  if (row.pnl_manual && (row.source ?? 'manual') === 'manual') return { skip: 'P&L entered by hand is never overwritten' };
++  if (row.is_break_even) return { skip: 'marked break even' };
++  if (!has(row.entry_price) || !has(row.exit_price) || !row.entry_at || !row.exit_at) return { skip: 'trade is not closed or has no prices' };
++  if (!has(row.quantity) || Number(row.quantity) <= 0) return { skip: 'no quantity' };
++  if (!journal.quantity_unit) return { skip: 'journal quantity unit (lots or units) is not set' };
++  const symbol = row.raw_symbol ?? ins?.symbol;
++  if (!symbol) return { skip: 'no instrument symbol' };
++
++  const notes: string[] = [];
++  const own = Math.max(decimals(row.entry_price), decimals(row.exit_price));
++  const digits = Math.min(8, Math.max(2, ins?.digits ?? (ins ? digitsGuess.get(ins.id) : undefined) ?? own));
++  if (ins?.digits == null) notes.push(`price digits inferred as ${digits}`);
++
++  let spec;
++  try {
++    spec = inferInstrument(symbol, {
++      digits,
++      contractSize: has(ins?.contract_size) ? Number(ins!.contract_size) : undefined,
++      profitCurrency: ins?.profit_currency ?? undefined,
++      kind: ins?.kind ?? undefined,
++    });
++  } catch (e) {
++    // Any instrument problem (unsupported symbol, bad digits) skips this one trade, never the batch.
++    return { skip: e instanceof UnsupportedInstrumentError ? e.message : `instrument could not be resolved: ${(e as Error).message}` };
++  }
++  if (spec.contractSizeSource === 'default') notes.push(`contract size defaulted to ${spec.contractSize.toString()}`);
++
++  const qty = D(row.quantity);
++  const lots = journal.quantity_unit === 'lots' ? qty : qty.div(spec.contractSize);
++
++  // Costs. MetaTrader style columns win; otherwise AlphaMine `fees` (a positive cost) is used.
++  const broker: NonNullable<ClosedTrade['broker']> = {};
++  const imported = (row.source ?? 'manual') !== 'manual';
++  if (imported && has(row.gross_pnl)) broker.profit = D(row.gross_pnl);
++  if (has(row.commission)) broker.commission = D(row.commission);
++  if (has(row.swap)) broker.swap = D(row.swap);
++  if (!has(row.commission) && !has(row.swap) && has(row.fees) && Number(row.fees) !== 0) broker.fee = D(row.fees).neg();
++
++  return {
++    notes,
++    trade: {
++      id: row.id,
++      spec,
++      side: row.direction === 'short' ? 'sell' : 'buy',
++      lots,
++      openPrice: D(row.entry_price),
++      closePrice: D(row.exit_price),
++      openTimeMs: Date.parse(row.entry_at),
++      closeTimeMs: Date.parse(row.exit_at),
++      accountCurrency: journal.currency.toUpperCase(),
++      broker: Object.keys(broker).length ? broker : undefined,
++      stopLoss: has(row.stop_loss) ? D(row.stop_loss) : undefined,
++      takeProfit: has(row.take_profit) ? D(row.take_profit) : undefined,
++    },
++  };
++}
+diff --git a/supabase/functions/compute-pnl/deno.json b/supabase/functions/compute-pnl/deno.json
+new file mode 100644
+index 0000000..1c944bf
+--- /dev/null
++++ b/supabase/functions/compute-pnl/deno.json
+@@ -0,0 +1,6 @@
++{
++  "imports": {
++    "decimal.js": "npm:decimal.js@10.6.0",
++    "@supabase/supabase-js": "npm:@supabase/supabase-js@2"
++  }
++}
+diff --git a/supabase/functions/compute-pnl/deno.lock b/supabase/functions/compute-pnl/deno.lock
+new file mode 100644
+index 0000000..019cd0e
+--- /dev/null
++++ b/supabase/functions/compute-pnl/deno.lock
+@@ -0,0 +1,69 @@
++{
++  "version": "5",
++  "specifiers": {
++    "npm:@supabase/supabase-js@2": "2.118.0",
++    "npm:decimal.js@10.6.0": "10.6.0"
++  },
++  "npm": {
++    "@supabase/auth-js@2.118.0": {
++      "integrity": "sha512-xWfPXyhS2KDSfAneMtI6p/tBnbdiz/5vaRKXEqUfzfC9WCniKr2Ds5o5G7RIGig0bom4z6wUY9zaV07WDVTfnQ==",
++      "dependencies": [
++        "tslib"
++      ]
++    },
++    "@supabase/functions-js@2.118.0": {
++      "integrity": "sha512-4ofletPa/noKAU6KHeqsd3FztGzRPUEJRey1MKY0o+PIHaVePqRPShIXtl37gcVyIWaFM+zNg6r9zh0uUSFOSA==",
++      "dependencies": [
++        "tslib"
++      ]
++    },
++    "@supabase/phoenix@0.4.5": {
++      "integrity": "sha512-aAn9H9ovVyeApKy11OWOrrOGq8DV68yWeH4ud2lN9fzn4aO8Zb5GLL9m1pUg9nLqIcT+ZDfAcsZe0E/nqdv2lw=="
++    },
++    "@supabase/postgrest-js@2.118.0": {
++      "integrity": "sha512-JXy+37KPApHsyotaQACovv/Jy9E22rfiWLRuT+2UjoEAcAIelDFIrsF/FY47Dy19mO7lI0Tq+zDCX8oJ2Ozfiw==",
++      "dependencies": [
++        "tslib"
++      ]
++    },
++    "@supabase/realtime-js@2.118.0": {
++      "integrity": "sha512-pzCIEWjqD5/xqEZQerpt+q9rsgYkcrkgCJgf0W2ULqC4fYUeB/p9CFa3t9vn+IVh6dMN9r4ZCE262lZvUC+Bfw==",
++      "dependencies": [
++        "@supabase/phoenix",
++        "tslib"
++      ]
++    },
++    "@supabase/storage-js@2.118.0": {
++      "integrity": "sha512-5MNkKt2Moy7Jud/sPX7/28BwdDxZMCVHGJT00b8op3KRa9LKSjOAYU5IcfGWIstaasAqY8GkbA6oI3IRDgB1YQ==",
++      "dependencies": [
++        "iceberg-js",
++        "tslib"
++      ]
++    },
++    "@supabase/supabase-js@2.118.0": {
++      "integrity": "sha512-FxI8UXMVC2UG7IkeiI8fuQZqq2oI3JeSuN8MPIC2RLVaoEAxKS0nqE6kii9Ewpq8f9gNPM6git1Y8f0vN/QLFw==",
++      "dependencies": [
++        "@supabase/auth-js",
++        "@supabase/functions-js",
++        "@supabase/postgrest-js",
++        "@supabase/realtime-js",
++        "@supabase/storage-js"
++      ]
++    },
++    "decimal.js@10.6.0": {
++      "integrity": "sha512-YpgQiITW3JXGntzdUmyUR1V812Hn8T1YVXhCu+wO3OpS4eU9l4YdD3qjyiKdV6mvV29zapkMeD390UVEf2lkUg=="
++    },
++    "iceberg-js@0.8.1": {
++      "integrity": "sha512-1dhVQZXhcHje7798IVM+xoo/1ZdVfzOMIc8/rgVSijRK38EDqOJoGula9N/8ZI5RD8QTxNQtK/Gozpr+qUqRRA=="
++    },
++    "tslib@2.8.1": {
++      "integrity": "sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w=="
++    }
++  },
++  "workspace": {
++    "dependencies": [
++      "npm:@supabase/supabase-js@2",
++      "npm:decimal.js@10.6.0"
++    ]
++  }
++}
+diff --git a/supabase/functions/compute-pnl/index.ts b/supabase/functions/compute-pnl/index.ts
+new file mode 100644
+index 0000000..c83dc7c
+--- /dev/null
++++ b/supabase/functions/compute-pnl/index.ts
+@@ -0,0 +1,136 @@
++/**
++ * compute-pnl: runs the P&L engine over a journal's closed trades and records the result in
++ * `trade_pnl_audit` next to the values currently stored. AUDIT MODE: this function never writes to `trades`.
++ *
++ * POST { journal_id: uuid, trade_ids?: uuid[] }  with the caller's JWT.
++ * Processes up to BATCH not yet audited trades per call and returns `remaining`; the client calls again until 0.
++ *
++ * Secrets: MASSIVE_API_KEY (optional, enables minute rates). SUPABASE_URL, SUPABASE_ANON_KEY and
++ * SUPABASE_SERVICE_ROLE_KEY are provided by the platform.
++ */
++import { createClient } from '@supabase/supabase-js';
++import {
++  FrankfurterProvider, ImpliedRateProvider, MassiveMinuteProvider, PnlEngine, RateResolver,
++  type ClosedTrade, type PnlResult, type RateObservation, type RateProvider,
++} from '../_shared/pnl-engine/index.ts';
++import { guessDigits, mapTrade, type InstrumentRow, type JournalRow, type TradeRow } from '../_shared/pnl-map.ts';
++
++const ENGINE_VERSION = '0.1.1';
++const BATCH = 200;
++const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type', 'Access-Control-Allow-Methods': 'POST, OPTIONS' };
++const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
++
++const TRADE_COLS = 'id,direction,entry_at,exit_at,entry_price,exit_price,quantity,stop_loss,take_profit,gross_pnl,net_pnl,fees,commission,swap,risk_amount,source,raw_symbol,is_break_even,pnl_manual,instrument_id';
++const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
++const fx = (d: { toFixed(n: number): string } | null | undefined, n = 8) => (d ? d.toFixed(n) : null);
++
++// deno-lint-ignore no-explicit-any
++async function pageAll<T>(build: (from: number, to: number) => PromiseLike<{ data: any[] | null; error: { message: string } | null }>): Promise<T[]> {
++  const out: T[] = [];
++  for (let from = 0; ; from += 1000) {
++    const { data, error } = await build(from, from + 999);
++    if (error) throw new Error(error.message);
++    out.push(...((data ?? []) as T[]));
++    if (!data || data.length < 1000) return out;
++  }
++}
++
++Deno.serve(async (req) => {
++  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
++  if (req.method !== 'POST') return json({ error: 'POST only' }, 405);
++  const auth = req.headers.get('Authorization');
++  if (!auth) return json({ error: 'Missing Authorization header' }, 401);
++  const body = await req.json().catch(() => null) as { journal_id?: string; trade_ids?: string[] } | null;
++  if (!body?.journal_id || !UUID.test(body.journal_id)) return json({ error: 'journal_id (uuid) is required' }, 400);
++  if (body.trade_ids && !(Array.isArray(body.trade_ids) && body.trade_ids.every((i) => UUID.test(i)))) return json({ error: 'trade_ids must be uuids' }, 400);
++
++  const url = Deno.env.get('SUPABASE_URL')!;
++  // Reads go through the caller's JWT, so row level security decides what they may see.
++  const user = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: auth } } });
++  const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
++
++  try {
++    const { data: journal } = await user.from('journals').select('id,currency,quantity_unit').eq('id', body.journal_id).maybeSingle();
++    if (!journal) return json({ error: 'Journal not found' }, 404);
++    const j = journal as JournalRow;
++
++    const all = await pageAll<TradeRow>((a, b) => {
++      let q = user.from('trades').select(TRADE_COLS).eq('journal_id', j.id).not('exit_at', 'is', null).order('exit_at', { ascending: true }).range(a, b);
++      if (body.trade_ids) q = q.in('id', body.trade_ids);
++      return q;
++    });
++    const done = new Set((await pageAll<{ trade_id: string }>((a, b) =>
++      user.from('trade_pnl_audit').select('trade_id').eq('journal_id', j.id).eq('engine_version', ENGINE_VERSION).range(a, b))).map((r) => r.trade_id));
++    const pending = all.filter((t) => !done.has(t.id));
++    const todo = pending.slice(0, BATCH);
++    const remaining = pending.length - todo.length;
++    if (!todo.length) return json({ ok: true, processed: 0, remaining: 0 });
++
++    const instruments = new Map((await pageAll<InstrumentRow>((a, b) =>
++      user.from('instruments').select('id,symbol,contract_size,digits,profit_currency,kind').eq('journal_id', j.id).range(a, b))).map((i) => [i.id, i]));
++    const digits = guessDigits(all);
++
++    // Map rows to engine inputs; anything that cannot be computed safely becomes a 'skipped' audit row.
++    const trades: ClosedTrade[] = []; const notes = new Map<string, string[]>(); const skipped = new Map<string, string>();
++    for (const row of todo) {
++      const m = mapTrade(row, row.instrument_id ? instruments.get(row.instrument_id) : undefined, j, digits);
++      if ('skip' in m) skipped.set(row.id, m.skip); else { trades.push(m.trade); notes.set(row.id, m.notes); }
++    }
++    trades.sort((a, b) => a.closeTimeMs - b.closeTimeMs); // implied rates learned from earlier trades feed later ones
++
++    const providerErrors: string[] = [];
++    const external: RateProvider[] = [];
++    const massiveKey = Deno.env.get('MASSIVE_API_KEY');
++    if (massiveKey) external.push(new MassiveMinuteProvider({ apiKey: massiveKey }));
++    external.push(new FrankfurterProvider());
++    const onProviderError = (e: unknown) => { if (providerErrors.length < 10) providerErrors.push(String((e as Error)?.message ?? e)); };
++    const implied = new ImpliedRateProvider({ scope: j.id });
++    const engine = new PnlEngine({
++      rates: new RateResolver({ providers: [implied, ...external], onProviderError }),
++      validationRates: new RateResolver({ providers: external, onProviderError }),
++      implied,
++    });
++    const results = new Map<string, PnlResult | string>();
++    for (const r of await engine.computeMany(trades)) results.set(r.tradeId, 'result' in r ? r.result : r.error);
++
++    // Persist the rates the results point at (append only), leaf observations first.
++    const rateIds = new Map<string, number>();
++    const saveRate = async (o: RateObservation): Promise<number> => {
++      const key = `${o.base}|${o.quote}|${o.source}|${o.kind}|${o.side}|${o.observedAtMs}`;
++      const hit = rateIds.get(key); if (hit) return hit;
++      const lineage = o.lineage ? await Promise.all(o.lineage.map(saveRate)) : null;
++      const row = { base: o.base, quote: o.quote, rate: o.rate.toFixed(18), observed_at: new Date(o.observedAtMs).toISOString(), source: o.source, kind: o.kind, side: o.side, lineage };
++      await admin.from('rate_observations').upsert(row, { onConflict: 'base,quote,source,kind,side,observed_at', ignoreDuplicates: true });
++      const { data, error } = await admin.from('rate_observations').select('id').eq('base', o.base).eq('quote', o.quote).eq('source', o.source).eq('kind', o.kind).eq('side', o.side).eq('observed_at', row.observed_at).single();
++      if (error || !data) throw new Error(`could not store rate: ${error?.message}`);
++      rateIds.set(key, data.id as number); return data.id as number;
++    };
++
++    const recon: Record<string, number> = { OK: 0, WARN: 0, MISMATCH: 0 };
++    let computed = 0, skippedCount = 0, errors = 0;
++    const audit = [];
++    for (const row of todo) {
++      const base = { trade_id: row.id, journal_id: j.id, engine_version: ENGINE_VERSION, prev_gross_pnl: row.gross_pnl, prev_net_pnl: row.net_pnl, prev_fees: row.fees, prev_risk_amount: row.risk_amount };
++      const r = results.get(row.id);
++      if (skipped.has(row.id)) { skippedCount++; audit.push({ ...base, status: 'skipped', skip_reason: skipped.get(row.id) }); continue; }
++      if (typeof r === 'string') { errors++; audit.push({ ...base, status: 'error', skip_reason: r }); continue; }
++      if (!r || r.grossAccount === null) { skippedCount++; audit.push({ ...base, status: 'skipped', skip_reason: (r?.warnings ?? ['no result']).join('; ') || 'no conversion rate available' }); continue; }
++      computed++;
++      if (r.reconciliation) recon[r.reconciliation.status] = (recon[r.reconciliation.status] ?? 0) + 1;
++      audit.push({
++        ...base, status: 'computed',
++        gross_account: fx(r.grossAccount), net_account: fx(r.netAccount), planned_risk: fx(r.plannedRisk), r_multiple: fx(r.rMultiple, 6),
++        conversion_rate_id: r.conversion ? await saveRate(r.conversion) : null,
++        open_conversion_rate_id: r.openConversion ? await saveRate(r.openConversion) : null,
++        gross_source: r.grossSource, recon_status: r.reconciliation?.status ?? null, recon_diagnosis: r.reconciliation?.diagnosis ?? null,
++        warnings: [...(notes.get(row.id) ?? []), ...r.warnings],
++      });
++    }
++    const { error } = await admin.from('trade_pnl_audit').upsert(audit, { onConflict: 'trade_id,engine_version' });
++    if (error) throw new Error(`could not store audit rows: ${error.message}`);
++
++    return json({ ok: true, processed: todo.length, computed, skipped: skippedCount, errors, reconciliation: recon, remaining, provider_errors: providerErrors });
++  } catch (e) {
++    return json({ error: (e as Error).message }, 500);
++  }
++});
+diff --git a/supabase/migrations/20261028090000_pnl_engine_foundation.sql b/supabase/migrations/20261028090000_pnl_engine_foundation.sql
+new file mode 100644
+index 0000000..c65a3e1
+--- /dev/null
++++ b/supabase/migrations/20261028090000_pnl_engine_foundation.sql
+@@ -0,0 +1,68 @@
++-- P&L engine foundation. Additive only: no existing column, trigger or row is changed.
++
++-- 1. What the engine needs to know about an instrument. All nullable: missing values are inferred.
++alter table public.instruments
++  add column if not exists contract_size numeric check (contract_size > 0),
++  add column if not exists digits int check (digits between 0 and 8),
++  add column if not exists profit_currency text check (profit_currency ~ '^[A-Z0-9]{2,10}$'),
++  add column if not exists kind text check (kind in ('fx', 'metal', 'crypto', 'index', 'cfd'));
++
++-- 2. How `trades.quantity` is expressed. NULL means unknown, and the engine skips such trades
++--    instead of guessing (lots read as units would be wrong by a factor of 100,000).
++alter table public.journals
++  add column if not exists quantity_unit text check (quantity_unit in ('lots', 'units'));
++-- Journals linked to a MetaTrader account hold platform volumes, which are lots.
++update public.journals set quantity_unit = 'lots' where mt_login is not null and quantity_unit is null;
++
++-- 3. Rates the engine used. Global market data, append only: readable by signed in users,
++--    written only by the Edge Function (service role bypasses RLS, so no write policy exists).
++create table if not exists public.rate_observations (
++  id bigserial primary key,
++  base text not null check (base ~ '^[A-Z0-9]{2,10}$'),
++  quote text not null check (quote ~ '^[A-Z0-9]{2,10}$'),
++  rate numeric(38, 18) not null check (rate > 0),
++  observed_at timestamptz not null,
++  source text not null,
++  kind text not null check (kind in ('implied', 'tick', 'minute', 'daily-fix', 'derived')),
++  side text not null,
++  lineage bigint[]
++);
++create unique index if not exists rate_observations_key_uidx
++  on public.rate_observations (base, quote, source, kind, side, observed_at);
++alter table public.rate_observations enable row level security;
++drop policy if exists "signed in users read rates" on public.rate_observations;
++create policy "signed in users read rates" on public.rate_observations for select to authenticated using (true);
++
++-- 4. One row per trade per engine version: what the engine computed next to what was stored before.
++--    prev_* lets any applied change be rolled back exactly.
++create table if not exists public.trade_pnl_audit (
++  id bigserial primary key,
++  trade_id uuid not null references public.trades(id) on delete cascade,
++  journal_id uuid not null references public.journals(id) on delete cascade,
++  engine_version text not null,
++  status text not null check (status in ('computed', 'skipped', 'error')),
++  skip_reason text,
++  prev_gross_pnl numeric,
++  prev_net_pnl numeric,
++  prev_fees numeric,
++  prev_risk_amount numeric,
++  gross_account numeric,
++  net_account numeric,
++  planned_risk numeric,
++  r_multiple numeric,
++  conversion_rate_id bigint references public.rate_observations(id),
++  open_conversion_rate_id bigint references public.rate_observations(id),
++  gross_source text,
++  recon_status text check (recon_status in ('OK', 'WARN', 'MISMATCH')),
++  recon_diagnosis text[],
++  warnings text[],
++  applied boolean not null default false,
++  applied_at timestamptz,
++  computed_at timestamptz not null default now(),
++  unique (trade_id, engine_version)
++);
++create index if not exists trade_pnl_audit_journal_idx on public.trade_pnl_audit (journal_id, status);
++alter table public.trade_pnl_audit enable row level security;
++drop policy if exists "owners read own pnl audit" on public.trade_pnl_audit;
++create policy "owners read own pnl audit" on public.trade_pnl_audit for select to authenticated
++  using (exists (select 1 from public.journals j where j.id = trade_pnl_audit.journal_id and j.owner_id = auth.uid()));

@@ -60,3 +60,26 @@ If your remote database already has the old manual migrations applied, mark them
 ```
 pnpm supabase migration repair --status applied 20261003080104 20261004074640 20261005113320 20261006152000
 ```
+
+## P&L engine (audit mode)
+
+An exact decimal P&L engine with currency conversion and broker reconciliation runs in the `compute-pnl`
+Edge Function (`supabase/functions/_shared/pnl-engine`). In this phase it **never writes to `trades`**. It records
+what it computed next to the values currently stored, in `trade_pnl_audit`, so the two can be compared first.
+
+```
+pnpm supabase db push                                   # adds instrument/journal columns and the audit tables
+pnpm supabase functions deploy compute-pnl
+pnpm supabase secrets set MASSIVE_API_KEY=...           # optional: minute rates (Frankfurter daily rates need no key)
+```
+
+Run it for a journal (the client calls it until `remaining` is 0):
+
+```ts
+const { data } = await supabase.functions.invoke("compute-pnl", { body: { journal_id } });
+```
+
+Journals linked to a MetaTrader account are set to `lots`. For any other journal set `journals.quantity_unit`
+to `lots` or `units`; until then its trades are skipped, never guessed. Trades with hand typed P&L are never touched.
+Review: `select status, recon_status, count(*) from trade_pnl_audit group by 1, 2;`
+
