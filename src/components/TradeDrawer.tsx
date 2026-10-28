@@ -48,7 +48,7 @@ function toForm(t?: Partial<Trade>) {
   };
 }
 type Form = ReturnType<typeof toForm>;
-type Tab = "regular" | "advanced" | "shots" | "alts";
+type Tab = "regular" | "advanced" | "shots" | "alts" | "legs";
 
 /** Weighted average of price legs; returns [avgPrice, totalQty]. */
 function blend(legs: Leg[]): [number | null, number] {
@@ -78,6 +78,15 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
   const [newCat, setNewCat] = useState<string | null>(null);
   const [hidden, setHidden] = useState<string[]>(() => (typeof window === "undefined" ? [] : JSON.parse(localStorage.getItem("am.tradeform.hidden") ?? "[]")));
   const { data: shots = [] } = useScreenshots(journal?.id, trade?.id ?? "__none__");
+  const { data: legs = [] } = useQuery({
+    queryKey: ["trade_executions", trade?.id],
+    enabled: !!trade?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("trade_executions").select("id,kind,side,quantity,price,executed_at,commission,swap,fee").eq("trade_id", trade!.id).order("executed_at", { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+  });
 
   const [alts, setAlts] = useState<Record<string, { p: string; r: string }>>({});
   const { data: altStrats = [] } = useQuery({
@@ -301,7 +310,7 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
           </div>
           <div className="px-5">
             <div className="tf-tabs">
-              {([["regular", "Regular Data"], ["advanced", "Advanced Data"], ["shots", "Screenshots"], ...(myAlts.length ? [["alts", "Alternative Strategies"]] : [])] as [Tab, string][]).map(([k, l]) => (
+              {([["regular", "Regular Data"], ["advanced", "Advanced Data"], ["shots", "Screenshots"], ...(legs.length ? [["legs", `Executions (${legs.length})`]] : []), ...(myAlts.length ? [["alts", "Alternative Strategies"]] : [])] as [Tab, string][]).map(([k, l]) => (
                 <button key={k} type="button" className="tf-tab" data-active={tab === k} onClick={() => setTab(k)}>{l}</button>
               ))}
             </div>
@@ -413,6 +422,21 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
               </div>
             )}
 
+            {tab === "legs" && (
+              <div className="pt-2 text-[13px]">
+                <div className="grid grid-cols-[70px_1fr_1fr_1.4fr_1fr] gap-3 pb-2 text-[11px] uppercase tracking-wide text-muted-foreground"><span>Leg</span><span className="text-right">Size</span><span className="text-right">Price</span><span>Time</span><span className="text-right">Costs</span></div>
+                {legs.map((l) => (
+                  <div key={l.id} className="grid grid-cols-[70px_1fr_1fr_1.4fr_1fr] items-center gap-3 border-t py-2">
+                    <span className={l.kind === "entry" ? "" : "text-muted-foreground"}>{l.kind === "entry" ? "Entry" : "Exit"} · {l.side}</span>
+                    <span className="text-right tabular-nums">{Number(l.quantity)}</span>
+                    <span className="text-right tabular-nums">{Number(l.price)}</span>
+                    <span>{new Date(l.executed_at).toLocaleString()}</span>
+                    <span className="text-right tabular-nums">{(Number(l.commission) + Number(l.swap) + Number(l.fee)).toFixed(2)}</span>
+                  </div>
+                ))}
+                <p className="pt-3 text-xs text-muted-foreground">The trade row shows the size-weighted entry and exit price of these legs.</p>
+              </div>
+            )}
             {tab === "alts" && (
               <div className="pt-2">
                 
