@@ -1,0 +1,892 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index f7100b2..fdac967 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -8,3 +8,4 @@
+ - Trade screenshots live in a private storage bucket under `<user_id>/…` and are shown via signed URLs; rows whose path starts with `http` are external URLs.
+ - Custom stats are category → option rows linked to trades via `trade_custom_stats` — user-defined tags without schema changes.
+ - tsconfig has `noUncheckedIndexedAccess`/`exactOptionalPropertyTypes`/`noImplicitReturns` off — ported code was written without them.
++- MetaTrader 5 reports (HTML/Excel) are parsed in `src/lib/mt5/` from the Positions table by anchors, not header index; imported trades carry the broker's profit (`pnl_manual`, `source='mt5'`, `external_id` = position ticket) and are audited, never recomputed, by the P&L engine. Server time is converted with `serverWallToUtcMs`.
+diff --git a/src/components/ImportDialog.tsx b/src/components/ImportDialog.tsx
+index c5683e2..0c1df8c 100644
+--- a/src/components/ImportDialog.tsx
++++ b/src/components/ImportDialog.tsx
+@@ -6,9 +6,21 @@ import { Button } from "@/components/ui/button";
+ import { supabase } from "@/integrations/supabase/client";
+ import { useJournal } from "@/lib/journal-context";
+ import { seedDemoTrades } from "@/lib/demo";
++import { parseMt5Report, type Mt5Report } from "@/lib/mt5/parse-report";
++import { checkCompatibility, reportToTrades, summarize } from "@/lib/mt5/to-trades";
++import type { ServerTz } from "../../supabase/functions/_shared/pnl-engine/time.ts";
+ 
+ const FIELDS = ["entry_at", "exit_at", "instrument", "setup", "direction", "entry_price", "exit_price", "quantity", "stop_loss", "take_profit", "gross_pnl", "fees", "net_pnl"] as const;
+ 
++const TZ_OPTIONS: { value: string; label: string; tz: ServerTz }[] = [
++  { value: "ny-close", label: "GMT+2 / GMT+3 (New York close, most brokers)", tz: { kind: "ny-close" } },
++  { value: "utc", label: "UTC", tz: { kind: "fixed", offsetMinutes: 0 } },
++  { value: "eu", label: "Europe/Athens (EET/EEST)", tz: { kind: "iana", zone: "Europe/Athens" } },
++  { value: "p2", label: "Fixed GMT+2 (no DST)", tz: { kind: "fixed", offsetMinutes: 120 } },
++  { value: "p3", label: "Fixed GMT+3 (no DST)", tz: { kind: "fixed", offsetMinutes: 180 } },
++];
++const CHUNK = 500;
++
+ function parseCSV(text: string) {
+   const rows = text.trim().split(/\r?\n/).map((l) => l.split(",").map((c) => c.trim().replace(/^"|"$/g, "")));
+   return { header: rows[0] ?? [], rows: rows.slice(1) };
+@@ -20,8 +32,21 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
+   const [csv, setCsv] = useState<{ header: string[]; rows: string[][] } | null>(null);
+   const [map, setMap] = useState<Record<string, string>>({});
+   const [busy, setBusy] = useState(false);
++  const [mt5, setMt5] = useState<Mt5Report | null>(null);
++  const [tzKey, setTzKey] = useState("ny-close");
+ 
+   async function onFile(file: File) {
++    if (/\.(html?|xlsx)$/i.test(file.name)) {
++      setCsv(null);
++      try {
++        setMt5(parseMt5Report(new Uint8Array(await file.arrayBuffer())));
++      } catch (e) {
++        setMt5(null);
++        toast.error((e as Error).message);
++      }
++      return;
++    }
++    setMt5(null);
+     const p = parseCSV(await file.text());
+     setCsv(p);
+     const auto: Record<string, string> = {};
+@@ -78,6 +103,53 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
+     }
+   }
+ 
++  async function runMt5() {
++    if (!mt5 || !journal) return;
++    const compat = checkCompatibility(mt5, journal);
++    if (!compat.ok) return void toast.error(compat.error);
++    const tz = TZ_OPTIONS.find((o) => o.value === tzKey)!.tz;
++    setBusy(true);
++    try {
++      // 1. Instruments: create the missing ones with the price digits MT5 printed (the P&L engine needs them for pips).
++      const { data: ins } = await supabase.from("instruments").select("id,symbol,digits").eq("journal_id", journal.id);
++      const im = new Map((ins ?? []).map((i) => [i.symbol, i.id]));
++      const newSyms = Object.keys(mt5.digitsBySymbol).filter((sym) => !im.has(sym));
++      if (newSyms.length) {
++        const { data, error } = await supabase.from("instruments").insert(newSyms.map((symbol) => ({ symbol, journal_id: journal.id, digits: mt5.digitsBySymbol[symbol] ?? null }))).select("id,symbol");
++        if (error) throw error;
++        data?.forEach((i) => im.set(i.symbol, i.id));
++      }
++      for (const i of (ins ?? []).filter((x) => x.digits == null && mt5.digitsBySymbol[x.symbol] != null)) {
++        await supabase.from("instruments").update({ digits: mt5.digitsBySymbol[i.symbol]! }).eq("id", i.id);
++      }
++
++      // 2. Link the journal to the account and record that quantities are lots (the engine skips trades otherwise).
++      const a = mt5.account;
++      const link: { quantity_unit: string; mt_platform?: string; mt_server?: string | null; mt_login?: string } = { quantity_unit: "lots" };
++      if (a && !journal.mt_login) Object.assign(link, { mt_platform: "mt5", mt_server: a.server, mt_login: a.login });
++      const { error: linkErr } = await supabase.from("journals").update(link).eq("id", journal.id);
++      if (linkErr) throw linkErr;
++
++      // 3. Trades, idempotent on (journal_id, external_id): importing the same report twice adds nothing.
++      const rows = reportToTrades(mt5, journal.id, im, tz);
++      let added = 0;
++      for (let k = 0; k < rows.length; k += CHUNK) {
++        const { data, error } = await supabase.from("trades").upsert(rows.slice(k, k + CHUNK), { onConflict: "journal_id,external_id", ignoreDuplicates: true }).select("id");
++        if (error) throw error;
++        added += data?.length ?? 0;
++      }
++      const dupes = rows.length - added;
++      toast.success(`Imported ${added} trade${added === 1 ? "" : "s"}${dupes ? `, ${dupes} already in this journal` : ""}`);
++      qc.invalidateQueries();
++      setMt5(null);
++      onOpenChange(false);
++    } catch (e) {
++      toast.error((e as Error).message);
++    } finally {
++      setBusy(false);
++    }
++  }
++
+   async function demo() {
+     if (!journal) return;
+     setBusy(true);
+@@ -98,9 +170,10 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
+       <DialogContent className="max-w-lg">
+         <DialogHeader>
+           <DialogTitle>Import trades</DialogTitle>
+-          <DialogDescription>Upload a CSV export from your broker and match its columns.</DialogDescription>
++          <DialogDescription>Upload a MetaTrader 5 report (HTML or Excel), or a CSV export and match its columns.</DialogDescription>
+         </DialogHeader>
+-        <input type="file" accept=".csv" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} className="text-sm" />
++        <input type="file" accept=".csv,.html,.htm,.xlsx" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} className="text-sm" />
++        {mt5 && <Mt5Preview report={mt5} journalCurrency={journal?.currency} tzKey={tzKey} onTz={setTzKey} />}
+         {csv && (
+           <div className="grid max-h-72 grid-cols-2 gap-2 overflow-y-auto text-sm">
+             {FIELDS.map((f) => (
+@@ -116,9 +189,42 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
+         )}
+         <div className="flex justify-between gap-2">
+           {import.meta.env.DEV ? <Button variant="ghost" onClick={demo} disabled={busy}>Add sample trades (dev only)</Button> : <span />}
+-          <Button onClick={run} disabled={!csv || busy}>Import {csv ? `${csv.rows.length} rows` : ""}</Button>
++          {mt5 ? (
++            <Button onClick={runMt5} disabled={busy || mt5.positions.length === 0}>Import {mt5.positions.length} trades</Button>
++          ) : (
++            <Button onClick={run} disabled={!csv || busy}>Import {csv ? `${csv.rows.length} rows` : ""}</Button>
++          )}
+         </div>
+       </DialogContent>
+     </Dialog>
+   );
+ }
++
++function Mt5Preview({ report, journalCurrency, tzKey, onTz }: { report: Mt5Report; journalCurrency?: string | undefined; tzKey: string; onTz: (k: string) => void }) {
++  const sum = summarize(report);
++  const a = report.account;
++  const money = (n: number) => `${n < 0 ? "-" : ""}${Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${a?.currency || journalCurrency || ""}`;
++  return (
++    <div className="space-y-3 text-sm">
++      <div className="rounded-md border p-3">
++        <div className="font-medium">{sum.trades} closed positions · {sum.symbols} symbols</div>
++        <div className="text-muted-foreground">
++          {a ? `Account ${a.login}${a.server ? ` · ${a.server}` : ""}${a.type ? ` · ${a.type}` : ""} · ` : ""}Net {money(sum.net)} after commission and swap
++        </div>
++        {report.balanceOps.length > 0 && <div className="text-muted-foreground">{report.balanceOps.length} deposits/withdrawals found (not imported as trades)</div>}
++      </div>
++      <label className="flex flex-col gap-1">
++        <span className="text-xs text-muted-foreground">Broker server time zone (MT5 reports use server time, not UTC)</span>
++        <select className="h-8 rounded-md border bg-background px-2" value={tzKey} onChange={(e) => onTz(e.target.value)}>
++          {TZ_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
++        </select>
++      </label>
++      {report.warnings.map((w) => <p key={w} className="text-xs text-amber-600">{w}</p>)}
++      {report.skipped.length > 0 && (
++        <p className="text-xs text-amber-600">
++          {report.skipped.length} row{report.skipped.length === 1 ? "" : "s"} skipped: {[...new Set(report.skipped.map((x) => x.reason))].slice(0, 3).join("; ")}
++        </p>
++      )}
++    </div>
++  );
++}
+diff --git a/src/integrations/supabase/types.ts b/src/integrations/supabase/types.ts
+index 25f2c23..c903b78 100644
+--- a/src/integrations/supabase/types.ts
++++ b/src/integrations/supabase/types.ts
+@@ -326,6 +326,10 @@ export type Database = {
+           position: number
+           symbol: string
+           disabled: boolean
++          contract_size: number | null
++          digits: number | null
++          profit_currency: string | null
++          kind: string | null
+         }
+         Insert: {
+           asset_class?: string | null
+@@ -335,6 +339,10 @@ export type Database = {
+           position?: number
+           symbol: string
+           disabled?: boolean
++          contract_size?: number | null
++          digits?: number | null
++          profit_currency?: string | null
++          kind?: string | null
+         }
+         Update: {
+           asset_class?: string | null
+@@ -344,6 +352,10 @@ export type Database = {
+           position?: number
+           symbol?: string
+           disabled?: boolean
++          contract_size?: number | null
++          digits?: number | null
++          profit_currency?: string | null
++          kind?: string | null
+         }
+         Relationships: [
+           {
+@@ -410,6 +422,7 @@ export type Database = {
+           mt_server: string | null
+           mt_login: string | null
+           disabled_session_categories: string[]
++          quantity_unit: string | null
+         }
+         Insert: {
+           auto_pnl?: boolean
+@@ -430,6 +443,7 @@ export type Database = {
+           mt_server?: string | null
+           mt_login?: string | null
+           disabled_session_categories?: string[]
++          quantity_unit?: string | null
+         }
+         Update: {
+           auto_pnl?: boolean
+@@ -450,6 +464,7 @@ export type Database = {
+           mt_server?: string | null
+           mt_login?: string | null
+           disabled_session_categories?: string[]
++          quantity_unit?: string | null
+         }
+         Relationships: []
+       }
+diff --git a/src/lib/mt5/parse-report.ts b/src/lib/mt5/parse-report.ts
+new file mode 100644
+index 0000000..fb3808c
+--- /dev/null
++++ b/src/lib/mt5/parse-report.ts
+@@ -0,0 +1,342 @@
++/**
++ * MetaTrader 5 "Trade History Report" parser (HTML or Excel export, English terminal).
++ *
++ * The report has up to three tables: Positions, Orders and Deals. Positions is the one we use: one row per
++ * closed position with open/close time and price, SL/TP, commission, swap and profit. That is correct for hedging
++ * AND netting accounts, because MT5 itself rolls the deals up into positions. Deals is only read for balance
++ * operations (deposits/withdrawals), which are reported but never turned into trades.
++ *
++ * Design rules:
++ *  - Pure and synchronous: no network, no Supabase. `parseMt5Report` takes the file bytes.
++ *  - Rows are read by ANCHORS (datetime cells, trailing numeric cells), not by header index. MT5's HTML has
++ *    colspans and spacer cells, and Excel exports add empty columns, so header positions drift between builds.
++ *  - Never guess. A row that does not look like a closed position is counted in `skipped` with a reason.
++ *  - Times are returned as SERVER wall-clock encoded as UTC ms ("wall ms"). Convert with `serverWallToUtcMs`.
++ */
++import * as XLSX from "xlsx";
++
++export interface Mt5Account {
++  login: string;
++  currency: string;
++  server: string | null;
++  /** "real" | "demo" | "contest" when the header says so. */
++  mode: string | null;
++  /** "Hedge" | "Netting" | "Exchange" when the header says so. */
++  type: string | null;
++  name: string | null;
++}
++
++export interface Mt5Position {
++  /** MT5 position ticket. Stable and unique per account: the import idempotency key. */
++  ticket: string;
++  symbol: string;
++  side: "buy" | "sell";
++  volume: number;
++  openWallMs: number;
++  closeWallMs: number;
++  openPrice: number;
++  closePrice: number;
++  stopLoss: number | null;
++  takeProfit: number | null;
++  /** Signed account-currency amounts, exactly as booked (costs are negative). */
++  commission: number;
++  swap: number;
++  profit: number;
++}
++
++export interface Mt5BalanceOp {
++  wallMs: number;
++  deal: string;
++  /** Positive = deposit, negative = withdrawal. */
++  amount: number;
++  comment: string;
++}
++
++export interface Mt5Report {
++  account: Mt5Account | null;
++  positions: Mt5Position[];
++  balanceOps: Mt5BalanceOp[];
++  /** Price decimals seen per symbol (trailing zeros count): MT5 prints prices at the symbol's digits. */
++  digitsBySymbol: Record<string, number>;
++  skipped: { row: number; reason: string }[];
++  warnings: string[];
++}
++
++export class Mt5ParseError extends Error {
++  constructor(message: string) {
++    super(message);
++    this.name = "Mt5ParseError";
++  }
++}
++
++// ---------------------------------------------------------------------------------------------- cell helpers
++
++const WS = /[\s  ]+/g;
++const clean = (v: unknown): string => (v == null ? "" : String(v).replace(WS, " ").trim());
++
++const DATETIME = /^(\d{4})[.\-/](\d{2})[.\-/](\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/;
++
++/** "2026.10.23 14:05:09" -> wall ms (server clock encoded as UTC). null when not a datetime. */
++export function parseWallTime(s: string): number | null {
++  const m = DATETIME.exec(clean(s));
++  if (!m) return null;
++  const [, y, mo, d, h, mi, se] = m;
++  const ms = Date.UTC(+y!, +mo! - 1, +d!, +h!, +mi!, +(se ?? 0));
++  // Date.UTC silently rolls 2026.13.45 over: round-trip to reject it.
++  const back = new Date(ms);
++  if (back.getUTCMonth() !== +mo! - 1 || back.getUTCDate() !== +d!) return null;
++  return ms;
++}
++
++const NUMBER = /^[+-]?\d+(?:\.\d+)?$/;
++
++/**
++ * MT5 prints "1 234.56" (space or NBSP thousands separator, dot decimal). Commas are treated as thousands
++ * separators. Returns null for blanks and anything else so callers decide what is acceptable.
++ */
++export function parseNumber(s: unknown): number | null {
++  if (typeof s === "number") return Number.isFinite(s) ? s : null;
++  const t = clean(s).replace(/ /g, "").replace(/,/g, "");
++  if (!NUMBER.test(t)) return null;
++  return Number(t);
++}
++
++const decimalsOf = (s: unknown): number => {
++  const t = clean(s).replace(/ /g, "").replace(/,/g, "");
++  return NUMBER.test(t) ? (t.split(".")[1] ?? "").length : 0;
++};
++
++// ----------------------------------------------------------------------------------------- bytes -> rows
++
++function decodeText(bytes: Uint8Array): string {
++  if (bytes[0] === 0xff && bytes[1] === 0xfe) return new TextDecoder("utf-16le").decode(bytes.subarray(2));
++  if (bytes[0] === 0xfe && bytes[1] === 0xff) return new TextDecoder("utf-16be").decode(bytes.subarray(2));
++  if (bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) return new TextDecoder("utf-8").decode(bytes.subarray(3));
++  // BOM-less UTF-16LE (MT5 sometimes omits it): ASCII text has a NUL every second byte.
++  if (bytes.length > 4 && bytes[1] === 0 && bytes[3] === 0) return new TextDecoder("utf-16le").decode(bytes);
++  return new TextDecoder("utf-8").decode(bytes);
++}
++
++function htmlToRows(html: string): string[][] {
++  const doc = new DOMParser().parseFromString(html, "text/html");
++  const rows: string[][] = [];
++  doc.querySelectorAll("tr").forEach((tr) => {
++    // A cell's own text only: nested tables would otherwise duplicate their content into the parent row.
++    const cells = Array.from(tr.children)
++      .filter((c) => c.tagName === "TD" || c.tagName === "TH")
++      .map((c) => clean(c.textContent));
++    if (cells.some(Boolean)) rows.push(cells);
++  });
++  return rows;
++}
++
++function xlsxToRows(bytes: Uint8Array): string[][] {
++  const wb = XLSX.read(bytes, { type: "array", cellDates: false });
++  const rows: string[][] = [];
++  for (const name of wb.SheetNames) {
++    const sheet = wb.Sheets[name];
++    if (!sheet) continue;
++    // raw:false gives the formatted text, so "0.10" and "1.08500" keep the digits MT5 printed.
++    for (const r of XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, raw: false, defval: "", blankrows: false })) {
++      const cells = r.map(clean);
++      if (cells.some(Boolean)) rows.push(cells);
++    }
++  }
++  return rows;
++}
++
++export function isXlsx(bytes: Uint8Array): boolean {
++  return bytes[0] === 0x50 && bytes[1] === 0x4b; // "PK": xlsx is a zip container
++}
++
++// --------------------------------------------------------------------------------------------- the parser
++
++const ACCOUNT = /Account:?\s*(\d+)\s*(?:\(([^)]*)\))?/i;
++const SECTIONS = ["positions", "orders", "deals"] as const;
++type Section = (typeof SECTIONS)[number];
++
++function parseAccount(rows: string[][]): Mt5Account | null {
++  let login: string | null = null;
++  let details: string[] = [];
++  let name: string | null = null;
++  for (const r of rows.slice(0, 40)) {
++    const line = r.filter(Boolean).join(" ");
++    const a = ACCOUNT.exec(line);
++    if (a && !login) {
++      login = a[1]!;
++      details = (a[2] ?? "").split(",").map((x) => x.trim()).filter(Boolean);
++    }
++    const n = /^Name:?\s*(.+)$/i.exec(line);
++    if (n && !name) name = n[1]!.trim();
++  }
++  if (!login) return null;
++  // "(USD, MetaQuotes-Demo, demo, Hedge)": currency first, server second, then mode and type in either order.
++  const currency = (details.find((d) => /^[A-Z]{3,5}$/.test(d)) ?? "").toUpperCase();
++  const rest = details.filter((d) => d.toUpperCase() !== currency);
++  const mode = rest.find((d) => /^(real|demo|contest)$/i.test(d))?.toLowerCase() ?? null;
++  const type = rest.find((d) => /^(hedge|hedging|netting|exchange)$/i.test(d))?.toLowerCase() ?? null;
++  const server = rest.find((d) => d !== mode && d.toLowerCase() !== type) ?? null;
++  return { login, currency, server, mode, type, name };
++}
++
++function sectionOf(row: string[]): Section | null {
++  const cells = row.filter(Boolean);
++  if (cells.length !== 1) return null;
++  const t = cells[0]!.toLowerCase();
++  return (SECTIONS as readonly string[]).includes(t) ? (t as Section) : null;
++}
++
++/** Trim leading/trailing empty cells (spacer columns) but keep the empties in the middle, they are meaningful. */
++function trimCells(cells: string[]): string[] {
++  let a = 0;
++  let b = cells.length;
++  while (a < b && !cells[a]) a++;
++  while (b > a && !cells[b - 1]) b--;
++  return cells.slice(a, b);
++}
++
++type PositionRow = { ok: true; pos: Mt5Position; digits: number } | { ok: false; reason: string; ignore?: boolean };
++
++/**
++ * Positions row layout once spacer columns are trimmed:
++ *   openTime, ticket, symbol, type, volume, openPrice, [S/L], [T/P], closeTime, closePrice, commission, swap, profit
++ * Everything is read relative to the two datetimes and the last three numbers, so S/L and T/P cells may be
++ * empty, merged away or absent without shifting any other column.
++ */
++function parsePositionRow(raw: string[]): PositionRow {
++  const c = trimCells(raw);
++  const open = parseWallTime(c[0] ?? "");
++  if (open === null) return { ok: false, reason: "not a position row", ignore: true };
++  if (c.length < 11) return { ok: false, reason: `expected at least 11 columns, found ${c.length}` };
++
++  const n = c.length;
++  const closeIdx = n - 5;
++  const close = parseWallTime(c[closeIdx] ?? "");
++  if (close === null) return { ok: false, reason: "close time is missing or unreadable (position still open?)" };
++
++  const ticket = c[1]!;
++  const symbol = c[2]!;
++  const type = c[3]!.toLowerCase();
++  if (!/^\d+$/.test(ticket)) return { ok: false, reason: `unreadable position ticket "${ticket}"` };
++  if (!symbol) return { ok: false, reason: "missing symbol" };
++  if (type !== "buy" && type !== "sell") return { ok: false, reason: `unsupported type "${c[3]}"` };
++
++  // "0.10" or, for partially closed legs, "0.10 / 0.30": the first figure is the closed volume.
++  const volume = parseNumber((c[4] ?? "").split("/")[0]);
++  const openPrice = parseNumber(c[5]);
++  const closePrice = parseNumber(c[n - 4]);
++  const commission = parseNumber(c[n - 3]);
++  const swap = parseNumber(c[n - 2]);
++  const profit = parseNumber(c[n - 1]);
++  if (volume === null || volume <= 0) return { ok: false, reason: `unreadable volume "${c[4]}"` };
++  if (openPrice === null || closePrice === null) return { ok: false, reason: "unreadable open/close price" };
++  if (commission === null || swap === null || profit === null) return { ok: false, reason: "unreadable commission/swap/profit" };
++  if (close < open) return { ok: false, reason: "close time precedes open time" };
++
++  // Between openPrice (index 5) and closeTime: S/L and T/P. Two cells = both columns present.
++  const mid = c.slice(6, closeIdx);
++  const sl = mid.length >= 2 ? parseNumber(mid[0]) : null;
++  const tp = mid.length >= 2 ? parseNumber(mid[1]) : null;
++
++  const digits = Math.max(decimalsOf(c[5]), decimalsOf(c[n - 4]), decimalsOf(mid[0]), decimalsOf(mid[1]));
++  return {
++    ok: true,
++    digits,
++    pos: {
++      ticket,
++      symbol,
++      side: type,
++      volume,
++      openWallMs: open,
++      closeWallMs: close,
++      openPrice,
++      closePrice,
++      stopLoss: sl !== null && sl > 0 ? sl : null,
++      takeProfit: tp !== null && tp > 0 ? tp : null,
++      commission,
++      swap,
++      profit,
++    },
++  };
++}
++
++/**
++ * Deals rows hold deposits/withdrawals as type "balance". Merged cells shift the columns, so anchor on the
++ * word "balance": after it come profit (the signed amount), the running balance, then an optional comment.
++ */
++function parseBalanceRow(raw: string[]): Mt5BalanceOp | null {
++  const c = trimCells(raw);
++  const t = parseWallTime(c[0] ?? "");
++  const at = c.findIndex((x, i) => i >= 2 && /^balance$/i.test(x));
++  if (t === null || at < 0) return null;
++  const tail = c.slice(at + 1);
++  const nums = tail.filter((x) => parseNumber(x) !== null);
++  if (nums.length < 2) return null;
++  const amount = parseNumber(nums[nums.length - 2])!;
++  const lastNum = tail.lastIndexOf(nums[nums.length - 1]!);
++  return { wallMs: t, deal: c[1] ?? "", amount, comment: tail.slice(lastNum + 1).filter(Boolean).join(" ") };
++}
++
++/** Parse already-extracted table rows. Exposed for tests and for callers that bring their own extraction. */
++export function parseMt5Rows(rows: string[][]): Mt5Report {
++  const report: Mt5Report = {
++    account: parseAccount(rows),
++    positions: [],
++    balanceOps: [],
++    digitsBySymbol: {},
++    skipped: [],
++    warnings: [],
++  };
++
++  let section: Section | null = null;
++  let sawPositionsHeader = false;
++  const seen = new Set<string>();
++
++  rows.forEach((row, idx) => {
++    const s = sectionOf(row);
++    if (s) {
++      section = s;
++      if (s === "positions") sawPositionsHeader = true;
++      return;
++    }
++    if (section === "positions") {
++      const r = parsePositionRow(row);
++      if (r.ok) {
++        if (seen.has(r.pos.ticket)) {
++          report.skipped.push({ row: idx + 1, reason: `duplicate ticket ${r.pos.ticket}` });
++          return;
++        }
++        seen.add(r.pos.ticket);
++        report.positions.push(r.pos);
++        const prev = report.digitsBySymbol[r.pos.symbol] ?? 0;
++        report.digitsBySymbol[r.pos.symbol] = Math.min(8, Math.max(prev, r.digits));
++      } else if (!r.ignore) {
++        report.skipped.push({ row: idx + 1, reason: r.reason });
++      }
++    } else if (section === "deals") {
++      const b = parseBalanceRow(row);
++      if (b) report.balanceOps.push(b);
++    }
++  });
++
++  if (!sawPositionsHeader) {
++    throw new Mt5ParseError(
++      'No "Positions" section found. Export the report from MetaTrader 5 (History tab → right click → Report → HTML or Excel) with the "Positions" view, and make sure the terminal language is English.',
++    );
++  }
++  if (!report.account) report.warnings.push("The report has no account header, so it cannot be matched to a linked account.");
++  else if (!report.account.currency) report.warnings.push("The account currency could not be read from the report header.");
++  if (report.account?.type && /netting|exchange/.test(report.account.type)) {
++    report.warnings.push("Netting account: each row is a position as MT5 rolled it up, which is what is imported.");
++  }
++  if (report.positions.length === 0 && report.skipped.length === 0) report.warnings.push("The Positions section is empty.");
++  return report;
++}
++
++/** Entry point: raw bytes of the uploaded .html/.htm/.xlsx file. */
++export function parseMt5Report(bytes: Uint8Array): Mt5Report {
++  if (bytes.length === 0) throw new Mt5ParseError("The file is empty.");
++  const rows = isXlsx(bytes) ? xlsxToRows(bytes) : htmlToRows(decodeText(bytes));
++  if (rows.length === 0) throw new Mt5ParseError("No table rows found: this does not look like a MetaTrader 5 report.");
++  return parseMt5Rows(rows);
++}
+diff --git a/src/lib/mt5/to-trades.ts b/src/lib/mt5/to-trades.ts
+new file mode 100644
+index 0000000..dd5dbf7
+--- /dev/null
++++ b/src/lib/mt5/to-trades.ts
+@@ -0,0 +1,125 @@
++/**
++ * Mt5Report -> rows for `public.trades`. Pure: the dialog does the I/O.
++ *
++ * Conventions (they must agree with the `trades_compute_pnl` trigger and with `pnl-map.ts`):
++ *  - gross_pnl  = MT5 profit, the broker's own number, in account currency.
++ *  - commission / swap keep MT5's sign (costs negative) so the P&L engine can reconcile them.
++ *  - fees       = -(commission + swap), a POSITIVE cost, because the trigger computes net = gross - fees.
++ *  - pnl_manual = true so the trigger never recomputes imported P&L from prices (it cannot know the
++ *                 contract size or conversion rate). The engine audits these figures instead.
++ *  - external_id = MT5 position ticket, the idempotency key behind the (journal_id, external_id) unique index.
++ */
++import { serverWallToUtcMs, type ServerTz } from "../../../supabase/functions/_shared/pnl-engine/time.ts";
++import type { Mt5Position, Mt5Report } from "./parse-report";
++
++export interface JournalLink {
++  currency: string;
++  mt_login?: string | null;
++  mt_platform?: string | null;
++  mt_server?: string | null;
++}
++
++export type Compatibility = { ok: true; warnings: string[] } | { ok: false; error: string };
++
++/** Refuse a report that belongs to another account or currency: importing it would corrupt the journal's numbers. */
++export function checkCompatibility(report: Mt5Report, journal: JournalLink): Compatibility {
++  const warnings: string[] = [];
++  const a = report.account;
++  if (a) {
++    if (journal.mt_login && journal.mt_login !== a.login) {
++      return { ok: false, error: `This report is for account ${a.login}, but this journal is linked to account ${journal.mt_login}.` };
++    }
++    if (a.currency && a.currency.toUpperCase() !== journal.currency.toUpperCase()) {
++      return {
++        ok: false,
++        error: `This report is in ${a.currency}, but the journal currency is ${journal.currency.toUpperCase()}. Create a ${a.currency} journal for this account.`,
++      };
++    }
++    if (journal.mt_server && a.server && journal.mt_server !== a.server) {
++      warnings.push(`Report server "${a.server}" differs from the linked server "${journal.mt_server}".`);
++    }
++  }
++  return { ok: true, warnings };
++}
++
++export interface TradeInsertRow {
++  journal_id: string;
++  instrument_id: string | null;
++  direction: "long" | "short";
++  entry_at: string;
++  exit_at: string;
++  entry_price: number;
++  exit_price: number;
++  quantity: number;
++  stop_loss: number | null;
++  take_profit: number | null;
++  gross_pnl: number;
++  fees: number;
++  commission: number;
++  swap: number;
++  net_pnl: number;
++  pnl_manual: true;
++  source: "mt5";
++  external_id: string;
++  raw_symbol: string;
++}
++
++const round8 = (n: number) => Math.round(n * 1e8) / 1e8;
++
++export function positionToTrade(
++  p: Mt5Position,
++  journalId: string,
++  instrumentId: string | null,
++  tz: ServerTz,
++): TradeInsertRow {
++  const fees = round8(-(p.commission + p.swap));
++  return {
++    journal_id: journalId,
++    instrument_id: instrumentId,
++    direction: p.side === "sell" ? "short" : "long",
++    entry_at: new Date(serverWallToUtcMs(p.openWallMs, tz)).toISOString(),
++    exit_at: new Date(serverWallToUtcMs(p.closeWallMs, tz)).toISOString(),
++    entry_price: p.openPrice,
++    exit_price: p.closePrice,
++    quantity: p.volume, // lots: the journal's quantity_unit is set to 'lots' on import
++    stop_loss: p.stopLoss,
++    take_profit: p.takeProfit,
++    gross_pnl: p.profit,
++    fees,
++    commission: p.commission,
++    swap: p.swap,
++    net_pnl: round8(p.profit - fees),
++    pnl_manual: true,
++    source: "mt5",
++    external_id: p.ticket,
++    raw_symbol: p.symbol,
++  };
++}
++
++export function reportToTrades(
++  report: Mt5Report,
++  journalId: string,
++  instrumentIds: ReadonlyMap<string, string>,
++  tz: ServerTz,
++): TradeInsertRow[] {
++  return report.positions.map((p) => positionToTrade(p, journalId, instrumentIds.get(p.symbol) ?? null, tz));
++}
++
++export interface ReportSummary {
++  trades: number;
++  symbols: number;
++  net: number;
++  firstCloseWallMs: number | null;
++  lastCloseWallMs: number | null;
++}
++
++export function summarize(report: Mt5Report): ReportSummary {
++  const closes = report.positions.map((p) => p.closeWallMs);
++  return {
++    trades: report.positions.length,
++    symbols: new Set(report.positions.map((p) => p.symbol)).size,
++    net: round8(report.positions.reduce((s, p) => s + p.profit + p.commission + p.swap, 0)),
++    firstCloseWallMs: closes.length ? Math.min(...closes) : null,
++    lastCloseWallMs: closes.length ? Math.max(...closes) : null,
++  };
++}
+diff --git a/src/test/mt5-report.test.ts b/src/test/mt5-report.test.ts
+new file mode 100644
+index 0000000..190e5ca
+--- /dev/null
++++ b/src/test/mt5-report.test.ts
+@@ -0,0 +1,178 @@
++import { describe, expect, it } from "vitest";
++import * as XLSX from "xlsx";
++import { parseMt5Report, parseMt5Rows, parseNumber, parseWallTime, Mt5ParseError } from "@/lib/mt5/parse-report";
++import { D, PnlEngine, RateResolver } from "../../supabase/functions/_shared/pnl-engine/index.ts";
++import { mapTrade, type TradeRow } from "../../supabase/functions/_shared/pnl-map.ts";
++import { StaticProvider } from "./pnl-engine/helpers.ts";
++import { checkCompatibility, positionToTrade, reportToTrades, summarize } from "@/lib/mt5/to-trades";
++
++const th = (cells: string[]) => `<tr>${cells.map((c) => `<th>${c}</th>`).join("")}</tr>`;
++const td = (cells: string[]) => `<tr>${cells.map((c) => `<td>${c}</td>`).join("")}</tr>`;
++
++const POS_HEADER = ["Time", "Position", "Symbol", "Type", "Volume", "Price", "S / L", "T / P", "Time", "Price", "Commission", "Swap", "Profit"];
++
++const rows = {
++  eur: ["2026.10.20 08:15:00", "52001", "EURUSD", "buy", "0.10", "1.08500", "1.08000", "1.09500", "2026.10.20 12:40:10", "1.09120", "-0.70", "0.00", "62.00"],
++  jpy: ["2026.10.21 09:00:00", "52002", "USDJPY", "sell", "1.00", "150.250", "", "", "2026.10.22 10:30:00", "149.750", "-7.00", "-1.25", "333.89"],
++  gold: ["2026.10.22 15:00:00", "52003", "XAUUSD", "buy", "0.05", "2 650.40", "2 640.00", "0.00", "2026.10.22 16:00:00", "2 655.90", "-0.35", "0.00", "27.50"],
++};
++
++function reportHtml(extra = ""): string {
++  return `<html><body><table>
++    ${th(["Trade History Report"])}
++    ${td(["Name:", "Test Trader"])}
++    ${td(["Account:", "5012345 (USD, MetaQuotes-Demo, demo, Hedge)"])}
++    ${td(["Company:", "MetaQuotes Ltd."])}
++    ${th(["Positions"])}
++    ${th(POS_HEADER)}
++    ${td(rows.eur)}${td(rows.jpy)}${td(rows.gold)}
++    ${td(["", "", "", "", "", "", "", "", "", "", "-8.05", "-1.25", "423.39"])}
++    ${extra}
++    ${th(["Deals"])}
++    ${th(["Time", "Deal", "Symbol", "Type", "Direction", "Volume", "Price", "Order", "Commission", "Fee", "Swap", "Profit", "Balance", "Comment"])}
++    ${td(["2026.10.01 00:00:00", "1", "", "balance", "", "", "", "", "", "", "", "10 000.00", "10 000.00", "Deposit"])}
++    ${td(["2026.10.25 00:00:00", "9", "", "balance", "", "", "", "", "", "", "", "-500.00", "12 929.62", "Withdrawal"])}
++  </table></body></html>`;
++}
++
++const utf8 = (s: string) => new TextEncoder().encode(s);
++function utf16le(s: string): Uint8Array {
++  const out = new Uint8Array(2 + s.length * 2);
++  out[0] = 0xff;
++  out[1] = 0xfe;
++  for (let i = 0; i < s.length; i++) {
++    out[2 + i * 2] = s.charCodeAt(i) & 0xff;
++    out[3 + i * 2] = s.charCodeAt(i) >> 8;
++  }
++  return out;
++}
++
++describe("cell parsing", () => {
++  it("reads MT5 numbers with space and NBSP thousands separators", () => {
++    expect(parseNumber("3 340.12")).toBe(3340.12);
++    expect(parseNumber("1 234.50")).toBe(1234.5);
++    expect(parseNumber("-0.70")).toBe(-0.7);
++    expect(parseNumber("")).toBeNull();
++    expect(parseNumber("buy")).toBeNull();
++  });
++  it("reads server wall time and rejects impossible dates", () => {
++    expect(parseWallTime("2026.10.23 14:05:09")).toBe(Date.UTC(2026, 9, 23, 14, 5, 9));
++    expect(parseWallTime("2026.13.45 00:00:00")).toBeNull();
++    expect(parseWallTime("Time")).toBeNull();
++  });
++});
++
++describe("parseMt5Report (HTML)", () => {
++  const check = (bytes: Uint8Array) => {
++    const r = parseMt5Report(bytes);
++    expect(r.account).toMatchObject({ login: "5012345", currency: "USD", server: "MetaQuotes-Demo", mode: "demo", type: "hedge" });
++    expect(r.positions).toHaveLength(3); // the totals row is ignored
++    const [eur, jpy, gold] = r.positions;
++    expect(eur).toMatchObject({ ticket: "52001", symbol: "EURUSD", side: "buy", volume: 0.1, stopLoss: 1.08, takeProfit: 1.095, commission: -0.7, swap: 0, profit: 62 });
++    expect(jpy).toMatchObject({ side: "sell", stopLoss: null, takeProfit: null, profit: 333.89, swap: -1.25 });
++    expect(gold).toMatchObject({ openPrice: 2650.4, closePrice: 2655.9, takeProfit: null }); // "0.00" TP = not set
++    expect(r.digitsBySymbol).toMatchObject({ EURUSD: 5, USDJPY: 3, XAUUSD: 2 });
++    expect(r.balanceOps).toEqual([
++      expect.objectContaining({ amount: 10000, comment: "Deposit" }),
++      expect.objectContaining({ amount: -500, comment: "Withdrawal" }),
++    ]);
++    expect(r.skipped).toEqual([]);
++  };
++  it("parses UTF-16LE with BOM, as MT5 writes it", () => check(utf16le(reportHtml())));
++  it("parses plain UTF-8", () => check(utf8(reportHtml())));
++
++  it("reports rows it cannot trust instead of importing them", () => {
++    const bad = td(["2026.10.23 10:00:00", "52004", "GBPUSD", "buy", "0.10", "1.30000", "", "", "", "", "0.00", "0.00", "0.00"]);
++    const r = parseMt5Report(utf8(reportHtml(bad)));
++    expect(r.positions).toHaveLength(3);
++    expect(r.skipped).toEqual([expect.objectContaining({ reason: expect.stringMatching(/close time/) })]);
++  });
++  it("skips duplicate tickets", () => {
++    const r = parseMt5Report(utf8(reportHtml(td(rows.eur))));
++    expect(r.positions).toHaveLength(3);
++    expect(r.skipped).toEqual([expect.objectContaining({ reason: "duplicate ticket 52001" })]);
++  });
++  it("throws a helpful error when there is no Positions section", () => {
++    expect(() => parseMt5Report(utf8("<table><tr><td>hello</td></tr></table>"))).toThrow(Mt5ParseError);
++    expect(() => parseMt5Rows([["Deals"], ["x"]])).toThrow(/Positions/);
++  });
++});
++
++describe("parseMt5Report (Excel)", () => {
++  it("parses the same layout from an .xlsx export, tolerating spacer columns", () => {
++    const aoa = [
++      ["Trade History Report"],
++      ["", "Account:", "", "5012345 (USD, MetaQuotes-Demo, demo, Hedge)"],
++      ["Positions"],
++      POS_HEADER,
++      ["", ...rows.eur],
++      ["", ...rows.jpy],
++    ];
++    const ws = XLSX.utils.aoa_to_sheet(aoa);
++    const buf = XLSX.write({ SheetNames: ["Sheet1"], Sheets: { Sheet1: ws } }, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
++    const r = parseMt5Report(new Uint8Array(buf));
++    expect(r.account?.login).toBe("5012345");
++    expect(r.positions.map((p) => p.ticket)).toEqual(["52001", "52002"]);
++    expect(r.positions[0]!.openPrice).toBe(1.085);
++  });
++});
++
++describe("to-trades", () => {
++  const report = parseMt5Report(utf8(reportHtml()));
++  const ids = new Map([["EURUSD", "i-eur"]]);
++
++  it("maps costs so net = profit + commission + swap, and marks the P&L as broker-supplied", () => {
++    const [t] = reportToTrades(report, "j1", ids, { kind: "fixed", offsetMinutes: 0 });
++    expect(t).toMatchObject({
++      instrument_id: "i-eur", direction: "long", gross_pnl: 62, commission: -0.7, swap: 0, fees: 0.7, net_pnl: 61.3,
++      pnl_manual: true, source: "mt5", external_id: "52001", raw_symbol: "EURUSD", quantity: 0.1,
++    });
++    const jpy = positionToTrade(report.positions[1]!, "j1", null, { kind: "fixed", offsetMinutes: 0 });
++    expect(jpy).toMatchObject({ direction: "short", fees: 8.25, net_pnl: 325.64, instrument_id: null });
++  });
++
++  it("converts server time to UTC (GMT+3 summer server)", () => {
++    const t = positionToTrade(report.positions[0]!, "j1", null, { kind: "fixed", offsetMinutes: 180 });
++    expect(t.entry_at).toBe("2026-10-20T05:15:00.000Z");
++  });
++  it("applies New York close DST: Oct 20 is GMT+3", () => {
++    const t = positionToTrade(report.positions[0]!, "j1", null, { kind: "ny-close" });
++    expect(t.entry_at).toBe("2026-10-20T05:15:00.000Z");
++  });
++
++  it("summarises the report", () => {
++    expect(summarize(report)).toMatchObject({ trades: 3, symbols: 3, net: 414.09 });
++  });
++
++  it("refuses another account or currency, warns on server mismatch", () => {
++    expect(checkCompatibility(report, { currency: "USD", mt_login: "999" })).toMatchObject({ ok: false });
++    expect(checkCompatibility(report, { currency: "EUR" })).toMatchObject({ ok: false });
++    expect(checkCompatibility(report, { currency: "usd", mt_login: "5012345" })).toEqual({ ok: true, warnings: [] });
++    const w = checkCompatibility(report, { currency: "USD", mt_server: "Other-Live" });
++    expect(w).toMatchObject({ ok: true });
++    expect(w.ok && w.warnings).toHaveLength(1);
++  });
++});
++
++describe("import -> P&L engine round trip", () => {
++  it("every imported row maps and reconciles against an independent calculation", async () => {
++    const report = parseMt5Report(utf8(reportHtml()));
++    const trades = reportToTrades(report, "j1", new Map(), { kind: "fixed", offsetMinutes: 0 });
++    const engine = new PnlEngine({
++      rates: new RateResolver({ providers: [new StaticProvider("test", { JPYUSD: String(1 / 149.75) })] }),
++    });
++    const journal = { id: "j1", currency: "USD", quantity_unit: "lots" as const };
++    const out: Record<string, string | undefined> = {};
++    for (const [i, t] of trades.entries()) {
++      const row = { ...t, id: `t${i}`, is_break_even: false, risk_amount: null, instrument_id: null } as unknown as TradeRow;
++      const m = mapTrade(row, undefined, journal, new Map());
++      if (!("trade" in m)) throw new Error(`${t.raw_symbol}: ${m.skip}`);
++      // USDJPY and XAUUSD profit in JPY / USD; only JPY needs the rate table.
++      const res = await engine.computeClosed({ ...m.trade, spec: { ...m.trade.spec } });
++      out[t.raw_symbol] = res.reconciliation?.status;
++      expect(res.grossSource).toBe("broker");
++      expect(res.netAccount?.toString()).toBe(D(t.net_pnl).toString());
++    }
++    expect(out).toEqual({ EURUSD: "OK", USDJPY: "OK", XAUUSD: "OK" });
++  });
++});
