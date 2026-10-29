@@ -12,7 +12,7 @@ import {
   inferInstrument,
   type ClosedTrade,
   type FetchLike,
-} from '../../../supabase/functions/_shared/pnl-engine/index.ts';
+} from '@engine/index.ts';
 import { StaticProvider } from './helpers.ts';
 
 const T0 = Date.UTC(2026, 9, 22, 12, 0, 0);

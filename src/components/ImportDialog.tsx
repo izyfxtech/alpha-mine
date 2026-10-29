@@ -6,12 +6,12 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useJournal } from "@/lib/journal-context";
 import { seedDemoTrades } from "@/lib/demo";
-import { fillsToTrades, type RawFill } from "@/lib/fills-import";
-import { FIELDS, detectHeaderRow, looksLikeFills, parseCsv, suggestMapping } from "@/lib/csv-mapping";
+import { fillsToTrades, type RawFill } from "@/lib/import/fills-import";
+import { FIELDS, detectHeaderRow, looksLikeFills, parseCsv, suggestMapping } from "@/lib/import/csv-mapping";
 import { auditJournalPnl } from "@/lib/pnl-audit";
-import { parseMt5Report, type Mt5Report } from "@/lib/mt5/parse-report";
-import { balanceOpsToCashflows, checkCompatibility, reportToTrades, summarize } from "@/lib/mt5/to-trades";
-import type { ServerTz } from "../../supabase/functions/_shared/pnl-engine/time.ts";
+import { parseMt5Report, type Mt5Report } from "@/lib/import/mt5/parse-report";
+import { balanceOpsToCashflows, checkCompatibility, reportToTrades, summarize } from "@/lib/import/mt5/to-trades";
+import type { ServerTz } from "@engine/time.ts";
 
 const TZ_OPTIONS: { value: string; label: string; tz: ServerTz }[] = [
   { value: "ny-close", label: "GMT+2 / GMT+3 (New York close, most brokers)", tz: { kind: "ny-close" } },

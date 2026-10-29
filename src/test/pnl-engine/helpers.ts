@@ -1,4 +1,4 @@
-import { D, type RateKind, type RateObservation, type RateProvider } from '../../../supabase/functions/_shared/pnl-engine/index.ts';
+import { D, type RateKind, type RateObservation, type RateProvider } from '@engine/index.ts';
 
 /** Deterministic provider for tests: fixed pair table, controllable freshness. */
 export class StaticProvider implements RateProvider {

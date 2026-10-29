@@ -11,7 +11,7 @@
  *    minimum trading days, minimum profitable days, consistency (best day share of profit).
  *    Payout rules, scaling plans and position-size limits are not modelled.
  */
-import { zoneOffsetMs } from "../../supabase/functions/_shared/pnl-engine/time.ts";
+import { zoneOffsetMs } from "@engine/time.ts";
 
 export type Amount = { value: number; unit: "absolute" | "percent" };
 

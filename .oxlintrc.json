@@ -1,0 +1,46 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "typescript",
+    "react",
+    "import"
+  ],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
+  "rules": {
+    "react/exhaustive-deps": "warn",
+    "react/rules-of-hooks": "error",
+    "typescript/no-explicit-any": "warn",
+    "no-unused-vars": [
+      "warn",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_"
+      }
+    ],
+    "react/react-in-jsx-scope": "off",
+    "react/static-components": "warn",
+    "react/set-state-in-effect": "warn",
+    "react/purity": "warn",
+    "react/immutability": "warn",
+    "react/memo-dependencies": "warn",
+    "react/exhaustive-effect-dependencies": "warn",
+    "react/no-unstable-nested-components": "warn",
+    "no-unused-expressions": "warn",
+    "no-shadow": "warn",
+    "no-underscore-dangle": "warn",
+    "import/no-unassigned-import": "warn"
+  },
+  "ignorePatterns": [
+    ".output",
+    ".tanstack",
+    "node_modules",
+    "dist",
+    "docs",
+    "drizzle",
+    "src/routeTree.gen.ts",
+    "src/integrations/supabase/types.ts"
+  ]
+}

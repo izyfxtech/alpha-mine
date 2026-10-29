@@ -9,7 +9,7 @@ import {
   roundMoney,
   type ClosedTrade,
   type Side,
-} from '../../../supabase/functions/_shared/pnl-engine/index.ts';
+} from '@engine/index.ts';
 import { HOUR, StaticProvider, T0 } from './helpers.ts';
 
 const eurusd = inferInstrument('EURUSD', { digits: 5, contractSize: 100000 });

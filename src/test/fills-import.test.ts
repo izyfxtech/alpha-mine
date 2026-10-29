@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { fillsToTrades, type RawFill } from "@/lib/fills-import";
+import { fillsToTrades, type RawFill } from "@/lib/import/fills-import";
 
 const fill = (symbol: string, side: "buy" | "sell", quantity: number, price: number, t: number, cost = 0): RawFill => ({ symbol, side, quantity, price, timeMs: Date.UTC(2026, 9, 1, 12, t), cost });
 

@@ -3,7 +3,7 @@
  * Pure: the dialog does the I/O. Open positions are reported, never imported, so a later file that closes them
  * cannot create duplicates.
  */
-import { D, buildPositions, type Fill, type Position } from "../../supabase/functions/_shared/pnl-engine/index.ts";
+import { D, buildPositions, type Fill, type Position } from "@engine/index.ts";
 
 export interface RawFill {
   symbol: string;

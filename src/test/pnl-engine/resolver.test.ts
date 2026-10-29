@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { ImpliedRateProvider, RateResolver, D } from '../../../supabase/functions/_shared/pnl-engine/index.ts';
+import { ImpliedRateProvider, RateResolver, D } from '@engine/index.ts';
 import { HOUR, StaticProvider, T0, ThrowingProvider } from './helpers.ts';
 
 describe('RateResolver', () => {
