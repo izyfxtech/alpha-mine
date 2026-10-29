@@ -5,7 +5,7 @@ import { Rv } from "@/components/marketing-shell";
 
 const DESC = "Bring your history into AlphaMine from MetaTrader 5 reports, CSV or Excel files, or log trades by hand.";
 const methods = [
-  { icon: FileArrowDown, t: "MetaTrader 5 reports", d: "Import the HTML or Excel report exported from MetaTrader 5. Each trade keeps its platform ticket, commission and swap, and P&L is recomputed in your journal." },
+  { icon: FileArrowDown, t: "MetaTrader 4 and 5 reports", d: "Import the HTML or Excel report exported from MetaTrader 5. Each trade keeps its platform ticket, commission and swap, and the broker's P&L is kept and checked against an independent calculation." },
   { icon: Table, t: "CSV and Excel files", d: "Already keep a spreadsheet? Upload a CSV or Excel file and your trades land in the journal ready to tag." },
   { icon: PencilSimpleLine, t: "Manual entry", d: "Log a trade by hand with its setup, comments and screenshots, for platforms or markets you do not export from." },
 ];

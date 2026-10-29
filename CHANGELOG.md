@@ -2,6 +2,12 @@
 
 Newest first. Dates are the day the work landed on `main`.
 
+## 2026-10-30
+
+- **MetaTrader import hardening**: MT4 statements; shared DOM-free parser in `supabase/functions/_shared/mt/` (works in an Edge Function); coded errors for translated terminals and reports without Positions.
+- **Atomic import**: new `import_mt_report` database function (one transaction, updates late commission/swap, never overwrites notes or the trader's stops); `sync_jobs` records inserted/updated/deposit counts.
+- Explicit grants for `sync_jobs`, `trade_pnl_audit` and `rate_observations`; pgTAP test and `pnpm db:test`; CI runs database tests.
+
 ## 2026-10-29
 
 - Added path aliases `@engine` and `@shared`, grouped the import modules under `src/lib/import/`.

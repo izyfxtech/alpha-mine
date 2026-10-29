@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit -p .",
+    "db:test": "supabase test db",
     "lint": "oxlint src supabase",
     "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build",
     "db:pull": "drizzle-kit pull",

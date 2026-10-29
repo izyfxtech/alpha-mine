@@ -10,7 +10,7 @@ Every journal-owned table carries `journal_id` and is protected by the `owns_jou
 | `src/routes/` | File-based routes. `_authenticated/` holds the signed-in app; the rest is the marketing site, auth and legal pages. `routeTree.gen.ts` is generated, never edit it. |
 | `src/components/` | Shared UI. `ui/` is the shadcn-style primitive layer, `kit.tsx` the app's panels, stats and charts, `trade-form/` the trade editor pieces. |
 | `src/lib/` | App logic with no UI: `metrics.ts` (the one place performance numbers come from), `journal-context.tsx` (journal, filters, trades), `crud.ts` (journal-scoped table helper), `edge-finder.ts`, `prop-challenge.ts`. |
-| `src/lib/import/` | Everything that turns files into trades: `mt5/` (report parser and mapping), `fills-import.ts`, `csv-mapping.ts`. All pure, no network. |
+| `src/lib/import/` | Everything that turns files into trades: `mt/` (report reader and mapping; parsing itself is in `_shared/mt/`), `fills-import.ts`, `csv-mapping.ts`. All pure, no network. |
 | `src/integrations/supabase/` | Client and generated `types.ts` (regenerate with `pnpm db:types`). |
 | `src/test/` | Vitest. `pnl-engine/` covers the engine, the rest mirrors `src/lib`. |
 | `supabase/migrations/` | Ordered SQL, applied with `pnpm db:push`. Written to be safe to re-run. |
@@ -45,7 +45,7 @@ The `compute-pnl` Edge Function audits trades into `trade_pnl_audit`. It never c
 
 ## Importing trades
 
-1. **MetaTrader 5 report** (HTML or Excel): `lib/import/mt5/parse-report.ts` reads the Positions table by anchors (not header index), `to-trades.ts` maps rows. Imported rows keep the broker's profit (`pnl_manual`, `source = 'mt5'`, `external_id` = position ticket). After the import the app runs `compute-pnl` with `apply`.
+1. **MetaTrader 4 statement or MetaTrader 5 report** (HTML or Excel): `_shared/mt/` parses the Positions (MT5) or Closed Transactions (MT4) table by anchors, not header index; `lib/import/mt/to-trades.ts` builds an RPC payload of broker facts. The `import_mt_report` database function writes instruments, account link, trades, deposits and a `sync_jobs` row in one transaction. Imported rows keep the broker's profit (`pnl_manual`, `source` = `mt4`/`mt5`, `external_id` = ticket). After the import the app runs `compute-pnl` with `apply`.
 2. **CSV, one row per trade**: `csv-mapping.ts` finds the header row and suggests columns; the dialog maps them.
 3. **CSV, one row per fill**: `fills-import.ts` groups fills into closed trades with legs. Still-open positions are reported, never imported.
 
