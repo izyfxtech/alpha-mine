@@ -7,7 +7,7 @@ import {
   RateResolver,
   type FetchLike,
   type HttpResponse,
-} from '../../../supabase/functions/_shared/pnl-engine/index.ts';
+} from '@engine/index.ts';
 
 const ok = (body: unknown): HttpResponse => ({ ok: true, status: 200, json: async () => body });
 const status = (s: number): HttpResponse => ({ ok: false, status: s, json: async () => ({}) });

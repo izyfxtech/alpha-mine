@@ -16,6 +16,11 @@ export default defineConfig({
     nitro(),
   ],
   resolve: {
-    alias: { "@": path.resolve(import.meta.dirname, "src") },
+    alias: {
+      "@": path.resolve(import.meta.dirname, "src"),
+      // The P&L engine lives under supabase/functions so the Edge Function and the app run the same code.
+      "@engine": path.resolve(import.meta.dirname, "supabase/functions/_shared/pnl-engine"),
+      "@shared": path.resolve(import.meta.dirname, "supabase/functions/_shared"),
+    },
   },
 });

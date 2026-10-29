@@ -4,6 +4,19 @@ A private trading journal built with TanStack Start, React, Tailwind and Supabas
 Journals, trades, plans, backtests and analytics are stored per user in Supabase
 with owner-scoped row level security.
 
+## Scripts
+
+```
+pnpm dev          # dev server
+pnpm check        # typecheck + lint + tests + build (what CI runs)
+pnpm typecheck    # tsc --noEmit
+pnpm lint         # oxlint (findings in older code are warnings)
+pnpm test         # vitest
+```
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the folder map, data model, P&L engine and import pipeline,
+and [CHANGELOG.md](CHANGELOG.md) for what changed.
+
 ## Getting started
 
 1. Put your Supabase project details in `.env`:
@@ -83,3 +96,15 @@ Journals linked to a MetaTrader account are set to `lots`. For any other journal
 to `lots` or `units`; until then its trades are skipped, never guessed. Trades with hand typed P&L are never touched.
 Review: `select status, recon_status, count(*) from trade_pnl_audit group by 1, 2;`
 
+
+## Importing trades
+
+The Import dialog accepts a MetaTrader 5 history report (HTML or Excel) or a CSV. For CSVs it finds the header row and
+suggests the column mapping; tick "Each row is a single fill" for execution files (scale-ins and partial exits are grouped
+into trades). Re-importing a file never duplicates trades. After an MT5 import the app runs the P&L audit and fills in
+R-multiples where a stop loss was set.
+
+## Prop challenges
+
+`/prop-challenge` replays your closed trades against a firm's rules (profit target, drawdown, daily loss, minimum days,
+consistency). It uses closed trades only and does not model payouts or scaling plans.

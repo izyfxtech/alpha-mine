@@ -9,7 +9,7 @@
  *                 contract size or conversion rate). The engine audits these figures instead.
  *  - external_id = MT5 position ticket, the idempotency key behind the (journal_id, external_id) unique index.
  */
-import { serverWallToUtcMs, type ServerTz } from "../../../supabase/functions/_shared/pnl-engine/time.ts";
+import { serverWallToUtcMs, type ServerTz } from "@engine/time.ts";
 import type { Mt5Position, Mt5Report } from "./parse-report";
 
 export interface JournalLink {

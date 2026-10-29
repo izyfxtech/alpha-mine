@@ -29,7 +29,9 @@
     "exactOptionalPropertyTypes": false,
     "noUncheckedSideEffectImports": true,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@engine/*": ["./supabase/functions/_shared/pnl-engine/*"],
+      "@shared/*": ["./supabase/functions/_shared/*"]
     }
   }
 }

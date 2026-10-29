@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { guessDigits, mapTrade, pickRiskApplications, type InstrumentRow, type JournalRow, type TradeRow } from '../../supabase/functions/_shared/pnl-map.ts';
+import { guessDigits, mapTrade, pickRiskApplications, type InstrumentRow, type JournalRow, type TradeRow } from '@shared/pnl-map.ts';
 
 const base: TradeRow = {
   id: 't1', direction: 'long', entry_at: '2026-10-22T12:00:00Z', exit_at: '2026-10-22T13:00:00Z',

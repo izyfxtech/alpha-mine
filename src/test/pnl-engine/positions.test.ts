@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
+import { D, buildPositions, matchFifo, type Fill } from '@engine/index.ts';
 import { D, buildPositions, matchFifo, type Fill } from '../../../supabase/functions/_shared/pnl-engine/index.ts';
 
 const f = (id: string, side: 'buy' | 'sell', lots: string, price: string, t: number, extra: Partial<Fill> = {}): Fill => ({ id, side, lots: D(lots), price: D(price), timeMs: t, ...extra });

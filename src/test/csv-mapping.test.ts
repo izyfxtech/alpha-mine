@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
+import { detectHeaderRow, parseCsv, looksLikeFills, suggestMapping } from "@/lib/import/csv-mapping";
 import { detectHeaderRow, parseCsv, looksLikeFills, suggestMapping } from "@/lib/csv-mapping";
 
 describe("suggestMapping", () => {

@@ -10,7 +10,7 @@ import {
   D,
   serverWallToUtcMs,
   zoneOffsetMs,
-} from '../../../supabase/functions/_shared/pnl-engine/index.ts';
+} from '@engine/index.ts';
 
 describe('instruments', () => {
   it('strips broker suffixes', () => {
