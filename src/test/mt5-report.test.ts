@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import * as XLSX from "xlsx";
-import { parseMt5Report, parseMt5Rows, parseNumber, parseWallTime, Mt5ParseError } from "@/lib/import/mt5/parse-report";
+import { parseMt5Report, parseMt5Rows, parseNumber, parseWallTime, Mt5ParseError } from "@/lib/import/mt/parse-report";
 import { D, PnlEngine, RateResolver } from "@engine/index.ts";
 import { mapTrade, type TradeRow } from "@shared/pnl-map.ts";
 import { StaticProvider } from "./pnl-engine/helpers.ts";
-import { balanceOpsToCashflows, checkCompatibility, positionToTrade, reportToTrades, summarize } from "@/lib/import/mt5/to-trades";
+import { balanceOpsToCashflows, checkCompatibility, positionToTrade, reportToTrades, summarize } from "@/lib/import/mt/to-trades";
 
 const th = (cells: string[]) => `<tr>${cells.map((c) => `<th>${c}</th>`).join("")}</tr>`;
 const td = (cells: string[]) => `<tr>${cells.map((c) => `<td>${c}</td>`).join("")}</tr>`;

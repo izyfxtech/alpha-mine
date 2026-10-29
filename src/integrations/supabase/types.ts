@@ -873,9 +873,9 @@ export type Database = {
         ]
       }
       sync_jobs: {
-        Row: { attempts: number; created_at: string; error: string | null; finished_at: string | null; id: string; journal_id: string | null; mode: string; platform: string; started_at: string | null; status: string; trades_imported: number; user_id: string }
-        Insert: { attempts?: number; created_at?: string; error?: string | null; finished_at?: string | null; id?: string; journal_id?: string | null; mode: string; platform: string; started_at?: string | null; status?: string; trades_imported?: number; user_id: string }
-        Update: { attempts?: number; created_at?: string; error?: string | null; finished_at?: string | null; id?: string; journal_id?: string | null; mode?: string; platform?: string; started_at?: string | null; status?: string; trades_imported?: number; user_id?: string }
+        Row: { attempts: number; created_at: string; error: string | null; finished_at: string | null; id: string; journal_id: string | null; mode: string; platform: string; started_at: string | null; status: string; trades_imported: number; trades_updated: number; cashflows_imported: number; user_id: string }
+        Insert: { attempts?: number; created_at?: string; error?: string | null; finished_at?: string | null; id?: string; journal_id?: string | null; mode: string; platform: string; started_at?: string | null; status?: string; trades_imported?: number; trades_updated?: number; cashflows_imported?: number; user_id: string }
+        Update: { attempts?: number; created_at?: string; error?: string | null; finished_at?: string | null; id?: string; journal_id?: string | null; mode?: string; platform?: string; started_at?: string | null; status?: string; trades_imported?: number; trades_updated?: number; cashflows_imported?: number; user_id?: string }
         Relationships: []
       }
       trade_comments: {
@@ -1244,6 +1244,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      import_mt_report: { Args: { _journal_id: string; _payload: Json }; Returns: Json }
       owns_journal: { Args: { _j: string }; Returns: boolean }
       shared_journal: { Args: { _token: string }; Returns: Json }
     }

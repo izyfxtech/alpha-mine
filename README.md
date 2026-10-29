@@ -99,9 +99,9 @@ Review: `select status, recon_status, count(*) from trade_pnl_audit group by 1, 
 
 ## Importing trades
 
-The Import dialog accepts a MetaTrader 5 history report (HTML or Excel) or a CSV. For CSVs it finds the header row and
+The Import dialog accepts a MetaTrader 4 statement or MetaTrader 5 history report (HTML or Excel) or a CSV. For CSVs it finds the header row and
 suggests the column mapping; tick "Each row is a single fill" for execution files (scale-ins and partial exits are grouped
-into trades). Re-importing a file never duplicates trades. After an MT5 import the app runs the P&L audit and fills in
+into trades). Re-importing a file never duplicates trades (late commission or swap is updated; your notes and stops are not touched). After a MetaTrader import the app runs the P&L audit and fills in
 R-multiples where a stop loss was set.
 
 ## Prop challenges

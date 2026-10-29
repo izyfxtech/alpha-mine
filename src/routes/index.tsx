@@ -28,7 +28,7 @@ const steps = [
 ];
 
 const faqs = [
-  { q: "Which platforms can I import from?", a: "MetaTrader 5 report exports in HTML and Excel are supported. You can also import a CSV or Excel file, or add trades by hand with screenshots." },
+  { q: "Which platforms can I import from?", a: "MetaTrader 5 report exports (HTML and Excel) and MetaTrader 4 statements are supported. You can also import a CSV or Excel file, or add trades by hand with screenshots." },
   { q: "Is my data private?", a: "Every journal belongs to your account and database rules stop other users from reading it. Screenshots sit in a private bucket and open through short lived signed links." },
   { q: "What is the tilt meter?", a: "You tag each entry, management decision and exit. AlphaMine turns those tags into a daily discipline score, so you can see when your process slipped." },
   { q: "Can I keep more than one journal?", a: "Yes. Each journal has its own broker, currency and starting balance, and every report follows the journal you have selected." },
@@ -78,7 +78,7 @@ function Landing() {
                 {[["M0 60 L50 52 L100 40 L150 28 L200 8", 1], ["M0 60 L50 56 L100 50 L150 46 L200 40", 0.5], ["M0 60 L50 58 L100 56 L150 62 L200 58", 0.35], ["M0 60 L50 64 L100 62 L150 70 L200 74", 0.35]].map(([d, o], i) => <path key={i} d={String(d)} stroke="var(--mk-acc)" vectorEffect="non-scaling-stroke" opacity={Number(o)} />)}
               </svg>
             </Bento>
-            <Bento span="lg:col-span-6" icon={FileArrowDown} title="MetaTrader 5 import" body="Drop in an HTML or Excel report and your trades land in the journal with P&L recomputed.">
+            <Bento span="lg:col-span-6" icon={FileArrowDown} title="MetaTrader 5 import" body="Drop in an HTML or Excel report and your trades land in the journal with the broker's P&L kept and independently checked.">
               <div className="flex flex-wrap gap-2">{["HTML report", "Excel report", "CSV file", "Manual entry"].map((c) => <span key={c} className="rounded-full border border-[var(--mk-line)] px-3 py-1 text-sm text-[var(--mk-mute)]">{c}</span>)}</div>
             </Bento>
           </div>
