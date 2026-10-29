@@ -12,6 +12,12 @@ import { auditJournalPnl } from "@/lib/pnl-audit";
 import { parseMt5Report, type Mt5Report } from "@/lib/import/mt5/parse-report";
 import { balanceOpsToCashflows, checkCompatibility, reportToTrades, summarize } from "@/lib/import/mt5/to-trades";
 import type { ServerTz } from "@engine/time.ts";
+import { fillsToTrades, type RawFill } from "@/lib/fills-import";
+import { FIELDS, detectHeaderRow, looksLikeFills, parseCsv, suggestMapping } from "@/lib/csv-mapping";
+import { auditJournalPnl } from "@/lib/pnl-audit";
+import { parseMt5Report, type Mt5Report } from "@/lib/mt5/parse-report";
+import { balanceOpsToCashflows, checkCompatibility, reportToTrades, summarize } from "@/lib/mt5/to-trades";
+import type { ServerTz } from "../../supabase/functions/_shared/pnl-engine/time.ts";
 
 const TZ_OPTIONS: { value: string; label: string; tz: ServerTz }[] = [
   { value: "ny-close", label: "GMT+2 / GMT+3 (New York close, most brokers)", tz: { kind: "ny-close" } },
