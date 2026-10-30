@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { LegalPage, type LegalSection } from "@/components/legal";
+import { LegalPage, type LegalSection } from "@/components/marketing/legal";
 
 const DESC = "The terms for using AlphaMine, including your data, acceptable use and trading risk.";
 export const Route = createFileRoute("/terms")({

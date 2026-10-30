@@ -1,4 +1,4 @@
-import { compressImage } from "@/lib/compress-image";
+import { compressImage } from "@/lib/media/compress-image";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ImagePlus, Trash2 } from "lucide-react";
 import { toast } from "sonner";

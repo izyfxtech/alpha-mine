@@ -3,7 +3,7 @@ import { Calendar, ChevronDown, ChevronRight, Globe, Pencil, RotateCcw, Settings
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { activeFilterCount, useJournal, useLookups, useTrades, type Filters, type Range } from "@/lib/journal-context";
+import { activeFilterCount, useJournal, useLookups, useTrades, type Filters, type Range } from "@/lib/journal/journal-context";
 import { cn } from "@/lib/utils";
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];

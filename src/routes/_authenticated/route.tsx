@@ -1,10 +1,10 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { JournalProvider } from "@/lib/journal-context";
-import { AppSidebar } from "@/components/AppSidebar";
-import { TopBar } from "@/components/TopBar";
-import { TradeDrawerProvider } from "@/components/TradeDrawer";
+import { JournalProvider } from "@/lib/journal/journal-context";
+import { AppSidebar } from "@/components/layout/AppSidebar";
+import { TopBar } from "@/components/layout/TopBar";
+import { TradeDrawerProvider } from "@/components/journal/TradeDrawer";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,

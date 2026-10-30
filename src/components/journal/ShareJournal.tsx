@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
-import { useJournal } from "@/lib/journal-context";
+import { useJournal } from "@/lib/journal/journal-context";
 import { useProfile } from "@/lib/profile-settings";
 
 /** Create, copy, or switch off a read-only public link to the current journal's performance. */

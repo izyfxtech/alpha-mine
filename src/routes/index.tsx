@@ -1,9 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { type ReactNode } from "react";
 import { ArrowRight, Brain, CalendarDots, ChartLineUp, FileArrowDown, Flask, MagnifyingGlass, Plus, type Icon } from "@phosphor-icons/react";
-import { Rv, Words } from "@/components/marketing-shell";
-import { Section, SiteLayout } from "@/components/site";
-import { Cal, Meter } from "@/components/visuals";
+import { Rv, Words } from "@/components/marketing/marketing-shell";
+import { Section, SiteLayout } from "@/components/marketing/site";
+import { Cal, Meter } from "@/components/analytics/visuals";
 
 const TITLE = "AlphaMine: the trading journal that finds your edge";
 const DESC = "Journal trades, measure discipline with the tilt meter, and analyse performance with 16 Chart Lab reports. Imports MetaTrader 5 reports.";

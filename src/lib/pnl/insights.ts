@@ -1,4 +1,4 @@
-import { WEEKDAYS, groupPerformance, type Trade } from "@/lib/metrics";
+import { WEEKDAYS, groupPerformance, type Trade } from "@/lib/pnl/metrics";
 
 export type Insight = { id: string; title: string; body: string; at: string; tradeId: string };
 

@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "@phosphor-icons/react";
-import { BrandLink, MkShell, ThemeToggle } from "@/components/marketing-shell";
+import { BrandLink, MkShell, ThemeToggle } from "@/components/marketing/marketing-shell";
 
 /** Set this to your support address. While empty, the contact sentence is left out. */
 export const CONTACT_EMAIL = "";

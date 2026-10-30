@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Check, Plus } from "@phosphor-icons/react";
-import { CtaBand, PageHero, Section, SiteLayout } from "@/components/site";
-import { Rv } from "@/components/marketing-shell";
-import { FEATURES } from "@/lib/site-content";
+import { CtaBand, PageHero, Section, SiteLayout } from "@/components/marketing/site";
+import { Rv } from "@/components/marketing/marketing-shell";
+import { FEATURES } from "@/lib/content/site-content";
 
 const DESC = "AlphaMine is free while we build. Paid plans are coming, and pricing will be published here before they launch.";
 const included = [...FEATURES.map((f) => f.name), "MetaTrader 5, CSV and Excel import", "Multiple journals", "Share links for any journal", "Trading plans, missed trades and diary"];

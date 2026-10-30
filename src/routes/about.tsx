@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight } from "@phosphor-icons/react";
-import { CtaBand, PageHero, Section, SiteLayout } from "@/components/site";
-import { Rv } from "@/components/marketing-shell";
+import { CtaBand, PageHero, Section, SiteLayout } from "@/components/marketing/site";
+import { Rv } from "@/components/marketing/marketing-shell";
 
 const DESC = "AlphaMine is built by traders for traders, under IZ Technologies Limited.";
 const beliefs = [

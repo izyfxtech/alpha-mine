@@ -1,8 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import { CaretDown } from "@phosphor-icons/react";
-import { BrandLink, MkShell, Rv, ThemeToggle } from "@/components/marketing-shell";
-import { FEATURES } from "@/lib/site-content";
+import { BrandLink, MkShell, Rv, ThemeToggle } from "@/components/marketing/marketing-shell";
+import { FEATURES } from "@/lib/content/site-content";
 
 const linkCls = "rounded-lg px-3 py-2 text-sm font-semibold text-[var(--mk-mute)] transition-colors duration-300 hover:text-[var(--mk-fg)]";
 const ease = "ease-[cubic-bezier(0.22,1,0.36,1)]";

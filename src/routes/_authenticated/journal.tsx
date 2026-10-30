@@ -8,14 +8,14 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
-import { useJournal, useTrades } from "@/lib/journal-context";
-import type { Trade } from "@/lib/metrics";
-import { fmtNum } from "@/lib/metrics";
-import { useTradeDrawer } from "@/components/TradeDrawer";
-import { ImportDialog } from "@/components/ImportDialog";
+import { useJournal, useTrades } from "@/lib/journal/journal-context";
+import type { Trade } from "@/lib/pnl/metrics";
+import { fmtNum } from "@/lib/pnl/metrics";
+import { useTradeDrawer } from "@/components/journal/TradeDrawer";
+import { ImportDialog } from "@/components/journal/ImportDialog";
 import { Empty, TiltMeter } from "@/components/kit";
 import { cn } from "@/lib/utils";
-import { defaultJournalTableLayout, moveJournalColumn, normalizeJournalTableLayout, suggestedColumnWidth, type JournalTableLayout } from "@/lib/journal-table-layout";
+import { defaultJournalTableLayout, moveJournalColumn, normalizeJournalTableLayout, suggestedColumnWidth, type JournalTableLayout } from "@/lib/journal/journal-table-layout";
 
 export const Route = createFileRoute("/_authenticated/journal")({
   head: () => ({ meta: [{ title: "Journal — AlphaMine" }, { name: "description", content: "All trades in your journal." }, { property: "og:title", content: "Journal — AlphaMine" }, { property: "og:description", content: "All trades in your journal." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),

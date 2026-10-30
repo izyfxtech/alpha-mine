@@ -1,4 +1,4 @@
-import { computeStats, potentialR, type Trade } from "@/lib/metrics";
+import { computeStats, potentialR, type Trade } from "@/lib/pnl/metrics";
 
 export type Rating = "good" | "ok" | "poor";
 export interface Trend { dir: "up" | "down" | "flat"; label: string }

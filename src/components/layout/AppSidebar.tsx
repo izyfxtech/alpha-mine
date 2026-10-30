@@ -3,13 +3,13 @@ import { useEffect, useState } from "react";
 import { ChevronRight, Moon, Sun, PanelLeftClose, PanelLeftOpen, Upload } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Logo } from "@/components/Logo";
+import { Logo } from "@/components/layout/Logo";
 import { NAV, childPath, type NavItem } from "@/lib/nav";
 import { cn } from "@/lib/utils";
-import { useTrades, useJournal } from "@/lib/journal-context";
-import { computeStats, fmtMoney } from "@/lib/metrics";
-import { useTradeDrawer } from "@/components/TradeDrawer";
-import { ImportDialog } from "@/components/ImportDialog";
+import { useTrades, useJournal } from "@/lib/journal/journal-context";
+import { computeStats, fmtMoney } from "@/lib/pnl/metrics";
+import { useTradeDrawer } from "@/components/journal/TradeDrawer";
+import { ImportDialog } from "@/components/journal/ImportDialog";
 import { useProfile } from "@/lib/profile-settings";
 
 const rowCls = "flex h-[38px] w-full items-center gap-3 rounded-md px-3 text-[12px] font-medium text-sidebar-foreground hover:bg-sidebar-accent";

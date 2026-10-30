@@ -1,8 +1,8 @@
 import { type InputHTMLAttributes, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "@phosphor-icons/react";
-import { BrandLink, ThemeToggle } from "@/components/marketing-shell";
-import { Meter } from "@/components/visuals";
+import { BrandLink, ThemeToggle } from "@/components/marketing/marketing-shell";
+import { Meter } from "@/components/analytics/visuals";
 
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 

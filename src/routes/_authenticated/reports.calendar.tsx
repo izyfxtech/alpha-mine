@@ -2,10 +2,10 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { addMonths, format, isSameMonth, setYear, startOfMonth } from "date-fns";
 import { ChevronDown, ChevronLeft, ChevronRight, X } from "lucide-react";
-import { useTrades } from "@/lib/journal-context";
-import { computeStats, fmtMoney, fmtNum, fmtPct } from "@/lib/metrics";
+import { useTrades } from "@/lib/journal/journal-context";
+import { computeStats, fmtMoney, fmtNum, fmtPct } from "@/lib/pnl/metrics";
 import { AccentStat, StatGrid } from "@/components/kit";
-import { ProfitCalendar } from "@/components/ProfitCalendar";
+import { ProfitCalendar } from "@/components/analytics/ProfitCalendar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 

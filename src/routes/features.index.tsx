@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight } from "@phosphor-icons/react";
-import { CtaBand, PageHero, Section, SiteLayout } from "@/components/site";
-import { Rv } from "@/components/marketing-shell";
-import { FEATURES, MORE } from "@/lib/site-content";
+import { CtaBand, PageHero, Section, SiteLayout } from "@/components/marketing/site";
+import { Rv } from "@/components/marketing/marketing-shell";
+import { FEATURES, MORE } from "@/lib/content/site-content";
 
 const DESC = "Journal, profit calendar, tilt meter, Chart Lab, Edge Finder and Strategy Lab: the tools inside AlphaMine.";
 export const Route = createFileRoute("/features/")({

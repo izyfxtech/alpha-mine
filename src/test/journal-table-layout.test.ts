@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultJournalTableLayout, equityColorOffset, moveJournalColumn, normalizeJournalTableLayout, suggestedColumnWidth } from "@/lib/journal-table-layout";
+import { defaultJournalTableLayout, equityColorOffset, moveJournalColumn, normalizeJournalTableLayout, suggestedColumnWidth } from "@/lib/journal/journal-table-layout";
 
 describe("journal table layout", () => {
   const keys = ["entry", "instrument", "pnl"];

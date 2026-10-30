@@ -4,6 +4,8 @@ Newest first. Dates are the day the work landed on `main`.
 
 ## 2026-10-30
 
+- **Folder structure**: `src/lib` and `src/components` grouped by domain (`pnl`, `journal`, `media`, `errors`, `content`; `layout`, `journal`, `analytics`, `marketing`). Moves and import rewrites only, no logic changes.
+
 - **MetaTrader import hardening**: MT4 statements; shared DOM-free parser in `supabase/functions/_shared/mt/` (works in an Edge Function); coded errors for translated terminals and reports without Positions.
 - **Atomic import**: new `import_mt_report` database function (one transaction, updates late commission/swap, never overwrites notes or the trader's stops); `sync_jobs` records inserted/updated/deposit counts.
 - Explicit grants for `sync_jobs`, `trade_pnl_audit` and `rate_observations`; pgTAP test and `pnpm db:test`; CI runs database tests.

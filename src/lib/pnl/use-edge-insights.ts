@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useLookups, useTrades } from "@/lib/journal-context";
-import { computeEdgeFinder, type EdgeCard } from "@/lib/edge-finder";
+import { useLookups, useTrades } from "@/lib/journal/journal-context";
+import { computeEdgeFinder, type EdgeCard } from "@/lib/pnl/edge-finder";
 
 /**
  * Edge Finder cards for the active journal, always over all trades (never the filtered subset).

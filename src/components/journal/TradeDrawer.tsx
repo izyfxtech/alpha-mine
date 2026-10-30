@@ -6,12 +6,12 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { useJournal, useLookups } from "@/lib/journal-context";
-import type { Trade } from "@/lib/metrics";
+import { useJournal, useLookups } from "@/lib/journal/journal-context";
+import type { Trade } from "@/lib/pnl/metrics";
 import { cn } from "@/lib/utils";
-import { useScreenshots, saveShots, deleteShot, type Shot } from "@/components/Screenshots";
-import { FloatInput, FloatSelect, Segmented, SectionTitle, type Opt } from "@/components/trade-form/fields";
-import { ScreenshotSlots, type PendingShot } from "@/components/trade-form/ScreenshotSlots";
+import { useScreenshots, saveShots, deleteShot, type Shot } from "@/components/journal/Screenshots";
+import { FloatInput, FloatSelect, Segmented, SectionTitle, type Opt } from "@/components/journal/trade-form/fields";
+import { ScreenshotSlots, type PendingShot } from "@/components/journal/trade-form/ScreenshotSlots";
 
 export type DrawerOpts = { prefill?: Partial<Trade>; onSaved?: () => void | Promise<void>; /** Trades in display order, enables Previous/Next inside the editor. */ list?: Trade[] };
 const Ctx = createContext<{ open: (t?: Trade, opts?: DrawerOpts) => void } | null>(null);

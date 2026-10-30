@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Eye, EyeSlash, GoogleLogo, EnvelopeSimple } from "@phosphor-icons/react";
 import { supabase } from "@/integrations/supabase/client";
-import { MkShell } from "@/components/marketing-shell";
+import { MkShell } from "@/components/marketing/marketing-shell";
 import { AuthFrame, EMAIL_RE, Field } from "@/components/auth-bits";
 
 export const Route = createFileRoute("/auth")({

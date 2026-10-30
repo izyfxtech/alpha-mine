@@ -5,9 +5,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { EquityChart, Panel, axis, tooltipStyle, yScale } from "@/components/kit";
-import { useJournal, useTrades } from "@/lib/journal-context";
-import { useJournalTable } from "@/lib/crud";
-import { computeStats, fmtMoney, fmtNum } from "@/lib/metrics";
+import { useJournal, useTrades } from "@/lib/journal/journal-context";
+import { useJournalTable } from "@/lib/journal/crud";
+import { computeStats, fmtMoney, fmtNum } from "@/lib/pnl/metrics";
 import { missedMetrics } from "./missed-trades";
 import { cn } from "@/lib/utils";
 

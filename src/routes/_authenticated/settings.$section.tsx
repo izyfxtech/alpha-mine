@@ -12,9 +12,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Empty, Panel } from "@/components/kit";
 import { DragHandle, EditableText, TypedConfirm, plural, useDragReorder, useUsage } from "@/components/settings-parts";
 import { supabase } from "@/integrations/supabase/client";
-import { useJournal } from "@/lib/journal-context";
+import { useJournal } from "@/lib/journal/journal-context";
 import { useProfile } from "@/lib/profile-settings";
-import { useJournalTable } from "@/lib/crud";
+import { useJournalTable } from "@/lib/journal/crud";
 import { SETTINGS } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 

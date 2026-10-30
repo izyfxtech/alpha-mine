@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader, Panel, Stat, axis, tooltipStyle, tradeAxis, yRange } from "@/components/kit";
-import { useTrades } from "@/lib/journal-context";
-import { computeStats, fmtMoney, fmtNum } from "@/lib/metrics";
+import { useTrades } from "@/lib/journal/journal-context";
+import { computeStats, fmtMoney, fmtNum } from "@/lib/pnl/metrics";
 
 export const Route = createFileRoute("/_authenticated/strategy-lab/simulator")({
   head: () => ({ meta: [{ title: "Simulator — AlphaMine" }, { name: "description", content: "Monte Carlo simulation of future account growth." }, { property: "og:title", content: "Simulator — AlphaMine" }, { property: "og:description", content: "Monte Carlo simulation of future account growth." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),

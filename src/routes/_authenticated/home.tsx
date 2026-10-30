@@ -1,19 +1,19 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import { addMonths, format, startOfMonth } from "date-fns";
-import { ProfitCalendar } from "@/components/ProfitCalendar";
+import { ProfitCalendar } from "@/components/analytics/ProfitCalendar";
 import { Camera, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { toast } from "sonner";
-import { downloadElementPng } from "@/lib/capture";
-import { useEdgeInsights } from "@/lib/use-edge-insights";
-import { useTrades } from "@/lib/journal-context";
-import { bucketPerformance, computeStats, fmtHold, fmtMoney, fmtNum, fmtPct, groupPerformance } from "@/lib/metrics";
-import { KpiCards } from "@/components/KpiCards";
+import { downloadElementPng } from "@/lib/media/capture";
+import { useEdgeInsights } from "@/lib/pnl/use-edge-insights";
+import { useTrades } from "@/lib/journal/journal-context";
+import { bucketPerformance, computeStats, fmtHold, fmtMoney, fmtNum, fmtPct, groupPerformance } from "@/lib/pnl/metrics";
+import { KpiCards } from "@/components/analytics/KpiCards";
 import { Social } from "@/components/Social";
 import { Empty, EquityChart, Panel, PnlBars, Stat, cumulative } from "@/components/kit";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { seedDemoTrades } from "@/lib/demo";
+import { seedDemoTrades } from "@/lib/journal/demo";
 import { useQueryClient } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/_authenticated/home")({

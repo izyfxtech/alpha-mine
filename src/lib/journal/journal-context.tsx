@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { annotateAccount, enrichTrade, isWin, isLoss, isBE, type Cashflow, type Trade, type TradeRow, type Sentiment } from "./metrics";
+import { annotateAccount, enrichTrade, isWin, isLoss, isBE, type Cashflow, type Trade, type TradeRow, type Sentiment } from "@/lib/pnl/metrics";
 
 export interface Journal {
   id: string;

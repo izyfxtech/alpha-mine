@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { BookOpen, Crosshair, ShieldCheck, TrendingUp, Trophy, Wallet } from "lucide-react";
-import { useTrades } from "@/lib/journal-context";
-import { computeStats } from "@/lib/metrics";
+import { useTrades } from "@/lib/journal/journal-context";
+import { computeStats } from "@/lib/pnl/metrics";
 
 export const Route = createFileRoute("/_authenticated/milestones")({
   head: () => ({ meta: [{ title: "Milestones — AlphaMine" }, { name: "description", content: "Track your trading journal milestones and progress." }, { property: "og:title", content: "Milestones — AlphaMine" }, { property: "og:description", content: "Track your trading journal milestones and progress." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),

@@ -3,7 +3,7 @@ import { GripVertical } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useTrades } from "@/lib/journal-context";
+import { useTrades } from "@/lib/journal/journal-context";
 import { cn } from "@/lib/utils";
 
 /**

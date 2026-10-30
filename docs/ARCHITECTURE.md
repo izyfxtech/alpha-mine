@@ -8,8 +8,8 @@ Every journal-owned table carries `journal_id` and is protected by the `owns_jou
 | Path | What lives there |
 | --- | --- |
 | `src/routes/` | File-based routes. `_authenticated/` holds the signed-in app; the rest is the marketing site, auth and legal pages. `routeTree.gen.ts` is generated, never edit it. |
-| `src/components/` | Shared UI. `ui/` is the shadcn-style primitive layer, `kit.tsx` the app's panels, stats and charts, `trade-form/` the trade editor pieces. |
-| `src/lib/` | App logic with no UI: `metrics.ts` (the one place performance numbers come from), `journal-context.tsx` (journal, filters, trades), `crud.ts` (journal-scoped table helper), `edge-finder.ts`, `prop-challenge.ts`. |
+| `src/components/` | Shared UI. `ui/` is the shadcn-style primitive layer; `layout/` (sidebar, top bar, command palette), `journal/` (import dialog, trade drawer, picker, sharing, `trade-form/`), `analytics/` (KPI cards, calendar, filters, charts), `marketing/` (public site shell and legal pages). `kit.tsx` holds the app's panels and stats. |
+| `src/lib/` | App logic with no UI, by domain: `pnl/` (`metrics.ts` is the one place performance numbers come from; audit, insights, edge finder, prop challenge), `journal/` (`journal-context.tsx` for journal, filters and trades; `crud.ts` table helper; demo data), `media/` (screenshots), `errors/`, `content/` (posts, news, site copy). `utils.ts` and `nav.ts` stay at the root because shadcn expects `@/lib/utils`. |
 | `src/lib/import/` | Everything that turns files into trades: `mt/` (report reader and mapping; parsing itself is in `_shared/mt/`), `fills-import.ts`, `csv-mapping.ts`. All pure, no network. |
 | `src/integrations/supabase/` | Client and generated `types.ts` (regenerate with `pnpm db:types`). |
 | `src/test/` | Vitest. `pnl-engine/` covers the engine, the rest mirrors `src/lib`. |
@@ -53,8 +53,8 @@ All imports are idempotent through `(journal_id, external_id)`.
 
 ## Conventions
 
-- Performance numbers come from `src/lib/metrics.ts` only.
-- Simple journal-scoped tables go through `useJournalTable` in `src/lib/crud.ts`.
+- Performance numbers come from `src/lib/pnl/metrics.ts` only.
+- Simple journal-scoped tables go through `useJournalTable` in `src/lib/journal/crud.ts`.
 - Migrations are additive and re-runnable; add RLS policies and triggers by hand, Drizzle does not model them.
 - Run `pnpm check` (typecheck, lint, tests, build) before pushing. CI runs the same steps.
 - Lint findings in older code are warnings, new code should not add to them.
