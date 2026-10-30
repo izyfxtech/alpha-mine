@@ -6,7 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Logo } from "@/components/layout/Logo";
 import { NAV, childPath, type NavItem } from "@/lib/nav";
 import { cn } from "@/lib/utils";
-import { useTrades, useJournal } from "@/lib/journal/journal-context";
+import { useTrades } from "@/lib/journal/journal-context";
 import { computeStats, fmtMoney } from "@/lib/pnl/metrics";
 import { useTradeDrawer } from "@/components/journal/TradeDrawer";
 import { ImportDialog } from "@/components/journal/ImportDialog";
@@ -58,7 +58,6 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
   const path = useRouterState({ select: (s) => s.location.pathname });
   const [dark, setDark] = useState(false);
   const { trades, journal } = useTrades({ unfiltered: true });
-  const { journals } = useJournal();
   const { settings } = useProfile();
   const drawer = useTradeDrawer();
   const [importOpen, setImportOpen] = useState(false);
@@ -77,7 +76,7 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
         <Link to="/home"><Logo collapsed={collapsed} /></Link>
       </div>
       <nav className="flex-1 space-y-[2px] overflow-y-auto p-2">
-        {NAV.filter((item) => item.to !== "/portfolio" || journals.length > 1).map((item) =>
+        {NAV.map((item) =>
           item.children ? (
             <Group key={item.label} item={item} collapsed={collapsed} path={path} />
           ) : (
