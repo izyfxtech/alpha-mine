@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 
 type Tables = Database["public"]["Tables"];
-export type TableName = "backtests" | "alt_strategies" | "planned_trades" | "notebook_folders" | "trading_plans" | "missed_trades" | "notebook_pages" | "diary_sessions" | "instruments" | "setups" | "comment_definitions" | "journal_cashflows" | "custom_stat_categories" | "custom_stat_options" | "prop_challenges";
+export type TableName = "backtests" | "alt_strategies" | "planned_trades" | "notebook_folders" | "trading_plans" | "missed_trades" | "notebook_pages" | "diary_sessions" | "instruments" | "setups" | "comment_definitions" | "journal_cashflows" | "custom_stat_categories" | "custom_stat_options" | "prop_challenges" | "trading_rules";
 export type Row<T extends TableName> = Tables[T]["Row"];
 
 /** Journal-scoped list + insert/update/delete helpers for simple tables. */

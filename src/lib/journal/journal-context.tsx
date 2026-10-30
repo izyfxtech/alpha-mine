@@ -1,7 +1,9 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { annotateAccount, enrichTrade, isWin, isLoss, isBE, type Cashflow, type Trade, type TradeRow, type Sentiment } from "@/lib/pnl/metrics";
+import { complianceOf, type RuleCheck } from "@/lib/pnl/compliance";
+import { matchesQuery } from "@/lib/journal/search";
+import { annotateAccount, enrichTrade, isOpen, isWin, isLoss, isBE, type Cashflow, type Trade, type TradeRow, type Sentiment } from "@/lib/pnl/metrics";
 
 export interface Journal {
   id: string;
@@ -44,6 +46,12 @@ export interface Filters {
   rrr?: Range | undefined;
   stats?: Record<string, string[]> | undefined; // category id -> option ids
   day?: string | undefined;
+  /** Free text over instrument, setup, notes, comments, ticket ... (every word must match). */
+  q?: string | undefined;
+  /** Trade-level rule compliance. */
+  compliance?: ("followed" | "partial" | "violated" | "unrated")[] | undefined;
+  /** Trades that violated ANY of these rules (trading_rules ids). */
+  violated?: string[] | undefined;
 }
 
 /** Count of active filter tiles. */
@@ -160,13 +168,14 @@ export function useLookups(journalId?: string) {
     queryKey: ["lookups", journalId],
     enabled: !!journalId,
     queryFn: async () => {
-      const [i, s, c, p, sc, so] = await Promise.all([
+      const [i, s, c, p, sc, so, ru] = await Promise.all([
         supabase.from("instruments").select("*").eq("journal_id", journalId!).order("position").order("symbol"),
         supabase.from("setups").select("*").eq("journal_id", journalId!).order("position").order("name"),
         supabase.from("comment_definitions").select("*").eq("journal_id", journalId!).order("position").order("created_at"),
         supabase.from("trading_plans").select("*").eq("journal_id", journalId!).order("created_at"),
         supabase.from("custom_stat_categories").select("*").eq("journal_id", journalId!).order("position"),
         supabase.from("custom_stat_options").select("*").eq("journal_id", journalId!).order("position").order("created_at"),
+        supabase.from("trading_rules").select("*").eq("journal_id", journalId!).order("position").order("created_at"),
       ]);
       // Disabled ("retired") items stay on the trades that use them but are hidden from every picker.
       const on = <T extends { disabled?: boolean }>(rows: T[] | null) => (rows ?? []).filter((r) => !r.disabled);
@@ -179,7 +188,8 @@ export function useLookups(journalId?: string) {
         statCategories: on(sc.data),
         statOptions: on(so.data).filter((o) => !(sc.data ?? []).some((cat) => cat.id === o.category_id && cat.disabled)),
         /** Everything including disabled items, for screens that must still show retired entries. */
-        all: { instruments: i.data ?? [], setups: s.data ?? [] },
+        rules: on(ru.data),
+        all: { instruments: i.data ?? [], setups: s.data ?? [], rules: ru.data ?? [] },
       };
     },
   });
@@ -187,7 +197,7 @@ export function useLookups(journalId?: string) {
 
 export async function fetchTrades(journalIds: string[]): Promise<Trade[]> {
   if (!journalIds.length) return [];
-  const [t, i, s, tc, cd, cs, jr, cf] = await Promise.all([
+  const [t, i, s, tc, cd, cs, jr, cf, rc] = await Promise.all([
     supabase.from("trades").select("*").in("journal_id", journalIds).order("entry_at", { ascending: false }).limit(5000),
     supabase.from("instruments").select("id,symbol").in("journal_id", journalIds),
     supabase.from("setups").select("id,name").in("journal_id", journalIds),
@@ -196,6 +206,7 @@ export async function fetchTrades(journalIds: string[]): Promise<Trade[]> {
     supabase.from("trade_custom_stats").select("trade_id,option_id").in("journal_id", journalIds),
     supabase.from("journals").select("id,starting_balance").in("id", journalIds),
     supabase.from("journal_cashflows").select("journal_id,occurred_on,amount").in("journal_id", journalIds),
+    supabase.from("trade_rule_checks").select("trade_id,rule_id,status").in("journal_id", journalIds),
   ]);
   if (t.error) throw t.error;
   const im = new Map((i.data ?? []).map((x) => [x.id, x.symbol]));
@@ -209,7 +220,9 @@ export async function fetchTrades(journalIds: string[]): Promise<Trade[]> {
   });
   const stats = new Map<string, string[]>();
   (cs.data ?? []).forEach((r) => stats.set(r.trade_id, [...(stats.get(r.trade_id) ?? []), r.option_id]));
-  const enriched = (t.data as TradeRow[]).map((row) => ({ ...enrichTrade(row, im, sm, byTrade.get(row.id) ?? []), customStats: stats.get(row.id) ?? [] }));
+  const checks = new Map<string, RuleCheck[]>();
+  (rc.data ?? []).forEach((r) => checks.set(r.trade_id, [...(checks.get(r.trade_id) ?? []), { rule_id: r.rule_id, status: r.status as RuleCheck["status"] }]));
+  const enriched = (t.data as TradeRow[]).map((row) => ({ ...enrichTrade(row, im, sm, byTrade.get(row.id) ?? []), customStats: stats.get(row.id) ?? [], ruleChecks: checks.get(row.id) ?? [] }));
   const annotated = new Map<string, Trade>();
   (jr.data ?? []).forEach((j) => {
     const flows = (cf.data ?? []).filter((c) => c.journal_id === j.id).map((c) => ({ occurred_on: c.occurred_on, amount: Number(c.amount) }));
@@ -234,7 +247,7 @@ export function useCashflows(journalId?: string) {
   return { rows, total, flows: rows.map((r) => ({ occurred_on: r.occurred_on, amount: Number(r.amount) })) as Cashflow[] };
 }
 
-export function applyFilters(trades: Trade[], f: Filters) {
+export function applyFilters(trades: Trade[], f: Filters, ruleNames?: ReadonlyMap<string, string>) {
   const has = <T,>(a: T[] | undefined, v: T) => !a?.length || a.includes(v);
   const inR = (r: Range | undefined, v: number | null) => !r || ((r.min == null || (v != null && v >= r.min)) && (r.max == null || (v != null && v <= r.max)));
   const out = trades.filter((t) => {
@@ -250,6 +263,9 @@ export function applyFilters(trades: Trade[], f: Filters) {
     if (!has(f.weekday, dt.getDay())) return false;
     if (!has(f.hour, dt.getHours())) return false;
     if (!has(f.year, dt.getFullYear())) return false;
+    if (f.q && !matchesQuery(t, f.q, ruleNames)) return false;
+    if (f.compliance?.length && !f.compliance.includes(complianceOf(t.ruleChecks))) return false;
+    if (f.violated?.length && !t.ruleChecks.some((c) => c.status === "violated" && f.violated!.includes(c.rule_id))) return false;
     if (f.direction && t.direction !== f.direction) return false;
     if (f.starred === "yes" && !t.is_favorite) return false;
     if (f.starred === "no" && t.is_favorite) return false;
@@ -265,15 +281,21 @@ export function applyFilters(trades: Trade[], f: Filters) {
 }
 
 /** Trades of the active journal, with top-bar filters applied. */
-export function useTrades(opts: { unfiltered?: boolean } = {}) {
+export function useTrades(opts: { unfiltered?: boolean; includeOpen?: boolean } = {}) {
   const { journal, filters } = useJournal();
+  const { data: lk } = useLookups(journal?.id);
+  const ruleNames = useMemo(() => new Map((lk?.all.rules ?? []).map((r) => [r.id, r.name] as const)), [lk]);
   const q = useQuery({
     queryKey: ["trades", journal?.id],
     enabled: !!journal,
     queryFn: () => fetchTrades([journal!.id]),
   });
-  const all = q.data ?? [];
-  const trades = useMemo(() => (opts.unfiltered ? all : applyFilters(all, filters)), [all, filters, opts.unfiltered]);
+  const everything = useMemo(() => q.data ?? [], [q.data]);
+  // Open trades have no result yet, so they stay out of every statistic unless a page asks for them.
+  const closed = useMemo(() => everything.filter((t) => !isOpen(t)), [everything]);
+  const open = useMemo(() => everything.filter(isOpen), [everything]);
+  const all = opts.includeOpen ? everything : closed;
+  const trades = useMemo(() => (opts.unfiltered ? all : applyFilters(all, filters, ruleNames)), [all, filters, opts.unfiltered, ruleNames]);
   const cash = useCashflows(journal?.id);
-  return { trades, all, isLoading: q.isLoading, journal, cashflow: cash.total };
+  return { trades, all, open, isLoading: q.isLoading, journal, cashflow: cash.total };
 }

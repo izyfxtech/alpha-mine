@@ -27,9 +27,11 @@ import { Route as AuthenticatedJournalRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedMilestonesRouteImport } from './routes/_authenticated/milestones'
 import { Route as AuthenticatedMissedTradesRouteImport } from './routes/_authenticated/missed-trades'
 import { Route as AuthenticatedMissedTradesAnalysisRouteImport } from './routes/_authenticated/missed-trades-analysis'
+import { Route as AuthenticatedOpenTradesRouteImport } from './routes/_authenticated/open-trades'
 import { Route as AuthenticatedPlansRouteImport } from './routes/_authenticated/plans'
 import { Route as AuthenticatedPortfolioRouteImport } from './routes/_authenticated/portfolio'
 import { Route as AuthenticatedPropChallengeRouteImport } from './routes/_authenticated/prop-challenge'
+import { Route as AuthenticatedRulesRouteImport } from './routes/_authenticated/rules'
 import { Route as BlogIndexRouteImport } from './routes/blog.index'
 import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
 import { Route as FeaturesIndexRouteImport } from './routes/features.index'
@@ -138,6 +140,11 @@ const AuthenticatedMissedTradesAnalysisRoute =
     path: '/missed-trades-analysis',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedOpenTradesRoute = AuthenticatedOpenTradesRouteImport.update({
+  id: '/open-trades',
+  path: '/open-trades',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedPlansRoute = AuthenticatedPlansRouteImport.update({
   id: '/plans',
   path: '/plans',
@@ -154,6 +161,11 @@ const AuthenticatedPropChallengeRoute =
     path: '/prop-challenge',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedRulesRoute = AuthenticatedRulesRouteImport.update({
+  id: '/rules',
+  path: '/rules',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const BlogIndexRoute = BlogIndexRouteImport.update({
   id: '/blog/',
   path: '/blog/',
@@ -264,9 +276,11 @@ export interface FileRoutesByFullPath {
   '/milestones': typeof AuthenticatedMilestonesRoute
   '/missed-trades': typeof AuthenticatedMissedTradesRoute
   '/missed-trades-analysis': typeof AuthenticatedMissedTradesAnalysisRoute
+  '/open-trades': typeof AuthenticatedOpenTradesRoute
   '/plans': typeof AuthenticatedPlansRoute
   '/portfolio': typeof AuthenticatedPortfolioRoute
   '/prop-challenge': typeof AuthenticatedPropChallengeRoute
+  '/rules': typeof AuthenticatedRulesRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/features/$slug': typeof FeaturesSlugRoute
   '/share/$token': typeof ShareTokenRoute
@@ -302,9 +316,11 @@ export interface FileRoutesByTo {
   '/milestones': typeof AuthenticatedMilestonesRoute
   '/missed-trades': typeof AuthenticatedMissedTradesRoute
   '/missed-trades-analysis': typeof AuthenticatedMissedTradesAnalysisRoute
+  '/open-trades': typeof AuthenticatedOpenTradesRoute
   '/plans': typeof AuthenticatedPlansRoute
   '/portfolio': typeof AuthenticatedPortfolioRoute
   '/prop-challenge': typeof AuthenticatedPropChallengeRoute
+  '/rules': typeof AuthenticatedRulesRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/features/$slug': typeof FeaturesSlugRoute
   '/share/$token': typeof ShareTokenRoute
@@ -342,9 +358,11 @@ export interface FileRoutesById {
   '/_authenticated/milestones': typeof AuthenticatedMilestonesRoute
   '/_authenticated/missed-trades': typeof AuthenticatedMissedTradesRoute
   '/_authenticated/missed-trades-analysis': typeof AuthenticatedMissedTradesAnalysisRoute
+  '/_authenticated/open-trades': typeof AuthenticatedOpenTradesRoute
   '/_authenticated/plans': typeof AuthenticatedPlansRoute
   '/_authenticated/portfolio': typeof AuthenticatedPortfolioRoute
   '/_authenticated/prop-challenge': typeof AuthenticatedPropChallengeRoute
+  '/_authenticated/rules': typeof AuthenticatedRulesRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/features/$slug': typeof FeaturesSlugRoute
   '/share/$token': typeof ShareTokenRoute
@@ -382,9 +400,11 @@ export interface FileRouteTypes {
     | '/milestones'
     | '/missed-trades'
     | '/missed-trades-analysis'
+    | '/open-trades'
     | '/plans'
     | '/portfolio'
     | '/prop-challenge'
+    | '/rules'
     | '/blog/$slug'
     | '/features/$slug'
     | '/share/$token'
@@ -420,9 +440,11 @@ export interface FileRouteTypes {
     | '/milestones'
     | '/missed-trades'
     | '/missed-trades-analysis'
+    | '/open-trades'
     | '/plans'
     | '/portfolio'
     | '/prop-challenge'
+    | '/rules'
     | '/blog/$slug'
     | '/features/$slug'
     | '/share/$token'
@@ -459,9 +481,11 @@ export interface FileRouteTypes {
     | '/_authenticated/milestones'
     | '/_authenticated/missed-trades'
     | '/_authenticated/missed-trades-analysis'
+    | '/_authenticated/open-trades'
     | '/_authenticated/plans'
     | '/_authenticated/portfolio'
     | '/_authenticated/prop-challenge'
+    | '/_authenticated/rules'
     | '/blog/$slug'
     | '/features/$slug'
     | '/share/$token'
@@ -626,6 +650,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMissedTradesAnalysisRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/open-trades': {
+      id: '/_authenticated/open-trades'
+      path: '/open-trades'
+      fullPath: '/open-trades'
+      preLoaderRoute: typeof AuthenticatedOpenTradesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/plans': {
       id: '/_authenticated/plans'
       path: '/plans'
@@ -645,6 +676,13 @@ declare module '@tanstack/react-router' {
       path: '/prop-challenge'
       fullPath: '/prop-challenge'
       preLoaderRoute: typeof AuthenticatedPropChallengeRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/rules': {
+      id: '/_authenticated/rules'
+      path: '/rules'
+      fullPath: '/rules'
+      preLoaderRoute: typeof AuthenticatedRulesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/blog/': {
@@ -771,9 +809,11 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMilestonesRoute: typeof AuthenticatedMilestonesRoute
   AuthenticatedMissedTradesRoute: typeof AuthenticatedMissedTradesRoute
   AuthenticatedMissedTradesAnalysisRoute: typeof AuthenticatedMissedTradesAnalysisRoute
+  AuthenticatedOpenTradesRoute: typeof AuthenticatedOpenTradesRoute
   AuthenticatedPlansRoute: typeof AuthenticatedPlansRoute
   AuthenticatedPortfolioRoute: typeof AuthenticatedPortfolioRoute
   AuthenticatedPropChallengeRoute: typeof AuthenticatedPropChallengeRoute
+  AuthenticatedRulesRoute: typeof AuthenticatedRulesRoute
   AuthenticatedChartLabChartRoute: typeof AuthenticatedChartLabChartRoute
   AuthenticatedDiaryNotebookRoute: typeof AuthenticatedDiaryNotebookRoute
   AuthenticatedDiarySessionsRoute: typeof AuthenticatedDiarySessionsRoute
@@ -797,9 +837,11 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMissedTradesRoute: AuthenticatedMissedTradesRoute,
   AuthenticatedMissedTradesAnalysisRoute:
     AuthenticatedMissedTradesAnalysisRoute,
+  AuthenticatedOpenTradesRoute: AuthenticatedOpenTradesRoute,
   AuthenticatedPlansRoute: AuthenticatedPlansRoute,
   AuthenticatedPortfolioRoute: AuthenticatedPortfolioRoute,
   AuthenticatedPropChallengeRoute: AuthenticatedPropChallengeRoute,
+  AuthenticatedRulesRoute: AuthenticatedRulesRoute,
   AuthenticatedChartLabChartRoute: AuthenticatedChartLabChartRoute,
   AuthenticatedDiaryNotebookRoute: AuthenticatedDiaryNotebookRoute,
   AuthenticatedDiarySessionsRoute: AuthenticatedDiarySessionsRoute,

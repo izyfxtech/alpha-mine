@@ -3,14 +3,16 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useFillViewport } from "@/lib/use-fill-viewport";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Columns3, Copy, Download, GripVertical, ImageIcon, Images, LayoutGrid, LayoutList, Merge, RefreshCw, Scaling, Star, Trash2, X } from "lucide-react";
+import { Search, ArrowDown, ArrowUp, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Columns3, Copy, Download, GripVertical, ImageIcon, Images, LayoutGrid, LayoutList, Merge, RefreshCw, Scaling, Star, Trash2, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
-import { useJournal, useTrades } from "@/lib/journal/journal-context";
+import { activeFilterCount, useJournal, useTrades } from "@/lib/journal/journal-context";
 import type { Trade } from "@/lib/pnl/metrics";
-import { fmtNum } from "@/lib/pnl/metrics";
+import { fmtNum, isOpen } from "@/lib/pnl/metrics";
+import { COMPLIANCE_LABEL, complianceOf } from "@/lib/pnl/compliance";
+import { Input } from "@/components/ui/input";
 import { useTradeDrawer } from "@/components/journal/TradeDrawer";
 import { ImportDialog } from "@/components/journal/ImportDialog";
 import { useScreenshots, type Shot } from "@/components/journal/Screenshots";
@@ -28,18 +30,19 @@ type Col = { k: string; l: string; get: (t: Trade) => string | number; render?: 
 const num = (v: number, d: number) => v.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
 const dt = (s: string | null) => (s ? s.replace("T", " ").slice(0, 16) : "");
 const pill = (t: Trade, txt: string) => <span className={cn("inline-block min-w-[38px] rounded-full px-2.5 py-[3px] text-center text-xs font-medium capitalize leading-none", t.net_pnl > 0 ? "bg-pill-win text-profit" : t.net_pnl < 0 ? "bg-pill-loss text-loss" : "bg-muted text-foreground")}>{txt}</span>;
-const LEFT_COLS = ["instrument", "setup", "trade_type", "option_type", "direction", "entry_at", "exit_at", "tilt", "id", "notes"];
+const LEFT_COLS = ["rules", "instrument", "setup", "trade_type", "option_type", "direction", "entry_at", "exit_at", "tilt", "id", "notes"];
 const alignRight = (k: string) => !LEFT_COLS.includes(k);
 const pnlText = (t: Trade) => (t.net_pnl > 0 ? "text-profit" : t.net_pnl < 0 ? "text-loss" : "text-foreground");
 const COLS: Col[] = [
   { k: "id", l: "Trade ID", get: (t) => t.id.slice(0, 8), width: 105 },
   { k: "entry_at", l: "Entry Date", get: (t) => t.entry_at, render: (t) => <span className={pnlText(t)}>{dt(t.entry_at)}</span>, width: 132 },
-  { k: "exit_at", l: "Exit Date", get: (t) => t.exit_at ?? "", render: (t) => <span className={pnlText(t)}>{dt(t.exit_at)}</span>, width: 132 },
+  { k: "exit_at", l: "Exit Date", get: (t) => t.exit_at ?? "", render: (t) => isOpen(t) ? <span className="rounded-full bg-muted px-2 py-[3px] text-xs font-medium">Open</span> : <span className={pnlText(t)}>{dt(t.exit_at)}</span>, width: 132 },
   { k: "instrument", l: "Instrument", get: (t) => t.instrument, width: 105 },
   { k: "trade_type", l: "Trade Type", get: (t) => t.trade_type, render: (t) => pill(t, t.trade_type) },
   { k: "option_type", l: "Option Type", get: (t) => (t.trade_type === "options" ? "Option" : ""), width: 100 },
   { k: "setup", l: "Setup", get: (t) => t.setup },
   { k: "tilt", l: "Tiltmeter", get: (t) => t.tilt, render: (t) => <TiltMeter value={t.tilt} /> },
+  { k: "rules", l: "Rules", get: (t) => COMPLIANCE_LABEL[complianceOf(t.ruleChecks)], render: (t) => { const c = complianceOf(t.ruleChecks); return c === "unrated" ? <span className="text-t4">—</span> : <span className={cn("text-xs font-medium", c === "followed" ? "text-profit" : c === "violated" ? "text-loss" : "text-amber-600")}>{COMPLIANCE_LABEL[c]}</span>; } },
   { k: "direction", l: "Direction", get: (t) => t.direction, render: (t) => pill(t, t.direction) },
   { k: "quantity", l: "Quantity", get: (t) => t.quantity, render: (t) => num(t.quantity, 2) },
   { k: "entry_price", l: "Entry Price", get: (t) => t.entry_price, render: (t) => num(t.entry_price, 3) },
@@ -56,8 +59,15 @@ const COLS: Col[] = [
 ];
 
 function JournalPage() {
-  const { trades } = useTrades();
+  const { trades } = useTrades({ includeOpen: true });
   const { filters, setFilters, journal } = useJournal();
+  const [qText, setQText] = useState(filters.q ?? "");
+  useEffect(() => { setQText(filters.q ?? ""); }, [filters.q]);
+  useEffect(() => {
+    if (qText.trim() === (filters.q ?? "")) return;
+    const id = setTimeout(() => setFilters({ ...filters, q: qText.trim() || undefined }), 250);
+    return () => clearTimeout(id);
+  }, [qText]); // eslint-disable-line react-hooks/exhaustive-deps
   const drawer = useTradeDrawer();
   const qc = useQueryClient();
   const [sort, setSort] = useState<{ k: string; asc: boolean }>({ k: "entry_at", asc: false });
@@ -191,6 +201,8 @@ function JournalPage() {
       <Button variant="secondary" size="sm" className="h-9 rounded-md px-4 text-sm text-t4" disabled={!sel.size} onClick={dup}><Copy className="h-4 w-4" />Duplicate</Button>
       <Button variant="secondary" size="sm" className="h-9 rounded-md px-4 text-sm text-t4" disabled={!sel.size} onClick={del}><Trash2 className="h-4 w-4" />Delete</Button>
       {filters.day && <Button variant="ghost" size="sm" onClick={() => setFilters({ ...filters, day: undefined })}>Day: {filters.day} <X className="ml-1 h-3 w-3" /></Button>}
+      <div className="relative w-56"><Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" /><Input value={qText} onChange={(e) => setQText(e.target.value)} placeholder="Search trades, notes, rules…" aria-label="Search trades" className="h-9 pl-8" />{qText && <button aria-label="Clear search" className="absolute right-2 top-2.5 text-muted-foreground" onClick={() => { setQText(""); setFilters({ ...filters, q: undefined }); }}><X className="h-4 w-4" /></button>}</div>
+      {activeFilterCount(filters) > 0 && <Button variant="ghost" size="sm" className="h-9 text-sm" onClick={() => { setQText(""); setFilters({}); }}>Filters active ({activeFilterCount(filters)}) <X className="ml-1 h-3 w-3" /></Button>}
       <div className="flex-1" />
       <div role="group" aria-label="Journal view" className="inline-flex h-9 overflow-hidden rounded-md border">
         {([["table", LayoutList, "Table"], ["cards", LayoutGrid, "Cards"], ["gallery", Images, "Gallery"]] as const).map(([k, Icon, label], i) => (

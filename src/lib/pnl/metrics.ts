@@ -1,4 +1,6 @@
 // Shared metrics engine: every page computes stats from here so numbers always match.
+import type { RuleCheck } from "@/lib/pnl/compliance";
+
 export type Sentiment = "positive" | "negative" | "neutral";
 
 export interface TradeRow {
@@ -41,6 +43,7 @@ export interface Trade extends TradeRow {
   setup: string;
   comments: { id: string; label: string; phase: string; sentiment: Sentiment }[];
   customStats: string[]; // custom_stat_options ids
+  ruleChecks: RuleCheck[]; // per-rule followed / partial / violated; empty = not rated
   tilt: number; // signed discipline points: +1 per positive comment, -1 per negative
   followedPlan: boolean; // no negative comment on the trade
   accountSize: number; // running balance before this trade (start + cashflows + prior net)
@@ -72,6 +75,7 @@ export function enrichTrade(
     setup: (t.setup_id && setups.get(t.setup_id)) || "No setup",
     comments,
     customStats: [],
+    ruleChecks: [],
     tilt,
     followedPlan: neg === 0,
     accountSize: 0,
@@ -89,6 +93,9 @@ export function riskOf(t: Pick<TradeRow, "risk_amount" | "stop_loss" | "entry_pr
   }
   return null;
 }
+
+/** A trade without an exit is still open: it has no result yet and must stay out of every statistic. */
+export const isOpen = (t: Pick<TradeRow, "exit_at" | "exit_price">) => t.exit_at == null || t.exit_price == null;
 
 export const isWin = (t: Pick<Trade, "net_pnl" | "is_break_even">) => !t.is_break_even && t.net_pnl > 0;
 export const isLoss = (t: Pick<Trade, "net_pnl" | "is_break_even">) => !t.is_break_even && t.net_pnl < 0;

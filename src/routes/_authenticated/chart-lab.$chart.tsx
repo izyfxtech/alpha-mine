@@ -1,4 +1,6 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
+import { useDrillDown } from "@/lib/journal/drilldown";
+import type { Filters } from "@/lib/journal/journal-context";
 import { useMemo, useState, type ReactNode } from "react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Line, LineChart, ReferenceLine, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis, ComposedChart } from "recharts";
 import { ChevronDown } from "lucide-react";
@@ -90,7 +92,7 @@ function valueOf(ts: Trade[], d: Display, start: number) {
 }
 const fmtD = (d: Display, v: number, cur: string) => d.includes("($)") ? fmtMoney(v, cur) : d.includes("(R)") ? `${fmtNum(v)}R` : d === "Number of Trades" ? String(v) : `${fmtNum(v)}%`;
 
-function BarsBig({ data, yLabel, fmt, extra, hideTicks, rotate }: { data: { k: string; v: number; n?: number }[]; yLabel: string; fmt: (v: number) => string; extra?: (d: { k: string; v: number; n?: number }) => [string, string][]; hideTicks?: boolean; rotate?: boolean }) {
+function BarsBig({ data, yLabel, fmt, extra, hideTicks, rotate, onBar }: { onBar?: (k: string) => void; data: { k: string; v: number; n?: number }[]; yLabel: string; fmt: (v: number) => string; extra?: (d: { k: string; v: number; n?: number }) => [string, string][]; hideTicks?: boolean; rotate?: boolean }) {
   const vals = data.map((d) => d.v);
   const { ticks, lo, hi } = niceTicks(Math.min(0, ...vals), Math.max(0, ...vals), 8);
   const tilt = rotate ?? !!hideTicks;
@@ -102,19 +104,19 @@ function BarsBig({ data, yLabel, fmt, extra, hideTicks, rotate }: { data: { k: s
         <YAxis tick={axis} tickLine={false} axisLine={false} width={58} ticks={ticks} domain={[lo, hi]} interval={0} tickFormatter={tickFmt} label={{ value: yLabel, angle: -90, position: "insideLeft", style: { ...axis, textAnchor: "middle" } }} />
         <ReferenceLine y={0} stroke="var(--color-axis-line)" />
         <Tooltip cursor={{ fill: "rgba(90,186,80,0.08)" }} content={({ active, payload }) => active && payload?.length ? <Tip title={(payload[0].payload as { k: string }).k} lines={[[yLabel, fmt((payload[0].payload as { v: number }).v)], ...(extra ? extra(payload[0].payload as never) : [])]} /> : null} />
-        <Bar dataKey="v" maxBarSize={130} isAnimationActive={false}>{data.map((d, i) => <Cell key={i} fill={d.v >= 0 ? "var(--color-chart-1)" : "var(--color-chart-2)"} />)}</Bar>
+        <Bar dataKey="v" maxBarSize={130} isAnimationActive={false} cursor={onBar ? "pointer" : undefined} onClick={onBar ? (d: unknown) => onBar((d as { payload?: { k?: string }; k?: string }).payload?.k ?? (d as { k: string }).k) : undefined}>{data.map((d, i) => <Cell key={i} fill={d.v >= 0 ? "var(--color-chart-1)" : "var(--color-chart-2)"} />)}</Bar>
       </BarChart>
     </ResponsiveContainer>
   );
 }
 
-function GroupTable({ rows, cur }: { rows: { k: string; ts: Trade[] }[]; cur: string }) {
+function GroupTable({ rows, cur, onRow }: { rows: { k: string; ts: Trade[] }[]; cur: string; onRow?: (k: string) => void }) {
   return (
     <section className="max-h-72 max-w-2xl overflow-auto rounded-xl border bg-card">
       <table className="w-full text-xs tabular">
         <thead className="sticky top-0 bg-card"><tr className="border-b">{["", "Trades", "Winrate (%)", "Avg. P&L ($)", "Total Gain ($)"].map((h) => <th key={h} className="px-3 py-2.5 text-right font-semibold first:text-left">{h}</th>)}</tr></thead>
         <tbody>{rows.map(({ k, ts }) => { const sum = ts.reduce((a, t) => a + t.net_pnl, 0); return (
-          <tr key={k} className="border-b border-border/50 last:border-0"><td className="px-3 py-2">{k}</td><td className="px-3 py-2 text-right">{ts.length}</td><td className="px-3 py-2 text-right">{fmtNum((ts.filter(isWin).length / ts.length) * 100)}</td><td className="px-3 py-2 text-right">{fmtNum(sum / ts.length)}</td><td className="px-3 py-2 text-right">{fmtNum(sum)}</td></tr>
+          <tr key={k} className={`border-b border-border/50 last:border-0${onRow ? " cursor-pointer hover:bg-muted/50" : ""}`} onClick={onRow ? () => onRow(k) : undefined}><td className="px-3 py-2">{k}</td><td className="px-3 py-2 text-right">{ts.length}</td><td className="px-3 py-2 text-right">{fmtNum((ts.filter(isWin).length / ts.length) * 100)}</td><td className="px-3 py-2 text-right">{fmtNum(sum / ts.length)}</td><td className="px-3 py-2 text-right">{fmtNum(sum)}</td></tr>
         ); })}</tbody>
       </table>
       <span className="sr-only">{cur}</span>
@@ -123,7 +125,9 @@ function GroupTable({ rows, cur }: { rows: { k: string; ts: Trade[] }[]; cur: st
 }
 
 /** Performance by Setup / Instrument / Time / Day / Custom stats / Trade comments */
-function GroupChart({ trades, start, cur, by, noun, order, extraControl, showTable = true }: { trades: Trade[]; start: number; cur: string; by: (t: Trade) => string[]; noun: string; order?: string[]; extraControl?: ReactNode; showTable?: boolean }) {
+function GroupChart({ trades, start, cur, by, noun, order, extraControl, showTable = true, drill }: { drill?: (k: string) => Filters | null; trades: Trade[]; start: number; cur: string; by: (t: Trade) => string[]; noun: string; order?: string[]; extraControl?: ReactNode; showTable?: boolean }) {
+  const goDrill = useDrillDown();
+  const click = drill ? (k: string) => { const p = drill(k); if (p) goDrill(p); } : undefined;
   const [display, setDisplay] = useState<Display>("Return ($)");
   const [sort, setSort] = useState<Sort>(order ? "By Name" : "By Value");
   const groups = useMemo(() => {
@@ -142,9 +146,10 @@ function GroupChart({ trades, start, cur, by, noun, order, extraControl, showTab
   return (
     <div className="space-y-4">
       <ChartCard size="sm" controls={<><Select label="Display" value={display} options={DISPLAY} onChange={setDisplay} /><Select label="Sort By" value={sort} options={SORT} onChange={setSort} />{extraControl}</>}>
-        <BarsBig data={groups} yLabel={display} fmt={(v) => fmtD(display, v, cur)} extra={(d) => [["Number of trades", String(d.n)]]} />
+        <BarsBig data={groups} yLabel={display} fmt={(v) => fmtD(display, v, cur)} extra={(d) => [["Number of trades", String(d.n)]]} onBar={click} />
       </ChartCard>
-      {showTable && <GroupTable rows={groups} cur={cur} />}
+      {click && <p className="text-xs text-muted-foreground">Click a bar{showTable ? " or row" : ""} to open those trades in the journal.</p>}
+      {showTable && <GroupTable rows={groups} cur={cur} onRow={click} />}
       <Stats>
         <AccentStat info={showTable ? undefined : `${noun} with the highest total return`} label={`Best ${noun} Sum`} value={fmtMoney(best.sum, cur)} />
         <AccentStat info={showTable ? undefined : `${noun} with the lowest total return`} label={`Worst ${noun} Sum`} value={fmtMoney(worst.sum, cur)} tone={worst.sum < 0 ? "neg" : undefined} />
@@ -556,8 +561,8 @@ function ChartPage() {
     case "efficiency": return <Efficiency trades={trades} />;
     case "exit-analysis": return <ExitAnalysis trades={trades} />;
     case "holding-time": return <HoldingTime trades={trades} cur={cur} start={start} />;
-    case "instrument": return <GroupChart trades={trades} start={start} cur={cur} by={byInst} noun="Instrument" />;
-    case "setup": return <GroupChart trades={trades} start={start} cur={cur} by={bySetup} noun="Setup" />;
+    case "instrument": return <GroupChart trades={trades} start={start} cur={cur} by={byInst} noun="Instrument" drill={(k) => ({ instrument: [k] })} />;
+    case "setup": return <GroupChart trades={trades} start={start} cur={cur} by={bySetup} noun="Setup" drill={(k) => ({ setup: [k] })} />;
     case "time": return <PerformanceByTime trades={trades} start={start} cur={cur} />;
     case "day": return <PerformanceByDay trades={trades} cur={cur} />;
     case "ratios": return <Ratios trades={trades} start={start} />;
@@ -665,12 +670,22 @@ function PerformanceByTime({ trades, start, cur }: { trades: Trade[]; start: num
   const [dateField, setDateField] = useState<"Entry Date" | "Exit Date">("Entry Date");
   const by = useMemo(() => (t: Trade) => { const iso = dateField === "Exit Date" && t.exit_at ? t.exit_at : t.entry_at; return [periodKey(period, new Date(iso))]; }, [period, dateField]);
   const noun = period === "Weekday" ? "Day" : period.includes("Minutes") ? "Time Slot" : period;
-  return <GroupChart key={period} trades={trades} start={start} cur={cur} by={by} noun={noun} order={periodOrder(period) ?? []}
+  const drill = (k: string): Filters | null => {
+    if (dateField !== "Entry Date") return null;
+    if (period === "Weekday") return { weekday: [(DAYS.indexOf(k) + 1) % 7] };
+    if (period === "Month") return { month: [MONTHS.indexOf(k)] };
+    if (period === "Year") return { year: [Number(k)] };
+    if (period === "Hour") return { hour: [HOURS.indexOf(k)] };
+    return null;
+  };
+  const canDrill = dateField === "Entry Date" && ["Weekday", "Month", "Year", "Hour"].includes(period);
+  return <GroupChart key={period} trades={trades} start={start} cur={cur} by={by} noun={noun} order={periodOrder(period) ?? []} drill={canDrill ? drill : undefined}
     extraControl={<><Select label="Period" value={period} options={PERIODS} onChange={setPeriod} /><Select label="Date Settings" value={dateField} options={["Entry Date", "Exit Date"] as const} onChange={setDateField} /></>} />;
 }
 
 /* ---------------- Performance by Day (one bar per trading day) ---------------- */
 function PerformanceByDay({ trades, cur }: { trades: Trade[]; cur: string }) {
+  const goDrill = useDrillDown();
   const [days, setDays] = useState(50);
   const [display, setDisplay] = useState<"Return ($)" | "Return (%)" | "R Multiple (R)">("Return ($)");
   const [dateBy, setDateBy] = useState<"Entry Date" | "Exit Date">("Entry Date");
@@ -694,7 +709,7 @@ function PerformanceByDay({ trades, cur }: { trades: Trade[]; cur: string }) {
     <div className="space-y-4">
       <ChartCard size="full" controls={<><Select label="Display" value={display} options={["Return ($)", "Return (%)", "R Multiple (R)"] as const} onChange={setDisplay} /><Select label="Date Settings" value={dateBy} options={["Entry Date", "Exit Date"] as const} onChange={setDateBy} />
         <label className="flex items-center gap-2 text-[12px]">Days Shown ({days})<input type="range" min={50} max={180} step={10} value={days} onChange={(e) => setDays(Number(e.target.value))} className="w-40 accent-primary" /></label></>}>
-        <BarsBig data={shown} yLabel={display} fmt={fmtV} extra={(d) => { const x = d as unknown as { k: string; n: number; w: number; l: number; be: number }; return [["Weekday", dayName(x.k)], ["Number of trades", String(x.n)], ["Winners", String(x.w)], ["Losers", String(x.l)], ["Break evens", String(x.be)]]; }} hideTicks />
+        <BarsBig onBar={dateBy === "Entry Date" ? (k) => goDrill({ day: k }) : undefined} data={shown} yLabel={display} fmt={fmtV} extra={(d) => { const x = d as unknown as { k: string; n: number; w: number; l: number; be: number }; return [["Weekday", dayName(x.k)], ["Number of trades", String(x.n)], ["Winners", String(x.w)], ["Losers", String(x.l)], ["Break evens", String(x.be)]]; }} hideTicks />
       </ChartCard>
       <Stats>
         <AccentStat label="Trading Days" value={all.length} />

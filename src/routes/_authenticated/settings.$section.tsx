@@ -12,7 +12,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Empty, Panel } from "@/components/kit";
 import { DragHandle, EditableText, TypedConfirm, plural, useDragReorder, useUsage } from "@/components/settings-parts";
 import { supabase } from "@/integrations/supabase/client";
-import { useJournal } from "@/lib/journal/journal-context";
+import { useJournal, useTrades } from "@/lib/journal/journal-context";
+import { STARTER_RULES } from "@/lib/pnl/compliance";
 import { useProfile } from "@/lib/profile-settings";
 import { useJournalTable } from "@/lib/journal/crud";
 import { SETTINGS } from "@/lib/nav";
@@ -47,6 +48,7 @@ function SettingsPage() {
       {section === "cashflows" && <Cashflows />}
       {section === "instruments" && <ItemList table="instruments" field="symbol" label="Instrument" />}
       {section === "setups" && <ItemList table="setups" field="name" label="Setup" describe />}
+      {section === "rules" && <ItemList table="trading_rules" field="name" label="Rule" describe />}
       {section === "comments" && <Comments />}
       {section === "sessions" && <SessionCategories />}
       {section === "custom-statistics" && <CustomStatistics />}
@@ -269,8 +271,10 @@ function Cashflows() {
 
 type ItemRow = Record<string, string | boolean | number | null> & { id: string; disabled: boolean };
 
-function ItemList({ table, field, label, describe }: { table: "instruments" | "setups"; field: "symbol" | "name"; label: string; describe?: boolean }) {
+function ItemList({ table, field, label, describe }: { table: "instruments" | "setups" | "trading_rules"; field: "symbol" | "name"; label: string; describe?: boolean }) {
   const { journal } = useJournal();
+  const { all: allTrades } = useTrades({ unfiltered: true, includeOpen: true });
+  const ruleUse = useMemo(() => { const m = new Map<string, number>(); for (const tr of allTrades) for (const c of tr.ruleChecks) m.set(c.rule_id, (m.get(c.rule_id) ?? 0) + 1); return m; }, [allTrades]);
   const t = useJournalTable(table, journal?.id, "position", true);
   const usage = useUsage();
   const [tab, setTab] = useState<"active" | "disabled">("active");
@@ -278,7 +282,8 @@ function ItemList({ table, field, label, describe }: { table: "instruments" | "s
   const all = t.rows as unknown as ItemRow[];
   const rows = all.filter((r) => (tab === "disabled") === !!r.disabled);
   const { rowProps, over } = useDragReorder(rows.map((r) => r.id), (ids) => t.reorder(ids));
-  const used = (n: string) => (table === "instruments" ? usage.inst : usage.setup).get(n) ?? 0;
+  const used = (n: string, id?: string) => table === "trading_rules" ? (ruleUse.get(id ?? "") ?? 0) : (table === "instruments" ? usage.inst : usage.setup).get(n) ?? 0;
+  const addStarters = async () => { for (const r of STARTER_RULES) if (!exists(r.name)) await t.insert({ name: r.name, description: r.description, position: all.length } as never); };
   const exists = (n: string, except?: string) => all.some((r) => r.id !== except && String(r[field] ?? "").toLowerCase() === n.toLowerCase());
   const add = async () => {
     const n = name.trim();
@@ -308,14 +313,16 @@ function ItemList({ table, field, label, describe }: { table: "instruments" | "s
                 ? <EditableText value={n} label={label} className={describe ? "!flex-none w-[230px]" : undefined} onSave={(v) => { if (exists(v, r.id)) toast.error(`${label} "${v}" already exists`); else void t.update(r.id, { [field]: v } as never); }} />
                 : <span className={cn("px-2", describe ? "w-[230px]" : "flex-1")}>{n}</span>}
               {extra && <EditableText value={String(r[extra] ?? "")} label="Description" className="text-t3" onSave={(v) => void t.update(r.id, { [extra]: v } as never)} />}
-              {tab === "disabled" && <span className="flex-1 text-xs text-t4">{plural(used(n), "trade")}</span>}
-              <RowActions disabled={tab === "disabled"} name={n} used={used(n)}
+              {tab === "disabled" && <span className="flex-1 text-xs text-t4">{plural(used(n, r.id), "trade")}</span>}
+              <RowActions disabled={tab === "disabled"} name={n} used={used(n, r.id)}
                 onDisable={() => { void t.update(r.id, { disabled: true } as never); toast.success(`"${n}" disabled. It stays on your existing trades; restore it under Disabled Items.`); }}
                 onRestore={() => void t.update(r.id, { disabled: false } as never)} onDelete={() => void t.remove(r.id)} />
             </div>
           );
         })}
       </div>
+      {table === "trading_rules" && tab === "active" && !all.length && <Button variant="secondary" className="mt-3" onClick={() => void addStarters()}>Add 5 suggested rules</Button>}
+      {table === "trading_rules" && <p className="mt-2 text-xs text-t4">Rate each trade against these rules in the trade drawer. Disabling a rule keeps its history on past trades.</p>}
       {tab === "active" && describe && <p className="mt-2 text-xs text-t4">Double-click a name or description to edit it. Drag the handle to reorder.</p>}
     </div>
   );
