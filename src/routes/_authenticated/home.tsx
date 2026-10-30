@@ -5,6 +5,7 @@ import { ProfitCalendar } from "@/components/analytics/ProfitCalendar";
 import { Camera, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { downloadElementPng } from "@/lib/media/capture";
+import { useProfile } from "@/lib/profile-settings";
 import { useEdgeInsights } from "@/lib/pnl/use-edge-insights";
 import { useTrades } from "@/lib/journal/journal-context";
 import { bucketPerformance, computeStats, fmtHold, fmtMoney, fmtNum, fmtPct, groupPerformance } from "@/lib/pnl/metrics";
@@ -30,6 +31,7 @@ const currencyName = (c: string) => CURRENCY_NAMES[c] ?? (() => { try { return n
 function Home() {
   const { trades, journal, isLoading, cashflow } = useTrades();
   const qc = useQueryClient();
+  const firstName = useProfile().profile?.display_name.trim().split(/\s+/)[0] ?? "";
   const [unit, setUnit] = useState<Unit>("cur");
   const edgeCount = useEdgeInsights().length;
   const calRef = useRef<HTMLElement>(null);
@@ -64,6 +66,7 @@ function Home() {
   return (
     <div className="mx-auto max-w-[1374px] space-y-[30px]">
       <div className="flex flex-wrap items-center justify-between gap-3">
+      <h1 className="w-full text-xl font-semibold">{firstName ? `Welcome back, ${firstName}` : "Welcome back"}</h1>
       <div className="inline-flex h-[24px] overflow-hidden rounded-md border bg-card text-xs font-semibold">
         {([["cur", `${currencyName(cur)} (${cur})`], ["pct", "Return (%)"], ["r", "R Multiple"]] as const).map(([k, l]) => (
           <button key={k} onClick={() => setUnit(k)} className={cn("border-r px-3 last:border-r-0", unit === k && "bg-ink text-ink-foreground")}>{l}</button>

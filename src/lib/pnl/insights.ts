@@ -2,8 +2,14 @@ import { WEEKDAYS, groupPerformance, type Trade } from "@/lib/pnl/metrics";
 
 export type Insight = { id: string; title: string; body: string; at: string; tradeId: string };
 
-/** Coaching notifications derived from the closed-trade history (newest first). */
-export function computeInsights(all: Trade[]): Insight[] {
+export const INSIGHT_MAX_AGE_DAYS = 14;
+
+/**
+ * Coaching notifications derived from the closed-trade history (newest first). The whole history is walked so streaks
+ * and "largest loss so far" stay correct, but only events from the last `maxAgeDays` are returned: importing years of
+ * trades must not flood the bell with years of old news.
+ */
+export function computeInsights(all: Trade[], now: number = Date.now(), maxAgeDays = INSIGHT_MAX_AGE_DAYS): Insight[] {
   const ts = all.filter((t) => t.exit_price != null || t.net_pnl !== 0).sort((a, b) => a.entry_at.localeCompare(b.entry_at));
   const out: Insight[] = [];
   let run = 0, runSum = 0, minLoss = 0, runTilt = 0, broken = 0, earlyTp = 0;
@@ -49,5 +55,6 @@ export function computeInsights(all: Trade[]): Insight[] {
   const weekOf = (t: Trade) => { const d = new Date(t.entry_at); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toISOString().slice(0, 10); };
   digest(weekOf, "week");
   digest((t) => t.entry_at.slice(0, 7), "month");
-  return out.sort((a, b) => b.at.localeCompare(a.at)).slice(0, 40);
+  const cutoff = new Date(now - maxAgeDays * 86_400_000).toISOString();
+  return out.filter((i) => i.at >= cutoff).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 40);
 }
