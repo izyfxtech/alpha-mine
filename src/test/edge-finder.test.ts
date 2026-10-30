@@ -13,6 +13,7 @@ const trade = (i: number, pnl: number, sentiments: S[] = [], extra: Partial<Trad
     stop_loss: null, take_profit: null, high_price: null, low_price: null, otp_hit: null, gross_pnl: pnl, fees: 0, net_pnl: pnl, risk_amount: null,
     is_favorite: false, notes: null, created_at: entry.toISOString(), is_break_even: false, trade_no: i, pnl_manual: false,
     instrument: "EURUSD", setup: "Retest", customStats: [], tilt: 0, followedPlan: !sentiments.includes("negative"), accountSize: 10_000, retPct: pnl / 100, r: pnl / 50, holdMinutes: 60,
+    ruleChecks: [],
     comments: sentiments.map((sentiment, k) => ({ id: `c${i}${k}`, label: sentiment === "negative" ? "Revenge trade" : "Perfect entry", phase: "entry", sentiment })),
     ...extra,
   } as unknown as Trade;
@@ -20,9 +21,9 @@ const trade = (i: number, pnl: number, sentiments: S[] = [], extra: Partial<Trad
 const byId = (cards: ReturnType<typeof computeEdgeFinder>, id: string) => cards.find((c) => c.id === id)!;
 
 describe("Edge Finder", () => {
-  it("returns six cards that are not ready until there are 10 trades", () => {
+  it("returns seven cards that are not ready until there are 10 trades", () => {
     const cards = computeEdgeFinder(Array.from({ length: 9 }, (_, i) => trade(i, 10)), 10_000);
-    expect(cards).toHaveLength(6);
+    expect(cards).toHaveLength(7);
     expect(cards.every((c) => !c.ready)).toBe(true);
   });
   it("rates a profitable journal and separates rule-following trades from mistakes", () => {

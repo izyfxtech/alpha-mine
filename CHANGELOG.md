@@ -4,6 +4,10 @@ Newest first. Dates are the day the work landed on `main`.
 
 ## 2026-10-30
 
+- **Rule compliance**: define trading rules (Settings → Trading Rules), rate each trade Followed / Partial / Violated in the trade drawer, and see adherence and a "cost of rule-breaking" card on the new Rule Compliance page and in Edge Finder. The estimate is withheld below 5 followed and 3 violated trades. Migration `20261030090000_rules_and_saved_filters.sql`.
+- **Drill-down and search**: journal search box (instrument, setup, notes, ticket, dates, comments, rule names), saved filter sets, a "Filters active" chip, and click-through from Chart Lab bars/rows (instrument, setup, weekday, month, year, hour, day) to the trades behind them.
+- **Open trades**: tick "Trade is still open" in the drawer; open trades are excluded from all statistics and listed on the new Open Trades page with risk, exposure and what-if results at a price you type. Adjustment history is not tracked.
+
 - **Folder structure**: `src/lib` and `src/components` grouped by domain (`pnl`, `journal`, `media`, `errors`, `content`; `layout`, `journal`, `analytics`, `marketing`). Moves and import rewrites only, no logic changes.
 
 - **MetaTrader import hardening**: MT4 statements; shared DOM-free parser in `supabase/functions/_shared/mt/` (works in an Edge Function); coded errors for translated terminals and reports without Positions.

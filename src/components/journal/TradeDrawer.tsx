@@ -7,7 +7,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useJournal, useLookups } from "@/lib/journal/journal-context";
-import type { Trade } from "@/lib/pnl/metrics";
+import { COMPLIANCE_LABEL, type RuleStatus } from "@/lib/pnl/compliance";
+import { isOpen, type Trade } from "@/lib/pnl/metrics";
 import { cn } from "@/lib/utils";
 import { useScreenshots, saveShots, deleteShot, type Shot } from "@/components/journal/Screenshots";
 import { FloatInput, FloatSelect, Segmented, SectionTitle, type Opt } from "@/components/journal/trade-form/fields";
@@ -72,6 +73,8 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
   const [fav, setFav] = useState(false);
   const [comments, setComments] = useState<string[]>([]);
   const [stats, setStats] = useState<string[]>([]);
+  const [stillOpen, setStillOpen] = useState(false);
+  const [ruleSt, setRuleSt] = useState<Record<string, RuleStatus>>({});
   const [pending, setPending] = useState<PendingShot[]>([]);
   const [removed, setRemoved] = useState<Shot[]>([]);
   const [saving, setSaving] = useState(false);
@@ -113,6 +116,8 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
     setFav(t?.is_favorite ?? false);
     setComments(t?.comments.map((c) => c.id) ?? []);
     setStats(t?.customStats ?? []);
+    setStillOpen(t ? isOpen(t) : false);
+    setRuleSt(Object.fromEntries((t?.ruleChecks ?? []).map((c) => [c.rule_id, c.status])));
     setPending([]); setRemoved([]); setNewCat(null);
     setOpen(true);
   };
@@ -136,15 +141,17 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   });
+  const rulesShown = (lk?.all.rules ?? []).filter((r) => !r.disabled || ruleSt[r.id]);
   const set = <K extends keyof Form>(k: K) => (v: Form[K]) => setF((p) => ({ ...p, [k]: v }));
 
   // ---- P&L logic: scaled entries/exits are blended; gross auto-fills until edited ----
   const [avgEntry, totalQty] = blend([{ price: f.entry_price, qty: f.quantity }, ...extraEntries]);
   const extraExitQty = extraExits.reduce((s, l) => s + (Number(l.qty) || 0), 0);
-  const [avgExit] = blend([{ price: f.exit_price, qty: String(Math.max(totalQty - extraExitQty, 0)) }, ...extraExits]);
+  const [avgExitLegs] = blend([{ price: f.exit_price, qty: String(Math.max(totalQty - extraExitQty, 0)) }, ...extraExits]);
+  const avgExit = stillOpen ? null : avgExitLegs;
   const sign = f.direction === "short" ? -1 : 1;
   const autoGross = avgEntry != null && avgExit != null && f.direction ? +((avgExit - avgEntry) * totalQty * sign).toFixed(2) : null;
-  const grossVal = f.is_break_even ? 0 : grossTouched && isNum(f.gross_pnl) ? Number(f.gross_pnl) : autoGross;
+  const grossVal = stillOpen || f.is_break_even ? 0 : grossTouched && isNum(f.gross_pnl) ? Number(f.gross_pnl) : autoGross;
   const net = grossVal == null ? null : +(grossVal - (Number(f.fees) || 0)).toFixed(2);
 
   const opts = useMemo(() => ({
@@ -191,10 +198,12 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
     if (!f.direction) return "Direction is required.";
     if (!isNum(f.entry_price)) return "Entry price is required.";
     if (!isNum(f.quantity) || Number(f.quantity) <= 0) return "Quantity must be greater than 0.";
-    if (!f.exit_at) return "Exit date is required.";
-    if (new Date(f.exit_at) < new Date(f.entry_at)) return "Exit date can't be before entry date.";
-    if (!isNum(f.exit_price)) return "Exit price is required.";
-    if (extraExitQty > totalQty) return "Partial exits exceed the position size.";
+    if (!stillOpen) {
+      if (!f.exit_at) return "Exit date is required.";
+      if (new Date(f.exit_at) < new Date(f.entry_at)) return "Exit date can't be before entry date.";
+      if (!isNum(f.exit_price)) return "Exit price is required.";
+      if (extraExitQty > totalQty) return "Partial exits exceed the position size.";
+    }
     if (grossVal == null) return "Gross P/L is required.";
     return null;
   }
@@ -211,9 +220,9 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
         setup_id: f.setup_id || null,
         direction: f.direction,
         entry_at: new Date(f.entry_at).toISOString(),
-        exit_at: new Date(f.exit_at).toISOString(),
+        exit_at: stillOpen ? null : new Date(f.exit_at).toISOString(),
         entry_price: +avgEntry!.toFixed(6),
-        exit_price: +avgExit!.toFixed(6),
+        exit_price: stillOpen ? null : +avgExit!.toFixed(6),
         quantity: totalQty,
         stop_loss: num(f.stop_loss),
         take_profit: num(f.take_profit),
@@ -232,11 +241,17 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
         : await supabase.from("trades").insert(row).select("id").single();
       if (res.error) throw res.error;
       const id = res.data.id;
-      const [d1, d2] = await Promise.all([
+      const [d1, d2, d3] = await Promise.all([
         supabase.from("trade_comments").delete().eq("trade_id", id),
         supabase.from("trade_custom_stats").delete().eq("trade_id", id),
+        supabase.from("trade_rule_checks").delete().eq("trade_id", id),
       ]);
-      if (d1.error || d2.error) throw d1.error ?? d2.error;
+      if (d1.error || d2.error || d3.error) throw d1.error ?? d2.error ?? d3.error;
+      const checks = Object.entries(ruleSt).map(([rule_id, status]) => ({ trade_id: id, rule_id, status, journal_id: journal.id }));
+      if (checks.length) {
+        const { error } = await supabase.from("trade_rule_checks").insert(checks);
+        if (error) throw error;
+      }
       if (comments.length) {
         const { error } = await supabase.from("trade_comments").insert(comments.map((c) => ({ trade_id: id, comment_definition_id: c, journal_id: journal.id })));
         if (error) throw error;
@@ -339,9 +354,11 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
                   </div>
                   <div className="space-y-3">
                     <SectionTitle>Trade Exit</SectionTitle>
+                    <label className="flex items-center gap-2 text-[13px]"><input type="checkbox" checked={stillOpen} onChange={(e) => setStillOpen(e.target.checked)} />Trade is still open</label>
+                    {!stillOpen && <>
                     <FloatInput label="Exit Date*" type="datetime-local" value={f.exit_at} onChange={set("exit_at")} align="left" right={<CalendarDays className="h-4 w-4" />} />
                     <FloatInput label="Exit Price *" value={f.exit_price} onChange={set("exit_price")} right={plusBtn(() => setExtraExits([...extraExits, { price: "", qty: "" }]), "Add exit")} />
-                    {extraExits.map((_, i) => legRow(extraExits, setExtraExits, i, "Exit"))}
+                    {extraExits.map((_, i) => legRow(extraExits, setExtraExits, i, "Exit"))}</>}
                     <div className="grid grid-cols-2 gap-3">
                       <FloatInput label="Net P/L" value={net == null ? "" : net.toFixed(2)} disabled />
                       <FloatInput label="Gross P/L *" value={grossTouched ? f.gross_pnl : autoGross?.toFixed(2) ?? ""} onChange={(v) => { setGrossTouched(v !== ""); set("gross_pnl")(v); }} />
@@ -366,6 +383,25 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
 
             {tab === "advanced" && (
               <div>
+                {rulesShown.length > 0 && (
+                  <div className="mb-6">
+                    <SectionTitle>Rules</SectionTitle>
+                    <div className="divide-y rounded-[4px] border">
+                      {rulesShown.map((r) => (
+                        <div key={r.id} className="flex items-center gap-3 px-3 py-2 text-[13px]">
+                          <div className="min-w-0 flex-1"><div className="truncate">{r.name}{r.disabled && <span className="ml-2 text-xs text-muted-foreground">(disabled)</span>}</div>{r.description && <div className="truncate text-xs text-muted-foreground">{r.description}</div>}</div>
+                          <div className="flex shrink-0 gap-1" role="group" aria-label={`${r.name} status`}>
+                            {(["followed", "partial", "violated"] as const).map((st) => (
+                              <button key={st} type="button" aria-pressed={ruleSt[r.id] === st}
+                                onClick={() => setRuleSt((p) => { const n = { ...p }; if (n[r.id] === st) delete n[r.id]; else n[r.id] = st; return n; })}
+                                className={cn("rounded border px-2 py-1 text-xs", ruleSt[r.id] === st ? (st === "followed" ? "border-emerald-600 bg-emerald-600/15 text-emerald-700" : st === "partial" ? "border-amber-600 bg-amber-600/15 text-amber-700" : "border-red-600 bg-red-600/15 text-red-700") : "text-muted-foreground hover:bg-muted")}>{COMPLIANCE_LABEL[st]}</button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <SectionTitle>Trade Comments</SectionTitle>
                 <div className="space-y-3">
                   {([["entry", "Entry Comments"], ["management", "Trade Management"], ["exit", "Exit Comments"]] as const).map(([phase, label]) => {

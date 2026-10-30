@@ -1,5 +1,8 @@
-import { useMemo, type ReactNode } from "react";
-import { Calendar, ChevronDown, ChevronRight, Globe, Pencil, RotateCcw, Settings, Star, X } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
+import { Bookmark, Calendar, ChevronDown, ChevronRight, Globe, Pencil, RotateCcw, Settings, ShieldCheck, Star, Trash2, X } from "lucide-react";
+import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { useSavedFilters } from "@/lib/journal/saved-filters";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -27,7 +30,35 @@ export function FilterToggle({ mode, setMode }: { mode: FilterMode; setMode: (m:
         </button>
       </div>
       {n > 0 && <Button variant="ghost" size="sm" className="h-9 text-sm" onClick={() => setFilters({})}><RotateCcw className="h-4 w-4" />Clear all</Button>}
+      <SavedFilters />
     </div>
+  );
+}
+
+/** Named filter sets: apply with one click, save the current filters under a name, delete old ones. */
+function SavedFilters() {
+  const { journal, filters, setFilters } = useJournal();
+  const { saved, save, remove } = useSavedFilters(journal?.id);
+  const [name, setName] = useState("");
+  const [open, setOpen] = useState(false);
+  const n = activeFilterCount(filters);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild><Button variant="outline" size="sm" className="h-9 gap-1.5 text-sm"><Bookmark className="h-4 w-4" />Saved{saved.length ? ` (${saved.length})` : ""}</Button></PopoverTrigger>
+      <PopoverContent align="start" className="w-72 p-2 text-sm">
+        {saved.length === 0 && <p className="p-2 text-muted-foreground">No saved filters yet. Set some filters, then save them here.</p>}
+        {saved.map((s) => (
+          <div key={s.id} className="flex items-center gap-1 rounded hover:bg-muted">
+            <button className="min-w-0 flex-1 truncate px-2 py-2 text-left" onClick={() => { setFilters(s.filters); setOpen(false); }}>{s.name}<span className="ml-2 text-xs text-muted-foreground">{activeFilterCount(s.filters)} filter{activeFilterCount(s.filters) === 1 ? "" : "s"}</span></button>
+            <button aria-label={`Delete ${s.name}`} className="rounded p-2 text-muted-foreground hover:text-foreground" onClick={() => void remove(s.id)}><Trash2 className="h-4 w-4" /></button>
+          </div>
+        ))}
+        <form className="mt-2 flex gap-2 border-t pt-2" onSubmit={async (e) => { e.preventDefault(); if (await save(name, filters)) { setName(""); toast.success("Filters saved"); } }}>
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={n ? "Name these filters" : "Set filters first"} aria-label="Saved filter name" className="h-9" disabled={!n} />
+          <Button type="submit" size="sm" className="h-9" disabled={!n || !name.trim()}>Save</Button>
+        </form>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -108,6 +139,7 @@ export function FilterPanel({ mode }: { mode: FilterMode }) {
         <Multi icon={L("T")} label="Trade Type" options={types} value={f.tradeType} onChange={(v) => up({ tradeType: v })} />
 
         <Multi icon={<Settings className="h-3.5 w-3.5" />} label="Setup" options={(lk?.setups ?? []).map((s) => [s.name, s.name] as const)} value={f.setup} onChange={(v) => up({ setup: v })} />
+        <Multi icon={<ShieldCheck className="h-3.5 w-3.5" />} label="Rules" options={[["followed", "Followed"], ["partial", "Partial"], ["violated", "Violated"], ["unrated", "Not rated"]] as const} value={f.compliance} onChange={(v) => up({ compliance: v })} />
         <Single label="Direction" options={[["long", "Long"], ["short", "Short"]] as const} value={f.direction} onChange={(v) => up({ direction: v })} />
         <Multi icon={L("D")} label="Day" options={DAYS} value={f.weekday} onChange={(v) => up({ weekday: v })} />
         <RangeTile icon={<RotateCcw className="h-3.5 w-3.5" />} label="Return %" unit="%" value={f.returnPct} onChange={(v) => up({ returnPct: v })} />
@@ -124,11 +156,13 @@ export function FilterPanel({ mode }: { mode: FilterMode }) {
           </div>
         </Tile>
 
+        {(lk?.all.rules ?? []).length > 0 && <Multi icon={<ShieldCheck className="h-3.5 w-3.5" />} label="Broke rule" options={(lk?.all.rules ?? []).map((r) => [r.id, r.name] as const)} value={f.violated} onChange={(v) => up({ violated: v })} />}
         {mode === "advanced" && (lk?.statCategories ?? []).map((c) => (
           <Multi key={c.id} label={c.name} options={(lk?.statOptions ?? []).filter((o) => o.category_id === c.id).map((o) => [o.id, o.label] as const)}
             value={f.stats?.[c.id]} onChange={(v) => up({ stats: { ...f.stats, [c.id]: v ?? [] } })} />
         ))}
       </div>
+      {f.q && <button className="mr-2 mt-2 inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs" onClick={() => up({ q: undefined })}>Search: {f.q}<X className="h-3 w-3" /></button>}
       {f.day && <button className="mt-2 inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs" onClick={() => up({ day: undefined })}>Day: {f.day}<X className="h-3 w-3" /></button>}
     </div>
   );

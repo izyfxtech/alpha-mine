@@ -1,4 +1,5 @@
 import { computeStats, potentialR, type Trade } from "@/lib/pnl/metrics";
+import { complianceReport } from "@/lib/pnl/compliance";
 
 export type Rating = "good" | "ok" | "poor";
 export interface Trend { dir: "up" | "down" | "flat"; label: string }
@@ -53,7 +54,7 @@ function build(all: Trade[], balance: number, cur: string, optionNames: Map<stri
   const ts = [...all].sort((a, b) => a.entry_at.localeCompare(b.entry_at));
   const n = ts.length;
   const empty = (id: string, title: string, missing: string): EdgeCard => ({ id, title, text: missing, rating: "ok", score: 0, headline: 0, sections: [], ready: false, missing });
-  if (n < MIN_TRADES) return ["profitability", "system-edge", "process", "outlier", "management", "risk"].map((id, i) => empty(id, ["Profitability", "True System Edge", "Trading Process", "Performance Outlier", "Trade Management", "Risk Management"][i]!, `Needs at least ${MIN_TRADES} trades (you have ${n}).`));
+  if (n < MIN_TRADES) return ["profitability", "system-edge", "process", "outlier", "management", "risk", "rules"].map((id, i) => empty(id, ["Profitability", "True System Edge", "Trading Process", "Performance Outlier", "Trade Management", "Risk Management", "Rule Compliance"][i]!, `Needs at least ${MIN_TRADES} trades (you have ${n}).`));
   const stats = computeStats(ts, balance);
   const wr = (stats.winRate ?? 0), net = sum(ts.map((t) => t.net_pnl));
   const cards: EdgeCard[] = [];
@@ -166,6 +167,21 @@ function build(all: Trade[], balance: number, cur: string, optionNames: Map<stri
       ...(periods.length ? [{ kind: "table", id: "periods", title: "Return to drawdown by period", rating, text: "Shorter windows show whether your recent risk-adjusted performance is improving.", columns: ["Period", "Return", "Max DD", "Ratio"], rows: periods.map((p) => ({ cells: [p.l, pct(p.ret), pct(p.dd), Number.isFinite(p.ratio) ? p.ratio.toFixed(2) : "–"], tone: (p.ret < 0 ? "neg" : "pos") as Tone })) } as TableSection] : []),
     ] });
   }
+  /* 7. Rule Compliance (builds on the per-trade rule checks) */
+  {
+    const rep = complianceReport(ts, []);
+    if (rep.rated < MIN_TRADES) cards.push(empty("rules", "Rule Compliance", `Rate at least ${MIN_TRADES} trades against your rules to unlock this card (${rep.rated} so far).`));
+    else {
+      const adh = rep.adherencePct;
+      const rating: Rating = adh >= 80 ? "good" : adh >= 60 ? "ok" : "poor";
+      const text = rating === "good" ? "You follow your rules on most trades. Keep rating honestly so the cost of the exceptions stays visible." : rating === "ok" ? "You break or bend your rules on a meaningful share of trades. Look at which ones cost the most on the Rule Compliance page." : "You break or bend your rules on most trades. Fixing execution is likely worth more than finding a new setup.";
+      const c = rep.cost;
+      cards.push({ id: "rules", title: "Rule Compliance", text, rating, score: SCORE[rating], headline: adh, ready: true, sections: [
+        { kind: "metric", id: "adherence", title: "Adherence", rating, value: pct(adh, 0), text, note: `${rep.byStatus.followed.n} of ${rep.rated} rated trades followed every rule` },
+        { kind: "metric", id: "rule-cost", title: "Cost of rule-breaking", rating: c.violatedNet < 0 ? "poor" : "ok", value: money(c.violatedNet, cur), text: c.enough && c.gap != null ? `Trades that broke a rule averaged ${money(rep.byStatus.violated.avgNet, cur)} against ${money(rep.byStatus.followed.avgNet, cur)} when you followed every rule.` : "Net result of the trades where you broke a rule. A comparison with rule-following trades appears once there are enough of each." },
+      ] });
+    }
+  }
   return cards;
 }
 const days30 = 30 * 864e5;
@@ -177,7 +193,7 @@ const trendOf = (now: number, before: number | undefined): Trend | undefined => 
   return { dir: rel > 0 ? "up" : "down", label: `${Math.abs(Math.round(rel))}%` };
 };
 
-/** Builds the six Edge Finder cards. The trend compares each card with the same analysis as of 30 days before the last trade. */
+/** Builds the Edge Finder cards. The trend compares each card with the same analysis as of 30 days before the last trade. */
 export function computeEdgeFinder(all: Trade[], balance: number, currency = "USD", optionNames = new Map<string, { label: string; category: string }>()): EdgeCard[] {
   const now = build(all, balance, currency, optionNames);
   const last = all.reduce((m, t) => Math.max(m, new Date(t.entry_at).getTime()), 0);

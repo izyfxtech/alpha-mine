@@ -878,6 +878,24 @@ export type Database = {
         Update: { attempts?: number; created_at?: string; error?: string | null; finished_at?: string | null; id?: string; journal_id?: string | null; mode?: string; platform?: string; started_at?: string | null; status?: string; trades_imported?: number; trades_updated?: number; cashflows_imported?: number; user_id?: string }
         Relationships: []
       }
+      trading_rules: {
+        Row: { created_at: string; description: string | null; disabled: boolean; id: string; journal_id: string; name: string; position: number }
+        Insert: { created_at?: string; description?: string | null; disabled?: boolean; id?: string; journal_id: string; name: string; position?: number }
+        Update: { created_at?: string; description?: string | null; disabled?: boolean; id?: string; journal_id?: string; name?: string; position?: number }
+        Relationships: []
+      }
+      trade_rule_checks: {
+        Row: { journal_id: string; rule_id: string; status: string; trade_id: string }
+        Insert: { journal_id: string; rule_id: string; status: string; trade_id: string }
+        Update: { journal_id?: string; rule_id?: string; status?: string; trade_id?: string }
+        Relationships: []
+      }
+      saved_filters: {
+        Row: { created_at: string; filters: Json; id: string; journal_id: string; name: string }
+        Insert: { created_at?: string; filters?: Json; id?: string; journal_id: string; name: string }
+        Update: { created_at?: string; filters?: Json; id?: string; journal_id?: string; name?: string }
+        Relationships: []
+      }
       trade_comments: {
         Row: {
           comment_definition_id: string

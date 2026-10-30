@@ -1,5 +1,5 @@
 import {
-  Home, Briefcase, BookOpen, BarChart3, LineChart, BookMarked, NotebookPen, FlaskRound,
+  Home, ShieldCheck, Hourglass, Briefcase, BookOpen, BarChart3, LineChart, BookMarked, NotebookPen, FlaskRound,
   FileBarChart, FlaskConical, Settings, Sparkles, Target, type LucideIcon,
 } from "lucide-react";
 
@@ -31,6 +31,7 @@ export const SETTINGS = [
   ["instruments", "Instruments"],
   ["setups", "Setups"],
   ["comments", "Trade Comments"],
+  ["rules", "Trading Rules"],
   ["sessions", "Sessions"],
   ["custom-statistics", "Custom Statistics"],
 ] as const;
@@ -45,6 +46,8 @@ export const NAV: NavItem[] = [
   { label: "Trade Analytics", icon: BarChart3, to: "/analytics" },
   { label: "Equity Graph", icon: LineChart, to: "/equity" },
   { label: "Edge Finder", icon: Sparkles, to: "/edge-finder" },
+  { label: "Rule Compliance", icon: ShieldCheck, to: "/rules" },
+  { label: "Open Trades", icon: Hourglass, to: "/open-trades" },
   { label: "Prop Challenge", icon: Target, to: "/prop-challenge" },
   {
     label: "Advanced Journaling", icon: BookMarked, children: [
