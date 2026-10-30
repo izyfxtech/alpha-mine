@@ -3,8 +3,8 @@ import { useMemo } from "react";
 import { eachDayOfInterval, endOfMonth, endOfWeek, format, isSameMonth, startOfMonth, startOfWeek } from "date-fns";
 import { AccentStat } from "@/components/kit";
 import { Button } from "@/components/ui/button";
-import { useTrades } from "@/lib/journal-context";
-import { computeStats, dayKey, fmtMoney, fmtPct } from "@/lib/metrics";
+import { useTrades } from "@/lib/journal/journal-context";
+import { computeStats, dayKey, fmtMoney, fmtPct } from "@/lib/pnl/metrics";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/reports/annual")({

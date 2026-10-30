@@ -1,12 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useTrades } from "@/lib/journal-context";
-import { computeStats, fmtMoney, fmtNum } from "@/lib/metrics";
+import { useTrades } from "@/lib/journal/journal-context";
+import { computeStats, fmtMoney, fmtNum } from "@/lib/pnl/metrics";
 import { AccentStat, EquityChart, type EquityPoint, StatGrid } from "@/components/kit";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useTradeDrawer } from "@/components/TradeDrawer";
+import { useTradeDrawer } from "@/components/journal/TradeDrawer";
 
 export const Route = createFileRoute("/_authenticated/equity")({
   head: () => ({ meta: [{ title: "Equity Graph — AlphaMine" }, { name: "description", content: "Your account equity over time." }, { property: "og:title", content: "Equity Graph — AlphaMine" }, { property: "og:description", content: "Your account equity over time." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),

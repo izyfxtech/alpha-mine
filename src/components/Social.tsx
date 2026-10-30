@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { formatDistanceToNowStrict, format, parseISO } from "date-fns";
-import { NEWSFEED } from "@/lib/newsfeed";
+import { NEWSFEED } from "@/lib/content/newsfeed";
 import { Panel } from "@/components/kit";
 import { cn } from "@/lib/utils";
 

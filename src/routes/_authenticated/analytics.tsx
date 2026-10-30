@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Fragment, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, Columns3, GripVertical, Minus, Plus } from "lucide-react";
-import { plannedRRR, useLookups, useTrades } from "@/lib/journal-context";
+import { plannedRRR, useLookups, useTrades } from "@/lib/journal/journal-context";
 import { Checkbox } from "@/components/ui/checkbox";
-import { isLoss, isWin, type Trade } from "@/lib/metrics";
+import { isLoss, isWin, type Trade } from "@/lib/pnl/metrics";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/analytics")({

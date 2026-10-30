@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { MkShell } from "@/components/marketing-shell";
+import { MkShell } from "@/components/marketing/marketing-shell";
 import { AuthFrame, Field } from "@/components/auth-bits";
 
 export const Route = createFileRoute("/reset-password")({

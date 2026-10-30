@@ -8,10 +8,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { useJournal, useLookups } from "@/lib/journal-context";
-import { useJournalTable, type Row } from "@/lib/crud";
+import { useJournal, useLookups } from "@/lib/journal/journal-context";
+import { useJournalTable, type Row } from "@/lib/journal/crud";
 import { supabase } from "@/integrations/supabase/client";
-import { RecordScreenshots } from "@/components/Screenshots";
+import { RecordScreenshots } from "@/components/journal/Screenshots";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/missed-trades")({

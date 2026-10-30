@@ -3,13 +3,13 @@ import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, ImagePlus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { compressImage } from "@/lib/compress-image";
+import { compressImage } from "@/lib/media/compress-image";
 import { supabase } from "@/integrations/supabase/client";
-import { useJournalTable } from "@/lib/crud";
+import { useJournalTable } from "@/lib/journal/crud";
 import { Button } from "@/components/ui/button";
-import { deleteShot, useScreenshots } from "@/components/Screenshots";
-import { useTradeDrawer } from "@/components/TradeDrawer";
-import { useTrades } from "@/lib/journal-context";
+import { deleteShot, useScreenshots } from "@/components/journal/Screenshots";
+import { useTradeDrawer } from "@/components/journal/TradeDrawer";
+import { useTrades } from "@/lib/journal/journal-context";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/reports/chart-book")({

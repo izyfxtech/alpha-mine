@@ -8,8 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { RichEditor } from "@/components/RichEditor";
 import { axis, seriesValues, tooltipStyle, tradeAxis, yScale } from "@/components/kit";
-import { useJournal } from "@/lib/journal-context";
-import { useJournalTable, type Row } from "@/lib/crud";
+import { useJournal } from "@/lib/journal/journal-context";
+import { useJournalTable, type Row } from "@/lib/journal/crud";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/strategy-lab/backtester")({

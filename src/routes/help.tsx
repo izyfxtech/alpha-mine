@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Plus } from "@phosphor-icons/react";
-import { CtaBand, PageHero, SiteLayout } from "@/components/site";
+import { CtaBand, PageHero, SiteLayout } from "@/components/marketing/site";
 
 const DESC = "Answers about getting started, importing trades, sharing, and the tools inside AlphaMine.";
 const groups = [

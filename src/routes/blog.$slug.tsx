@@ -1,7 +1,7 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { ArrowLeft } from "@phosphor-icons/react";
-import { CtaBand, SiteLayout } from "@/components/site";
-import { fmtDate, POSTS, readingMinutes } from "@/lib/posts";
+import { CtaBand, SiteLayout } from "@/components/marketing/site";
+import { fmtDate, POSTS, readingMinutes } from "@/lib/content/posts";
 
 export const Route = createFileRoute("/blog/$slug")({
   loader: ({ params }) => { if (!POSTS.some((p) => p.slug === params.slug)) throw notFound(); return { slug: params.slug }; },

@@ -1,8 +1,8 @@
 ## Architecture rules
 - Journal table layout preferences are browser-persisted per journal; this keeps sizing and order responsive without changing trading data.
 - Shared chart cards own bounded responsive heights; charts fill their pane instead of defining page height.
-- All performance numbers come from `src/lib/metrics.ts` — one engine so every page agrees.
-- Simple journal-scoped tables use the `useJournalTable` helper in `src/lib/crud.ts` — keeps CRUD/invalidation consistent.
+- All performance numbers come from `src/lib/pnl/metrics.ts` — one engine so every page agrees.
+- Simple journal-scoped tables use the `useJournalTable` helper in `src/lib/journal/crud.ts` — keeps CRUD/invalidation consistent.
 - Every journal-owned table carries `journal_id` and uses the `owns_journal()` RLS policy — single ownership check.
 - Trade P&L (gross/net/risk) is recomputed by a DB trigger from prices — stored numbers can't drift from inputs.
 - Trade screenshots live in a private storage bucket under `<user_id>/…` and are shown via signed URLs; rows whose path starts with `http` are external URLs.
@@ -11,6 +11,6 @@
 - MetaTrader reports (MT5 HTML/Excel, MT4 statement .htm) are parsed by `supabase/functions/_shared/mt/` (`@shared/mt`): pure and DOM-free (`html-table.ts`), so the same code runs in the browser and in an Edge Function. Rows are read by anchors (datetimes, trailing numbers), never header index; `parseMtRows` detects the platform and throws a coded `MtParseError` for anything it cannot read. `src/lib/import/mt/` only adds the file reader (xlsx) and the mapping to journal rows. Imported trades carry the broker's profit (`pnl_manual`, `source` = `mt4`/`mt5`, `external_id` = ticket) and are audited, never recomputed, by the P&L engine. Server time is converted with `serverWallToUtcMs`.
 - MetaTrader imports go through ONE database call, `import_mt_report` (security definer, one transaction): instruments, account link, trades, deposits and a `sync_jobs` row land together or not at all. Re-importing updates only broker-owned money fields (gross, commission, swap, fees); notes, times, prices and the trader's own stop/target are never overwritten. A future live sync (EA push) must call the same function. Its pgTAP test is `supabase/tests/database/import_mt_report.test.sql` (`pnpm db:test`).
 - Every table with an RLS policy also needs an explicit `grant` in its migration: do not rely on Supabase default privileges.
-- Prop challenge progress is computed client-side by `src/lib/prop-challenge.ts` (pure, closed trades only, stops at first breach or pass); rule sets live as JSON in `prop_challenges.rules`. Payouts, scaling and position-size rules are intentionally not modelled.
+- Prop challenge progress is computed client-side by `src/lib/pnl/prop-challenge.ts` (pure, closed trades only, stops at first breach or pass); rule sets live as JSON in `prop_challenges.rules`. Payouts, scaling and position-size rules are intentionally not modelled.
 - Scale-in and partial exits: fills become positions via `buildPositions` (pnl-engine/positions.ts); a trade row holds the weighted entry/exit and total size, legs live in `trade_executions`. Totals are identical for FIFO, LIFO and average cost, so no accounting method is stored. Still-open positions are never imported.
 - See `docs/ARCHITECTURE.md` for the folder map and pipelines; run `pnpm check` before pushing. Use the `@engine/` and `@shared/` aliases instead of relative paths into `supabase/`.

@@ -13,7 +13,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { MkShell } from "@/components/marketing-shell";
+import { MkShell } from "@/components/marketing/marketing-shell";
 
 function NotFoundComponent() {
   return (

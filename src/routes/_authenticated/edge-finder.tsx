@@ -5,8 +5,8 @@ import { Empty } from "@/components/kit";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useEdgeCards } from "@/lib/use-edge-insights";
-import type { EdgeCard, EdgeSection, Rating, TableSection, Trend } from "@/lib/edge-finder";
+import { useEdgeCards } from "@/lib/pnl/use-edge-insights";
+import type { EdgeCard, EdgeSection, Rating, TableSection, Trend } from "@/lib/pnl/edge-finder";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/edge-finder")({

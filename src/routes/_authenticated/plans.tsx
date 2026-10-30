@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { RecordScreenshots } from "@/components/Screenshots";
+import { RecordScreenshots } from "@/components/journal/Screenshots";
 import { useState } from "react";
 import { ArrowDown, CalendarPlus, Copy, Inbox, RotateCw, Trash2, X } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -11,9 +11,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useJournal, useLookups } from "@/lib/journal-context";
-import { useJournalTable, type Row } from "@/lib/crud";
-import { useTradeDrawer } from "@/components/TradeDrawer";
+import { useJournal, useLookups } from "@/lib/journal/journal-context";
+import { useJournalTable, type Row } from "@/lib/journal/crud";
+import { useTradeDrawer } from "@/components/journal/TradeDrawer";
 import { MissedSheet } from "./missed-trades";
 import { cn } from "@/lib/utils";
 

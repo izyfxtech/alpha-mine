@@ -4,10 +4,10 @@ import { toast } from "sonner";
 import { Trash } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Empty, PageHeader, Panel, Stat, pnlTone } from "@/components/kit";
-import { useJournalTable, type Row } from "@/lib/crud";
-import { useTrades } from "@/lib/journal-context";
-import { fmtMoney } from "@/lib/metrics";
-import { PRESETS, dayKey, evaluateChallenge, type Amount, type Challenge, type Rule, type RuleProgress } from "@/lib/prop-challenge";
+import { useJournalTable, type Row } from "@/lib/journal/crud";
+import { useTrades } from "@/lib/journal/journal-context";
+import { fmtMoney } from "@/lib/pnl/metrics";
+import { PRESETS, dayKey, evaluateChallenge, type Amount, type Challenge, type Rule, type RuleProgress } from "@/lib/pnl/prop-challenge";
 
 export const Route = createFileRoute("/_authenticated/prop-challenge")({
   head: () => ({ meta: [{ title: "Prop Challenge — AlphaMine" }, { name: "description", content: "Track prop firm challenge rules: profit target, drawdown, daily loss and consistency." }] }),

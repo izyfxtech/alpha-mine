@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { Moon, Sun } from "@phosphor-icons/react";
-import { Logo } from "@/components/Logo";
+import { Logo } from "@/components/layout/Logo";
 
 type Theme = "dark" | "light";
 const KEY = "am.mk-theme";

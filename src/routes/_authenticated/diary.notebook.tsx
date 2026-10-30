@@ -3,8 +3,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Folder, FolderOpen, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RichEditor, stripHtml } from "@/components/RichEditor";
-import { useJournal } from "@/lib/journal-context";
-import { useJournalTable } from "@/lib/crud";
+import { useJournal } from "@/lib/journal/journal-context";
+import { useJournalTable } from "@/lib/journal/crud";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/diary/notebook")({

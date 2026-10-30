@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, FileArrowDown, Table, PencilSimpleLine } from "@phosphor-icons/react";
-import { CtaBand, PageHero, Section, SiteLayout } from "@/components/site";
-import { Rv } from "@/components/marketing-shell";
+import { CtaBand, PageHero, Section, SiteLayout } from "@/components/marketing/site";
+import { Rv } from "@/components/marketing/marketing-shell";
 
 const DESC = "Bring your history into AlphaMine from MetaTrader 5 reports, CSV or Excel files, or log trades by hand.";
 const methods = [

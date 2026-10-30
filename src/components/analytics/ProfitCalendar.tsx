@@ -1,8 +1,8 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, startOfMonth, startOfWeek } from "date-fns";
-import { useJournal } from "@/lib/journal-context";
-import { dayKey, type Trade } from "@/lib/metrics";
+import { useJournal } from "@/lib/journal/journal-context";
+import { dayKey, type Trade } from "@/lib/pnl/metrics";
 import { TiltMeter } from "@/components/kit";
 import { useProfile } from "@/lib/profile-settings";
 import { cn } from "@/lib/utils";

@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Spark, cumulative } from "@/components/kit";
-import { fmtNum, fmtPct, type Trade, type computeStats } from "@/lib/metrics";
+import { fmtNum, fmtPct, type Trade, type computeStats } from "@/lib/pnl/metrics";
 
 type Stats = ReturnType<typeof computeStats>;
 

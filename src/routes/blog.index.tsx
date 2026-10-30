@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight } from "@phosphor-icons/react";
-import { CtaBand, PageHero, Section, SiteLayout } from "@/components/site";
-import { Rv } from "@/components/marketing-shell";
-import { fmtDate, POSTS, readingMinutes } from "@/lib/posts";
+import { CtaBand, PageHero, Section, SiteLayout } from "@/components/marketing/site";
+import { Rv } from "@/components/marketing/marketing-shell";
+import { fmtDate, POSTS, readingMinutes } from "@/lib/content/posts";
 
 const DESC = "Practical writing on journaling, trading psychology and the numbers behind your results.";
 

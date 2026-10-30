@@ -1,4 +1,4 @@
-import { DateRangeButton } from "@/components/DateRangeButton";
+import { DateRangeButton } from "@/components/analytics/DateRangeButton";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { ArrowUp, CalendarDays, ChevronDown, Plus, Star, Trash2, X } from "lucide-react";
@@ -9,9 +9,9 @@ import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMe
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { RichEditor } from "@/components/RichEditor";
 import { TiltMeter } from "@/components/kit";
-import { useJournal, useTrades } from "@/lib/journal-context";
-import { useJournalTable, type Row } from "@/lib/crud";
-import { computeStats, dayKey, fmtMoney, fmtNum, type Trade } from "@/lib/metrics";
+import { useJournal, useTrades } from "@/lib/journal/journal-context";
+import { useJournalTable, type Row } from "@/lib/journal/crud";
+import { computeStats, dayKey, fmtMoney, fmtNum, type Trade } from "@/lib/pnl/metrics";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/diary/sessions")({

@@ -1,9 +1,9 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { ArrowRight } from "@phosphor-icons/react";
-import { CtaBand, PageHero, Section, SiteLayout } from "@/components/site";
-import { Rv } from "@/components/marketing-shell";
-import { Bars, Cal, JournalRows, Meter, Monte } from "@/components/visuals";
-import { FEATURES, type Feature } from "@/lib/site-content";
+import { CtaBand, PageHero, Section, SiteLayout } from "@/components/marketing/site";
+import { Rv } from "@/components/marketing/marketing-shell";
+import { Bars, Cal, JournalRows, Meter, Monte } from "@/components/analytics/visuals";
+import { FEATURES, type Feature } from "@/lib/content/site-content";
 
 export const Route = createFileRoute("/features/$slug")({
   loader: ({ params }) => { if (!FEATURES.some((x) => x.slug === params.slug)) throw notFound(); return { slug: params.slug }; },

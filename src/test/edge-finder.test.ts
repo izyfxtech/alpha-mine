@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { computeEdgeFinder } from "@/lib/edge-finder";
+import { computeEdgeFinder } from "@/lib/pnl/edge-finder";
 import { niceTicks, tradeAxis, yScale } from "@/components/kit";
-import type { Trade } from "@/lib/metrics";
+import type { Trade } from "@/lib/pnl/metrics";
 
 type S = "positive" | "negative";
 const DAY = 864e5;

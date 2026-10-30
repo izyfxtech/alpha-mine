@@ -3,8 +3,8 @@ import { Fragment, useState } from "react";
 import { format, startOfWeek } from "date-fns";
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useTrades } from "@/lib/journal-context";
-import { computeStats, fmtMoney, fmtNum, fmtPct, groupBy, type Trade } from "@/lib/metrics";
+import { useTrades } from "@/lib/journal/journal-context";
+import { computeStats, fmtMoney, fmtNum, fmtPct, groupBy, type Trade } from "@/lib/pnl/metrics";
 import { cn } from "@/lib/utils";
 import { TiltMeter } from "@/components/kit";
 

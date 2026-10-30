@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { computeInsights } from "@/lib/insights";
-import { ShareJournalDialog } from "@/components/ShareJournal";
-import { CommandPalette } from "@/components/CommandPalette";
+import { computeInsights } from "@/lib/pnl/insights";
+import { ShareJournalDialog } from "@/components/journal/ShareJournal";
+import { CommandPalette } from "@/components/layout/CommandPalette";
 import { useProfile } from "@/lib/profile-settings";
-import { JournalPicker } from "@/components/JournalPicker";
+import { JournalPicker } from "@/components/journal/JournalPicker";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { Award, Bell, BookOpen, FileText, HelpCircle, LogOut, Search, Settings, Share2, UserCircle2 } from "lucide-react";
@@ -11,9 +11,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { useTrades } from "@/lib/journal-context";
-import { useTradeDrawer } from "@/components/TradeDrawer";
-import { FilterPanel, FilterToggle, type FilterMode } from "@/components/FilterBar";
+import { useTrades } from "@/lib/journal/journal-context";
+import { useTradeDrawer } from "@/components/journal/TradeDrawer";
+import { FilterPanel, FilterToggle, type FilterMode } from "@/components/analytics/FilterBar";
 
 export function TopBar() {
   const navigate = useNavigate();

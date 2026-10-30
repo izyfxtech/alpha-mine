@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ArrowUp, X } from "lucide-react";
 import { toast } from "sonner";
-import type { Shot } from "@/components/Screenshots";
+import type { Shot } from "@/components/journal/Screenshots";
 
 /** A screenshot waiting to be saved: either a file or an external URL. */
 export type PendingShot = { key: string; file?: File; url?: string; preview: string };

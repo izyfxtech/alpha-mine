@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
-import { createJournal, useJournal, type Journal } from "@/lib/journal-context";
+import { createJournal, useJournal, type Journal } from "@/lib/journal/journal-context";
 import { cn } from "@/lib/utils";
 
 const CURRENCIES = ["USD", "EUR", "GBP", "JPY", "CHF", "AUD", "CAD", "NGN", "ZAR", "INR"];

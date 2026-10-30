@@ -3,8 +3,8 @@ import { useNavigate } from "@tanstack/react-router";
 import { CornerDownLeft, FileText, Plus, Search } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { NAV, childPath } from "@/lib/nav";
-import { useTrades } from "@/lib/journal-context";
-import { useTradeDrawer } from "@/components/TradeDrawer";
+import { useTrades } from "@/lib/journal/journal-context";
+import { useTradeDrawer } from "@/components/journal/TradeDrawer";
 import { cn } from "@/lib/utils";
 
 type Item = { key: string; label: string; hint: string; icon: typeof Search; run: () => void };

@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { dayKey, evaluateChallenge, type Challenge, type ChallengeTrade, type Rule } from "@/lib/prop-challenge";
+import { dayKey, evaluateChallenge, type Challenge, type ChallengeTrade, type Rule } from "@/lib/pnl/prop-challenge";
 
 const D = (day: number, h = 12) => Date.UTC(2026, 9, day, h);
 const t = (day: number, net: number, h = 12): ChallengeTrade => ({ exitMs: D(day, h), net });

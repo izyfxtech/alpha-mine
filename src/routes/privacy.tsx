@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { LegalPage, type LegalSection } from "@/components/legal";
+import { LegalPage, type LegalSection } from "@/components/marketing/legal";
 
 const DESC = "How AlphaMine collects, uses and protects your account and trading journal data.";
 export const Route = createFileRoute("/privacy")({
