@@ -3,6 +3,7 @@ import { ImageIcon, Star } from "lucide-react";
 import type { Trade } from "@/lib/pnl/metrics";
 import { fmtNum } from "@/lib/pnl/metrics";
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Lightbox, type LightboxItem } from "@/components/journal/Lightbox";
 import type { Shot } from "@/components/journal/Screenshots";
 
@@ -14,7 +15,7 @@ const subtitle = (t: Trade) => [t.direction, when(t.entry_at), t.setup].filter(B
 const title = (t: Trade) => `${t.instrument || "Trade"}  ${money(t.net_pnl)}${t.r != null ? `  (${fmtNum(t.r)}R)` : ""}`;
 
 /** Card view: one card per trade, with its first screenshot as the cover. */
-export function TradeCards({ trades, shotsByTrade, onOpen }: { trades: Trade[]; shotsByTrade: Map<string, Shot[]>; onOpen: (t: Trade) => void }) {
+export function TradeCards({ trades, shotsByTrade, onOpen, selected, onToggle }: { trades: Trade[]; shotsByTrade: Map<string, Shot[]>; onOpen: (t: Trade) => void; selected?: Set<string>; onToggle?: (id: string) => void }) {
   const [box, setBox] = useState<{ items: LightboxItem[]; index: number } | null>(null);
   return (
     <>
@@ -23,11 +24,14 @@ export function TradeCards({ trades, shotsByTrade, onOpen }: { trades: Trade[]; 
           const shots = shotsByTrade.get(t.id) ?? [];
           const cover = shots[0];
           return (
-            <article key={t.id} className={cn("group flex flex-col overflow-hidden rounded-lg border bg-card shadow-sm transition hover:shadow-md", t.net_pnl > 0 ? "border-l-4 border-l-profit" : t.net_pnl < 0 ? "border-l-4 border-l-loss" : "border-l-4 border-l-border")}>
+            <article key={t.id} className={cn("group flex flex-col overflow-hidden rounded-lg border bg-card shadow-sm transition hover:shadow-md", t.net_pnl > 0 ? "border-l-4 border-l-profit" : t.net_pnl < 0 ? "border-l-4 border-l-loss" : "border-l-4 border-l-border", selected?.has(t.id) && "ring-2 ring-ink")}>
+              <div className="relative">
               <button type="button" className="relative block aspect-video w-full bg-muted" aria-label={cover ? `View screenshots for ${t.instrument}` : `No screenshot for ${t.instrument}`} onClick={() => cover ? setBox({ items: shots.map((s) => ({ url: s.url, title: title(t), subtitle: subtitle(t), action: { label: "Open trade", run: () => { setBox(null); onOpen(t); } } })), index: 0 }) : onOpen(t)}>
                 {cover?.url ? <img src={cover.url} alt="" loading="lazy" className="h-full w-full object-cover" /> : <span className="flex h-full flex-col items-center justify-center gap-1 text-sm text-muted-foreground"><ImageIcon className="h-6 w-6" />No screenshot</span>}
                 {shots.length > 1 && <span className="absolute bottom-2 right-2 rounded-full bg-black/70 px-2 py-0.5 text-xs text-white">{shots.length} images</span>}
               </button>
+              {onToggle && <span className="absolute left-2 top-2 rounded bg-card/90 p-1 shadow"><Checkbox aria-label={`Select ${t.instrument}`} checked={selected?.has(t.id) ?? false} onCheckedChange={() => onToggle(t.id)} /></span>}
+              </div>
               <button type="button" className="flex flex-1 flex-col gap-2 p-3 text-left" onClick={() => onOpen(t)}>
                 <span className="flex items-center justify-between gap-2">
                   <span className="flex min-w-0 items-center gap-1.5 text-sm font-semibold"><span className="truncate">{t.instrument || "—"}</span>{t.is_favorite && <Star className="h-4 w-4 shrink-0 fill-foreground" />}</span>

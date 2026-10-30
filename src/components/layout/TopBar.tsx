@@ -24,7 +24,8 @@ export function TopBar() {
   const drawer = useTradeDrawer();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
-  const allowSharing = useProfile().settings.allowSharing;
+  const { profile, settings } = useProfile();
+  const allowSharing = settings.allowSharing;
   const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); setPaletteOpen((o) => !o); } };
@@ -72,7 +73,9 @@ export function TopBar() {
       </Sheet>
       <DropdownMenu>
         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="Account menu"><UserCircle2 className="h-5 w-5" /></Button></DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuContent align="end" className="w-56">
+          <div className="px-2 py-1.5"><p className="truncate text-sm font-semibold">{profile?.display_name || "Your account"}</p>{profile?.email && <p className="truncate text-xs text-muted-foreground">{profile.email}</p>}</div>
+          <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => window.dispatchEvent(new Event(OPEN_ONBOARDING_EVENT))}><Compass className="h-4 w-4" />Setup guide</DropdownMenuItem>
           <DropdownMenuItem onClick={() => navigate({ to: "/milestones" })}><Award className="h-4 w-4" />Milestones</DropdownMenuItem>
           {allowSharing && <DropdownMenuItem onSelect={() => setShareOpen(true)}><Share2 className="h-4 w-4" />Share journal</DropdownMenuItem>}
