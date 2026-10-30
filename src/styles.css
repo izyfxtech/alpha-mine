@@ -152,6 +152,10 @@
   html {
     font-size: 12px;
   }
+  /* Signed-in app: standard 16px rem so text-sm is 14px, h-9 is 36px, etc. Public pages keep their own scale. */
+  html.app-scale {
+    font-size: 16px;
+  }
   * {
     border-color: var(--color-border);
   }

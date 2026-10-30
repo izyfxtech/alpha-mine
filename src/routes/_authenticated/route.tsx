@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { JournalProvider } from "@/lib/journal/journal-context";
 import { AppSidebar } from "@/components/layout/AppSidebar";
@@ -18,6 +18,10 @@ export const Route = createFileRoute("/_authenticated")({
 
 function Layout() {
   const [collapsed, setCollapsed] = useState(false);
+  useEffect(() => {
+    document.documentElement.classList.add("app-scale");
+    return () => document.documentElement.classList.remove("app-scale");
+  }, []);
   return (
     <JournalProvider>
       <TradeDrawerProvider>

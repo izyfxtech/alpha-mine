@@ -211,6 +211,9 @@ export function EquityChart({
   const offLine = dMax === dMin ? (dMax >= baseline ? 1 : 0) : clamp01((dMax - baseline) / (dMax - dMin));
   const fMin = Math.min(dMin, baseline), fMax = Math.max(dMax, baseline);
   const offFill = fMax === fMin ? 1 : clamp01((fMax - baseline) / (fMax - fMin));
+  // At a split of 0 or 1 one colour owns the whole gradient; keeping the second colour's stops would paint a stray band at the edge.
+  const fillOnly = offFill >= 1 ? "up" : offFill <= 0 ? "down" : null;
+  const lineOnly = offLine >= 1 ? "up" : offLine <= 0 ? "down" : null;
   const tickFmt = (n: number) => n.toLocaleString("de-DE", { maximumFractionDigits: 2 });
   const numericX = pts.length > 1 && typeof pts[0]!.x === "number";
   const xMax = numericX ? Math.max(...pts.map((p) => Number(p.x))) : 0;
@@ -221,14 +224,18 @@ export function EquityChart({
       <RComposed data={pts} margin={{ top: 8, right: compact ? 4 : 12, left: compact ? -12 : 4, bottom: xLabel ? 18 : 0 }} className={onPointClick ? "cursor-pointer" : undefined} onClick={onPointClick ? (e: { activeIndex?: number | string | null }) => { const p = pts[Number(e?.activeIndex)]; if (p?.id) onPointClick(p); } : undefined}>
         <defs>
           <linearGradient id={`f${id}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset={0} stopColor="var(--color-chart-1)" stopOpacity={0.6} />
-            <stop offset={offFill} stopColor="var(--color-chart-1)" stopOpacity={0.04} />
-            <stop offset={offFill} stopColor="var(--color-chart-2)" stopOpacity={0.04} />
-            <stop offset={1} stopColor="var(--color-chart-2)" stopOpacity={0.6} />
+            {fillOnly === "up" ? <><stop offset={0} stopColor="var(--color-chart-1)" stopOpacity={0.6} /><stop offset={1} stopColor="var(--color-chart-1)" stopOpacity={0.04} /></>
+              : fillOnly === "down" ? <><stop offset={0} stopColor="var(--color-chart-2)" stopOpacity={0.04} /><stop offset={1} stopColor="var(--color-chart-2)" stopOpacity={0.6} /></>
+              : <>
+                <stop offset={0} stopColor="var(--color-chart-1)" stopOpacity={0.6} />
+                <stop offset={offFill} stopColor="var(--color-chart-1)" stopOpacity={0.04} />
+                <stop offset={offFill} stopColor="var(--color-chart-2)" stopOpacity={0.04} />
+                <stop offset={1} stopColor="var(--color-chart-2)" stopOpacity={0.6} />
+              </>}
           </linearGradient>
           <linearGradient id={`s${id}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset={offLine} stopColor="var(--color-chart-1)" />
-            <stop offset={offLine} stopColor="var(--color-chart-2)" />
+            {lineOnly ? <><stop offset={0} stopColor={lineOnly === "up" ? "var(--color-chart-1)" : "var(--color-chart-2)"} /><stop offset={1} stopColor={lineOnly === "up" ? "var(--color-chart-1)" : "var(--color-chart-2)"} /></>
+              : <><stop offset={offLine} stopColor="var(--color-chart-1)" /><stop offset={offLine} stopColor="var(--color-chart-2)" /></>}
           </linearGradient>
         </defs>
         <CartesianGrid vertical={false} stroke="var(--color-grid)" />
@@ -258,7 +265,7 @@ export function EquityChart({
             {pts.map((d, i) => <Cell key={i} fill={(d.tilt ?? 0) >= 0 ? "var(--color-chart-1)" : "var(--color-chart-2)"} fillOpacity={0.5} />)}
           </Bar>
         )}
-        <RArea yAxisId="eq" type="monotone" dataKey="v" stroke={`url(#s${id})`} strokeWidth={compact ? 1.5 : 2} fill={`url(#f${id})`} dot={false} activeDot={{ r: 4, fill: "var(--color-chart-1)", stroke: "var(--color-card)" }} isAnimationActive={false} />
+        <RArea yAxisId="eq" baseValue={baseline} type="monotone" dataKey="v" stroke={`url(#s${id})`} strokeWidth={compact ? 1.5 : 2} fill={`url(#f${id})`} dot={false} activeDot={{ r: 4, fill: "var(--color-chart-1)", stroke: "var(--color-card)" }} isAnimationActive={false} />
         {pts.some((p) => p.v2 !== undefined) && <RLine yAxisId="eq" type="monotone" dataKey="v2" stroke="var(--color-chart-4)" strokeWidth={1.5} dot={false} isAnimationActive={false} />}
         {pts.some((p) => p.ma20 !== undefined) && <RLine yAxisId="eq" type="monotone" dataKey="ma20" stroke="var(--color-chart-5)" strokeWidth={1.5} dot={false} isAnimationActive={false} />}
         {pts.some((p) => p.ma50 !== undefined) && <RLine yAxisId="eq" type="monotone" dataKey="ma50" stroke="var(--color-chart-3)" strokeWidth={1.5} strokeDasharray="4 3" dot={false} isAnimationActive={false} />}

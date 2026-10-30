@@ -72,7 +72,7 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
   const balance = journal ? computeStats(trades, journal.starting_balance).balance : 0;
 
   return (
-    <aside className={cn("flex h-full shrink-0 flex-col border-r bg-sidebar transition-[width]", collapsed ? "w-14" : "w-[205px]")}>
+    <aside className={cn("flex h-full shrink-0 flex-col border-r bg-sidebar transition-[width]", collapsed ? "w-14" : "w-52")}>
       <div className={cn("flex h-16 items-center border-b px-4", collapsed && "justify-center px-0")}>
         <Link to="/home"><Logo collapsed={collapsed} /></Link>
       </div>
