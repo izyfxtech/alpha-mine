@@ -64,7 +64,7 @@ function Home() {
   return (
     <div className="mx-auto max-w-[1374px] space-y-[30px]">
       <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="inline-flex h-[24px] overflow-hidden rounded-md border bg-card text-[10px] font-semibold">
+      <div className="inline-flex h-[24px] overflow-hidden rounded-md border bg-card text-xs font-semibold">
         {([["cur", `${currencyName(cur)} (${cur})`], ["pct", "Return (%)"], ["r", "R Multiple"]] as const).map(([k, l]) => (
           <button key={k} onClick={() => setUnit(k)} className={cn("border-r px-3 last:border-r-0", unit === k && "bg-ink text-ink-foreground")}>{l}</button>
         ))}
@@ -108,7 +108,7 @@ function Home() {
           <Stat label="Avg. Hold Time" value={fmtHold(s.avgHoldMin)} />
           <Stat label="Total Fees" value={fmtMoney(s.fees, cur)} />
           <Stat label="ROI" value={fmtPct(s.roi)} />
-          <Stat label="Current Streak" value={<span className="flex gap-[3px]">{s.streak.map((x, i) => <span key={i} className={cn("rounded px-1 text-[11px] font-bold", x === "W" ? "bg-profit-soft text-profit" : x === "L" ? "bg-loss-soft text-loss" : "bg-muted")}>{x}</span>)}</span>} />
+          <Stat label="Current Streak" value={<span className="flex gap-[3px]">{s.streak.map((x, i) => <span key={i} className={cn("rounded px-1 text-xs font-bold", x === "W" ? "bg-profit-soft text-profit" : x === "L" ? "bg-loss-soft text-loss" : "bg-muted")}>{x}</span>)}</span>} />
         </Panel>
       </div>
 

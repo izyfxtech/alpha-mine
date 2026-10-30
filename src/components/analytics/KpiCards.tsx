@@ -15,7 +15,7 @@ function Widget({ label, value, info, children }: { label: string; value: string
             <TooltipProvider delayDuration={100}>
               <Tooltip>
                 <TooltipTrigger asChild><button type="button" aria-label={`About ${label}`} className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"><Info className="h-3 w-3" /></button></TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-[260px] text-[11px] leading-relaxed">{info}</TooltipContent>
+                <TooltipContent side="bottom" className="max-w-[260px] text-xs leading-relaxed">{info}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
           )}
@@ -50,19 +50,19 @@ export function KpiCards({ trades, s, fmt, avgWinLabel, avgLossLabel }: {
             <path d="M10 50 A40 40 0 0 1 90 50" fill="none" stroke="var(--color-loss)" strokeWidth="9" />
             <path d="M10 50 A40 40 0 0 1 90 50" fill="none" stroke="var(--color-chart-1)" strokeWidth="9" strokeDasharray={`${(s.winRate / 100) * arc} 200`} />
           </svg>
-          <p className="flex justify-between px-0.5 text-[9px] font-semibold tabular">
+          <p className="flex justify-between px-0.5 text-xs font-semibold tabular">
             <span className="rounded-full bg-profit-soft px-1.5 py-px text-profit">{s.wins}</span><span>{s.be}</span><span className="rounded-full bg-loss-soft px-1.5 py-px text-loss">{s.losses}</span>
           </p>
         </div>
       </Widget>
       <Widget label="Avg P&L" value={fmt(s.avgPnl, s.avgR, avgPct)}>
         <div className="w-[84px]">
-          <p className="mb-1 text-center text-[10px] font-semibold tabular text-t2" title="Average winner divided by average loser">{payoff > 0 ? `${payoff.toFixed(2)}:1` : "–"}</p>
+          <p className="mb-1 text-center text-xs font-semibold tabular text-t2" title="Average winner divided by average loser">{payoff > 0 ? `${payoff.toFixed(2)}:1` : "–"}</p>
           <div className="flex h-[6px] gap-[2px] overflow-hidden">
             <div className="rounded-l-full bg-chart-1" style={{ width: `${winShare}%` }} />
             <div className="flex-1 rounded-r-full bg-chart-2" />
           </div>
-          <p className="mt-1 flex justify-between text-[9px] font-semibold tabular"><span className="text-profit">{avgWinLabel}</span><span className="text-loss">{avgLossLabel}</span></p>
+          <p className="mt-1 flex justify-between text-xs font-semibold tabular"><span className="text-profit">{avgWinLabel}</span><span className="text-loss">{avgLossLabel}</span></p>
         </div>
       </Widget>
       <Widget label="Profit Factor" value={fmtNum(s.profitFactor)}>

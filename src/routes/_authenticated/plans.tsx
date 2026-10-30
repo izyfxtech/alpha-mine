@@ -88,7 +88,7 @@ function PlansPage() {
           <button aria-label="Refresh" onClick={() => qc.invalidateQueries({ queryKey: ["planned_trades"] })} className="ml-auto rounded-md p-2 text-muted-foreground hover:bg-muted"><RotateCw className="h-4 w-4" /></button>
         </div>
         <div className="min-h-0 flex-1 overflow-auto">
-          <table className="w-full whitespace-nowrap text-[11px]">
+          <table className="w-full whitespace-nowrap text-xs">
             <thead className="sticky top-0 bg-card">
               <tr className="h-[40px] border-b text-left">
                 <th className="w-20 border-r px-3 font-semibold">Transfer</th>
@@ -111,10 +111,10 @@ function PlansPage() {
                   </td>
                   <td className="px-3">{dt(r.entry_at)}</td>
                   <td className="px-3">{r.instrument}</td>
-                  <td className="px-3"><span className="inline-block rounded-full bg-chip px-2.5 py-[3px] text-[10px] font-medium leading-none">{r.trade_type}</span></td>
+                  <td className="px-3"><span className="inline-block rounded-full bg-chip px-2.5 py-[3px] text-xs font-medium leading-none">{r.trade_type}</span></td>
                   <td className="px-3">{r.option_type}</td>
                   <td className="px-3">{r.setup}</td>
-                  <td className="px-3"><span className="inline-block rounded-full bg-chip px-2.5 py-[3px] text-[10px] font-medium leading-none">{r.direction === "long" ? "BUY" : "SELL"}</span></td>
+                  <td className="px-3"><span className="inline-block rounded-full bg-chip px-2.5 py-[3px] text-xs font-medium leading-none">{r.direction === "long" ? "BUY" : "SELL"}</span></td>
                   <td className="px-3 text-right">{f2(n(r.entry_price), 3)}</td>
                   <td className="px-3 text-right">{f2(Number(r.quantity))}</td>
                   <td className="px-3 text-right">{f2(n(r.take_profit), 3)}</td>
@@ -128,7 +128,7 @@ function PlansPage() {
             </tbody>
           </table>
         </div>
-        <div className="flex items-center justify-end gap-4 border-t px-4 py-2.5 text-[11px]">
+        <div className="flex items-center justify-end gap-4 border-t px-4 py-2.5 text-xs">
           <span>{t.rows.length ? `1 to ${t.rows.length} of ${t.rows.length}` : "0 of 0"}</span><span>Page 1 of 1</span>
         </div>
 

@@ -63,7 +63,7 @@ function Sessions() {
            <CategorySelect categories={journal?.session_categories ?? []} value={cats} onChange={setCats} className="w-80" placeholder="Session Categories" />
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full whitespace-nowrap text-[11px]">
+          <table className="w-full whitespace-nowrap text-xs">
             <thead>
               <tr className="text-left font-semibold">
                 <th className="w-10 px-4 py-3" /><th className="w-3" />
@@ -156,7 +156,7 @@ function SessionSheet({ session, trades, start, currency, categories, onClose, o
         </div>
         <div className="flex-1 space-y-4 overflow-y-auto px-5 pb-5">
           <fieldset className="relative rounded-md border px-3 pb-2 pt-3">
-            <legend className="absolute -top-2 left-2 bg-card px-1 text-[11px]">Period *</legend>
+            <legend className="absolute -top-2 left-2 bg-card px-1 text-xs">Period *</legend>
             <div className="flex items-center gap-2 text-sm">
               <input type="date" value={a} onChange={(e) => setA(e.target.value)} className="bg-transparent outline-none" />–
               <input type="date" value={b} min={a} onChange={(e) => setB(e.target.value)} className="bg-transparent outline-none" />

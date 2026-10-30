@@ -33,7 +33,7 @@ const sorted = (ts: Trade[]) => [...ts].sort((a, b) => a.entry_at.localeCompare(
 function Select<T extends string>({ label, value, options, onChange, width = "w-40" }: { label: string; value: T; options: readonly T[]; onChange: (v: T) => void; width?: string }) {
   return (
     <div className="relative rounded-md border border-line2 bg-card px-3 pb-1.5 pt-3">
-      <span className="absolute -top-2 left-2 bg-card px-1 text-[10px] text-t2">{label}</span>
+      <span className="absolute -top-2 left-2 bg-card px-1 text-xs text-t2">{label}</span>
       <DropdownMenu>
         <DropdownMenuTrigger className={cn("flex items-center justify-between gap-2 text-sm", width)}><span className="truncate">{value}</span><ChevronDown className="h-4 w-4 shrink-0" /></DropdownMenuTrigger>
         <DropdownMenuContent align="start">
@@ -395,7 +395,7 @@ function Ratios({ trades, start }: { trades: Trade[]; start: number }) {
     <ChartCard size="full"
       controls={
         <div className="relative rounded-md border bg-card px-3 pb-1.5 pt-3">
-          <span className="absolute -top-2 left-2 bg-card px-1 text-[10px] text-muted-foreground">Ratio</span>
+          <span className="absolute -top-2 left-2 bg-card px-1 text-xs text-muted-foreground">Ratio</span>
           <DropdownMenu>
             <DropdownMenuTrigger className="flex w-72 items-center justify-between gap-2 text-sm"><span className="truncate">{label}</span><ChevronDown className="h-4 w-4" /></DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-72">

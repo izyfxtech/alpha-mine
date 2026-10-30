@@ -90,7 +90,7 @@ function ChallengeCard({ row, trades, currency, onSave, onDelete }: { row: Row<"
   const badgeStyle = { active: "bg-muted text-ink", passed: "bg-profit/15 text-profit", failed: "bg-loss/15 text-loss" }[progress.status];
   return (
     <Panel
-      title={<span className="flex items-center gap-2">{row.name}<span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${badgeStyle}`}>{badge}{progress.endedAtMs ? ` · ${dayKey(progress.endedAtMs, row.time_zone)}` : ""}</span></span>}
+      title={<span className="flex items-center gap-2">{row.name}<span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badgeStyle}`}>{badge}{progress.endedAtMs ? ` · ${dayKey(progress.endedAtMs, row.time_zone)}` : ""}</span></span>}
       action={<div className="flex gap-2"><Button variant="ghost" size="sm" onClick={() => { setDraft(rules); setEditing((v) => !v); }}>{editing ? "Close" : "Edit rules"}</Button><Button variant="ghost" size="sm" onClick={onDelete} aria-label="Delete challenge"><Trash className="h-4 w-4" /></Button></div>}
     >
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -113,7 +113,7 @@ function RuleRow({ r }: { r: RuleProgress }) {
     <li>
       <div className="flex items-center justify-between gap-3 text-sm">
         <span className="font-medium">{r.label}</span>
-        <span className="flex items-center gap-2"><span className="text-xs text-muted-foreground">{r.detail}</span><span className={`rounded-full px-2 py-0.5 text-[11px] ${STATUS_STYLE[r.status]}`}>{r.status === "met" ? "Met" : r.status === "breached" ? "Breached" : danger ? "Within limit" : "Pending"}</span></span>
+        <span className="flex items-center gap-2"><span className="text-xs text-muted-foreground">{r.detail}</span><span className={`rounded-full px-2 py-0.5 text-xs ${STATUS_STYLE[r.status]}`}>{r.status === "met" ? "Met" : r.status === "breached" ? "Breached" : danger ? "Within limit" : "Pending"}</span></span>
       </div>
       <div className="mt-1.5 h-1.5 rounded bg-muted"><div className={`h-full rounded ${danger ? (r.pct > 80 ? "bg-loss" : "bg-chart-4") : "bg-profit"}`} style={{ width: `${Math.max(r.pct, 2)}%` }} /></div>
     </li>

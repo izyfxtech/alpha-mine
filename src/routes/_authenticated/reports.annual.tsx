@@ -52,9 +52,9 @@ function Annual() {
                <Button variant="ghost" key={mi} onClick={() => navigate({ to: "/reports/calendar", search: { m: format(month, "yyyy-MM") } })} className="h-auto min-w-0 flex-col items-stretch rounded-md p-2 text-left transition hover:bg-muted/60" aria-label={`Open ${format(month, "MMMM yyyy")}`}>
                 <div className="mb-1.5 flex items-baseline justify-between">
                   <span className="text-sm font-medium">{format(month, "MMMM")}</span>
-                  {mNet !== 0 && <span className={cn("text-[10px] font-semibold tabular", mNet > 0 ? "text-profit" : "text-loss")}>{fmtMoney(mNet, cur)}</span>}
+                  {mNet !== 0 && <span className={cn("text-xs font-semibold tabular", mNet > 0 ? "text-profit" : "text-loss")}>{fmtMoney(mNet, cur)}</span>}
                 </div>
-                <div className="grid grid-cols-7 gap-0.5 text-center text-[9px] text-muted-foreground">
+                <div className="grid grid-cols-7 gap-0.5 text-center text-xs text-muted-foreground">
                   {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => <span key={i}>{d}</span>)}
                   {days.map((d) => {
                     const v = daily.get(format(d, "yyyy-MM-dd"));

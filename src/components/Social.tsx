@@ -11,7 +11,7 @@ export function Social() {
   const items = NEWSFEED[tab];
   return (
     <Panel title="Social" action={
-      <div className="inline-flex overflow-hidden rounded-md border text-[11px] font-semibold">
+      <div className="inline-flex overflow-hidden rounded-md border text-xs font-semibold">
         {([["blog", "Blog"], ["youtube", "YouTube"]] as const).map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)} className={cn("px-2.5 py-1", tab === k ? "bg-ink text-ink-foreground" : "bg-card")}>{l}</button>
         ))}
@@ -27,8 +27,8 @@ export function Social() {
                 <span className="mt-0.5 text-[8px] font-semibold uppercase leading-none">{format(d, "MMM")}</span>
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[11px] font-semibold">{it.title}</span>
-                <span className="block text-[10px] text-t4">{formatDistanceToNowStrict(d, { addSuffix: true })}, by {it.by}</span>
+                <span className="block truncate text-xs font-semibold">{it.title}</span>
+                <span className="block text-xs text-t4">{formatDistanceToNowStrict(d, { addSuffix: true })}, by {it.by}</span>
               </span>
               <ChevronRight className="h-4 w-4 shrink-0" />
             </a>

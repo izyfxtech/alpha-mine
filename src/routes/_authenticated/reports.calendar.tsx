@@ -39,7 +39,7 @@ function CalendarReport() {
       <section className="min-h-[calc(100vh-260px)] rounded-lg bg-card p-[22px] shadow-[0_1px_5px_rgba(60,40,90,0.07)]">
         <div className="grid grid-cols-[1fr_auto_1fr] items-start">
           <div className="relative w-52 rounded-md border border-line2 bg-card px-3 pb-1.5 pt-3">
-            <span className="absolute -top-2 left-2 bg-card px-1 text-[10px] text-muted-foreground">Display</span>
+            <span className="absolute -top-2 left-2 bg-card px-1 text-xs text-muted-foreground">Display</span>
             <DropdownMenu>
               <DropdownMenuTrigger className="flex w-full items-center justify-between text-sm">{display}<ChevronDown className="h-4 w-4" /></DropdownMenuTrigger>
               <DropdownMenuContent align="start">{DISPLAY.map((d) => <button key={d} onClick={() => setDisplay(d)} className="block w-full rounded-sm px-3 py-2 text-left text-sm hover:bg-muted">{d}</button>)}</DropdownMenuContent>

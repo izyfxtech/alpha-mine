@@ -51,7 +51,7 @@ function Portfolio() {
   return (
     <div className="mx-auto max-w-[1374px] space-y-[30px]">
       <div className="flex items-center justify-between">
-        <div className="inline-flex h-[24px] overflow-hidden rounded-md border bg-card text-[10px] font-semibold">
+        <div className="inline-flex h-[24px] overflow-hidden rounded-md border bg-card text-xs font-semibold">
           {([["pct", "Return (%)"], ["r", "R Multiple"]] as const).map(([k, l]) => <button key={k} onClick={() => setUnit(k)} className={cn("border-r px-3 last:border-r-0", unit === k && "bg-ink text-ink-foreground")}>{l}</button>)}
         </div>
         <Popover>
@@ -69,7 +69,7 @@ function Portfolio() {
       <KpiCards trades={pctTrades} s={s} fmt={(v) => fmtU(v)} avgWinLabel={fmtU(s.avgWin)} avgLossLabel={fmtU(s.avgLoss)} />
 
       <Panel title="Journals">
-        <table className="w-full text-[11px] tabular">
+        <table className="w-full text-xs tabular">
           <thead><tr className="text-right">{["Name", "Balance", "Return (%)", "Return (R)", "Avg. P&L", "Avg. %", "Avg. R", "Profit Factor", "Winrate", "Trades #", "AM Score", ""].map((h, i) => <th key={h + i} className={cn("whitespace-nowrap px-2 py-2.5 font-semibold", i === 0 && "text-left", i > 0 && i < 11 && "border-l")}>{h}</th>)}</tr></thead>
           <tbody>
             {per.map(({ j, s: x, ts }) => {
@@ -111,7 +111,7 @@ function Portfolio() {
       <div className="grid grid-cols-[1fr_438px] gap-[30px]">
         <Panel title="Best & Worst Trades">
           <div className="max-h-[300px] overflow-y-auto">
-            <table className="w-full text-[11px] tabular">
+            <table className="w-full text-xs tabular">
               <thead className="sticky top-0 bg-card"><tr className="text-left">{["Journal Name", "Entry Date", "Exit Date", "Instrument", "Setup", "Direction", "Return (%)", "Return (R)"].map((h) => <th key={h} className="whitespace-nowrap border-r px-2 py-2.5 font-medium last:border-0">{h === "Return (%)" ? <span className="inline-flex items-center gap-1"><ArrowDown className="h-3 w-3" />{h}</span> : h}</th>)}</tr></thead>
               <tbody>
                 {extremes.map((t) => (

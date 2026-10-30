@@ -17,16 +17,16 @@ export function FilterToggle({ mode, setMode }: { mode: FilterMode; setMode: (m:
   const n = activeFilterCount(filters);
   return (
     <div className="flex items-center gap-2">
-      <div className="inline-flex overflow-hidden rounded-md border text-[11px]">
-        <button className={cn("flex items-center gap-1.5 px-3 py-1.5", mode !== "closed" && "bg-muted")} onClick={() => setMode(mode === "closed" ? "basic" : "closed")}>
-          {mode === "closed" ? <ChevronRight className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}Basic Filters
-          {n > 0 && <span className="rounded-full bg-ink px-1.5 text-[10px] text-ink-foreground">{n}</span>}
+      <div className="inline-flex h-9 overflow-hidden rounded-md border text-sm">
+        <button className={cn("flex items-center gap-1.5 px-3", mode !== "closed" && "bg-muted")} onClick={() => setMode(mode === "closed" ? "basic" : "closed")}>
+          {mode === "closed" ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}Basic Filters
+          {n > 0 && <span className="rounded-full bg-ink px-1.5 text-xs text-ink-foreground">{n}</span>}
         </button>
-        <button className={cn("flex items-center gap-1.5 border-l px-3 py-1.5", mode === "advanced" && "bg-muted")} onClick={() => setMode(mode === "advanced" ? "basic" : "advanced")}>
-          {mode === "advanced" ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}Advanced Filters
+        <button className={cn("flex items-center gap-1.5 border-l px-3", mode === "advanced" && "bg-muted")} onClick={() => setMode(mode === "advanced" ? "basic" : "advanced")}>
+          {mode === "advanced" ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}Advanced Filters
         </button>
       </div>
-      {n > 0 && <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={() => setFilters({})}><RotateCcw className="h-3 w-3" />Clear all</Button>}
+      {n > 0 && <Button variant="ghost" size="sm" className="h-9 text-sm" onClick={() => setFilters({})}><RotateCcw className="h-4 w-4" />Clear all</Button>}
     </div>
   );
 }
@@ -36,7 +36,7 @@ function Tile({ icon, label, value, active, onClear, children, wide }: { icon?: 
     <Popover>
       <PopoverTrigger asChild>
         <button className={cn("relative flex h-9 w-full items-center gap-1.5 rounded-md border border-line2 bg-card px-3 text-left text-[12px]", active && "border-foreground")}>
-          {value != null && <span className="absolute -top-2 left-2 bg-card px-1 text-[9px] text-muted-foreground">{label}</span>}
+          {value != null && <span className="absolute -top-2 left-2 bg-card px-1 text-xs text-muted-foreground">{label}</span>}
           {icon}<span className="flex-1 truncate">{value ?? label}</span>
           {active ? <X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" onClick={(e) => { e.stopPropagation(); onClear(); }} /> : <ChevronDown className="h-3.5 w-3.5" />}
         </button>
@@ -95,7 +95,7 @@ export function FilterPanel({ mode }: { mode: FilterMode }) {
   const up = (p: Partial<Filters>) => setFilters({ ...f, ...p });
   const years = useMemo(() => [...new Set(all.map((t) => new Date(t.entry_at).getFullYear()))].sort().map((y) => [y, String(y)] as const), [all]);
   const types = useMemo(() => [...new Set(all.map((t) => t.trade_type).filter(Boolean))].map((t) => [t, t.charAt(0).toUpperCase() + t.slice(1)] as const), [all]);
-  const L = (s: string) => <span className="w-3 text-center text-[11px] font-semibold">{s}</span>;
+  const L = (s: string) => <span className="w-3 text-center text-xs font-semibold">{s}</span>;
   if (mode === "closed") return null;
   const dateVal = f.from || f.to ? `${f.from ?? "…"} → ${f.to ?? "…"}` : undefined;
   return (
@@ -129,7 +129,7 @@ export function FilterPanel({ mode }: { mode: FilterMode }) {
             value={f.stats?.[c.id]} onChange={(v) => up({ stats: { ...f.stats, [c.id]: v ?? [] } })} />
         ))}
       </div>
-      {f.day && <button className="mt-2 inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px]" onClick={() => up({ day: undefined })}>Day: {f.day}<X className="h-3 w-3" /></button>}
+      {f.day && <button className="mt-2 inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs" onClick={() => up({ day: undefined })}>Day: {f.day}<X className="h-3 w-3" /></button>}
     </div>
   );
 }

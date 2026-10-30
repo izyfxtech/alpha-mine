@@ -30,7 +30,7 @@ export function DateRangeButton({ value, onChange, className }: { value: { a: st
           <span className="text-[12px] font-semibold">{format(month, "MMMM yyyy")}</span>
           <button type="button" aria-label="Next month" className="rounded p-1 hover:bg-muted" onClick={() => setMonth(addMonths(month, 1))}><ChevronRight className="h-4 w-4" /></button>
         </div>
-        <div className="grid grid-cols-7 gap-y-1 text-center text-[10px] text-t4">{(weekStartsOn === 0 ? ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"] : ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]).map((d) => <span key={d}>{d}</span>)}</div>
+        <div className="grid grid-cols-7 gap-y-1 text-center text-xs text-t4">{(weekStartsOn === 0 ? ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"] : ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]).map((d) => <span key={d}>{d}</span>)}</div>
         <div className="mt-1 grid grid-cols-7 gap-y-1 text-center text-[12px]">
           {days.map((d) => {
             const k = format(d, "yyyy-MM-dd");
@@ -39,7 +39,7 @@ export function DateRangeButton({ value, onChange, className }: { value: { a: st
             return <button key={k} type="button" onClick={() => pick(k)} className={cn("h-8 rounded-md", !isSameMonth(d, month) && "text-t4", inRange && "bg-muted", edge && "bg-ink font-semibold text-ink-foreground", !inRange && "hover:bg-muted")}>{format(d, "d")}</button>;
           })}
         </div>
-        <div className="mt-2 flex justify-end"><button type="button" className="text-[11px] text-t3 underline" onClick={() => onChange({ a: "", b: "" })}>Clear</button></div>
+        <div className="mt-2 flex justify-end"><button type="button" className="text-xs text-t3 underline" onClick={() => onChange({ a: "", b: "" })}>Clear</button></div>
       </PopoverContent>
     </Popover>
   );

@@ -85,15 +85,15 @@ function ChartBook() {
             const ret = typeof rec["retPct"] === "number" ? (rec["retPct"] as number) : null;
             const isActive = active?.kind === sec.kind && active.id === r.id;
             return <button type="button" key={r.id} onClick={() => setSelected({ kind: sec.kind, id: r.id })}
-              className={cn("mb-3 grid w-full gap-2.5 rounded-lg border bg-card p-3.5 text-left text-[11px] shadow-[0_1px_4px_rgba(60,40,90,0.08)] transition-colors hover:bg-muted/40", isActive && "border-ink")}>
+              className={cn("mb-3 grid w-full gap-2.5 rounded-lg border bg-card p-3.5 text-left text-xs shadow-[0_1px_4px_rgba(60,40,90,0.08)] transition-colors hover:bg-muted/40", isActive && "border-ink")}>
               <span className="flex justify-between"><span className="text-t4">{sec.kind === "trades" ? "Trade ID" : "Record"}: <strong className="text-foreground">{label(rec)}</strong></span>{ret != null && <strong className={ret < 0 ? "text-loss" : "text-profit"}>{ret.toFixed(2)}%</strong>}</span>
               <span className="flex justify-between"><span className="text-t4">Setup:</span><strong>{String(rec["setup"] || "—")}</strong></span>
-              <span className="flex items-center justify-between"><span className="text-t4">Direction:</span><span className={cn("rounded-full px-2.5 py-0.5 text-[10px] capitalize", r.direction === "long" ? "bg-profit-soft text-profit" : "bg-loss-soft text-loss")}>{r.direction}</span></span>
+              <span className="flex items-center justify-between"><span className="text-t4">Direction:</span><span className={cn("rounded-full px-2.5 py-0.5 text-xs capitalize", r.direction === "long" ? "bg-profit-soft text-profit" : "bg-loss-soft text-loss")}>{r.direction}</span></span>
               <span className="flex justify-between"><span className="text-t4">{sec.kind === "missed" ? "Occurred" : "Entry"}:</span><strong>{when(rec)}</strong></span>
               <span className="flex justify-between"><span className="text-t4">Instrument:</span><strong>{String(rec["instrument"] ?? "—")}</strong></span>
             </button>;
           })}
-          {openSec[sec.kind] && !sec.rows.length && <p className="px-1 text-[11px] text-muted-foreground">No screenshots yet.</p>}
+          {openSec[sec.kind] && !sec.rows.length && <p className="px-1 text-xs text-muted-foreground">No screenshots yet.</p>}
         </div>
       ))}
     </aside>
@@ -102,7 +102,7 @@ function ChartBook() {
         <div className="mb-5 flex items-center justify-between border-b pb-3">
           <div className="text-[13px] font-semibold">{String((activeRow as unknown as Record<string, unknown>)["instrument"] ?? "")} · {when(activeRow as unknown as Record<string, unknown>).slice(0, 10)}</div>
           <div className="flex items-center gap-2">
-            {images.length < 6 && <label className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border px-3 text-[11px] font-medium hover:bg-muted"><ImagePlus className="h-3.5 w-3.5" />Add screenshot<input type="file" accept="image/*" multiple className="hidden" onChange={(e) => { void upload(e.target.files); e.target.value = ""; }} /></label>}
+            {images.length < 6 && <label className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border px-3 text-xs font-medium hover:bg-muted"><ImagePlus className="h-3.5 w-3.5" />Add screenshot<input type="file" accept="image/*" multiple className="hidden" onChange={(e) => { void upload(e.target.files); e.target.value = ""; }} /></label>}
             {realTrade && <Button variant="outline" size="sm" onClick={() => drawer.open(realTrade)}>Open trade</Button>}
           </div>
         </div>

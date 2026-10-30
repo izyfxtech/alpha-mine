@@ -54,7 +54,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
         <div className="flex items-center gap-2 border-b px-4">
           <Search className="h-4 w-4 text-t4" />
           <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onKey} placeholder="Search pages, or a trade by ID, instrument or setup…" aria-label="Search or jump" className="h-12 flex-1 bg-transparent text-sm outline-none" />
-          <kbd className="rounded border px-1.5 py-0.5 text-[10px] text-t4">Esc</kbd>
+          <kbd className="rounded border px-1.5 py-0.5 text-xs text-t4">Esc</kbd>
         </div>
         <div ref={listRef} role="listbox" className="max-h-[340px] overflow-y-auto p-2">
           {items.length === 0 && <p className="px-3 py-6 text-center text-sm text-t4">Nothing found.</p>}
@@ -62,7 +62,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
             <button key={it.key} data-i={i} role="option" aria-selected={i === cur} onMouseMove={() => setCur(i)} onClick={it.run} className={cn("flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-[13px]", i === cur && "bg-muted")}>
               <it.icon className="h-4 w-4 shrink-0 text-t3" />
               <span className="flex-1 truncate">{it.label}</span>
-              <span className="text-[11px] text-t4">{it.hint}</span>
+              <span className="text-xs text-t4">{it.hint}</span>
               {i === cur && <CornerDownLeft className="h-3.5 w-3.5 text-t4" />}
             </button>
           ))}

@@ -424,7 +424,7 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
 
             {tab === "legs" && (
               <div className="pt-2 text-[13px]">
-                <div className="grid grid-cols-[70px_1fr_1fr_1.4fr_1fr] gap-3 pb-2 text-[11px] uppercase tracking-wide text-muted-foreground"><span>Leg</span><span className="text-right">Size</span><span className="text-right">Price</span><span>Time</span><span className="text-right">Costs</span></div>
+                <div className="grid grid-cols-[70px_1fr_1fr_1.4fr_1fr] gap-3 pb-2 text-xs uppercase tracking-wide text-muted-foreground"><span>Leg</span><span className="text-right">Size</span><span className="text-right">Price</span><span>Time</span><span className="text-right">Costs</span></div>
                 {legs.map((l) => (
                   <div key={l.id} className="grid grid-cols-[70px_1fr_1fr_1.4fr_1fr] items-center gap-3 border-t py-2">
                     <span className={l.kind === "entry" ? "" : "text-muted-foreground"}>{l.kind === "entry" ? "Entry" : "Exit"} · {l.side}</span>

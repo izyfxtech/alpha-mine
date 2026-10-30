@@ -1,5 +1,7 @@
 import { compressImage } from "@/lib/media/compress-image";
+import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Lightbox } from "@/components/journal/Lightbox";
 import { ImagePlus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -54,6 +56,7 @@ export async function deleteShot(s: Pick<Shot, "id" | "path">) {
 export function TradeScreenshots({ journalId, tradeId }: { journalId: string; tradeId?: string }) {
   const qc = useQueryClient();
   const { data: shots = [] } = useScreenshots(journalId, tradeId);
+  const [open, setOpen] = useState<number | null>(null);
   if (!tradeId) return <p className="text-sm text-muted-foreground">Save the trade first, then add screenshots.</p>;
 
   async function upload(files: FileList | null) {
@@ -84,11 +87,12 @@ export function TradeScreenshots({ journalId, tradeId }: { journalId: string; tr
       <div className="grid grid-cols-2 gap-3">
         {shots.map((s) => (
           <div key={s.id} className="group relative overflow-hidden rounded-lg border">
-            <a href={s.url} target="_blank" rel="noreferrer"><img src={s.url} alt="Trade screenshot" className="aspect-video w-full object-cover" /></a>
+            <button type="button" className="block w-full" aria-label="Enlarge screenshot" onClick={() => setOpen(shots.indexOf(s))}><img src={s.url} alt="Trade screenshot" className="aspect-video w-full object-cover" /></button>
             <Button size="icon" variant="destructive" className="absolute right-2 top-2 h-7 w-7 opacity-0 group-hover:opacity-100" onClick={() => remove(s)}><Trash2 className="h-3.5 w-3.5" /></Button>
           </div>
         ))}
       </div>
+      {open !== null && <Lightbox items={shots.map((x, i) => ({ url: x.url, title: `Screenshot ${i + 1} of ${shots.length}` }))} index={open} onIndex={setOpen} onClose={() => setOpen(null)} />}
     </div>
   );
 }

@@ -19,7 +19,7 @@ const RATING_LABEL: Record<Rating, string> = { good: "Strong", ok: "Average", po
 
 function TrendPill({ t }: { t: Trend }) {
   const Icon = t.dir === "up" ? ArrowUpRight : t.dir === "down" ? ArrowDownRight : ArrowRight;
-  return <span className="inline-flex items-center gap-1 rounded-full bg-chip px-2.5 py-0.5 text-[11px] text-t3"><Icon className="h-3 w-3" aria-hidden />{t.label}<span className="sr-only">{t.dir === "up" ? " up" : t.dir === "down" ? " down" : " no change"} compared with 30 days ago</span></span>;
+  return <span className="inline-flex items-center gap-1 rounded-full bg-chip px-2.5 py-0.5 text-xs text-t3"><Icon className="h-3 w-3" aria-hidden />{t.label}<span className="sr-only">{t.dir === "up" ? " up" : t.dir === "down" ? " down" : " no change"} compared with 30 days ago</span></span>;
 }
 
 /** Six-segment strength bar: green, yellow or red depending on the rating. */
@@ -87,7 +87,7 @@ function EdgeFinder() {
         <p className="flex items-center gap-2 text-[13px] text-t4">
           Based on all your trades, ignoring the current filters
           <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild><button type="button" aria-label="How Edge Finder works"><Info className="h-4 w-4" /></button></TooltipTrigger>
-            <TooltipContent side="bottom" className="max-w-[280px] text-[11px] leading-relaxed">Insights are recalculated from your trades every time you open this page. Trends compare each card with the same analysis as of 30 days before your latest trade.</TooltipContent></Tooltip></TooltipProvider>
+            <TooltipContent side="bottom" className="max-w-[280px] text-xs leading-relaxed">Insights are recalculated from your trades every time you open this page. Trends compare each card with the same analysis as of 30 days before your latest trade.</TooltipContent></Tooltip></TooltipProvider>
         </p>
         {ignored.length > 0 && <Button variant="ghost" size="sm" onClick={restoreAll}>Show {ignored.length} ignored</Button>}
       </div>
