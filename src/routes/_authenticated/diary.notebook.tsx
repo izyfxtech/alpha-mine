@@ -94,8 +94,8 @@ function Notebook() {
             <button key={p.id} onClick={() => setSel(p.id)}
               className={cn("mb-1 block w-full rounded-md px-3 py-3 text-left", page?.id === p.id ? "bg-card shadow-sm" : "hover:bg-card/60")}>
               <p className="truncate text-[12px] font-semibold">{p.title || "Untitled"}</p>
-              <p className="truncate text-[10px] text-t4">{stripHtml(p.content) || "Empty note"}</p>
-              <p className="text-[10px] text-t4">{fmtStamp(p.updated_at)}</p>
+              <p className="truncate text-xs text-t4">{stripHtml(p.content) || "Empty note"}</p>
+              <p className="text-xs text-t4">{fmtStamp(p.updated_at)}</p>
             </button>
           ))}
         </div>

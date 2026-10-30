@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { JournalProvider } from "@/lib/journal/journal-context";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { TopBar } from "@/components/layout/TopBar";
+import { Onboarding } from "@/components/onboarding/Onboarding";
 import { TradeDrawerProvider } from "@/components/journal/TradeDrawer";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -27,6 +28,7 @@ function Layout() {
             <main className="flex-1 overflow-auto p-[21px]"><div className="w-full min-w-0"><Outlet /></div></main>
           </div>
         </div>
+        <Onboarding />
       </TradeDrawerProvider>
     </JournalProvider>
   );

@@ -19,7 +19,7 @@ function Monthly() {
   const months = [...groupBy(trades, (t) => t.entry_at.slice(0, 7)).entries()].sort(([a], [b]) => b.localeCompare(a));
   const toggle = (key: string) => setExpanded((v) => v.includes(key) ? v.filter((x) => x !== key) : [...v, key]);
   return <div className="min-h-[calc(100vh-7rem)] overflow-x-auto rounded-lg bg-card pb-6 shadow-[0_1px_5px_rgba(60,40,90,0.07)]">
-    <table className="w-full min-w-[1250px] text-[11px] tabular">
+    <table className="w-full min-w-[1250px] text-xs tabular">
       <thead className="sticky top-0 bg-card text-left"><tr className="h-[38px]">{["Month", "Week", "Trades", "Tiltmeter", "Return ($)", "Return (%)", "Winrate (%)", "Avg. P&L ($)", "Profit Factor", "Avg. R Multiple", "Sum. R Multiple", "Biggest Win ($)", "Week Start", "Biggest Loss ($)", "Efficiency (%)", "W", "L"].map((x) => <th key={x} className="whitespace-nowrap px-2 font-semibold first:pl-4">{x}</th>)}</tr></thead>
       <tbody>{months.map(([month, ts]) => {
         const label = new Date(`${month}-02T12:00:00`).toLocaleString("en-US", { month: "long", year: "numeric" });

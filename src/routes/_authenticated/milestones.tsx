@@ -30,8 +30,8 @@ function Milestones() {
       <div className="relative h-16 w-14 shrink-0" style={{ clipPath: "polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%)", background: "var(--chart-4)" }}>
         <div className="absolute inset-[3px] flex items-center justify-center text-primary-foreground" style={{ clipPath: "polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%)", background: tone }}><Icon className="h-6 w-6" /></div>
       </div>
-      <div className="min-w-0 flex-1"><h2 className="text-sm font-semibold">{title}</h2><p className="mt-1 max-w-md text-xs leading-relaxed text-muted-foreground">{description}</p><span className="mt-3 inline-block rounded-full bg-muted px-3 py-1 text-[11px] font-medium text-ink">{levels[lvl]} Level ({lvl + 1}/7)</span></div>
-      <div className="w-28 shrink-0 text-right"><span className="text-[10px] font-medium tracking-wide text-muted-foreground">PROGRESS</span><div className="mt-2 flex items-center gap-2"><div className="h-1 flex-1 rounded bg-muted"><div className="h-full rounded bg-profit" style={{ width: `${Math.max(pct, 2)}%` }} /></div><span className="text-[10px] text-muted-foreground">{pct}%</span></div></div>
+      <div className="min-w-0 flex-1"><h2 className="text-sm font-semibold">{title}</h2><p className="mt-1 max-w-md text-xs leading-relaxed text-muted-foreground">{description}</p><span className="mt-3 inline-block rounded-full bg-muted px-3 py-1 text-xs font-medium text-ink">{levels[lvl]} Level ({lvl + 1}/7)</span></div>
+      <div className="w-28 shrink-0 text-right"><span className="text-xs font-medium tracking-wide text-muted-foreground">PROGRESS</span><div className="mt-2 flex items-center gap-2"><div className="h-1 flex-1 rounded bg-muted"><div className="h-full rounded bg-profit" style={{ width: `${Math.max(pct, 2)}%` }} /></div><span className="text-xs text-muted-foreground">{pct}%</span></div></div>
     </section>;
   })}</div>;
 }

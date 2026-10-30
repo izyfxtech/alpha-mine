@@ -11,8 +11,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { createJournal, useJournal, type Journal } from "@/lib/journal/journal-context";
 import { cn } from "@/lib/utils";
 
-const CURRENCIES = ["USD", "EUR", "GBP", "JPY", "CHF", "AUD", "CAD", "NGN", "ZAR", "INR"];
-const MARKETS = ["Forex", "Stocks", "Crypto", "Futures", "Options", "Indices", "Commodities"];
+export const CURRENCIES = ["USD", "EUR", "GBP", "JPY", "CHF", "AUD", "CAD", "NGN", "ZAR", "INR"];
+export const MARKETS = ["Forex", "Stocks", "Crypto", "Futures", "Options", "Indices", "Commodities"];
 const sel = "h-9 w-full rounded-md border bg-background px-2 text-sm";
 
 type Mode = "list" | "new" | { copy: Journal };
@@ -52,7 +52,7 @@ export function JournalPicker() {
 
   return (
     <>
-      <Button variant="outline" size="sm" className="max-w-52 gap-2" onClick={() => { setMode("list"); setOpen(true); }}>
+      <Button variant="outline" className="max-w-56 gap-2" onClick={() => { setMode("list"); setOpen(true); }}>
         <span className="truncate">{journal?.name ?? "Journal"}</span><ChevronDown className="h-4 w-4" />
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
@@ -61,13 +61,13 @@ export function JournalPicker() {
           {mode === "list" && (
             <div className="space-y-3">
               <div className="relative"><Input placeholder="Search journals" value={q} onChange={(e) => setQ(e.target.value)} className="pr-8" /><Search className="absolute right-2 top-2.5 h-4 w-4 text-muted-foreground" /></div>
-              <p className="text-[11px] text-muted-foreground">Sorted by last used</p>
+              <p className="text-xs text-muted-foreground">Sorted by last used</p>
               <div className="max-h-80 divide-y overflow-y-auto rounded-md border">
                 {list.map((j) => (
                   <div key={j.id} className={cn("flex items-center gap-2 px-3 py-2.5", j.id === journal?.id && "bg-muted/60")}>
                     <button className="min-w-0 flex-1 text-left" onClick={() => { setJournalId(j.id); setOpen(false); }}>
                       <span className="block truncate text-sm font-medium">{j.name}</span>
-                      <span className="text-[11px] text-muted-foreground">{j.currency} · {Number(j.starting_balance).toLocaleString()}{j.markets?.length ? ` · ${j.markets.join(", ")}` : ""}</span>
+                      <span className="text-xs text-muted-foreground">{j.currency} · {Number(j.starting_balance).toLocaleString()}{j.markets?.length ? ` · ${j.markets.join(", ")}` : ""}</span>
                     </button>
                     <Button size="icon" variant="ghost" className="h-7 w-7" aria-label={`Copy ${j.name}`} onClick={() => setMode({ copy: j })}><Copy className="h-3.5 w-3.5" /></Button>
                     <Button size="icon" variant="ghost" className="h-7 w-7" aria-label={`Share ${j.name}`} onClick={() => share(j)}><Share2 className={cn("h-3.5 w-3.5", j.share_token && "text-profit")} /></Button>
@@ -118,7 +118,7 @@ function NewJournal({ onDone, onBack }: { onDone: (id: string) => void; onBack: 
           })}
         </div>
       </div>
-      <p className="text-[11px] text-muted-foreground">Tip: set the deposit date to the day before your first trade.</p>
+      <p className="text-xs text-muted-foreground">Tip: set the deposit date to the day before your first trade.</p>
       <div className="flex gap-2"><Button variant="outline" onClick={onBack}>Back</Button><Button className="flex-1" disabled={busy} onClick={submit}>Create</Button></div>
     </div>
   );

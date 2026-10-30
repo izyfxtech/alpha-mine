@@ -59,7 +59,7 @@ function SettingsPage() {
 /** "Active Items | Disabled Items" switch shown above every list page. */
 function ItemsToggle({ value, onChange, disabledCount }: { value: "active" | "disabled"; onChange: (v: "active" | "disabled") => void; disabledCount: number }) {
   return (
-    <div role="tablist" aria-label="Which items to show" className="mb-5 inline-flex h-[28px] overflow-hidden rounded-md border bg-card text-[10px] font-semibold">
+    <div role="tablist" aria-label="Which items to show" className="mb-5 inline-flex h-[28px] overflow-hidden rounded-md border bg-card text-xs font-semibold">
       {([["active", "Active Items"], ["disabled", `Disabled Items${disabledCount ? ` (${disabledCount})` : ""}`]] as const).map(([k, l]) => (
         <button key={k} role="tab" aria-selected={value === k} onClick={() => onChange(k)} className={cn("border-r px-3 last:border-r-0", value === k && "bg-ink text-ink-foreground")}>{l}</button>
       ))}
@@ -76,7 +76,7 @@ function RowActions({ disabled, name, used, onDisable, onRestore, onDelete }: { 
   }
   return (
     <span className="flex shrink-0 items-center gap-1">
-      <Button size="sm" variant="outline" className="h-7 text-[11px]" aria-label={`Restore ${name}`} onClick={onRestore}><RotateCcw className="h-3 w-3" />Restore</Button>
+      <Button size="sm" variant="outline" className="h-7 text-xs" aria-label={`Restore ${name}`} onClick={onRestore}><RotateCcw className="h-3 w-3" />Restore</Button>
       <Button size="icon" variant="ghost" className="h-8 w-8" aria-label={`Delete ${name} permanently`} title={used ? `Used by ${plural(used, "trade")}` : "Delete permanently"} onClick={() => { if (confirm(`Permanently delete "${name}"?${used ? ` It is on ${plural(used, "trade")}; they will lose it.` : ""} This cannot be undone.`)) onDelete(); }}><X className="h-4 w-4" /></Button>
     </span>
   );
@@ -147,7 +147,7 @@ function Account() {
 function Float({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="relative block rounded-md border bg-card px-3 pb-1.5 pt-3.5 text-sm">
-      <span className="absolute -top-[7px] left-2 bg-card px-1 text-[10px] text-t3">{label}</span>
+      <span className="absolute -top-[7px] left-2 bg-card px-1 text-xs text-t3">{label}</span>
       {children}
     </label>
   );
@@ -179,7 +179,7 @@ function JournalSettings() {
           <Float label="Default Trade Type *"><select className={bare} value={f.trade_type} onChange={(e) => set("trade_type", e.target.value)}>{TRADE_TYPES.map((v) => <option key={v}>{v}</option>)}</select></Float>
           <Float label="Broker"><input className={bare} value={f.broker} onChange={(e) => set("broker", e.target.value)} /></Float>
           <div className="flex items-center gap-3 pt-1 text-[12px]"><Switch id="auto_pnl" checked={f.auto_pnl} onCheckedChange={(v) => set("auto_pnl", v)} /><Label htmlFor="auto_pnl" className="font-normal">Auto Calculate Profit/Loss</Label></div>
-          {journal.mt_login && <p className="rounded-md bg-muted px-3 py-2 text-[11px] text-t3">Linked to {journal.mt_platform?.toUpperCase()} account {journal.mt_login}{journal.mt_server ? ` on ${journal.mt_server}` : ""}. Trades imported from it are matched by ticket, so re-importing never duplicates them.</p>}
+          {journal.mt_login && <p className="rounded-md bg-muted px-3 py-2 text-xs text-t3">Linked to {journal.mt_platform?.toUpperCase()} account {journal.mt_login}{journal.mt_server ? ` on ${journal.mt_server}` : ""}. Trades imported from it are matched by ticket, so re-importing never duplicates them.</p>}
         </div>
         <div className="flex gap-2 border-t px-[26px] py-4">
           <Button size="sm" variant={dirty && valid ? "ink" : "secondary"} disabled={!dirty || !valid} onClick={async () => {
@@ -190,7 +190,7 @@ function JournalSettings() {
         </div>
       </div>
       <div className={cn(card, "flex items-center justify-between gap-4 p-[22px]")}>
-        <div><p className="text-[13px] font-semibold">Delete this journal</p><p className="text-[11px] text-t3">Removes the journal with all of its trades, plans, notes and sessions.</p></div>
+        <div><p className="text-[13px] font-semibold">Delete this journal</p><p className="text-xs text-t3">Removes the journal with all of its trades, plans, notes and sessions.</p></div>
         <Button variant="outline" className="text-loss" disabled={journals.length < 2} title={journals.length < 2 ? "You need at least one other journal" : undefined} onClick={() => setConfirmDelete(true)}><Trash2 className="h-4 w-4" /> Delete journal</Button>
       </div>
       <TypedConfirm open={confirmDelete} onOpenChange={setConfirmDelete} title="Delete this journal?" phrase={journal.name} confirmLabel="Delete journal"
@@ -308,7 +308,7 @@ function ItemList({ table, field, label, describe }: { table: "instruments" | "s
                 ? <EditableText value={n} label={label} className={describe ? "!flex-none w-[230px]" : undefined} onSave={(v) => { if (exists(v, r.id)) toast.error(`${label} "${v}" already exists`); else void t.update(r.id, { [field]: v } as never); }} />
                 : <span className={cn("px-2", describe ? "w-[230px]" : "flex-1")}>{n}</span>}
               {extra && <EditableText value={String(r[extra] ?? "")} label="Description" className="text-t3" onSave={(v) => void t.update(r.id, { [extra]: v } as never)} />}
-              {tab === "disabled" && <span className="flex-1 text-[11px] text-t4">{plural(used(n), "trade")}</span>}
+              {tab === "disabled" && <span className="flex-1 text-xs text-t4">{plural(used(n), "trade")}</span>}
               <RowActions disabled={tab === "disabled"} name={n} used={used(n)}
                 onDisable={() => { void t.update(r.id, { disabled: true } as never); toast.success(`"${n}" disabled. It stays on your existing trades; restore it under Disabled Items.`); }}
                 onRestore={() => void t.update(r.id, { disabled: false } as never)} onDelete={() => void t.remove(r.id)} />
@@ -316,7 +316,7 @@ function ItemList({ table, field, label, describe }: { table: "instruments" | "s
           );
         })}
       </div>
-      {tab === "active" && describe && <p className="mt-2 text-[11px] text-t4">Double-click a name or description to edit it. Drag the handle to reorder.</p>}
+      {tab === "active" && describe && <p className="mt-2 text-xs text-t4">Double-click a name or description to edit it. Drag the handle to reorder.</p>}
     </div>
   );
 }

@@ -69,7 +69,7 @@ function MissedTrades() {
         <Button variant="secondary" size="sm" className="h-[30px] rounded-md px-4 text-[12px] text-t4" disabled={!sel.size} onClick={del}><Trash2 className="h-4 w-4" />Delete</Button>
       </div>
       <div className="min-h-0 flex-1 overflow-auto">
-        <table className="w-full whitespace-nowrap text-[11px]">
+        <table className="w-full whitespace-nowrap text-xs">
           <thead className="sticky top-0 bg-card">
             <tr className="h-[40px] border-b text-left">
               <th className="w-10 px-3 py-2.5"><Checkbox checked={!!t.rows.length && sel.size === t.rows.length} onCheckedChange={(v) => setSel(v ? new Set(t.rows.map((r) => r.id)) : new Set())} /></th>

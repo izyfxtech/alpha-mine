@@ -23,7 +23,7 @@ function Group({ item, collapsed, path }: { item: NavItem; collapsed: boolean; p
       key={c.label}
       to={c.to}
       params={c.params as never}
-      className={cn("block whitespace-nowrap rounded-md py-2 pl-[40px] pr-2 text-[11px] text-sidebar-foreground hover:bg-sidebar-accent",
+      className={cn("block whitespace-nowrap rounded-md py-2 pl-[40px] pr-2 text-xs text-sidebar-foreground hover:bg-sidebar-accent",
         path === childPath(c) && "bg-sidebar-accent font-semibold text-foreground")}
     >
       {c.label}
@@ -99,7 +99,7 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
       </nav>
       <div className="space-y-2 p-2">
         {collapsed && settings.showBalance && (
-          <div className="rounded-lg bg-background px-1 py-2.5 text-center text-[11px] font-bold tabular" title={fmtMoney(balance, journal?.currency)}>
+          <div className="rounded-lg bg-background px-1 py-2.5 text-center text-xs font-bold tabular" title={fmtMoney(balance, journal?.currency)}>
             {new Intl.NumberFormat("en-US", { style: "currency", currency: journal?.currency || "USD", notation: "compact", maximumFractionDigits: 0 }).format(balance)}
           </div>
         )}

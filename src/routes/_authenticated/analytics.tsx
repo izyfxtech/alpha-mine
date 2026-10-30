@@ -122,8 +122,8 @@ function Analytics() {
   }, [trades, crits, open]);
 
   const shown = COLS.filter((c) => visible.includes(c.k));
-  const rowCls = "h-[30px] text-[11px]";
-  const item = "flex h-[40px] items-center justify-between border-b px-1 text-[11px] last:border-0";
+  const rowCls = "h-[30px] text-xs";
+  const item = "flex h-[40px] items-center justify-between border-b px-1 text-xs last:border-0";
 
   return (
     <div className="grid grid-cols-[240px_1fr] gap-[22px]">
@@ -136,7 +136,7 @@ function Analytics() {
               <button aria-label={`Remove ${c.label}`} onClick={() => { setOrder((o) => o.filter((k) => k !== c.key)); setOpen(new Set(["Overall"])); }}><Minus className="h-4 w-4" /></button>
             </div>
           ))}
-          {!crits.length && <p className="text-[11px] text-muted-foreground">Add a criterion below to group trades.</p>}
+          {!crits.length && <p className="text-xs text-muted-foreground">Add a criterion below to group trades.</p>}
         </section>
         <section className="rounded-lg bg-card p-[22px] shadow-[0_1px_5px_rgba(60,40,90,0.07)]">
           <h3 className="mb-3 text-[13px] font-semibold">Add Ordering Criteria</h3>
@@ -151,7 +151,7 @@ function Analytics() {
 
       <section className="relative min-w-0 pr-7">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1100px] text-[11px] tabular">
+          <table className="w-full min-w-[1100px] text-xs tabular">
             <thead>
               <tr className="h-[34px]">
                 <th className="sticky left-0 z-10 w-[230px] border-r bg-background px-3 text-left font-semibold">Group</th>
@@ -182,11 +182,11 @@ function Analytics() {
             </tbody>
           </table>
         </div>
-        <button type="button" aria-label="Columns" aria-expanded={colsOpen} onClick={() => setColsOpen((o) => !o)} className="absolute bottom-0 right-0 top-0 flex w-7 items-center justify-center bg-card text-[10px] font-semibold [writing-mode:vertical-rl] hover:bg-muted"><Columns3 className="mb-1 h-3.5 w-3.5" />Columns</button>
+        <button type="button" aria-label="Columns" aria-expanded={colsOpen} onClick={() => setColsOpen((o) => !o)} className="absolute bottom-0 right-0 top-0 flex w-7 items-center justify-center bg-card text-xs font-semibold [writing-mode:vertical-rl] hover:bg-muted"><Columns3 className="mb-1 h-3.5 w-3.5" />Columns</button>
         {colsOpen && (
           <aside className="absolute bottom-0 right-7 top-0 z-20 w-56 overflow-auto bg-card p-2 shadow-lg">
             {COLS.map((c) => (
-              <label key={c.k} className="flex cursor-pointer items-center gap-2 rounded px-1 py-1.5 text-[11px] hover:bg-muted">
+              <label key={c.k} className="flex cursor-pointer items-center gap-2 rounded px-1 py-1.5 text-xs hover:bg-muted">
                 <Checkbox checked={visible.includes(c.k)} onCheckedChange={() => setVisible((v) => (v.includes(c.k) ? v.filter((k) => k !== c.k) : COLS.map((x) => x.k).filter((k) => k === c.k || v.includes(k))))} />
                 {c.l}
               </label>

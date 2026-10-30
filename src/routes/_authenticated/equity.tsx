@@ -136,7 +136,7 @@ function Equity() {
 function FieldBox({ label, children }: { label?: string; children: React.ReactNode }) {
   return (
     <div className="relative rounded-md border border-line2 bg-card px-3 pb-1.5 pt-3">
-      {label && <span className="absolute -top-2 left-2 bg-card px-1 text-[10px] text-muted-foreground">{label}</span>}
+      {label && <span className="absolute -top-2 left-2 bg-card px-1 text-xs text-muted-foreground">{label}</span>}
       {children}
     </div>
   );

@@ -120,7 +120,7 @@ export function PnlBars({ data, x, y = "pnl", height = 260, fmt, angle }: { data
           const v = Number(d[y]);
           const has = (k: string) => typeof d[k] === "number";
           return (
-            <div className="min-w-[150px] rounded-md bg-popover px-3 py-2 text-[11px] shadow-[0_2px_10px_rgba(0,0,0,0.15)]">
+            <div className="min-w-[150px] rounded-md bg-popover px-3 py-2 text-xs shadow-[0_2px_10px_rgba(0,0,0,0.15)]">
               <p className="mb-1 font-semibold">{String(d[x])}</p>
               <p className="mb-1.5 flex items-center justify-between gap-4"><span className={cn("h-2 w-2 rounded-full", v >= 0 ? "bg-profit" : "bg-loss")} /><b className="tabular">{f(v)}</b></p>
               {has("trades") && <p className="flex justify-between gap-4"><span>Number of trades:</span><b className="tabular">{String(d["trades"])}</b></p>}
@@ -306,7 +306,7 @@ export function AccentStat({ label, value, tone, className, info }: { label: str
   return (
     <div className={cn("relative min-w-0 rounded-md bg-card py-4 pl-5 pr-3 shadow-[0_1px_5px_rgba(60,40,90,0.07)]", className)}>
       <span className={cn("absolute bottom-2.5 left-2 top-2.5 w-[3px] rounded-full", "bg-chart-1")} />
-      <p className="text-[10px] text-t2">{label}</p>
+      <p className="text-xs text-t2">{label}</p>
       <p className="mt-2.5 flex items-center gap-1.5 text-[13px] font-semibold tabular text-t1">{value}{info && <span title={info} aria-label={info}><Info className="h-3.5 w-3.5 font-normal" /></span>}</p>
     </div>
   );
