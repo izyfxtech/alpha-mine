@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { localDateTime } from "@/lib/time/local-time";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Folder, FolderOpen, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,7 @@ export const Route = createFileRoute("/_authenticated/diary/notebook")({
 });
 
 const ALL = "__all__";
-const fmtStamp = (iso: string) => new Date(iso).toISOString().slice(0, 16).replace("T", " ");
+const fmtStamp = (iso: string) => localDateTime(iso);
 
 function Notebook() {
   const { journal } = useJournal();

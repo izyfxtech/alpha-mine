@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { localDay } from "@/lib/time/local-time";
 import { useQuery } from "@tanstack/react-query";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
@@ -77,7 +78,7 @@ function SharedJournal() {
         <table className="w-full text-sm tabular">
           <thead><tr className="border-b text-left"><th className="px-4 py-2.5">Date</th><th className="px-4">Instrument</th><th className="px-4">Setup</th><th className="px-4">Direction</th><th className="px-4 text-right">Return</th></tr></thead>
           <tbody>{[...ts].reverse().slice(0, 50).map((t, i) => (
-            <tr key={i} className="border-b border-border/40"><td className="px-4 py-2">{t.entry_at.slice(0, 10)}</td><td className="px-4">{t.instrument ?? "—"}</td><td className="px-4">{t.setup ?? "—"}</td><td className="px-4 capitalize">{t.direction}</td>
+            <tr key={i} className="border-b border-border/40"><td className="px-4 py-2">{localDay(t.entry_at)}</td><td className="px-4">{t.instrument ?? "—"}</td><td className="px-4">{t.setup ?? "—"}</td><td className="px-4 capitalize">{t.direction}</td>
               <td className={`px-4 text-right ${t.net_pnl >= 0 ? "text-profit" : "text-loss"}`}>{fmtMoney(t.net_pnl, data.currency)}</td></tr>
           ))}</tbody>
         </table>

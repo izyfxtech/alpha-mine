@@ -25,6 +25,10 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
+      # Dates are grouped in the viewer's time zone, so the suite must hold in zones ahead of, behind and on UTC.
+      - run: TZ=Africa/Lagos pnpm test
+      - run: TZ=America/New_York pnpm test
+      - run: TZ=Pacific/Auckland pnpm test
       - run: pnpm build
 
   database:

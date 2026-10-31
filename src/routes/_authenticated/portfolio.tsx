@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { localDateTime, localDay } from "@/lib/time/local-time";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { addMonths, format, startOfMonth } from "date-fns";
@@ -21,7 +22,7 @@ export const Route = createFileRoute("/_authenticated/portfolio")({
 });
 
 const n2 = (v: number) => (isFinite(v) ? v.toFixed(2) : "∞");
-const dt = (s: string | null) => (s ? s.replace("T", " ").slice(0, 16) : "");
+const dt = (s: string | null) => localDateTime(s);
 
 function Portfolio() {
   const { journals, setJournalId } = useJournal();
@@ -54,7 +55,7 @@ function Portfolio() {
   const totals = per.reduce((a, { s: x }) => ({ roi: a.roi + x.roi, r: a.r + x.totalR, n: a.n + x.count }), { roi: 0, r: 0, n: 0 });
   const avgPct = trades.length ? trades.reduce((a, t) => a + t.pct, 0) / trades.length : 0;
   const avgR = trades.length ? trades.reduce((a, t) => a + (t.r ?? 0), 0) / trades.length : 0;
-  const days = new Set(trades.map((t) => t.entry_at.slice(0, 10))).size || 1;
+  const days = new Set(trades.map((t) => localDay(t.entry_at))).size || 1;
   const followed = trades.filter((t) => t.followedPlan).length;
 
   return (

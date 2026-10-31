@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { localDateTime } from "@/lib/time/local-time";
 import { computeInsights } from "@/lib/pnl/insights";
 import { ShareJournalDialog } from "@/components/journal/ShareJournal";
 import { CommandPalette } from "@/components/layout/CommandPalette";
@@ -66,7 +67,7 @@ export function TopBar() {
           {recent.length ? recent.map((n) => <button key={n.id} className="w-full border-b px-4 py-3 text-left hover:bg-muted/50" onClick={() => { markRead([n.id]); const t = all.find((x) => x.id === n.tradeId); if (t) drawer.open(t); }}>
             <span className="flex justify-between gap-2 text-xs font-semibold"><span>{n.title}</span>{!read.includes(n.id) && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-profit" />}</span>
             <span className="mt-1 block text-xs text-muted-foreground">{n.body}</span>
-            <span className="mt-1 flex justify-between text-[11px] uppercase text-muted-foreground"><span>Journal</span><span>{n.at.slice(0, 16).replace("T", " ")}</span></span>
+            <span className="mt-1 flex justify-between text-[11px] uppercase text-muted-foreground"><span>Journal</span><span>{localDateTime(n.at)}</span></span>
           </button>) : <p className="p-4 text-muted-foreground">You're all caught up. Insights appear here as you log trades.</p>}
           </div>
         </SheetContent>

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { localDateTime } from "@/lib/time/local-time";
 import { countOption, fetchAllRows } from "@/lib/journal/fetch-all";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useFillViewport } from "@/lib/use-fill-viewport";
@@ -30,7 +31,7 @@ export const Route = createFileRoute("/_authenticated/journal")({
 
 type Col = { k: string; l: string; get: (t: Trade) => string | number; render?: (t: Trade) => React.ReactNode; width?: number };
 const num = (v: number, d: number) => v.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
-const dt = (s: string | null) => (s ? s.replace("T", " ").slice(0, 16) : "");
+const dt = (s: string | null) => localDateTime(s);
 const pill = (t: Trade, txt: string) => <span className={cn("inline-block min-w-[38px] rounded-full px-2.5 py-[3px] text-center text-xs font-medium capitalize leading-none", t.net_pnl > 0 ? "bg-pill-win text-profit" : t.net_pnl < 0 ? "bg-pill-loss text-loss" : "bg-muted text-foreground")}>{txt}</span>;
 const LEFT_COLS = ["rules", "instrument", "setup", "trade_type", "option_type", "direction", "entry_at", "exit_at", "tilt", "id", "notes"];
 const alignRight = (k: string) => !LEFT_COLS.includes(k);

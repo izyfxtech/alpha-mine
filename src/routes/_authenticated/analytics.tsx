@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { localMonth } from "@/lib/time/local-time";
 import { Fragment, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, Columns3, GripVertical, Minus, Plus } from "lucide-react";
 import { plannedRRR, useLookups, useTrades } from "@/lib/journal/journal-context";
@@ -22,7 +23,7 @@ const CRITERIA: Crit[] = [
   { key: "exit", label: "Exit Comment", get: comments("exit") },
   { key: "instrument", label: "Trade Instruments", get: (t) => [t.instrument] },
   { key: "weekday", label: "Weekday", get: (t) => [new Date(t.entry_at).toLocaleDateString("en-US", { weekday: "long" })] },
-  { key: "month", label: "Month", get: (t) => [t.entry_at.slice(0, 7)] },
+  { key: "month", label: "Month", get: (t) => [localMonth(t.entry_at)] },
   { key: "type", label: "Trade Type", get: (t) => [t.trade_type || "—"] },
 ];
 

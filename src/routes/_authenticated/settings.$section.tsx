@@ -1,4 +1,5 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
+import { localToday } from "@/lib/time/local-time";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -218,7 +219,7 @@ function Cashflows() {
   const { journal } = useJournal();
   const t = useJournalTable("journal_cashflows", journal?.id, "occurred_on", false);
   const [open, setOpen] = useState(false);
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(localToday());
   const [amount, setAmount] = useState("");
   const [kind, setKind] = useState("deposit");
   const [note, setNote] = useState("");

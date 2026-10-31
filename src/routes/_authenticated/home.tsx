@@ -1,4 +1,5 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
+import { localDay } from "@/lib/time/local-time";
 import { useMemo, useRef, useState } from "react";
 import { addMonths, format, startOfMonth } from "date-fns";
 import { ProfitCalendar } from "@/components/analytics/ProfitCalendar";
@@ -60,7 +61,7 @@ function Home() {
   const pcts = trades.map((t) => t.retPct);
   const rs = trades.map((t) => t.r).filter((x): x is number => x != null);
   const sumPct = pcts.reduce((a, b) => a + b, 0), sumR = rs.reduce((a, b) => a + b, 0);
-  const tradingDays = new Set(trades.map((t) => t.entry_at.slice(0, 10))).size || 1;
+  const tradingDays = new Set(trades.map((t) => localDay(t.entry_at))).size || 1;
   const ev = (money: number, pct: number, r: number) => (unit === "cur" ? fmtMoney(money, cur) : unit === "pct" ? fmtPct(pct) : `${fmtNum(r)}R`);
 
   return (

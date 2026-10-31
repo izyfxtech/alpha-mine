@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { localDay } from "@/lib/time/local-time";
 import { createFileRoute } from "@tanstack/react-router";
 import { Empty, PageHeader, Panel, Stat, pnlTone } from "@/components/kit";
 import { Button } from "@/components/ui/button";
@@ -48,7 +49,7 @@ function OpenTradesPage() {
                     <tr key={r.trade.id} className="border-t">
                       <td className="px-2 py-2">{r.trade.instrument}</td>
                       <td className="px-2 capitalize">{r.trade.direction}</td>
-                      <td className="px-2 tabular">{r.trade.entry_at.slice(0, 10)} <span className="text-xs text-muted-foreground">({fmtNum(r.ageDays, 1)}d)</span></td>
+                      <td className="px-2 tabular">{localDay(r.trade.entry_at)} <span className="text-xs text-muted-foreground">({fmtNum(r.ageDays, 1)}d)</span></td>
                       <td className="px-2 tabular">{fmtNum(Number(r.trade.quantity))}</td>
                       <td className="px-2 tabular">{fmtNum(Number(r.trade.entry_price), 3)}</td>
                       <td className="px-2 tabular">{r.trade.stop_loss ?? "—"}</td>

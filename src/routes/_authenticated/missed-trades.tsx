@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { fromInputValue, localDateTime, toInputValue } from "@/lib/time/local-time";
 import { countOption, fetchAllRows } from "@/lib/journal/fetch-all";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -34,7 +35,7 @@ export function missedMetrics(m: Missed) {
 }
 
 const f2 = (v: number | null | undefined, d = 2) => (v == null ? "" : v.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d }));
-const dt = (iso?: string | null) => (iso ? iso.slice(0, 16).replace("T", " ") : "");
+const dt = (iso?: string | null) => localDateTime(iso);
 
 function MissedTrades() {
   const { journal } = useJournal();
@@ -137,7 +138,7 @@ export function MissedSheet({ row, journalId, onClose, onSave, title, selectedSt
   const [stats, setStats] = useState<string[]>(selectedStats);
   const s = (v: unknown) => (v == null ? "" : String(v));
   const [f, setF] = useState({
-    occurred_at: (row?.occurred_at ?? new Date().toISOString()).slice(0, 16), exit_at: s(row?.exit_at).slice(0, 16),
+    occurred_at: toInputValue(row?.occurred_at ?? new Date().toISOString()), exit_at: toInputValue(row?.exit_at),
     instrument: s(row?.instrument), setup: s(row?.setup), direction: row?.direction ?? "long", trade_type: row?.trade_type ?? "Spot",
     entry_price: s(row?.entry_price), exit_price: s(row?.exit_price), quantity: s(row?.quantity ?? 1), take_profit: s(row?.take_profit), stop_loss: s(row?.stop_loss),
     net_pnl: s(row?.net_pnl ?? ""), reason: row?.reason ?? MISSED_REASONS[0], notes: s(row?.notes),
@@ -180,7 +181,7 @@ export function MissedSheet({ row, journalId, onClose, onSave, title, selectedSt
           <Button variant="ink" size="sm" disabled={!f.instrument} onClick={() => {
             const pnl = f.net_pnl === "" ? auto() : Number(f.net_pnl);
             onSave({
-              occurred_at: new Date(f.occurred_at).toISOString(), exit_at: f.exit_at ? new Date(f.exit_at).toISOString() : null,
+              occurred_at: fromInputValue(f.occurred_at, row?.occurred_at), exit_at: f.exit_at ? fromInputValue(f.exit_at, row?.exit_at) : null,
               instrument: f.instrument, setup: f.setup || null, direction: f.direction, trade_type: f.trade_type,
               entry_price: n(f.entry_price), exit_price: n(f.exit_price), quantity: n(f.quantity) ?? 1, take_profit: n(f.take_profit), stop_loss: n(f.stop_loss),
               net_pnl: pnl, reason: f.reason, notes: f.notes || null,

@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { fromInputValue, toInputValue } from "@/lib/time/local-time";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { CalendarDays, ChevronLeft, ChevronRight, Plus, Settings, Star, X } from "lucide-react";
@@ -24,15 +25,8 @@ export const useTradeDrawer = () => {
 };
 
 type Leg = { price: string; qty: string };
-const pad = (n: number) => String(n).padStart(2, "0");
-/** ISO instant to the value of a datetime-local input, in the browser's zone AT THAT DATE (DST-correct), seconds kept. */
-const local = (iso?: string | null) => {
-  if (!iso) return "";
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-};
-/** The stored instant when the field was not edited (so a note change never moves a broker time), else the typed one. */
-const instant = (typed: string, original?: string | null) => (original && typed === local(original) ? original : new Date(typed).toISOString());
+const local = toInputValue;
+const instant = fromInputValue;
 const price = (v: number) => +v.toFixed(10);
 const num = (v: string) => (v.trim() === "" ? null : Number(v));
 const isNum = (v: string) => v.trim() !== "" && Number.isFinite(Number(v));

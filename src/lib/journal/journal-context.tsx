@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { localDay } from "@/lib/time/local-time";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { complianceOf, type RuleCheck } from "@/lib/pnl/compliance";
@@ -268,7 +269,7 @@ export function applyFilters(trades: Trade[], f: Filters, ruleNames?: ReadonlyMa
   const has = <T,>(a: T[] | undefined, v: T) => !a?.length || a.includes(v);
   const inR = (r: Range | undefined, v: number | null) => !r || ((r.min == null || (v != null && v >= r.min)) && (r.max == null || (v != null && v <= r.max)));
   const out = trades.filter((t) => {
-    const d = t.entry_at.slice(0, 10);
+    const d = localDay(t.entry_at);
     const dt = new Date(t.entry_at);
     if (f.from && d < f.from) return false;
     if (f.to && d > f.to) return false;

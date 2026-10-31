@@ -1,4 +1,5 @@
 import { DateRangeButton } from "@/components/analytics/DateRangeButton";
+import { localToday } from "@/lib/time/local-time";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { ArrowUp, CalendarDays, ChevronDown, Plus, Star, Trash2, X } from "lucide-react";
@@ -132,7 +133,7 @@ function CategorySelect({ categories, value, onChange, className, placeholder }:
 function SessionSheet({ session, trades, start, currency, categories, onClose, onSave }: {
   session: Session | null; trades: Trade[]; start: number; currency?: string; categories: string[]; onClose: () => void; onSave: (v: Partial<Session>) => Promise<void>;
 }) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localToday();
   const [a, setA] = useState(session?.period_start ?? session?.session_date ?? today);
   const [b, setB] = useState(session?.period_end ?? session?.session_date ?? today);
   const [cats, setCats] = useState<Set<string>>(new Set(session?.categories ?? []));

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { localMonth } from "@/lib/time/local-time";
 import { Fragment, useState } from "react";
 import { format, startOfWeek } from "date-fns";
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Minus } from "lucide-react";
@@ -31,7 +32,7 @@ function previousWeekKey(iso: string) {
 function Monthly() {
   const { trades, journal } = useTrades();
   const [expanded, setExpanded] = useState<string[]>([]);
-  const months = [...groupBy(trades, (t) => t.entry_at.slice(0, 7)).entries()].sort(([a], [b]) => b.localeCompare(a));
+  const months = [...groupBy(trades, (t) => localMonth(t.entry_at)).entries()].sort(([a], [b]) => b.localeCompare(a));
   // Every week of the journal, so a week is always compared with the real previous calendar week (even across a month
   // boundary or after a gap), never with whichever earlier week happens to be next in the list.
   const byWeek = groupBy(trades, (t) => isoWeekKey(new Date(t.entry_at)));
