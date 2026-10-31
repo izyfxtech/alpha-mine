@@ -7,7 +7,7 @@ import { computeEdgeFinder, type EdgeCard } from "@/lib/pnl/edge-finder";
  * Cards the user chose to "Ignore" are remembered per journal in this browser.
  */
 export function useEdgeCards() {
-  const { trades, journal } = useTrades({ unfiltered: true });
+  const { trades, journal, flows } = useTrades({ unfiltered: true });
   const { data: lookups } = useLookups(journal?.id);
   const storageKey = journal ? `am.edge-ignored.${journal.id}` : null;
   const [ignored, setIgnored] = useState<string[]>([]);
@@ -24,8 +24,8 @@ export function useEdgeCards() {
     if (!journal) return [];
     const cats = new Map((lookups?.statCategories ?? []).map((c) => [c.id, c.name]));
     const names = new Map((lookups?.statOptions ?? []).map((o) => [o.id, { label: o.label, category: cats.get(o.category_id) ?? "" }]));
-    return computeEdgeFinder(trades, journal.starting_balance, journal.currency || "USD", names);
-  }, [trades, journal, lookups]);
+    return computeEdgeFinder(trades, journal.starting_balance, flows, journal.currency || "USD", names);
+  }, [trades, journal, flows, lookups]);
 
   const visible = cards.filter((c) => c.ready && !ignored.includes(c.id));
   return {

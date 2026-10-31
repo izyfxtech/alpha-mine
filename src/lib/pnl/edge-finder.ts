@@ -1,4 +1,4 @@
-import { computeStats, potentialR, type Trade } from "@/lib/pnl/metrics";
+import { computeStats, equityCurve, potentialR, type Cashflow, type Trade } from "@/lib/pnl/metrics";
 import { complianceReport } from "@/lib/pnl/compliance";
 
 export type Rating = "good" | "ok" | "poor";
@@ -41,21 +41,20 @@ function rrOf(ts: Trade[]) {
 }
 
 /** Return / max-drawdown over the last `days` days (or all trades when null). */
-function riskWindow(all: Trade[], balance: number, days: number | null) {
+function riskWindow(all: Trade[], balance: number, flows: Cashflow[], days: number | null) {
   const last = all.length ? new Date(all[all.length - 1]!.entry_at).getTime() : 0;
   const ts = days == null ? all : all.filter((t) => new Date(t.entry_at).getTime() >= last - days * 864e5);
-  let eq = balance, peak = balance, dd = 0;
-  ts.forEach((t) => { eq += t.net_pnl; peak = Math.max(peak, eq); dd = Math.max(dd, peak ? ((peak - eq) / peak) * 100 : 0); });
+  const dd = Math.max(0, ...equityCurve(ts, balance, flows).map((c) => -c.drawdown));
   const ret = balance ? (sum(ts.map((t) => t.net_pnl)) / balance) * 100 : 0;
   return { n: ts.length, ret, dd, ratio: dd > 0 ? ret / dd : ret > 0 ? Infinity : 0 };
 }
 
-function build(all: Trade[], balance: number, cur: string, optionNames: Map<string, { label: string; category: string }>): EdgeCard[] {
+function build(all: Trade[], balance: number, flows: Cashflow[], cur: string, optionNames: Map<string, { label: string; category: string }>): EdgeCard[] {
   const ts = [...all].sort((a, b) => a.entry_at.localeCompare(b.entry_at));
   const n = ts.length;
   const empty = (id: string, title: string, missing: string): EdgeCard => ({ id, title, text: missing, rating: "ok", score: 0, headline: 0, sections: [], ready: false, missing });
   if (n < MIN_TRADES) return ["profitability", "system-edge", "process", "outlier", "management", "risk", "rules"].map((id, i) => empty(id, ["Profitability", "True System Edge", "Trading Process", "Performance Outlier", "Trade Management", "Risk Management", "Rule Compliance"][i]!, `Needs at least ${MIN_TRADES} trades (you have ${n}).`));
-  const stats = computeStats(ts, balance);
+  const stats = computeStats(ts, balance, flows);
   const wr = (stats.winRate ?? 0), net = sum(ts.map((t) => t.net_pnl));
   const cards: EdgeCard[] = [];
 
@@ -156,11 +155,11 @@ function build(all: Trade[], balance: number, cur: string, optionNames: Map<stri
 
   /* 6. Risk Management */
   {
-    const all_ = riskWindow(ts, balance, null);
+    const all_ = riskWindow(ts, balance, flows, null);
     const ratio = Number.isFinite(all_.ratio) ? all_.ratio : 99;
     const rating: Rating = ratio >= 2 ? "good" : ratio >= 1 ? "ok" : "poor";
     const text = rating === "good" ? "Your return significantly exceeds your drawdowns, showing strong risk-adjusted performance. This supports consistency and long-term growth." : rating === "ok" ? "Your return outweighs your drawdowns, but not by much. Reducing drawdowns would improve your risk-adjusted performance." : "Your drawdowns are as large as or larger than your return. Review position sizing and loss limits.";
-    const periods = ([[7, "Last 7 days"], [30, "Last 30 days"], [180, "Last 180 days"], [365, "Last 365 days"]] as [number, string][]).map(([d, l]) => ({ l, ...riskWindow(ts, balance, d) })).filter((p) => p.n >= 3);
+    const periods = ([[7, "Last 7 days"], [30, "Last 30 days"], [180, "Last 180 days"], [365, "Last 365 days"]] as [number, string][]).map(([d, l]) => ({ l, ...riskWindow(ts, balance, flows, d) })).filter((p) => p.n >= 3);
     cards.push({ id: "risk", title: "Risk Management", text, rating, score: SCORE[rating], headline: ratio, ready: true, sections: [
       { kind: "metric", id: "rd", title: "Return/Drawdown", rating, value: Number.isFinite(all_.ratio) ? all_.ratio.toFixed(2) : "No drawdown", text },
       { kind: "metric", id: "dd", title: "Max Drawdown", rating: all_.dd < 10 ? "good" : all_.dd < 20 ? "ok" : "poor", value: pct(all_.dd, 2), text: all_.dd < 10 ? "Your deepest drop from a peak is shallow. Keep position sizes consistent." : all_.dd < 20 ? "Your deepest drop from a peak is noticeable. Make sure it is within what you planned for." : "Your deepest drop from a peak is large. A drawdown this deep takes a much bigger gain to recover." },
@@ -194,11 +193,11 @@ const trendOf = (now: number, before: number | undefined): Trend | undefined => 
 };
 
 /** Builds the Edge Finder cards. The trend compares each card with the same analysis as of 30 days before the last trade. */
-export function computeEdgeFinder(all: Trade[], balance: number, currency = "USD", optionNames = new Map<string, { label: string; category: string }>()): EdgeCard[] {
-  const now = build(all, balance, currency, optionNames);
+export function computeEdgeFinder(all: Trade[], balance: number, flows: Cashflow[], currency = "USD", optionNames = new Map<string, { label: string; category: string }>()): EdgeCard[] {
+  const now = build(all, balance, flows, currency, optionNames);
   const last = all.reduce((m, t) => Math.max(m, new Date(t.entry_at).getTime()), 0);
   const earlier = all.filter((t) => new Date(t.entry_at).getTime() <= last - days30);
-  const before = earlier.length >= MIN_TRADES ? build(earlier, balance, currency, optionNames) : null;
+  const before = earlier.length >= MIN_TRADES ? build(earlier, balance, flows, currency, optionNames) : null;
   return now.map((c) => {
     const prev = before?.find((p) => p.id === c.id);
     const trend = c.ready && prev?.ready ? trendOf(c.headline, prev.headline) : undefined;

@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { EquityChart, Panel, axis, tooltipStyle, yScale } from "@/components/kit";
-import { useJournal, useTrades } from "@/lib/journal/journal-context";
+import { useJournal, useJournalFlows, useTrades } from "@/lib/journal/journal-context";
 import { useJournalTable } from "@/lib/journal/crud";
 import { computeStats, fmtMoney, fmtNum } from "@/lib/pnl/metrics";
 import { missedMetrics } from "./missed-trades";
@@ -66,7 +66,7 @@ function Analysis() {
   vs.push({ k: "Total", v: +(vs[0].v + vs[1].v).toFixed(2) });
   const selectedCategory = category || categories.rows.find((c) => c.name === "Missed Trades")?.id || categories.rows[0]?.id || "";
   const tagData = options.rows.filter((o) => o.category_id === selectedCategory).map((o) => ({ k: o.label, v: (links.data ?? []).filter((l) => l.option_id === o.id && missed.rows.some((m) => m.id === l.missed_trade_id)).length })).sort((a, b) => b.v - a.v);
-  const s = computeStats(trades, start);
+  const s = computeStats(trades, start, useJournalFlows());
 
   const rows: [string, (b: ReturnType<typeof block>) => string][] = [
     ["Avg. RRR Planned", (b) => fmtNum(b.rrr)], ["Avg. R - Multiple", (b) => fmtNum(b.avgR)], ["Sum. R - Multiple", (b) => fmtNum(b.sumR)],

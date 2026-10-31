@@ -1,9 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { addMonths, format, isSameMonth, setYear, startOfMonth } from "date-fns";
+import { addMonths, endOfMonth, format, isSameMonth, setYear, startOfMonth } from "date-fns";
 import { ChevronDown, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useTrades } from "@/lib/journal/journal-context";
-import { computeStats, fmtMoney, fmtNum, fmtPct } from "@/lib/pnl/metrics";
+import { computeStats, fmtMoney, fmtNum, fmtPct, periodBase } from "@/lib/pnl/metrics";
 import { AccentStat, StatGrid } from "@/components/kit";
 import { ProfitCalendar } from "@/components/analytics/ProfitCalendar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -18,7 +18,7 @@ export const Route = createFileRoute("/_authenticated/reports/calendar")({
 const DISPLAY = ["Return ($)", "Return (%)", "R Multiple"] as const;
 
 function CalendarReport() {
-  const { trades, journal, cashflow } = useTrades();
+  const { trades, all, journal, flows } = useTrades();
   const navigate = useNavigate();
   const { m } = Route.useSearch();
   const [month, setMonth] = useState(() => (m ? startOfMonth(new Date(`${m}-01T00:00:00`)) : startOfMonth(new Date())));
@@ -31,7 +31,8 @@ function CalendarReport() {
     return [...ys].sort();
   }, [trades]);
   const monthTrades = trades.filter((t) => isSameMonth(new Date(t.entry_at), month));
-  const s = computeStats(monthTrades, bal, cashflow);
+  const period = periodBase(all, bal, flows, format(startOfMonth(month), "yyyy-MM-dd"), format(endOfMonth(month), "yyyy-MM-dd"));
+  const s = computeStats(monthTrades, period.base, period.flows);
   const fmt = (pnl: number, r: number, pct: number) => (display === "Return ($)" ? fmtMoney(pnl, cur) : display === "Return (%)" ? fmtPct(pct) : `${fmtNum(r)}R`);
 
   return (

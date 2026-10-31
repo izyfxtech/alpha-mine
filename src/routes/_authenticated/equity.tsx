@@ -19,7 +19,7 @@ const OPTIONS = ["Display Value Without Fees", "Display Tiltmeter", "Moving Aver
 type Opt = (typeof OPTIONS)[number];
 
 function Equity() {
-  const { trades, journal } = useTrades();
+  const { trades, journal, flows } = useTrades();
   const drawer = useTradeDrawer();
   const [display, setDisplay] = useState<Display>("Return ($)");
   const [opts, setOpts] = useState<Set<Opt>>(new Set());
@@ -27,7 +27,7 @@ function Equity() {
   const toggle = (o: Opt) => setOpts((p) => { const n = new Set(p); n.has(o) ? n.delete(o) : n.add(o); return n; });
   const start = journal?.starting_balance ?? 0;
   const cur = journal?.currency ?? "USD";
-  const s = useMemo(() => computeStats(trades, start), [trades, start]);
+  const s = useMemo(() => computeStats(trades, start, flows), [trades, start, flows]);
 
   const data = useMemo<EquityPoint[]>(() => {
     const sorted = [...trades].sort((a, b) => a.entry_at.localeCompare(b.entry_at));

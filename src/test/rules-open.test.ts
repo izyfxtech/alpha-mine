@@ -6,7 +6,7 @@ import { isOpen, type Trade } from "@/lib/pnl/metrics";
 
 const tr = (i: number, net: number, checks: [string, RuleStatus][] = [], extra: Partial<Trade> = {}) => ({
   id: `trade-${i}`, trade_no: i, instrument: "EURUSD", setup: "Retest", direction: "long", trade_type: "Spot", source: "manual", external_id: null, notes: null,
-  entry_at: "2026-10-05T10:00:00Z", exit_at: "2026-10-05T12:00:00Z", entry_price: 100, exit_price: 101, quantity: 10, stop_loss: 99, take_profit: 103, risk_amount: null,
+  entry_at: "2026-10-05T10:00:00Z", exit_at: "2026-10-05T12:00:00Z", entry_price: 100, exit_price: 101, quantity: 10, stop_loss: 99, take_profit: 103, risk_amount: 10,
   net_pnl: net, gross_pnl: net, is_break_even: false, r: net / 10, comments: [],
   ruleChecks: checks.map(([rule_id, status]) => ({ rule_id, status })), ...extra,
 }) as unknown as Trade;

@@ -29,14 +29,14 @@ const CURRENCY_NAMES: Record<string, string> = { USD: "United States Dollar", EU
 const currencyName = (c: string) => CURRENCY_NAMES[c] ?? (() => { try { return new Intl.DisplayNames(["en"], { type: "currency" }).of(c) ?? c; } catch { return c; } })();
 
 function Home() {
-  const { trades, journal, isLoading, cashflow } = useTrades();
+  const { trades, journal, isLoading, flows } = useTrades();
   const qc = useQueryClient();
   const firstName = useProfile().profile?.display_name.trim().split(/\s+/)[0] ?? "";
   const [unit, setUnit] = useState<Unit>("cur");
   const edgeCount = useEdgeInsights().length;
   const calRef = useRef<HTMLElement>(null);
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
-  const s = useMemo(() => computeStats(trades, journal?.starting_balance ?? 0, cashflow), [trades, journal, cashflow]);
+  const s = useMemo(() => computeStats(trades, journal?.starting_balance ?? 0, flows), [trades, journal, flows]);
   const cur = journal?.currency ?? "USD";
   const fmt = (v: number, r?: number | null, pct?: number) =>
     unit === "cur" ? fmtMoney(v, cur) : unit === "pct" ? fmtPct(pct ?? 0) : `${fmtNum(r ?? 0)}R`;

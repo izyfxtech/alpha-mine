@@ -4,10 +4,10 @@ import type { Filters } from "@/lib/journal/journal-context";
 import { useMemo, useState, type ReactNode } from "react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Line, LineChart, ReferenceLine, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis, ComposedChart } from "recharts";
 import { ChevronDown } from "lucide-react";
-import { useLookups, useTrades } from "@/lib/journal/journal-context";
+import { useJournalFlows, useLookups, useTrades } from "@/lib/journal/journal-context";
 import { useTradeDrawer } from "@/components/journal/TradeDrawer";
 import { CHARTS } from "@/lib/nav";
-import { computeStats, fmtMoney, fmtNum, groupBy, isLoss, isWin, potentialR, stdev, type Trade } from "@/lib/pnl/metrics";
+import { computeStats, fmtMoney, fmtNum, groupBy, isLoss, isWin, potentialR, sortinoOf, sqnOf, stdev, type Trade } from "@/lib/pnl/metrics";
 import { AccentStat, Empty, StatGrid, axis, niceTicks, pctScale, seriesValues, tradeAxis, yScale } from "@/components/kit";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
@@ -381,17 +381,17 @@ function Ratios({ trades, start }: { trades: Trade[]; start: number }) {
     let eq = 0, peak = 0, maxDD = 0;
     return s.map((t, i) => {
       const w = s.slice(0, i + 1).map((x) => x.net_pnl);
-      const rs = s.slice(0, i + 1).map((x) => x.r ?? 0);
+      const rs = s.slice(0, i + 1).map((x) => x.r).filter((v): v is number => v != null);
       eq += t.net_pnl; peak = Math.max(peak, eq); maxDD = Math.max(maxDD, peak - eq);
       const m = w.reduce((a, b) => a + b, 0) / w.length;
-      const sd = stdev(w), dsd = stdev(w.filter((x) => x < 0));
+      const sd = stdev(w);
       const gw = w.filter((x) => x > 0).reduce((a, b) => a + b, 0), gl = Math.abs(w.filter((x) => x < 0).reduce((a, b) => a + b, 0));
       const r = (v: number) => (isFinite(v) ? +v.toFixed(3) : null);
       return {
         x: i + 1,
-        "Sharpe Ratio": r(sd ? m / sd : 0), "Sortino Ratio": r(dsd ? m / dsd : 0), "Gain To Pain": r(gl ? (gw - gl) / gl : 0),
+        "Sharpe Ratio": r(sd ? m / sd : 0), "Sortino Ratio": r(sortinoOf(w)), "Gain To Pain": r(gl ? (gw - gl) / gl : 0),
         Calmar: r(maxDD && start ? (eq / start) / (maxDD / start) : 0), "Profit Factor": r(gl ? gw / gl : 0),
-        SQN: r(stdev(rs) ? (rs.reduce((a, b) => a + b, 0) / rs.length / stdev(rs)) * Math.sqrt(Math.min(rs.length, 100)) : 0),
+        SQN: r(sqnOf(rs)),
       };
     });
   }, [trades, start]);
@@ -460,18 +460,17 @@ function RiskDistribution({ trades, start }: { trades: Trade[]; start: number })
 }
 
 function SQN({ trades, start }: { trades: Trade[]; start: number }) {
-  const s = computeStats(trades, start);
+  const s = computeStats(trades, start, useJournalFlows());
   const rate = (q: number) => q < 1.6 ? "Poor" : q < 2 ? "Below average" : q < 2.5 ? "Average" : q < 3 ? "Good" : q < 5 ? "Excellent" : "Superb";
   const rating = rate(s.sqn);
   const bySetup = [...groupBy(trades, (t) => t.setup || "No setup").entries()].map(([k, ts]) => {
-    const rs = ts.map((t) => t.r ?? 0);
-    const avg = rs.reduce((a, x) => a + x, 0) / rs.length;
-    const sd = stdev(rs);
-    return { k, n: ts.length, avg, sqn: sd ? (avg / sd) * Math.sqrt(Math.min(rs.length, 100)) : 0 };
+    const rs = ts.map((t) => t.r).filter((v): v is number => v != null);
+    const avg = rs.length ? rs.reduce((a, x) => a + x, 0) / rs.length : 0;
+    return { k, n: rs.length, avg, sqn: sqnOf(rs) };
   }).sort((a, b) => b.sqn - a.sqn);
   const roll = sorted(trades).map((_, i, arr) => {
-    const w = arr.slice(Math.max(0, i - 29), i + 1).map((t) => t.r ?? 0);
-    return { x: i + 1, v: w.length > 2 && stdev(w) ? +((w.reduce((a, x) => a + x, 0) / w.length / stdev(w)) * Math.sqrt(w.length)).toFixed(2) : 0 };
+    const w = arr.slice(Math.max(0, i - 29), i + 1).map((t) => t.r).filter((v): v is number => v != null);
+    return { x: i + 1, v: w.length > 2 ? +sqnOf(w).toFixed(2) : 0 };
   });
   return (
     <div className="space-y-4">
@@ -496,7 +495,7 @@ function SQN({ trades, start }: { trades: Trade[]; start: number }) {
             <tr key={g.k} className="border-b last:border-0">
               <td className="px-4 py-2">{g.k}</td><td className="px-4 py-2">{g.n}</td><td className="px-4 py-2">{fmtNum(g.avg)}R</td>
               <td className={cn("px-4 py-2 font-semibold", g.sqn < 0 ? "text-loss" : g.sqn >= 2 ? "text-profit" : "")}>{g.n > 1 ? fmtNum(g.sqn) : "–"}</td>
-              <td className="px-4 py-2 text-muted-foreground">{g.n > 1 ? rate(g.sqn) : "Need 2+ trades"}</td>
+              <td className="px-4 py-2 text-muted-foreground">{g.n > 1 ? rate(g.sqn) : "Need 2+ trades with R"}</td>
             </tr>
           ))}</tbody>
         </table>
@@ -602,7 +601,8 @@ function Compare({ trades, cur, start }: { trades: Trade[]; cur: string; start: 
     A: i < gA.length ? +gA.slice(0, i + 1).reduce((s, t) => s + t.net_pnl, 0).toFixed(2) : null,
     B: i < gB.length ? +gB.slice(0, i + 1).reduce((s, t) => s + t.net_pnl, 0).toFixed(2) : null,
   }));
-  const sA = computeStats(gA, start), sB = computeStats(gB, start);
+  const flows = useJournalFlows();
+  const sA = computeStats(gA, start, flows), sB = computeStats(gB, start, flows);
   const rows: [string, (s: typeof sA) => string][] = [
     ["Trades", (s) => String(s.count)], ["Net Return", (s) => fmtMoney(s.net, cur)], ["Winrate", (s) => `${s.winRate.toFixed(2)}%`],
     ["Profit Factor", (s) => (Number.isFinite(s.profitFactor) ? s.profitFactor.toFixed(2) : "∞")], ["Avg. P&L", (s) => fmtMoney(s.avgPnl, cur)],
