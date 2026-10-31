@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
+import { sweepStorage } from "@/lib/media/sweep-storage";
 import { activeFilterCount, useJournal, useTrades } from "@/lib/journal/journal-context";
 import type { Trade } from "@/lib/pnl/metrics";
 import { fmtNum, isOpen } from "@/lib/pnl/metrics";
@@ -124,33 +125,31 @@ function JournalPage() {
 
   async function del() {
     if (!confirm(`Delete ${sel.size} trade(s)?`)) return;
-    await supabase.from("trades").delete().in("id", [...sel]);
-    setSel(new Set()); qc.invalidateQueries(); toast.success("Deleted");
+    const { error } = await supabase.from("trades").delete().in("id", [...sel]);
+    if (error) return toast.error(error.message);
+    sweepStorage(); setSel(new Set()); qc.invalidateQueries(); toast.success("Deleted");
   }
   async function dup() {
     const rows = chosen.map((t) => ({
       journal_id: t.journal_id, instrument_id: t.instrument_id, setup_id: t.setup_id, direction: t.direction, trade_type: t.trade_type,
       entry_at: t.entry_at, exit_at: t.exit_at, entry_price: t.entry_price, exit_price: t.exit_price, quantity: t.quantity, stop_loss: t.stop_loss,
-      take_profit: t.take_profit, gross_pnl: t.gross_pnl, fees: t.fees, net_pnl: t.net_pnl, risk_amount: t.risk_amount, notes: t.notes,
+      take_profit: t.take_profit, high_price: t.high_price, low_price: t.low_price, otp_hit: t.otp_hit, is_favorite: t.is_favorite,
+      gross_pnl: t.gross_pnl, fees: t.fees, net_pnl: t.net_pnl, risk_amount: t.risk_amount, notes: t.notes,
       // keep imported P&L as it is (otherwise the auto-P&L trigger would recompute it from prices) but never copy external_id: it must stay unique
       pnl_manual: t.pnl_manual, is_break_even: t.is_break_even, commission: t.commission, swap: t.swap, raw_symbol: t.raw_symbol,
     }));
-    await supabase.from("trades").insert(rows);
+    const { error } = await supabase.from("trades").insert(rows);
+    if (error) return toast.error(error.message);
     setSel(new Set()); qc.invalidateQueries(); toast.success("Duplicated");
   }
   async function merge() {
     const ts = [...chosen].sort((a, b) => a.entry_at.localeCompare(b.entry_at));
     if (new Set(ts.map((t) => t.instrument_id)).size > 1 || new Set(ts.map((t) => t.direction)).size > 1) return toast.error("Merge needs same instrument and direction");
-    const qty = ts.reduce((a, t) => a + t.quantity, 0);
-    const wavg = (k: "entry_price" | "exit_price") => ts.reduce((a, t) => a + (Number(t[k]) || 0) * t.quantity, 0) / qty;
-    const first = ts[0];
-    await supabase.from("trades").update({
-      quantity: qty, entry_price: wavg("entry_price"), exit_price: wavg("exit_price"),
-      exit_at: ts.map((t) => t.exit_at).filter(Boolean).sort().pop() ?? null,
-      gross_pnl: ts.reduce((a, t) => a + t.gross_pnl, 0), fees: ts.reduce((a, t) => a + t.fees, 0), net_pnl: ts.reduce((a, t) => a + t.net_pnl, 0),
-    }).eq("id", first.id);
-    await supabase.from("trades").delete().in("id", ts.slice(1).map((t) => t.id));
-    setSel(new Set()); qc.invalidateQueries(); toast.success("Merged");
+    // One atomic server-side call: sums money, concatenates notes, moves comments, tags, rules, legs and screenshots to the
+    // surviving trade, and remembers merged-away broker tickets so a re-import does not bring them back.
+    const { error } = await supabase.rpc("merge_trades", { _ids: ts.map((t) => t.id) });
+    if (error) return toast.error(error.message);
+    sweepStorage(); setSel(new Set()); qc.invalidateQueries(); toast.success("Merged");
   }
   async function toggleFav(t: Trade) {
     await supabase.from("trades").update({ is_favorite: !t.is_favorite }).eq("id", t.id);

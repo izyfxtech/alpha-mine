@@ -96,7 +96,7 @@ const DEFAULT_STATS: [string, string[]][] = [
   ["Missed Trades", ["Process", "Sleep", "Couldnt trade"]],
 ];
 
-export async function createJournal(name: string, startingBalance = 10000, currency = "USD", extra: { markets?: string[]; deposit_date?: string | null; trade_type?: string; broker?: string | null } = {}) {
+export async function createJournal(name: string, startingBalance = 10000, currency = "USD", extra: { markets?: string[]; deposit_date?: string | null; trade_type?: string; broker?: string | null; quantity_unit?: "lots" | "units" | null } = {}) {
   const { data, error } = await supabase
     .from("journals")
     .insert({ name, starting_balance: startingBalance, currency, ...extra })

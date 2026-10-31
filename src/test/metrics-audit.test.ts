@@ -73,3 +73,33 @@ describe("period reports use the balance at the start of their own period (AM-X0
     expect(computeStats([all[1]!], p.base, p.flows).roi).toBeCloseTo((300 / 20500) * 100, 6);
   });
 });
+
+import { keepStoredGross, resolveGross } from "@/lib/pnl/trade-form";
+describe("trade form P&L ownership (AM-H03)", () => {
+  const base = { open: false, breakEven: false, touched: false, typed: "", auto: 20, wasManual: false };
+  it("a calculated P&L stays calculated: editing prices recalculates instead of freezing the old figure", () => {
+    expect(resolveGross({ ...base })).toEqual({ gross: 20, manual: false });
+    // an existing calculated trade is not 'touched' on open, so a price edit (auto 20 -> 35) follows the prices
+    expect(keepStoredGross({ exit_price: 110, pnl_manual: false }, "units")).toBe(false);
+    expect(resolveGross({ ...base, auto: 35 })).toEqual({ gross: 35, manual: false });
+  });
+  it("a typed P&L that differs from the calculation is the trader's: the database must not recompute it", () => {
+    expect(resolveGross({ ...base, touched: true, typed: "62" })).toEqual({ gross: 62, manual: true });
+  });
+  it("typing exactly the calculated figure stays automatic", () => {
+    expect(resolveGross({ ...base, touched: true, typed: "20" })).toEqual({ gross: 20, manual: false });
+  });
+  it("lots, or a journal without a unit: nothing is calculated, so what is typed is kept and manual", () => {
+    expect(resolveGross({ ...base, auto: null, touched: true, typed: "62" })).toEqual({ gross: 62, manual: true });
+    expect(keepStoredGross({ exit_price: 1.09, pnl_manual: false }, "lots")).toBe(true);
+    expect(keepStoredGross({ exit_price: 1.09, pnl_manual: false }, null)).toBe(true);
+  });
+  it("an already manual or imported P&L stays manual and is kept when the trade is reopened", () => {
+    expect(keepStoredGross({ exit_price: 110, pnl_manual: true }, "units")).toBe(true);
+    expect(resolveGross({ ...base, touched: true, typed: "20", wasManual: true }).manual).toBe(true);
+  });
+  it("open and break-even trades are 0 and keep whatever ownership they had", () => {
+    expect(resolveGross({ ...base, open: true, wasManual: true })).toEqual({ gross: 0, manual: true });
+    expect(resolveGross({ ...base, breakEven: true })).toEqual({ gross: 0, manual: false });
+  });
+});

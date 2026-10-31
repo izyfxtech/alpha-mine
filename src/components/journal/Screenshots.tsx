@@ -1,4 +1,5 @@
 import { compressImage } from "@/lib/media/compress-image";
+import { sweepStorage } from "@/lib/media/sweep-storage";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Lightbox } from "@/components/journal/Lightbox";
@@ -48,9 +49,11 @@ export async function saveShots(journalId: string, tradeId: string, items: { fil
   }
 }
 
+/** Deletes the row; the database queues the file and the Storage API sweep removes it (see sweep-storage). */
 export async function deleteShot(s: Pick<Shot, "id" | "path">) {
-  if (!isExternal(s.path)) await supabase.storage.from("screenshots").remove([s.path]);
-  await supabase.from("trade_screenshots").delete().eq("id", s.id);
+  const { error } = await supabase.from("trade_screenshots").delete().eq("id", s.id);
+  if (error) throw error;
+  if (!isExternal(s.path)) sweepStorage();
 }
 
 export function TradeScreenshots({ journalId, tradeId }: { journalId: string; tradeId?: string }) {
@@ -74,7 +77,7 @@ export function TradeScreenshots({ journalId, tradeId }: { journalId: string; tr
     qc.invalidateQueries({ queryKey: ["screenshots"] });
   }
   async function remove(s: Shot) {
-    await deleteShot(s);
+    try { await deleteShot(s); } catch (e) { return void toast.error((e as Error).message); }
     qc.invalidateQueries({ queryKey: ["screenshots"] });
   }
 
