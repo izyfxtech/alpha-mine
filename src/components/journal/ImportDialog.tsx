@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -8,6 +8,7 @@ import { useJournal } from "@/lib/journal/journal-context";
 import { seedDemoTrades } from "@/lib/journal/demo";
 import { fillsToTrades, type RawFill } from "@/lib/import/fills-import";
 import { FIELDS, detectHeaderRow, looksLikeFills, parseCsv, suggestMapping } from "@/lib/import/csv-mapping";
+import { buildCsvTrades, detectDateOrder, detectDecimal, type CsvZone, type DateOrder, type Decimal } from "@/lib/import/csv-rows";
 import { auditJournalPnl } from "@/lib/pnl/pnl-audit";
 import { parseMtReport, type MtReport } from "@/lib/import/mt/parse-report";
 import { checkCompatibility, summarize, toImportPayload } from "@/lib/import/mt/to-trades";
@@ -33,6 +34,9 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   const [tzKey, setTzKey] = useState("ny-close");
   const [withCash, setWithCash] = useState(false);
   const [asFills, setAsFills] = useState(false);
+  const [dateOrder, setDateOrder] = useState<"auto" | DateOrder>("auto");
+  const [csvZone, setCsvZone] = useState<CsvZone>("utc");
+  const [decimalChoice, setDecimalChoice] = useState<"auto" | Decimal>("auto");
 
   async function onFile(file: File) {
     if (/\.(html?|xlsx)$/i.test(file.name)) {
@@ -56,42 +60,62 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
     setAsFills(looksLikeFills(auto));
   }
 
+  /** Date order and decimal separator, from the user's choice or from the whole file. null = the file cannot say. */
+  function formats() {
+    if (!csv) return { order: null, decimal: null };
+    const col = (r: string[], f: string) => (map[f] ? r[csv.header.indexOf(map[f])] : undefined);
+    const detected = detectDateOrder(csv.rows.flatMap((r) => [col(r, "entry_at"), col(r, "exit_at")]).filter((v): v is string => !!v));
+    const order = dateOrder !== "auto" ? dateOrder : detected === "ambiguous" ? null : (detected ?? "dmy");
+    const numeric = ["entry_price", "exit_price", "quantity", "gross_pnl", "net_pnl", "fees", "stop_loss", "take_profit"];
+    const found = detectDecimal(csv.rows.flatMap((r) => numeric.map((f) => col(r, f))));
+    const decimal = decimalChoice !== "auto" ? decimalChoice : found === "ambiguous" ? null : found;
+    return { order, decimal };
+  }
+  // The first rows as they will be saved, so a wrong date order, time zone or decimal separator is visible BEFORE import.
+  const preview = useMemo(() => {
+    if (!csv || asFills || mt) return null;
+    const { order, decimal } = formats();
+    if (!order || !decimal) return null;
+    return buildCsvTrades(csv.rows.slice(0, 3), csv.header, map, { journalId: journal?.id ?? "", order, zone: csvZone, decimal, instrumentId: () => null, setupId: () => null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [csv, map, dateOrder, csvZone, decimalChoice, asFills, mt, journal?.id]);
+
   async function run() {
     if (!csv || !journal) return;
+    const col = (r: string[], f: string) => (map[f] ? r[csv.header.indexOf(map[f])] : undefined);
+    const { order, decimal } = formats();
+    if (!order) return toast.error("These dates could be day/month or month/day. Choose the date format below.");
+    if (!decimal) return toast.error("Numbers like 1,234 could be one thousand or 1.234. Choose the number format below.");
     setBusy(true);
     try {
-      const col = (r: string[], f: string) => (map[f] ? r[csv.header.indexOf(map[f])] : undefined);
-      const { data: ins } = await supabase.from("instruments").select("id,symbol").eq("journal_id", journal.id);
-      const im = new Map((ins ?? []).map((i) => [i.symbol, i.id]));
-      const newSyms = [...new Set(csv.rows.map((r) => col(r, "instrument")).filter((s): s is string => !!s && !im.has(s)))];
-      if (newSyms.length) {
-        const { data } = await supabase.from("instruments").insert(newSyms.map((symbol) => ({ symbol, journal_id: journal.id }))).select("id,symbol");
-        data?.forEach((i) => im.set(i.symbol, i.id));
+      const ensure = async (table: "instruments" | "setups", column: "symbol" | "name", names: (string | undefined)[]) => {
+        const { data: have, error } = await supabase.from(table).select(`id,${column}`).eq("journal_id", journal.id);
+        if (error) throw error;
+        const named = (x: unknown) => x as Record<string, string>;
+        const ids = new Map<string, string>((have ?? []).map((x) => [named(x)[column]!, named(x).id!]));
+        const fresh = [...new Set(names.filter((n): n is string => !!n && !ids.has(n)))];
+        if (fresh.length) {
+          const { data, error: e2 } = await supabase.from(table).insert(fresh.map((n) => ({ [column]: n, journal_id: journal.id })) as never).select(`id,${column}`);
+          if (e2) throw e2;
+          data?.forEach((x) => ids.set(named(x)[column]!, named(x).id!));
+        }
+        return ids;
+      };
+      const im = await ensure("instruments", "symbol", csv.rows.map((r) => col(r, "instrument")));
+      const sm = map.setup ? await ensure("setups", "name", csv.rows.map((r) => col(r, "setup"))) : new Map<string, string>();
+      const { trades, skipped, warnings } = buildCsvTrades(csv.rows, csv.header, map, { journalId: journal.id, order, zone: csvZone, decimal, instrumentId: (s) => im.get(s) ?? null, setupId: (s) => sm.get(s) ?? null });
+      if (!trades.length) throw new Error(skipped.length ? `Nothing could be imported. Row ${skipped[0]!.row}: ${skipped[0]!.reason}` : "The file has no rows to import.");
+      // Re-importing the same file skips what is already there (external_id is derived from the row's content).
+      let inserted = 0;
+      for (let i = 0; i < trades.length; i += 500) {
+        const { data, error } = await supabase.from("trades").upsert(trades.slice(i, i + 500), { onConflict: "journal_id,external_id", ignoreDuplicates: true }).select("id");
+        if (error) throw error;
+        inserted += data?.length ?? 0;
       }
-      const n = (v?: string) => (v == null || v === "" ? null : Number(v));
-      const rows = csv.rows.filter((r) => col(r, "entry_at") && col(r, "entry_price")).map((r) => {
-        const gross = n(col(r, "gross_pnl")) ?? n(col(r, "net_pnl")) ?? 0;
-        const fees = n(col(r, "fees")) ?? 0;
-        const d = (col(r, "direction") ?? "long").toLowerCase();
-        return {
-          journal_id: journal.id,
-          instrument_id: im.get(col(r, "instrument") ?? "") ?? null,
-          direction: d.startsWith("s") || d === "sell" ? "short" : "long",
-          entry_at: new Date(col(r, "entry_at")!).toISOString(),
-          exit_at: col(r, "exit_at") ? new Date(col(r, "exit_at")!).toISOString() : null,
-          entry_price: Number(col(r, "entry_price")),
-          exit_price: n(col(r, "exit_price")),
-          quantity: n(col(r, "quantity")) ?? 1,
-          stop_loss: n(col(r, "stop_loss")),
-          take_profit: n(col(r, "take_profit")),
-          gross_pnl: gross,
-          fees,
-          net_pnl: n(col(r, "net_pnl")) ?? gross - fees,
-        };
-      });
-      const { error } = await supabase.from("trades").insert(rows);
-      if (error) throw error;
-      toast.success(`Imported ${rows.length} trades`);
+      const dupes = trades.length - inserted;
+      toast.success(`Imported ${inserted} trades${dupes ? `, ${dupes} already imported` : ""}`);
+      if (warnings.length) toast.warning(`${warnings.length} rows need a look`, { description: warnings.slice(0, 3).map((w) => `Row ${w.row}: ${w.reason}`).join("\n") });
+      if (skipped.length) toast.warning(`${skipped.length} rows skipped`, { description: skipped.slice(0, 5).map((s) => `Row ${s.row}: ${s.reason}`).join("\n") + (skipped.length > 5 ? `\n…and ${skipped.length - 5} more` : "") });
       qc.invalidateQueries();
       setCsv(null);
       onOpenChange(false);
@@ -233,6 +257,44 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
                 </select>
               </label>
             ))}
+          </div>
+        )}
+        {csv && !asFills && (
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground">number format</span>
+              <select className="h-8 rounded-md border bg-background px-2" value={decimalChoice} onChange={(e) => setDecimalChoice(e.target.value as "auto" | Decimal)}>
+                <option value="auto">Detect from the file</option>
+                <option value=".">1,234.50 (dot is the decimal)</option>
+                <option value=",">1.234,50 (comma is the decimal)</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground">date format</span>
+              <select className="h-8 rounded-md border bg-background px-2" value={dateOrder} onChange={(e) => setDateOrder(e.target.value as "auto" | DateOrder)}>
+                <option value="auto">Detect from the file</option>
+                <option value="dmy">Day / month / year</option>
+                <option value="mdy">Month / day / year</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground">times without a time zone are in</span>
+              <select className="h-8 rounded-md border bg-background px-2" value={csvZone} onChange={(e) => setCsvZone(e.target.value as CsvZone)}>
+                <option value="utc">UTC</option>
+                <option value="local">This browser's time zone</option>
+              </select>
+            </label>
+          </div>
+        )}
+        {csv && !asFills && !mt && (
+          <div className="rounded-md border p-2 text-xs">
+            {preview ? (
+              <>
+                <p className="mb-1 text-muted-foreground">First rows as they will be saved (check the dates and prices):</p>
+                {preview.trades.map((t, i) => <p key={i} className="tabular">{t.entry_at.replace("T", " ").slice(0, 16)} UTC · {t.direction} · {t.entry_price}{t.exit_price != null ? ` to ${t.exit_price}` : ""} · qty {t.quantity} · P/L {t.gross_pnl} · fees {t.fees}</p>)}
+                {preview.skipped.slice(0, 2).map((x) => <p key={x.row} className="text-loss">Row {x.row}: {x.reason}</p>)}
+              </>
+            ) : <p className="text-muted-foreground">Choose the date and number format above to see how the first rows will be read.</p>}
           </div>
         )}
         <div className="flex justify-between gap-2">
