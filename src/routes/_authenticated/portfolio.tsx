@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { addMonths, format, startOfMonth } from "date-fns";
 import { ArrowDown, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { fetchAllRows, fetchTrades, useJournal } from "@/lib/journal/journal-context";
+import { countOption } from "@/lib/journal/fetch-all";
 import { supabase } from "@/integrations/supabase/client";
 import { bucketPerformance, computeStats, fmtNum, fmtPct, groupPerformance, MONTHS, WEEKDAYS, type Trade } from "@/lib/pnl/metrics";
 import { EquityChart, Panel, PnlBars, Stat } from "@/components/kit";
@@ -34,7 +35,7 @@ function Portfolio() {
   const { data: allFlows = [] } = useQuery({
     queryKey: ["journal_cashflows", "portfolio", ids],
     enabled: ids.length > 0,
-    queryFn: () => fetchAllRows<{ id: string; journal_id: string; occurred_on: string; amount: number }>((from, to) => supabase.from("journal_cashflows").select("id,journal_id,occurred_on,amount", { count: "exact" }).in("journal_id", ids).order("id").range(from, to) as never),
+    queryFn: () => fetchAllRows<{ id: string; journal_id: string; occurred_on: string; amount: number }>((from, to, first) => supabase.from("journal_cashflows").select("id,journal_id,occurred_on,amount", countOption(first)).in("journal_id", ids).order("id").range(from, to) as never),
   });
   // Portfolio works in % of each journal's own balance before the trade (deposits included), so different currencies and
   // sizes compare fairly. A journal with no balance has no meaningful % and contributes 0 instead of a made-up 1.

@@ -197,35 +197,19 @@ export function useLookups(journalId?: string) {
   });
 }
 
-const PAGE = 1000;
-
-/**
- * Loads every row of a query. PostgREST caps each response at the project's Max Rows setting (1000 by default)
- * whatever `.limit()` says, so a plain select silently drops everything past it. This pages with `.range()` and stops
- * on the exact row count, so it is correct for any Max Rows value. The query must have a total order (a unique
- * tiebreaker) or rows can repeat or go missing between pages.
- */
-export async function fetchAllRows<T>(page: (from: number, to: number) => PromiseLike<{ data: T[] | null; count: number | null; error: { message: string } | null }>): Promise<T[]> {
-  const out: T[] = [];
-  for (let from = 0; ; from += PAGE) {
-    const { data, count, error } = await page(from, from + PAGE - 1);
-    if (error) throw error;
-    const rows = data ?? [];
-    out.push(...rows);
-    if (rows.length === 0 || (count != null && out.length >= count)) return out;
-  }
-}
+import { countOption, fetchAllRows } from "./fetch-all";
+export { fetchAllRows };
 
 export async function fetchTrades(journalIds: string[]): Promise<Trade[]> {
   if (!journalIds.length) return [];
   const all = <T,>(table: string, cols: string, order: string[]) =>
-    fetchAllRows<T>((from, to) => {
-      let q = supabase.from(table as never).select(cols, { count: "exact" }).in("journal_id", journalIds);
+    fetchAllRows<T>((from, to, first) => {
+      let q = supabase.from(table as never).select(cols, countOption(first)).in("journal_id", journalIds);
       for (const o of order) q = q.order(o, { ascending: true });
       return q.range(from, to) as never;
     });
   const [t, i, s, tc, cd, cs, jr, cf, rc] = await Promise.all([
-    fetchAllRows<TradeRow>((from, to) => supabase.from("trades").select("*", { count: "exact" }).in("journal_id", journalIds).order("entry_at", { ascending: false }).order("id").range(from, to) as never).then((data) => ({ data, error: null })),
+    fetchAllRows<TradeRow>((from, to, first) => supabase.from("trades").select("*", countOption(first)).in("journal_id", journalIds).order("entry_at", { ascending: false }).order("id").range(from, to) as never).then((data) => ({ data, error: null })),
     all<{ id: string; symbol: string }>("instruments", "id,symbol", ["id"]).then((data) => ({ data })),
     all<{ id: string; name: string }>("setups", "id,name", ["id"]).then((data) => ({ data })),
     all<{ trade_id: string; comment_definition_id: string }>("trade_comments", "*", ["trade_id", "comment_definition_id"]).then((data) => ({ data })),

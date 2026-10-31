@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { countOption, fetchAllRows } from "@/lib/journal/fetch-all";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -38,7 +39,7 @@ const dt = (iso?: string | null) => (iso ? iso.slice(0, 16).replace("T", " ") : 
 function MissedTrades() {
   const { journal } = useJournal();
   const qc = useQueryClient();
-  const { data: statLinks = [] } = useQuery({ queryKey: ["missed_trade_custom_stats", journal?.id], enabled: !!journal, queryFn: async () => { const { data, error } = await supabase.from("missed_trade_custom_stats").select("missed_trade_id,option_id").eq("journal_id", journal?.id ?? ""); if (error) throw error; return data; } });
+  const { data: statLinks = [] } = useQuery({ queryKey: ["missed_trade_custom_stats", journal?.id], enabled: !!journal, queryFn: () => fetchAllRows<{ missed_trade_id: string; option_id: string }>((from, to, first) => supabase.from("missed_trade_custom_stats").select("missed_trade_id,option_id", countOption(first)).eq("journal_id", journal?.id ?? "").order("missed_trade_id").order("option_id").range(from, to) as never) });
   const { data: lk0 } = useLookups(journal?.id);
   const cats = lk0?.statCategories ?? [];
   const optionLabel = (id: string, catId: string) => (lk0?.statOptions ?? []).filter((o) => o.category_id === catId && statLinks.some((l) => l.missed_trade_id === id && l.option_id === o.id)).map((o) => o.label).join(", ");

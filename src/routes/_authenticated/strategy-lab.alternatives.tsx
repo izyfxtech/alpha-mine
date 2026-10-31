@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { countOption, fetchAllRows } from "@/lib/journal/fetch-all";
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2, X } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -38,9 +39,8 @@ function useResults(journalId?: string) {
     queryKey: ["alt_strategy_results", journalId],
     enabled: !!journalId,
     queryFn: async () => {
-      const { data, error } = await supabase.from("alt_strategy_results").select("strategy_id,trade_id,alt_profit,alt_r").eq("journal_id", journalId!);
-      if (error) throw error;
-      return (data ?? []).map((r) => ({ ...r, alt_profit: Number(r.alt_profit), alt_r: Number(r.alt_r) })) as Result[];
+      const data = await fetchAllRows<{ strategy_id: string; trade_id: string; alt_profit: number; alt_r: number }>((from, to, first) => supabase.from("alt_strategy_results").select("strategy_id,trade_id,alt_profit,alt_r", countOption(first)).eq("journal_id", journalId!).order("strategy_id").order("trade_id").range(from, to) as never);
+      return data.map((r) => ({ ...r, alt_profit: Number(r.alt_profit), alt_r: Number(r.alt_r) })) as Result[];
     },
   });
 }

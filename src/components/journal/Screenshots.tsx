@@ -1,4 +1,5 @@
 import { compressImage } from "@/lib/media/compress-image";
+import { countOption, fetchAllRows } from "@/lib/journal/fetch-all";
 import { sweepStorage } from "@/lib/media/sweep-storage";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -6,6 +7,7 @@ import { Lightbox } from "@/components/journal/Lightbox";
 import { ImagePlus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
 
 export interface Shot { id: string; trade_id: string | null; missed_trade_id: string | null; planned_trade_id: string | null; path: string; caption: string | null; url: string }
@@ -16,10 +18,11 @@ export function useScreenshots(journalId?: string, tradeId?: string) {
     queryKey: ["screenshots", journalId, tradeId ?? "all"],
     enabled: !!journalId && tradeId !== "__none__",
     queryFn: async (): Promise<Shot[]> => {
-      let q = supabase.from("trade_screenshots").select("*").eq("journal_id", journalId!).order("created_at", { ascending: false });
-      if (tradeId) q = q.eq("trade_id", tradeId);
-      const { data, error } = await q;
-      if (error) throw error;
+      const data = await fetchAllRows<Database["public"]["Tables"]["trade_screenshots"]["Row"]>((from, to, first) => {
+        let q = supabase.from("trade_screenshots").select("*", countOption(first)).eq("journal_id", journalId!).order("created_at", { ascending: false }).order("id");
+        if (tradeId) q = q.eq("trade_id", tradeId);
+        return q.range(from, to) as never;
+      });
       if (!data.length) return [];
       const stored = data.filter((d) => !isExternal(d.path));
       const { data: signed } = stored.length ? await supabase.storage.from("screenshots").createSignedUrls(stored.map((d) => d.path), 3600) : { data: [] };

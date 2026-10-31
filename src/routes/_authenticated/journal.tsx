@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { countOption, fetchAllRows } from "@/lib/journal/fetch-all";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useFillViewport } from "@/lib/use-fill-viewport";
 import { useQueryClient } from "@tanstack/react-query";
@@ -297,8 +298,8 @@ function useScreenshotTradeIds(journalId?: string) {
     queryKey: ["screenshot-ids", journalId],
     enabled: !!journalId,
     queryFn: async () => {
-      const { data } = await supabase.from("trade_screenshots").select("trade_id").eq("journal_id", journalId!);
-      return new Set((data ?? []).map((r) => r.trade_id as string));
+      const data = await fetchAllRows<{ id: string; trade_id: string | null }>((from, to, first) => supabase.from("trade_screenshots").select("id,trade_id", countOption(first)).eq("journal_id", journalId!).order("id").range(from, to) as never);
+      return new Set(data.map((r) => r.trade_id as string));
     },
   });
   return data ?? new Set<string>();
