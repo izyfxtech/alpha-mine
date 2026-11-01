@@ -5,3 +5,6 @@ minimumReleaseAge: 0
 permissions:
   '@tanstack/react-start':
     skills: true
+skills:
+  dirs:
+    - .claude/skills

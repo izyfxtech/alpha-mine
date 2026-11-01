@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { localDay } from "@/lib/time/local-time";
 import { useMemo, useState } from "react";
 import { useTrades } from "@/lib/journal/journal-context";
 import { computeStats, fmtMoney, fmtNum } from "@/lib/pnl/metrics";
@@ -36,7 +37,7 @@ function Equity() {
     if (has("Group Trades by Day")) {
       const m = new Map<string, Row>();
       sorted.forEach((t) => {
-        const k = t.entry_at.slice(0, 10);
+        const k = localDay(t.entry_at);
         const p = m.get(k) ?? { pnl: 0, gross: 0, r: 0, tilt: 0, label: k, n: 0 };
         p.pnl += t.net_pnl; p.gross += t.net_pnl + t.fees; p.r += t.r ?? 0; p.tilt += t.tilt; p.n++;
         m.set(k, p);

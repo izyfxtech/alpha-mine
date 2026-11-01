@@ -1,4 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { fmtPrice } from "@/lib/pnl/format-price";
+import { fromInputValue, toInputValue } from "@/lib/time/local-time";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { CalendarDays, ChevronLeft, ChevronRight, Plus, Settings, Star, X } from "lucide-react";
@@ -11,6 +13,7 @@ import { COMPLIANCE_LABEL, type RuleStatus } from "@/lib/pnl/compliance";
 import { isOpen, type Trade } from "@/lib/pnl/metrics";
 import { cn } from "@/lib/utils";
 import { keepStoredGross, resolveGross } from "@/lib/pnl/trade-form";
+import { auditTrades } from "@/lib/pnl/pnl-audit";
 import { useScreenshots, saveShots, deleteShot, type Shot } from "@/components/journal/Screenshots";
 import { FloatInput, FloatSelect, Segmented, SectionTitle, type Opt } from "@/components/journal/trade-form/fields";
 import { ScreenshotSlots, type PendingShot } from "@/components/journal/trade-form/ScreenshotSlots";
@@ -24,15 +27,8 @@ export const useTradeDrawer = () => {
 };
 
 type Leg = { price: string; qty: string };
-const pad = (n: number) => String(n).padStart(2, "0");
-/** ISO instant to the value of a datetime-local input, in the browser's zone AT THAT DATE (DST-correct), seconds kept. */
-const local = (iso?: string | null) => {
-  if (!iso) return "";
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-};
-/** The stored instant when the field was not edited (so a note change never moves a broker time), else the typed one. */
-const instant = (typed: string, original?: string | null) => (original && typed === local(original) ? original : new Date(typed).toISOString());
+const local = toInputValue;
+const instant = fromInputValue;
 const price = (v: number) => +v.toFixed(10);
 const num = (v: string) => (v.trim() === "" ? null : Number(v));
 const isNum = (v: string) => v.trim() !== "" && Number.isFinite(Number(v));
@@ -290,6 +286,10 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
       for (const s of removed) await deleteShot(s);
       await saveShots(journal.id, id, pending);
       toast.success(trade ? "Trade updated" : "Trade added");
+      // Planned risk (and so the R-multiple) for forex, metals and other lot-based trades comes from the P&L engine, which
+      // knows contract sizes, pip values and currency conversion. Ask it for this one trade now; the page refreshes when it
+      // answers. Never blocks or fails the save.
+      if (journal.quantity_unit && !stillOpen && isNum(f.stop_loss)) auditTrades(journal.id, [id]).then(() => qc.invalidateQueries(), () => undefined);
       if (onSaved) await onSaved();
       qc.invalidateQueries();
       setOpen(false);
@@ -391,7 +391,7 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
                 </div>
                 {(extraEntries.length > 0 || extraExits.length > 0) && avgEntry != null && (
                   <p className="mt-2 text-[11.5px] text-muted-foreground tabular">
-                    Avg entry {avgEntry.toFixed(4)} · size {totalQty}{avgExit != null && ` · avg exit ${avgExit.toFixed(4)}`}
+                    Avg entry {fmtPrice(avgEntry)} · size {totalQty}{avgExit != null && ` · avg exit ${fmtPrice(avgExit)}`}
                   </p>
                 )}
                 {vis("notes") && (

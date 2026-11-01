@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { localDateTime, localToday } from "@/lib/time/local-time";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Folder, FolderOpen, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,7 @@ export const Route = createFileRoute("/_authenticated/diary/notebook")({
 });
 
 const ALL = "__all__";
-const fmtStamp = (iso: string) => new Date(iso).toISOString().slice(0, 16).replace("T", " ");
+const fmtStamp = (iso: string) => localDateTime(iso);
 
 function Notebook() {
   const { journal } = useJournal();
@@ -52,7 +53,7 @@ function Notebook() {
   const addNote = async () => {
     const target = folder === ALL ? names[0] ?? "Diary" : folder;
     if (!names.includes(target)) await folders.insert({ name: target, position: 0 });
-    const today = new Date().toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+    const today = localToday();
     const r = await pages.insert({ folder: target, title: today, content: "" });
     if (r) setSel(r.id);
   };
@@ -107,7 +108,7 @@ function Notebook() {
             <>
               <div className="mb-3 flex items-center gap-2">
                 <input value={title} onChange={(e) => setTitle(e.target.value)} className="flex-1 bg-transparent text-[16px] font-bold outline-none" />
-                <Button variant="ghost" size="icon" onClick={() => { pages.remove(page.id); setSel(null); }} title="Delete note"><Trash2 className="h-4 w-4" /></Button>
+                <Button variant="ghost" size="icon" onClick={async () => { if (!confirm(`Permanently delete "${page.title || "Untitled"}"? This cannot be undone.`)) return; if (await pages.remove(page.id)) setSel(null); }} title="Delete note"><Trash2 className="h-4 w-4" /></Button>
               </div>
               <RichEditor value={content} onChange={setContent} className="min-h-0 flex-1" />
             </>

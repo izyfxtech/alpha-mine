@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { fmtPrice } from "@/lib/pnl/format-price";
+import { localDateTime } from "@/lib/time/local-time";
 import { countOption, fetchAllRows } from "@/lib/journal/fetch-all";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useFillViewport } from "@/lib/use-fill-viewport";
@@ -30,7 +32,7 @@ export const Route = createFileRoute("/_authenticated/journal")({
 
 type Col = { k: string; l: string; get: (t: Trade) => string | number; render?: (t: Trade) => React.ReactNode; width?: number };
 const num = (v: number, d: number) => v.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
-const dt = (s: string | null) => (s ? s.replace("T", " ").slice(0, 16) : "");
+const dt = (s: string | null) => localDateTime(s);
 const pill = (t: Trade, txt: string) => <span className={cn("inline-block min-w-[38px] rounded-full px-2.5 py-[3px] text-center text-xs font-medium capitalize leading-none", t.net_pnl > 0 ? "bg-pill-win text-profit" : t.net_pnl < 0 ? "bg-pill-loss text-loss" : "bg-muted text-foreground")}>{txt}</span>;
 const LEFT_COLS = ["rules", "instrument", "setup", "trade_type", "option_type", "direction", "entry_at", "exit_at", "tilt", "id", "notes"];
 const alignRight = (k: string) => !LEFT_COLS.includes(k);
@@ -47,10 +49,10 @@ const COLS: Col[] = [
   { k: "rules", l: "Rules", get: (t) => COMPLIANCE_LABEL[complianceOf(t.ruleChecks)], render: (t) => { const c = complianceOf(t.ruleChecks); return c === "unrated" ? <span className="text-t4">—</span> : <span className={cn("text-xs font-medium", c === "followed" ? "text-profit" : c === "violated" ? "text-loss" : "text-amber-600")}>{COMPLIANCE_LABEL[c]}</span>; } },
   { k: "direction", l: "Direction", get: (t) => t.direction, render: (t) => pill(t, t.direction) },
   { k: "quantity", l: "Quantity", get: (t) => t.quantity, render: (t) => num(t.quantity, 2) },
-  { k: "entry_price", l: "Entry Price", get: (t) => t.entry_price, render: (t) => num(t.entry_price, 3) },
-  { k: "exit_price", l: "Exit Price", get: (t) => t.exit_price ?? "", render: (t) => (t.exit_price == null ? "" : num(t.exit_price, 3)) },
-  { k: "take_profit", l: "TP Price", get: (t) => t.take_profit ?? "", render: (t) => (t.take_profit == null ? "" : num(Number(t.take_profit), 2)) },
-  { k: "stop_loss", l: "SL Price", get: (t) => t.stop_loss ?? "", render: (t) => (t.stop_loss == null ? "" : num(Number(t.stop_loss), 3)) },
+  { k: "entry_price", l: "Entry Price", get: (t) => t.entry_price, render: (t) => fmtPrice(t.entry_price) },
+  { k: "exit_price", l: "Exit Price", get: (t) => t.exit_price ?? "", render: (t) => fmtPrice(t.exit_price) },
+  { k: "take_profit", l: "TP Price", get: (t) => t.take_profit ?? "", render: (t) => fmtPrice(t.take_profit) },
+  { k: "stop_loss", l: "SL Price", get: (t) => t.stop_loss ?? "", render: (t) => fmtPrice(t.stop_loss) },
   { k: "fees", l: "Fees ($)", get: (t) => t.fees, render: (t) => num(t.fees, 2) },
   { k: "gross_pnl", l: "Gross P&L", get: (t) => t.gross_pnl, render: (t) => num(t.gross_pnl, 2) },
   { k: "net_pnl", l: "Return ($)", get: (t) => t.net_pnl, render: (t) => <span className={pnlText(t)}>{num(t.net_pnl, 2)}</span> },
@@ -91,6 +93,15 @@ function JournalPage() {
     return [...trades].sort((a, b) => { const x = c.get(a), y = c.get(b); return (x < y ? -1 : x > y ? 1 : 0) * (sort.asc ? 1 : -1); });
   }, [trades, sort]);
   const chosen = trades.filter((t) => sel.has(t.id));
+  // The selection can only hold trades on the current filtered list: a filter change drops the rest, so Delete,
+  // Duplicate and Merge always act on exactly the trades the user can see ticked (AM-Y04).
+  useEffect(() => {
+    setSel((s) => {
+      const visible = new Set(trades.map((t) => t.id));
+      const kept = [...s].filter((id) => visible.has(id));
+      return kept.length === s.size ? s : new Set(kept); // same Set when nothing changed, so this never re-renders in a loop
+    });
+  }, [trades]);
   const fillRef = useFillViewport<HTMLDivElement>();
   const [pageSize, setPageSize] = useState(50);
   const [page, setPage] = useState(0);
@@ -125,8 +136,10 @@ function JournalPage() {
   }, [journal?.id, layout, layoutReady]);
 
   async function del() {
-    if (!confirm(`Delete ${sel.size} trade(s)?`)) return;
-    const { error } = await supabase.from("trades").delete().in("id", [...sel]);
+    const ids = chosen.map((t) => t.id);
+    if (!ids.length) return;
+    if (!confirm(`Permanently delete ${ids.length} trade${ids.length === 1 ? "" : "s"}, with their notes, tags and screenshots? This cannot be undone.`)) return;
+    const { error } = await supabase.from("trades").delete().in("id", ids);
     if (error) return toast.error(error.message);
     sweepStorage(); setSel(new Set()); qc.invalidateQueries(); toast.success("Deleted");
   }
@@ -229,7 +242,7 @@ function JournalPage() {
             <colgroup><col style={{ width: 40 }} /><col style={{ width: 28 }} /><col style={{ width: 28 }} />{cols.map((c) => <col key={c.k} style={{ width: layout.widths[c.k] ?? c.width ?? 110 }} />)}</colgroup>
             <thead className="sticky top-0 z-10 bg-card">
               <tr className="h-[42px] border-b text-left text-[12px] text-foreground">
-                <th className="w-10 p-3"><Checkbox checked={sel.size === trades.length} onCheckedChange={(v) => setSel(v ? new Set(trades.map((t) => t.id)) : new Set())} /></th>
+                <th className="w-10 p-3"><Checkbox checked={trades.length > 0 && chosen.length === trades.length ? true : chosen.length > 0 ? "indeterminate" : false} onCheckedChange={(v) => setSel(v ? new Set(trades.map((t) => t.id)) : new Set())} /></th>
                 <th className="w-8" /><th className="w-8" />
                 {cols.map((c) => (
                   <th key={c.k} draggable onDragStart={() => { dragKey.current = c.k; }} onDragOver={(e) => e.preventDefault()} onDrop={() => dropColumn(c.k)} className={cn("relative cursor-grab select-none overflow-hidden px-3 text-[12px] font-semibold text-foreground", alignRight(c.k) && "text-right")} onClick={() => setSort({ k: c.k, asc: sort.k === c.k ? !sort.asc : false })}>

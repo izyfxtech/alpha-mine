@@ -43,7 +43,7 @@ export function KpiCards({ trades, s, fmt, avgWinLabel, avgLossLabel }: {
   const arc = 126;
   return (
     <div className="slim-scroll flex gap-[30px] overflow-x-auto pb-1">
-      <Widget label="Net Return" value={fmt(s.net, s.totalR, sumPct)}><Spark data={curve.map((c) => c.v)} width={56} height={36} /></Widget>
+      <Widget label="Net Return" value={fmt(s.net, s.rCount ? s.totalR : null, sumPct)}><Spark data={curve.map((c) => c.v)} width={56} height={36} /></Widget>
       <Widget label="Winrate" value={fmtPct(s.winRate)}>
         <div className="relative w-[84px] text-center">
           <svg viewBox="0 0 100 56" className="h-[40px] w-[84px]">
@@ -55,7 +55,7 @@ export function KpiCards({ trades, s, fmt, avgWinLabel, avgLossLabel }: {
           </p>
         </div>
       </Widget>
-      <Widget label="Avg P&L" value={fmt(s.avgPnl, s.avgR, avgPct)}>
+      <Widget label="Avg P&L" value={fmt(s.avgPnl, s.rCount ? s.avgR : null, avgPct)}>
         <div className="w-[84px]">
           <p className="mb-1 text-center text-xs font-semibold tabular text-t2" title="Average winner divided by average loser">{payoff > 0 ? `${payoff.toFixed(2)}:1` : "–"}</p>
           <div className="flex h-[6px] gap-[2px] overflow-hidden">

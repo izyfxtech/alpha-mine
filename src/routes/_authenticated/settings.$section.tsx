@@ -1,4 +1,5 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
+import { localToday } from "@/lib/time/local-time";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -13,6 +14,7 @@ import { Empty, Panel } from "@/components/kit";
 import { DragHandle, EditableText, TypedConfirm, plural, useDragReorder, useUsage } from "@/components/settings-parts";
 import { supabase } from "@/integrations/supabase/client";
 import { sweepStorage } from "@/lib/media/sweep-storage";
+import { auditJournalPnl } from "@/lib/pnl/pnl-audit";
 import { useJournal, useTrades } from "@/lib/journal/journal-context";
 import { STARTER_RULES } from "@/lib/pnl/compliance";
 import { useProfile } from "@/lib/profile-settings";
@@ -189,7 +191,16 @@ function JournalSettings() {
         <div className="flex gap-2 border-t px-[26px] py-4">
           <Button size="sm" variant={dirty && valid ? "ink" : "secondary"} disabled={!dirty || !valid} onClick={async () => {
             const { error } = await supabase.from("journals").update({ name: f.name.trim(), currency: f.currency, broker: f.broker || null, markets: f.markets.split(",").map((x) => x.trim()).filter(Boolean), trade_type: f.trade_type, auto_pnl: f.auto_pnl, quantity_unit: f.quantity_unit === "units" || f.quantity_unit === "lots" ? f.quantity_unit : null, starting_balance: Number(f.starting_balance) }).eq("id", journal.id);
-            if (error) toast.error(error.message); else { toast.success("Journal saved"); refresh(); }
+            if (error) toast.error(error.message); else {
+              toast.success("Journal saved");
+              refresh();
+              // Choosing lots or units is what lets the engine work out risk and R: audit this journal now, including
+              // trades it skipped earlier because the unit was not set.
+              if (f.quantity_unit && f.quantity_unit !== (journal.quantity_unit ?? "")) {
+                toast.info("Working out risk and R-multiples for your trades…");
+                auditJournalPnl(journal.id, { apply: true, retrySkipped: true }).then((r) => { toast.success(`R-multiples updated for ${r.applied} trade${r.applied === 1 ? "" : "s"}.`); refresh(); }, (e) => toast.error(`Could not work out R-multiples: ${(e as Error).message}`));
+              }
+            }
           }}>Save</Button>
           <Button size="sm" variant="secondary" disabled={!dirty} onClick={() => setF(initial)}>Reset</Button>
         </div>
@@ -218,7 +229,7 @@ function Cashflows() {
   const { journal } = useJournal();
   const t = useJournalTable("journal_cashflows", journal?.id, "occurred_on", false);
   const [open, setOpen] = useState(false);
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(localToday());
   const [amount, setAmount] = useState("");
   const [kind, setKind] = useState("deposit");
   const [note, setNote] = useState("");

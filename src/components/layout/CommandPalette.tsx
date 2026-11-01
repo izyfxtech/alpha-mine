@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { localDay } from "@/lib/time/local-time";
 import { useNavigate } from "@tanstack/react-router";
 import { CornerDownLeft, FileText, Plus, Search } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -33,7 +34,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
     const trades: Item[] = !needle ? [] : all
       .filter((t) => String(t.trade_no) === needle || t.instrument.toLowerCase().includes(needle) || (t.setup ?? "").toLowerCase().includes(needle))
       .slice(0, 8)
-      .map((t) => ({ key: t.id, label: `#${t.trade_no} ${t.instrument} ${t.direction}`, hint: `${t.entry_at.slice(0, 10)} · ${t.net_pnl >= 0 ? "+" : ""}${t.net_pnl.toFixed(2)}`, icon: Search, run: () => { onOpenChange(false); drawer.open(t); } }));
+      .map((t) => ({ key: t.id, label: `#${t.trade_no} ${t.instrument} ${t.direction}`, hint: `${localDay(t.entry_at)} · ${t.net_pnl >= 0 ? "+" : ""}${t.net_pnl.toFixed(2)}`, icon: Search, run: () => { onOpenChange(false); drawer.open(t); } }));
     return [...trades, ...filtered.slice(0, 12)];
   }, [q, all, navigate, onOpenChange, drawer]);
 

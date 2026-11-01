@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { localDateTime } from "@/lib/time/local-time";
 import { ImageIcon, Star } from "lucide-react";
 import type { Trade } from "@/lib/pnl/metrics";
 import { fmtNum } from "@/lib/pnl/metrics";
@@ -8,7 +9,7 @@ import { Lightbox, type LightboxItem } from "@/components/journal/Lightbox";
 import type { Shot } from "@/components/journal/Screenshots";
 
 const money = (n: number) => `${n < 0 ? "-" : n > 0 ? "+" : ""}${Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const when = (s: string | null) => (s ? s.replace("T", " ").slice(0, 16) : "");
+const when = (s: string | null) => localDateTime(s);
 const tone = (t: Trade) => (t.net_pnl > 0 ? "text-profit" : t.net_pnl < 0 ? "text-loss" : "text-foreground");
 
 const subtitle = (t: Trade) => [t.direction, when(t.entry_at), t.setup].filter(Boolean).join(" · ");

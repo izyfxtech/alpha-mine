@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { localDateTime } from "@/lib/time/local-time";
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, ImagePlus, Trash2 } from "lucide-react";
@@ -71,7 +72,7 @@ function ChartBook() {
   }
 
   const label = (r: Record<string, unknown>) => ("trade_no" in r ? String(r["trade_no"]) : String(r["id"]).slice(0, 7));
-  const when = (r: Record<string, unknown>) => String(("entry_at" in r ? r["entry_at"] : r["occurred_at"]) ?? "").slice(0, 16).replace("T", " ");
+  const when = (r: Record<string, unknown>) => localDateTime(String(("entry_at" in r ? r["entry_at"] : r["occurred_at"]) ?? ""));
 
   return <div className="grid min-h-[calc(100vh-7rem)] grid-cols-[250px_minmax(0,1fr)] gap-[22px]">
     <aside className="max-h-[calc(100vh-7rem)] overflow-y-auto rounded-lg bg-card p-4 shadow-[0_1px_5px_rgba(60,40,90,0.07)]">

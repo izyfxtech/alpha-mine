@@ -10,10 +10,10 @@ export interface PnlAuditProgress {
  * Runs the compute-pnl Edge Function until a journal is fully audited. With `apply`, planned risk is also written
  * to trades that have none, so R-multiples appear for imported MetaTrader trades. Gross and net are never changed.
  */
-export async function auditJournalPnl(journalId: string, opts: { apply?: boolean; onProgress?: (p: PnlAuditProgress) => void } = {}): Promise<PnlAuditProgress> {
+export async function auditJournalPnl(journalId: string, opts: { apply?: boolean; retrySkipped?: boolean; tradeIds?: string[]; onProgress?: (p: PnlAuditProgress) => void } = {}): Promise<PnlAuditProgress> {
   const total: PnlAuditProgress = { processed: 0, applied: 0, reconciliation: {} };
   for (let guard = 0; guard < 500; guard++) {
-    const { data, error } = await supabase.functions.invoke("compute-pnl", { body: { journal_id: journalId, apply: opts.apply === true } });
+    const { data, error } = await supabase.functions.invoke("compute-pnl", { body: { journal_id: journalId, apply: opts.apply === true, ...(opts.tradeIds?.length ? { trade_ids: opts.tradeIds, refresh: true } : {}), ...(opts.retrySkipped && guard === 0 ? { retry_skipped: true } : {}) } });
     if (error) throw error;
     if (data?.error) throw new Error(data.error);
     total.processed += data.processed ?? 0;
@@ -24,3 +24,6 @@ export async function auditJournalPnl(journalId: string, opts: { apply?: boolean
   }
   throw new Error("compute-pnl did not finish; try again");
 }
+
+/** Asks the engine to work out planned risk (and so R) for just these trades, e.g. right after one was saved or edited. */
+export const auditTrades = (journalId: string, tradeIds: string[]) => auditJournalPnl(journalId, { apply: true, tradeIds });

@@ -1,4 +1,5 @@
 import { DateRangeButton } from "@/components/analytics/DateRangeButton";
+import { localToday } from "@/lib/time/local-time";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { ArrowUp, CalendarDays, ChevronDown, Plus, Star, Trash2, X } from "lucide-react";
@@ -58,7 +59,7 @@ function Sessions() {
       <div className="rounded-lg bg-card shadow-[0_1px_5px_rgba(60,40,90,0.07)]">
         <div className="flex flex-wrap items-center gap-2 p-4">
           <Button variant="ink" size="sm" onClick={() => setEdit("new")}><Plus className="h-4 w-4" />Add More</Button>
-          <Button variant="secondary" size="sm" disabled={!sel.size} onClick={async () => { await Promise.all([...sel].map((id) => t.remove(id))); setSel(new Set()); }}><Trash2 className="h-4 w-4" />Delete</Button>
+          <Button variant="secondary" size="sm" disabled={!sel.size} onClick={async () => { if (!confirm(`Permanently delete ${sel.size} session${sel.size === 1 ? "" : "s"}? This cannot be undone.`)) return; const done = await Promise.all([...sel].map((id) => t.remove(id))); setSel(new Set([...sel].filter((_, i) => !done[i]))); }}><Trash2 className="h-4 w-4" />Delete</Button>
           <div className="flex-1" />
           <DateRangeButton value={range} onChange={setRange} className="w-[260px]" />
            <CategorySelect categories={journal?.session_categories ?? []} value={cats} onChange={setCats} className="w-80" placeholder="Session Categories" />
@@ -97,7 +98,7 @@ function Sessions() {
                     <td className="px-3 text-center"><TiltMeter value={avgTilt(ts)} /></td>
                     <td className="px-3 text-right">{s.net.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="px-3 text-right">{fmtNum(s.roi)}</td>
-                    <td className="px-3 text-right">{fmtNum(s.totalR)}</td>
+                    <td className="px-3 text-right">{s.rCount ? fmtNum(s.totalR) : "—"}</td>
                     <td />
                   </tr>
                 );
@@ -132,7 +133,7 @@ function CategorySelect({ categories, value, onChange, className, placeholder }:
 function SessionSheet({ session, trades, start, currency, categories, onClose, onSave }: {
   session: Session | null; trades: Trade[]; start: number; currency?: string; categories: string[]; onClose: () => void; onSave: (v: Partial<Session>) => Promise<void>;
 }) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localToday();
   const [a, setA] = useState(session?.period_start ?? session?.session_date ?? today);
   const [b, setB] = useState(session?.period_end ?? session?.session_date ?? today);
   const [cats, setCats] = useState<Set<string>>(new Set(session?.categories ?? []));
@@ -178,7 +179,7 @@ function SessionSheet({ session, trades, start, currency, categories, onClose, o
           <div className="grid grid-cols-3 gap-2">
             <Box l="Trades" v={s.count} /><Box l="Winners" v={s.wins} /><Box l="Losers" v={s.losses} />
             <Box l="Break even" v={s.be} /><Box l="Winrate" v={`${s.winRate.toFixed(2)}%`} /><Box l="Gain" v={fmtMoney(s.net, currency)} />
-            <Box l="Gain %" v={`${s.roi.toFixed(2)}%`} /><Box l="R-Multiple" v={fmtNum(s.totalR)} />
+            <Box l="Gain %" v={`${s.roi.toFixed(2)}%`} /><Box l="R-Multiple" v={s.rCount ? fmtNum(s.totalR) : "—"} />
             <Box l={`Tiltmeter ${tilt > 0 ? "+" : ""}${tilt}`} v={<TiltMeter value={avgTilt(ts)} />} />
           </div>
         </div>

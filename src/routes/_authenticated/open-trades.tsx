@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { fmtPrice } from "@/lib/pnl/format-price";
+import { localDay } from "@/lib/time/local-time";
 import { createFileRoute } from "@tanstack/react-router";
 import { Empty, PageHeader, Panel, Stat, pnlTone } from "@/components/kit";
 import { Button } from "@/components/ui/button";
@@ -48,11 +50,11 @@ function OpenTradesPage() {
                     <tr key={r.trade.id} className="border-t">
                       <td className="px-2 py-2">{r.trade.instrument}</td>
                       <td className="px-2 capitalize">{r.trade.direction}</td>
-                      <td className="px-2 tabular">{r.trade.entry_at.slice(0, 10)} <span className="text-xs text-muted-foreground">({fmtNum(r.ageDays, 1)}d)</span></td>
+                      <td className="px-2 tabular">{localDay(r.trade.entry_at)} <span className="text-xs text-muted-foreground">({fmtNum(r.ageDays, 1)}d)</span></td>
                       <td className="px-2 tabular">{fmtNum(Number(r.trade.quantity))}</td>
-                      <td className="px-2 tabular">{fmtNum(Number(r.trade.entry_price), 3)}</td>
-                      <td className="px-2 tabular">{r.trade.stop_loss ?? "—"}</td>
-                      <td className="px-2 tabular">{r.trade.take_profit ?? "—"}</td>
+                      <td className="px-2 tabular">{fmtPrice(r.trade.entry_price)}</td>
+                      <td className="px-2 tabular">{fmtPrice(r.trade.stop_loss) || "—"}</td>
+                      <td className="px-2 tabular">{fmtPrice(r.trade.take_profit) || "—"}</td>
                       <td className="px-2 tabular">{r.risk == null ? "—" : fmtMoney(r.risk, cur)}</td>
                       <td className="px-2 tabular">{r.plannedRR == null ? "—" : `${fmtNum(r.plannedRR)}R`}</td>
                       <td className="px-2"><Input value={prices[r.trade.id] ?? ""} onChange={(e) => setPrice(r.trade.id, e.target.value)} placeholder="Price" aria-label={`Current price for ${r.trade.instrument}`} className="h-8 w-24" /></td>

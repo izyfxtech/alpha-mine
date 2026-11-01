@@ -1,3 +1,4 @@
+import { localMonth, localWeekStart } from "@/lib/time/local-time";
 import { WEEKDAYS, groupPerformance, type Trade } from "@/lib/pnl/metrics";
 
 export type Insight = { id: string; title: string; body: string; at: string; tradeId: string };
@@ -52,9 +53,9 @@ export function computeInsights(all: Trade[], now: number = Date.now(), maxAgeDa
         body: `Best setup: ${s.key} (${s.pnl.toFixed(2)}). Best day: ${d.key}. Best hour: ${h.key}.` });
     });
   };
-  const weekOf = (t: Trade) => { const d = new Date(t.entry_at); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toISOString().slice(0, 10); };
+  const weekOf = (t: Trade) => localWeekStart(t.entry_at);
   digest(weekOf, "week");
-  digest((t) => t.entry_at.slice(0, 7), "month");
+  digest((t) => localMonth(t.entry_at), "month");
   const cutoff = new Date(now - maxAgeDays * 86_400_000).toISOString();
   return out.filter((i) => i.at >= cutoff).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 40);
 }

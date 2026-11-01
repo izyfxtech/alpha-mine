@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { localDateTime, localDay } from "@/lib/time/local-time";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { addMonths, format, startOfMonth } from "date-fns";
@@ -21,7 +22,7 @@ export const Route = createFileRoute("/_authenticated/portfolio")({
 });
 
 const n2 = (v: number) => (isFinite(v) ? v.toFixed(2) : "∞");
-const dt = (s: string | null) => (s ? s.replace("T", " ").slice(0, 16) : "");
+const dt = (s: string | null) => localDateTime(s);
 
 function Portfolio() {
   const { journals, setJournalId } = useJournal();
@@ -54,7 +55,7 @@ function Portfolio() {
   const totals = per.reduce((a, { s: x }) => ({ roi: a.roi + x.roi, r: a.r + x.totalR, n: a.n + x.count }), { roi: 0, r: 0, n: 0 });
   const avgPct = trades.length ? trades.reduce((a, t) => a + t.pct, 0) / trades.length : 0;
   const avgR = trades.length ? trades.reduce((a, t) => a + (t.r ?? 0), 0) / trades.length : 0;
-  const days = new Set(trades.map((t) => t.entry_at.slice(0, 10))).size || 1;
+  const days = new Set(trades.map((t) => localDay(t.entry_at))).size || 1;
   const followed = trades.filter((t) => t.followedPlan).length;
 
   return (
@@ -87,7 +88,7 @@ function Portfolio() {
               return (
                 <tr key={j.id} className={cn("text-right", tone, x.net < 0 ? "bg-loss-soft/40" : x.net > 0 ? "bg-profit-soft/25" : "")}>
                   <td className="max-w-[130px] truncate px-2 py-2 text-left"><button className="hover:underline" onClick={() => setJournalId(j.id)}>{j.name}</button></td>
-                  {[x.balance.toLocaleString("en-US", { style: "currency", currency: j.currency || "USD" }), n2(x.roi), n2(x.totalR), x.avgPnl.toLocaleString("en-US", { style: "currency", currency: j.currency || "USD" }), n2(ap), n2(x.avgR), n2(x.profitFactor), n2(x.winRate), x.count, n2(x.score)].map((v, i) => <td key={i} className="whitespace-nowrap px-2 py-2">{v}</td>)}
+                  {[x.balance.toLocaleString("en-US", { style: "currency", currency: j.currency || "USD" }), n2(x.roi), (x.rCount ? n2(x.totalR) : "—"), x.avgPnl.toLocaleString("en-US", { style: "currency", currency: j.currency || "USD" }), n2(ap), n2(x.avgR), n2(x.profitFactor), n2(x.winRate), x.count, n2(x.score)].map((v, i) => <td key={i} className="whitespace-nowrap px-2 py-2">{v}</td>)}
                   <td className="w-40 px-4"><div className="flex h-[14px] items-center border-l-2 border-t4"><div className={x.net >= 0 ? "h-full bg-chart-1" : "h-full bg-chart-2"} style={{ width: `${(Math.abs(x.roi) / max) * 100}%` }} /></div></td>
                 </tr>
               );

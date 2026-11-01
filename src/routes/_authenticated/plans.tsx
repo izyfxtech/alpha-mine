@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { fmtPrice } from "@/lib/pnl/format-price";
+import { fromInputValue, localDateTime, toInputValue } from "@/lib/time/local-time";
 import { RecordScreenshots } from "@/components/journal/Screenshots";
 import { useState } from "react";
 import { ArrowDown, CalendarPlus, Copy, Inbox, RotateCw, Trash2, X } from "lucide-react";
@@ -32,7 +34,7 @@ export const Route = createFileRoute("/_authenticated/plans")({
 type Plan = Row<"planned_trades">;
 const n = (v: unknown) => (v == null || v === "" ? null : Number(v));
 const f2 = (v: number | null | undefined, d = 2) => (v == null ? "" : v.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d }));
-const dt = (iso?: string | null) => (iso ? iso.slice(0, 16).replace("T", " ") : "");
+const dt = (iso?: string | null) => localDateTime(iso);
 
 function PlansPage() {
   const { journal } = useJournal();
@@ -115,10 +117,10 @@ function PlansPage() {
                   <td className="px-3">{r.option_type}</td>
                   <td className="px-3">{r.setup}</td>
                   <td className="px-3"><span className="inline-block rounded-full bg-chip px-2.5 py-[3px] text-xs font-medium leading-none">{r.direction === "long" ? "BUY" : "SELL"}</span></td>
-                  <td className="px-3 text-right">{f2(n(r.entry_price), 3)}</td>
+                  <td className="px-3 text-right">{fmtPrice(n(r.entry_price))}</td>
                   <td className="px-3 text-right">{f2(Number(r.quantity))}</td>
-                  <td className="px-3 text-right">{f2(n(r.take_profit), 3)}</td>
-                  <td className="px-3 text-right">{f2(n(r.stop_loss), 3)}</td>
+                  <td className="px-3 text-right">{fmtPrice(n(r.take_profit))}</td>
+                  <td className="px-3 text-right">{fmtPrice(n(r.stop_loss))}</td>
                   <td className="px-3">{r.expiry_date ?? ""}</td>
                   <td className="px-3 text-right">{f2(Number(r.multiplier ?? 1))}</td>
                   {cats.map((c) => <td key={c.id} className="px-3">{optionLabel(r.id, c.id)}</td>)}
@@ -172,7 +174,7 @@ function PlanSheet({ row, journalId, onClose, onSave, selectedStats = [] }: { ro
   const { data: lk } = useLookups(journalId);
   const s = (v: unknown) => (v == null ? "" : String(v));
   const [f, setF] = useState({
-    entry_at: (row?.entry_at ?? new Date().toISOString()).slice(0, 16), instrument: s(row?.instrument), setup: s(row?.setup),
+    entry_at: toInputValue(row?.entry_at ?? new Date().toISOString()), instrument: s(row?.instrument), setup: s(row?.setup),
     direction: row?.direction ?? "long", trade_type: row?.trade_type ?? "Spot", entry_price: s(row?.entry_price), quantity: s(row?.quantity ?? 1),
     take_profit: s(row?.take_profit), stop_loss: s(row?.stop_loss), notes: s(row?.notes),
     option_type: s(row?.option_type), expiry_date: s(row?.expiry_date), multiplier: s(row?.multiplier ?? 1),
@@ -205,7 +207,7 @@ function PlanSheet({ row, journalId, onClose, onSave, selectedStats = [] }: { ro
         </div>
         <div className="flex gap-2 border-t px-5 py-4">
           <Button variant="ink" size="sm" disabled={!f.instrument} onClick={() => onSave({
-            entry_at: new Date(f.entry_at).toISOString(), instrument: f.instrument, setup: f.setup || null, direction: f.direction, trade_type: f.trade_type,
+            entry_at: fromInputValue(f.entry_at, row?.entry_at), instrument: f.instrument, setup: f.setup || null, direction: f.direction, trade_type: f.trade_type,
             entry_price: n(f.entry_price), quantity: n(f.quantity) ?? 1, take_profit: n(f.take_profit), stop_loss: n(f.stop_loss), notes: f.notes || null,
             option_type: f.trade_type === "Options" ? f.option_type || null : null, expiry_date: f.trade_type === "Options" ? f.expiry_date || null : null, multiplier: n(f.multiplier) ?? 1,
           }, stats)}>Save</Button>

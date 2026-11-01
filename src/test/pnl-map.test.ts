@@ -23,7 +23,10 @@ describe('mapTrade', () => {
     expect(m.notes.join(' ')).toMatch(/digits inferred/);
   });
   it('never overwrites P&L typed in by hand', () => {
-    expect(mapTrade({ ...base, source: 'manual' }, ins, lotsJournal, new Map())).toEqual({ skip: 'P&L entered by hand is never overwritten' });
+    // A hand-entered P&L is still mapped, so its planned risk (and R) can be worked out; it carries no broker profit.
+    const m = mapTrade({ ...base, source: 'manual' }, ins, lotsJournal, new Map());
+    expect('trade' in m).toBe(true);
+    if ('trade' in m) expect(m.trade.broker?.profit).toBeUndefined();
   });
   it('skips instead of guessing when the journal quantity unit is unknown', () => {
     const m = mapTrade(base, ins, { ...lotsJournal, quantity_unit: null }, new Map());

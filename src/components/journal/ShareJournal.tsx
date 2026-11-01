@@ -23,8 +23,9 @@ export function ShareJournal() {
 }
 
 /** The share dialog on its own, so it can also be opened from the account menu. */
-export function ShareJournalDialog({ open, onOpenChange: setOpen }: { open: boolean; onOpenChange: (v: boolean) => void }) {
-  const { journal } = useJournal();
+export function ShareJournalDialog({ open, onOpenChange: setOpen, target }: { open: boolean; onOpenChange: (v: boolean) => void; target?: { id: string; name: string } }) {
+  const current = useJournal().journal;
+  const journal = target ?? current; // any journal can be shared from here, e.g. from the journal switcher
   const allowSharing = useProfile().settings.allowSharing;
   const [token, setToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -32,7 +33,7 @@ export function ShareJournalDialog({ open, onOpenChange: setOpen }: { open: bool
   useEffect(() => {
     if (!open || !journal) return;
     supabase.from("journals").select("share_token").eq("id", journal.id).single().then(({ data }) => setToken(data?.share_token ?? null));
-  }, [open, journal]);
+  }, [open, journal?.id]);
 
   const setShare = async (v: string | null) => {
     if (!journal) return;
@@ -56,7 +57,7 @@ export function ShareJournalDialog({ open, onOpenChange: setOpen }: { open: bool
           </DialogHeader>
           {token ? (
             <div className="space-y-3">
-              <div className="flex gap-2"><Input readOnly value={url} onFocus={(e) => e.target.select()} /><Button variant="ink" onClick={() => { navigator.clipboard.writeText(url); toast.success("Link copied"); }}>Copy</Button></div>
+              <div className="flex gap-2"><Input readOnly value={url} onFocus={(e) => e.target.select()} /><Button variant="ink" onClick={() => navigator.clipboard.writeText(url).then(() => toast.success("Link copied"), () => toast.error("Could not copy automatically. Select the link and copy it."))}>Copy</Button></div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" disabled={busy} onClick={() => setShare(crypto.randomUUID())}>Create new link</Button>
                 <Button variant="outline" size="sm" disabled={busy} onClick={() => setShare(null)}>Stop sharing</Button>

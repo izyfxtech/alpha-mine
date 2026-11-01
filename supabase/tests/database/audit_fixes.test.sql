@@ -2,7 +2,7 @@
 -- Run with `supabase test db` (pgTAP). One transaction, rolled back.
 begin;
 create extension if not exists pgtap;
-select plan(33);
+select plan(44);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-0000000000b1', 'b1@test.local'),
@@ -101,6 +101,27 @@ select lives_ok($$select public.import_mt_report('20000000-0000-0000-0000-000000
 select is((select count(*)::int from public.trades where journal_id = '20000000-0000-0000-0000-000000000003' and external_id in ('M1', 'M2')), 1, 'merged-away tickets are not re-inserted');
 select is((select gross_pnl from public.trades where external_id = 'M1'), 70::numeric, 're-import does not overwrite the merged trade with one position''s profit');
 
+-- ------------------------------------------------------------------------------ stale risk outside units journals
+insert into public.trades (id, journal_id, direction, entry_at, exit_at, entry_price, exit_price, quantity, stop_loss, gross_pnl, pnl_manual, risk_amount, source)
+values ('30000000-0000-0000-0000-0000000000b1', '20000000-0000-0000-0000-000000000003', 'long', '2026-10-23T08:00Z', '2026-10-23T09:00Z', 1.0850, 1.0912, 0.1, 1.0800, 62, true, 50, 'manual');
+update public.trades set risk_amount = risk_amount, notes = 'only a note' where id = '30000000-0000-0000-0000-0000000000b1';
+select is((select risk_amount from public.trades where id = '30000000-0000-0000-0000-0000000000b1'), 50::numeric, 'a note edit leaves the engine-computed risk alone');
+update public.trades set stop_loss = 1.0820 where id = '30000000-0000-0000-0000-0000000000b1';
+select is((select risk_amount from public.trades where id = '30000000-0000-0000-0000-0000000000b1'), null, 'moving the stop of a lots trade clears the stale risk so the engine recomputes it');
+
+-- ------------------------------------------------------------------------------ repair mode (AM-M14)
+create function pg_temp.rp(_entry text, _qty numeric) returns jsonb language sql as $f$
+  select jsonb_build_object('platform','mt5','account',jsonb_build_object('login','777','server','S','currency','USD'),'instruments','[]'::jsonb,'cashflows','[]'::jsonb,'positions',jsonb_build_array(
+    jsonb_build_object('external_id','R1','raw_symbol','EURUSD','direction','long','entry_at',_entry,'exit_at','2026-10-22T11:00:00Z','entry_price',1.10,'exit_price',1.11,'quantity',_qty,'gross_pnl',10,'commission',0,'swap',0)))
+$f$;
+select lives_ok($$select public.import_mt_report('20000000-0000-0000-0000-000000000003', pg_temp.rp('2026-10-22T10:00:00Z', 0.1))$$, 'first import of a trade');
+update public.trades set notes = 'my note', setup_id = null where external_id = 'R1' and journal_id = '20000000-0000-0000-0000-000000000003';
+select public.import_mt_report('20000000-0000-0000-0000-000000000003', pg_temp.rp('2026-10-22T09:00:00Z', 0.2));
+select is((select entry_at from public.trades where external_id = 'R1' and journal_id = '20000000-0000-0000-0000-000000000003'), '2026-10-22T10:00:00Z'::timestamptz, 'a normal re-import never moves broker times');
+select public.import_mt_report('20000000-0000-0000-0000-000000000003', pg_temp.rp('2026-10-22T09:00:00Z', 0.2), true);
+select is((select (entry_at, quantity)::text from public.trades where external_id = 'R1' and journal_id = '20000000-0000-0000-0000-000000000003'), '("2026-10-22 09:00:00+00",0.2)', 'repair mode corrects times and size');
+select is((select notes from public.trades where external_id = 'R1' and journal_id = '20000000-0000-0000-0000-000000000003'), 'my note', 'repair mode keeps what the user wrote');
+
 -- ------------------------------------------------------------------------------ integrity (AM-M18, M19, M20)
 select throws_ok($$insert into public.trades (journal_id, direction, entry_at, entry_price, quantity) values ('20000000-0000-0000-0000-000000000001', 'long', now(), 1, 0)$$, '23514', null, 'quantity 0 is rejected');
 select throws_ok($$insert into public.trades (journal_id, direction, entry_at, exit_at, entry_price, exit_price, quantity) values ('20000000-0000-0000-0000-000000000001', 'long', now(), now() - interval '1 day', 1, 1, 1)$$, '23514', null, 'exit before entry is rejected');
@@ -108,6 +129,27 @@ select throws_ok($$insert into public.trades (journal_id, direction, entry_at, e
 insert into public.trade_screenshots (trade_id, journal_id, path) values ('30000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', 'b1/shot.png');
 delete from public.trades where id = '30000000-0000-0000-0000-000000000001';
 select is((select count(*)::int from public.storage_cleanup where bucket = 'screenshots' and path = 'b1/shot.png'), 1, 'deleting a trade queues its screenshot file for the Storage API sweep');
+
+insert into public.trades (id, journal_id, direction, entry_at, entry_price, quantity) values
+  ('30000000-0000-0000-0000-0000000000a1', '20000000-0000-0000-0000-000000000001', 'long', now(), 1, 1),
+  ('30000000-0000-0000-0000-0000000000a2', '20000000-0000-0000-0000-000000000001', 'long', now(), 1, 1);
+insert into public.trade_screenshots (trade_id, journal_id, path) values
+  ('30000000-0000-0000-0000-0000000000a1', '20000000-0000-0000-0000-000000000001', 'b1/shared.png'),
+  ('30000000-0000-0000-0000-0000000000a2', '20000000-0000-0000-0000-000000000001', 'b1/shared.png');
+delete from public.trades where id = '30000000-0000-0000-0000-0000000000a1';
+select is((select count(*)::int from public.storage_cleanup where path = 'b1/shared.png'), 0, 'a file another screenshot row still uses (a copied journal) is not queued for deletion');
+delete from public.trades where id = '30000000-0000-0000-0000-0000000000a2';
+select is((select count(*)::int from public.storage_cleanup where path = 'b1/shared.png'), 1, 'it is queued once the last row using it is gone');
+
+-- ------------------------------------------------------------------------------ create_journal (AM-M04)
+insert into auth.users (id, email) values ('00000000-0000-0000-0000-0000000000c1', 'c1@test');
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000c1","role":"authenticated"}', true);
+select public.create_journal('{"name":"First"}'::jsonb, '[{"phase":"entry","label":"Perfect entry","sentiment":"positive"}]'::jsonb, '[{"name":"Timeframe","options":["1M","5M"]}]'::jsonb, '["Pullback","Breakout"]'::jsonb, true);
+select public.create_journal('{"name":"First again"}'::jsonb, '[{"phase":"entry","label":"Perfect entry"}]'::jsonb, '[]'::jsonb, '["Pullback"]'::jsonb, true);
+select is((select count(*)::int from public.journals where owner_id = '00000000-0000-0000-0000-0000000000c1'), 1, 'asking for the first journal twice (two tabs, a retry) creates exactly one');
+select is((select (select count(*) from public.comment_definitions c where c.journal_id = j.id)::int || '/' || (select count(*) from public.custom_stat_options o where o.journal_id = j.id)::int || '/' || (select count(*) from public.setups s where s.journal_id = j.id)::int from public.journals j where j.owner_id = '00000000-0000-0000-0000-0000000000c1'), '1/2/2', 'the journal arrives with all its defaults in the same transaction');
+select public.create_journal('{"name":"Second","currency":"eur","starting_balance":500}'::jsonb);
+select is((select currency || ':' || starting_balance::text from public.journals where name = 'Second'), 'EUR:500', 'an explicit second journal is still created, with its values');
 
 delete from auth.users where id = '00000000-0000-0000-0000-0000000000b1';
 select is((select count(*)::int from public.journals where owner_id = '00000000-0000-0000-0000-0000000000b1'), 0, 'deleting the account removes its journals (and everything below them)');

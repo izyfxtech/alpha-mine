@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { localDay } from "@/lib/time/local-time";
 import { useMemo } from "react";
 import { eachDayOfInterval, endOfMonth, endOfWeek, format, isSameMonth, startOfMonth, startOfWeek } from "date-fns";
 import { AccentStat } from "@/components/kit";
@@ -22,11 +23,11 @@ function Annual() {
   const navigate = useNavigate();
   const year = search.year ?? new Date().getFullYear();
   const years = useMemo(() => {
-    const ys = new Set(trades.map((t) => Number(t.entry_at.slice(0, 4))));
+    const ys = new Set(trades.map((t) => Number(localDay(t.entry_at).slice(0, 4))));
     ys.add(new Date().getFullYear());
     return [...ys].sort();
   }, [trades]);
-  const yearTrades = useMemo(() => trades.filter((t) => t.entry_at.startsWith(String(year))), [trades, year]);
+  const yearTrades = useMemo(() => trades.filter((t) => localDay(t.entry_at).startsWith(String(year))), [trades, year]);
   const daily = useMemo(() => {
     const m = new Map<string, number>();
     yearTrades.forEach((t) => m.set(dayKey(t.entry_at), (m.get(dayKey(t.entry_at)) ?? 0) + t.net_pnl));

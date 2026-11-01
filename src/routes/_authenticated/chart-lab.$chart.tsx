@@ -1,4 +1,5 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
+import { localDay } from "@/lib/time/local-time";
 import { useDrillDown } from "@/lib/journal/drilldown";
 import type { Filters } from "@/lib/journal/journal-context";
 import { useMemo, useState, type ReactNode } from "react";
@@ -29,7 +30,7 @@ export const Route = createFileRoute("/_authenticated/chart-lab/$chart")({
 });
 
 /* ---------------- shared building blocks ---------------- */
-const tickFmt = (n: number) => Math.round(n * 100) / 100 === Math.round(n) ? Math.round(n).toLocaleString("de-DE") : n.toLocaleString("de-DE");
+const tickFmt = (n: number) => Math.round(n * 100) / 100 === Math.round(n) ? Math.round(n).toLocaleString("en-US") : n.toLocaleString("en-US");
 const sorted = (ts: Trade[]) => [...ts].sort((a, b) => a.entry_at.localeCompare(b.entry_at));
 
 function Select<T extends string>({ label, value, options, onChange, width = "w-40" }: { label: string; value: T; options: readonly T[]; onChange: (v: T) => void; width?: string }) {
@@ -692,7 +693,7 @@ function PerformanceByDay({ trades, cur }: { trades: Trade[]; cur: string }) {
   const all = useMemo(() => {
     const m = new Map<string, { k: string; pnl: number; pct: number; r: number; n: number; w: number; l: number; be: number }>();
     trades.forEach((t) => {
-      const k = (dateBy === "Exit Date" ? t.exit_at ?? t.entry_at : t.entry_at).slice(0, 10);
+      const k = localDay(dateBy === "Exit Date" ? t.exit_at ?? t.entry_at : t.entry_at);
       const d = m.get(k) ?? { k, pnl: 0, pct: 0, r: 0, n: 0, w: 0, l: 0, be: 0 };
       d.pnl += t.net_pnl; d.pct += t.retPct; d.r += t.r ?? 0; d.n++;
       if (isWin(t)) d.w++; else if (isLoss(t)) d.l++; else d.be++;

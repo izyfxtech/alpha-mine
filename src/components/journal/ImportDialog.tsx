@@ -8,7 +8,7 @@ import { useJournal } from "@/lib/journal/journal-context";
 import { seedDemoTrades } from "@/lib/journal/demo";
 import { fillsToTrades, type RawFill } from "@/lib/import/fills-import";
 import { FIELDS, detectHeaderRow, looksLikeFills, parseCsv, suggestMapping } from "@/lib/import/csv-mapping";
-import { buildCsvTrades, detectDateOrder, detectDecimal, type CsvZone, type DateOrder, type Decimal } from "@/lib/import/csv-rows";
+import { buildCsvTrades, detectDateOrder, detectDecimal, parseDateTime, parseNumber, type CsvZone, type DateOrder, type Decimal } from "@/lib/import/csv-rows";
 import { auditJournalPnl } from "@/lib/pnl/pnl-audit";
 import { parseMtReport, type MtReport } from "@/lib/import/mt/parse-report";
 import { checkCompatibility, summarize, toImportPayload } from "@/lib/import/mt/to-trades";
@@ -24,6 +24,15 @@ const TZ_OPTIONS: { value: string; label: string; tz: ServerTz }[] = [
 ];
 const CHUNK = 500;
 
+/** The first sheet of an .xlsx as rows of text, exactly as Excel displays them (dates and numbers keep their format). */
+async function sheetRows(bytes: Uint8Array): Promise<string[][]> {
+  const XLSX = await import("xlsx");
+  const wb = XLSX.read(bytes, { type: "array", cellDates: false });
+  const ws = wb.Sheets[wb.SheetNames[0] ?? ""];
+  if (!ws) return [];
+  return (XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, raw: false, blankrows: false }) as unknown[][]).map((r) => r.map((c) => (c == null ? "" : String(c))));
+}
+
 export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const { journal } = useJournal();
   const qc = useQueryClient();
@@ -33,24 +42,14 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   const [mt, setMt] = useState<MtReport | null>(null);
   const [tzKey, setTzKey] = useState("ny-close");
   const [withCash, setWithCash] = useState(false);
+  const [repair, setRepair] = useState(false);
   const [asFills, setAsFills] = useState(false);
   const [dateOrder, setDateOrder] = useState<"auto" | DateOrder>("auto");
   const [csvZone, setCsvZone] = useState<CsvZone>("utc");
   const [decimalChoice, setDecimalChoice] = useState<"auto" | Decimal>("auto");
 
-  async function onFile(file: File) {
-    if (/\.(html?|xlsx)$/i.test(file.name)) {
-      setCsv(null);
-      try {
-        setMt(parseMtReport(new Uint8Array(await file.arrayBuffer())));
-      } catch (e) {
-        setMt(null);
-        toast.error((e as Error).message);
-      }
-      return;
-    }
-    setMt(null);
-    const raw = parseCsv(await file.text());
+  /** Shows a table (CSV text or a spreadsheet sheet) in the column-mapping step. */
+  function loadTable(raw: string[][]) {
     if (!raw.length) return void toast.error("That file has no rows.");
     const h = detectHeaderRow(raw);
     const p = { header: raw[h] ?? [], rows: raw.slice(h + 1) };
@@ -58,6 +57,30 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
     const auto = suggestMapping(p.header);
     setMap(auto as Record<string, string>);
     setAsFills(looksLikeFills(auto));
+  }
+
+  async function onFile(file: File) {
+    if (/\.(html?|xlsx)$/i.test(file.name)) {
+      setCsv(null);
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      try {
+        setMt(parseMtReport(bytes));
+      } catch (e) {
+        setMt(null);
+        // A spreadsheet that is not a MetaTrader report may still be a plain trade log: read its first sheet like a CSV.
+        const sheet = /\.xlsx$/i.test(file.name) ? await sheetRows(bytes).catch(() => null) : null;
+        const mapped = sheet && sheet.length ? suggestMapping(sheet[detectHeaderRow(sheet)] ?? []) : null;
+        if (sheet && mapped?.entry_at && mapped.entry_price) {
+          loadTable(sheet);
+          toast.info("Read as a spreadsheet trade log, not a MetaTrader report. Check the column mapping below.");
+        } else {
+          toast.error((e as Error).message);
+        }
+      }
+      return;
+    }
+    setMt(null);
+    loadTable(parseCsv(await file.text()));
   }
 
   /** Date order and decimal separator, from the user's choice or from the whole file. null = the file cannot say. */
@@ -135,13 +158,19 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
     setBusy(true);
     try {
       const col = (r: string[], f: string) => (map[f] ? r[csv.header.indexOf(map[f])] : undefined);
-      const num = (v?: string) => (v == null || v === "" ? 0 : Math.abs(Number(v.replace(/,/g, ""))));
+      // The same date, time-zone and number rules as the trade CSV path; anything unreadable becomes NaN, which the
+      // fills builder reports as a skipped fill instead of importing a wrong number.
+      const { order, decimal } = formats();
+      if (!order) return void toast.error("These dates could be day/month or month/day. Choose the date format first.");
+      if (!decimal) return void toast.error("Numbers like 1,234 could be one thousand or 1.234. Choose the number format first.");
+      const num = (v?: string) => { try { const n = parseNumber(v, decimal); return n == null ? 0 : Math.abs(n); } catch { return Number.NaN; } };
+      const time = (v?: string) => { try { return Date.parse(parseDateTime(v ?? "", order, csvZone)); } catch { return Number.NaN; } };
       const fills: RawFill[] = csv.rows.map((r) => ({
         symbol: (col(r, "instrument") ?? "").trim(),
         side: ((col(r, "direction") ?? "").trim().toLowerCase().startsWith("s") ? "sell" : "buy") as RawFill["side"],
         quantity: num(col(r, "quantity")),
         price: num(col(r, "entry_price")),
-        timeMs: Date.parse(col(r, "entry_at") ?? ""),
+        timeMs: time(col(r, "entry_at")),
         cost: num(col(r, "fees")),
       })).filter((f) => f.symbol);
       const res = fillsToTrades(fills);
@@ -162,13 +191,28 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
         if (error) throw error;
         data?.forEach((d) => d.external_id && idByExternal.set(d.external_id, d.id));
       }
-      // Legs only for trades that were actually inserted now; existing ones keep their legs.
-      const legs = res.trades.flatMap((t) => (idByExternal.has(t.external_id) ? t.legs.map((l) => ({ ...l, trade_id: idByExternal.get(t.external_id)!, journal_id: journal.id })) : []));
+      // Legs for every trade in the file that has none yet. A trade inserted by an earlier, interrupted run is skipped as a
+      // duplicate above but may have no legs; looking them up here lets a retry repair it (AM-M16). Trades that already
+      // have legs are left exactly as they are.
+      const added = idByExternal.size;
+      const missing = res.trades.filter((t) => !idByExternal.has(t.external_id)).map((t) => t.external_id);
+      for (let k = 0; k < missing.length; k += 200) {
+        const { data, error } = await supabase.from("trades").select("id,external_id").eq("journal_id", journal.id).in("external_id", missing.slice(k, k + 200));
+        if (error) throw error;
+        data?.forEach((d) => d.external_id && idByExternal.set(d.external_id, d.id));
+      }
+      const ids = [...idByExternal.values()];
+      const hasLegs = new Set<string>();
+      for (let k = 0; k < ids.length; k += 200) {
+        const { data, error } = await supabase.from("trade_executions").select("trade_id").in("trade_id", ids.slice(k, k + 200));
+        if (error) throw error;
+        data?.forEach((d) => hasLegs.add(d.trade_id));
+      }
+      const legs = res.trades.flatMap((t) => { const id = idByExternal.get(t.external_id); return id && !hasLegs.has(id) ? t.legs.map((l) => ({ ...l, trade_id: id, journal_id: journal.id })) : []; });
       for (let k = 0; k < legs.length; k += CHUNK) {
         const { error } = await supabase.from("trade_executions").insert(legs.slice(k, k + CHUNK));
         if (error) throw error;
       }
-      const added = idByExternal.size;
       const extra = [res.open.length ? `${res.open.length} position${res.open.length === 1 ? "" : "s"} still open (not imported)` : "", res.errors.length ? `${res.errors.length} unreadable row${res.errors.length === 1 ? "" : "s"} skipped` : "", rows.length - added ? `${rows.length - added} already imported` : ""].filter(Boolean).join(", ");
       toast.success(`Imported ${added} trade${added === 1 ? "" : "s"} from ${fills.length} fills${extra ? ` · ${extra}` : ""}`);
       qc.invalidateQueries();
@@ -191,7 +235,7 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
       // One database call = one transaction: instruments, account link, trades and deposits land together or not at all.
       // Re-importing is safe: unchanged trades are left alone, late commission/swap is updated, your notes never are.
       const payload = toImportPayload(mt, tz, { withCashflows: withCash });
-      const { data, error } = await supabase.rpc("import_mt_report", { _journal_id: journal.id, _payload: payload as unknown as Json });
+      const { data, error } = await supabase.rpc("import_mt_report", { _journal_id: journal.id, _payload: payload as unknown as Json, _repair: repair });
       if (error) throw error;
       const r = data as { inserted: number; updated: number; unchanged: number; cashflows: number };
       const parts = [`${r.inserted} new`, r.updated ? `${r.updated} updated` : null, r.unchanged ? `${r.unchanged} already up to date` : null, withCash ? `${r.cashflows} deposits/withdrawals` : null].filter(Boolean);
@@ -236,7 +280,7 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
           <DialogDescription>Upload a MetaTrader 4 statement or MetaTrader 5 report (HTML or Excel), or a CSV export and match its columns.</DialogDescription>
         </DialogHeader>
         <input type="file" accept=".csv,.html,.htm,.xlsx" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} className="text-sm" />
-        {mt && <MtPreview report={mt} journalCurrency={journal?.currency} tzKey={tzKey} onTz={setTzKey} withCash={withCash} onCash={setWithCash} />}
+        {mt && <MtPreview report={mt} journalCurrency={journal?.currency} tzKey={tzKey} onTz={setTzKey} withCash={withCash} onCash={setWithCash} repair={repair} onRepair={setRepair} />}
         {csv && (
           <label className="flex items-start gap-2 text-sm">
             <input type="checkbox" className="mt-1" checked={asFills} onChange={(e) => setAsFills(e.target.checked)} />
@@ -259,7 +303,7 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
             ))}
           </div>
         )}
-        {csv && !asFills && (
+        {csv && (
           <div className="grid grid-cols-2 gap-2 text-sm">
             <label className="flex flex-col gap-1">
               <span className="text-xs text-muted-foreground">number format</span>
@@ -310,7 +354,7 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   );
 }
 
-function MtPreview({ report, journalCurrency, tzKey, onTz, withCash, onCash }: { report: MtReport; journalCurrency?: string | undefined; tzKey: string; onTz: (k: string) => void; withCash: boolean; onCash: (v: boolean) => void }) {
+function MtPreview({ report, journalCurrency, tzKey, onTz, withCash, onCash, repair, onRepair }: { report: MtReport; journalCurrency?: string | undefined; tzKey: string; onTz: (k: string) => void; withCash: boolean; onCash: (v: boolean) => void; repair: boolean; onRepair: (v: boolean) => void }) {
   const sum = summarize(report);
   const a = report.account;
   const money = (n: number) => `${n < 0 ? "-" : ""}${Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${a?.currency || journalCurrency || ""}`;
@@ -322,6 +366,13 @@ function MtPreview({ report, journalCurrency, tzKey, onTz, withCash, onCash }: {
           {a ? `Account ${a.login}${a.server ? ` · ${a.server}` : ""}${a.type ? ` · ${a.type}` : ""} · ` : ""}Net {money(sum.net)} after commission and swap
         </div>
       </div>
+      <label className="flex items-start gap-2">
+        <input type="checkbox" className="mt-1" checked={repair} onChange={(e) => onRepair(e.target.checked)} />
+        <span>
+          Repair trades I imported before
+          <span className="block text-xs text-muted-foreground">Use this after choosing the right server time zone: it corrects the times, size and prices of trades already in the journal. Your notes, setups, tags and screenshots are kept.</span>
+        </span>
+      </label>
       {report.balanceOps.length > 0 && (
         <label className="flex items-start gap-2">
           <input type="checkbox" className="mt-1" checked={withCash} onChange={(e) => onCash(e.target.checked)} />

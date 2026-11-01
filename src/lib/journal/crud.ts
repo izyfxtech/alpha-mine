@@ -49,9 +49,12 @@ export function useJournalTable<T extends TableName>(table: T, journalId: string
       const results = await Promise.all(orderedIds.map((id, position) => (supabase as any).from(table).update({ position }).eq("id", id)));
       if (!fail(results.find((r: { error: { message: string } | null }) => r.error)?.error ?? null)) done();
     },
-    remove: async (id: string) => {
+    /** Deletes one row. Returns whether it worked, so callers never act as if a failed delete had succeeded. */
+    remove: async (id: string): Promise<boolean> => {
       const { error } = await (supabase as any).from(table).delete().eq("id", id);
-      if (!fail(error)) done();
+      if (fail(error)) return false;
+      done();
+      return true;
     },
   };
 }

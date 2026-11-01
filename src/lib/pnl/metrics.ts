@@ -1,4 +1,5 @@
 // Shared metrics engine: every page computes stats from here so numbers always match.
+import { localDay } from "@/lib/time/local-time";
 import type { RuleCheck } from "@/lib/pnl/compliance";
 
 export type Sentiment = "positive" | "negative" | "neutral";
@@ -104,7 +105,8 @@ export const isBE = (t: Pick<Trade, "net_pnl" | "is_break_even">) => !!t.is_brea
 
 const sum = (a: number[]) => a.reduce((s, x) => s + x, 0);
 const avg = (a: number[]) => (a.length ? sum(a) / a.length : 0);
-export const dayKey = (iso: string) => iso.slice(0, 10);
+/** The trade's day in the local zone (see lib/time/local-time): the one day key every page uses. */
+export const dayKey = (iso: string) => localDay(iso);
 
 /** Tilt meter fill (0..1) for a points value; 3 points fills the bar. */
 export const TILT_CAP = 3;
@@ -257,6 +259,8 @@ export function computeStats(trades: Trade[], startingBalance: number, cashflows
     expectancy: avg(trades.map((t) => t.net_pnl)),
     avgR: avg(rs),
     totalR: sum(rs),
+    /** How many trades have an R-multiple. 0 means R is unknown for the whole set, which is not the same as 0R. */
+    rCount: rs.length,
     biggestWin: wins.length ? Math.max(...wins.map((t) => t.net_pnl)) : 0,
     biggestLoss: losses.length ? Math.min(...losses.map((t) => t.net_pnl)) : 0,
     fees: sum(trades.map((t) => t.fees)),

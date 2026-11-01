@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { localDay } from "@/lib/time/local-time";
 import { useMemo, useState } from "react";
 import { addMonths, endOfMonth, format, isSameMonth, setYear, startOfMonth } from "date-fns";
 import { ChevronDown, ChevronLeft, ChevronRight, X } from "lucide-react";
@@ -26,7 +27,7 @@ function CalendarReport() {
   const cur = journal?.currency ?? "USD";
   const bal = journal?.starting_balance ?? 0;
   const years = useMemo(() => {
-    const ys = new Set(trades.map((t) => Number(t.entry_at.slice(0, 4))));
+    const ys = new Set(trades.map((t) => Number(localDay(t.entry_at).slice(0, 4))));
     ys.add(new Date().getFullYear());
     return [...ys].sort();
   }, [trades]);
