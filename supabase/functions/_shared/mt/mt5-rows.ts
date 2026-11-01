@@ -144,18 +144,27 @@ function parseBalanceRow(raw: string[]): MtBalanceOp | null {
   const at = c.findIndex((x, i) => i >= 2 && /^balance$/i.test(x));
   if (t === null || at < 0) return null;
   const tail = c.slice(at + 1);
-  const nums = tail.filter((x) => parseNumber(x) !== null);
-  if (nums.length < 2) return null;
-  const amount = parseNumber(nums[nums.length - 2])!;
-  const lastNum = tail.lastIndexOf(nums[nums.length - 1]!);
+  // MT5 prints every money amount with two decimals ("10 000.00"); a numeric COMMENT such as "98765" does not look like
+  // that. Profit and the running balance are the first two such cells after "balance", and everything after them is the
+  // comment, even when it is purely numeric (AM-M12). Currencies shown without decimals fall back to the numeric cells.
+  const isMoney = (x: string) => parseNumber(x) !== null && /[.,]\d{2}$/.test(x.replace(/[\s\u00a0]/g, ""));
+  const money = tail.map((x, i) => ({ x, i })).filter((m) => isMoney(m.x));
+  let amountCell: string;
+  let commentFrom: number;
+  if (money.length >= 2) {
+    amountCell = money[0]!.x;
+    commentFrom = money[1]!.i + 1;
+  } else {
+    const nums = tail.filter((x) => parseNumber(x) !== null);
+    if (nums.length < 2) return null;
+    amountCell = nums[nums.length - 2]!;
+    commentFrom = tail.lastIndexOf(nums[nums.length - 1]!) + 1;
+  }
   return {
     wallMs: t,
     deal: c[1] ?? "",
-    amount,
-    comment: tail
-      .slice(lastNum + 1)
-      .filter(Boolean)
-      .join(" "),
+    amount: parseNumber(amountCell)!,
+    comment: tail.slice(commentFrom).filter(Boolean).join(" "),
   };
 }
 

@@ -11,6 +11,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { sweepStorage } from "@/lib/media/sweep-storage";
 import { createJournal, useJournal, type Journal } from "@/lib/journal/journal-context";
 import { cn } from "@/lib/utils";
+import { useProfile } from "@/lib/profile-settings";
+import { ShareJournalDialog } from "@/components/journal/ShareJournal";
 
 export const CURRENCIES = ["USD", "EUR", "GBP", "JPY", "CHF", "AUD", "CAD", "NGN", "ZAR", "INR"];
 export const MARKETS = ["Forex", "Stocks", "Crypto", "Futures", "Options", "Indices", "Commodities"];
@@ -40,20 +42,17 @@ export function JournalPicker() {
     qc.invalidateQueries();
   }
 
-  async function share(j: Journal) {
-    let token = j.share_token;
-    if (!token) {
-      token = crypto.randomUUID();
-      const { error } = await supabase.from("journals").update({ share_token: token }).eq("id", j.id);
-      if (error) return toast.error(error.message);
-      qc.invalidateQueries({ queryKey: ["journals"] });
-    }
-    await navigator.clipboard.writeText(`${window.location.origin}/share/${token}`).catch(() => undefined);
-    toast.success("Read-only link copied");
+  // Sharing always goes through the share dialog: it respects "Allow sharing", says what becomes public, and can revoke.
+  const allowSharing = useProfile().settings.allowSharing;
+  const [shareFor, setShareFor] = useState<Journal | null>(null);
+  function share(j: Journal) {
+    if (!allowSharing) return toast.error("Sharing is switched off in Settings, so no link can be created or used.");
+    setShareFor(j);
   }
 
   return (
     <>
+      <ShareJournalDialog open={!!shareFor} onOpenChange={(v) => { if (!v) { setShareFor(null); qc.invalidateQueries({ queryKey: ["journals"] }); } }} target={shareFor ? { id: shareFor.id, name: shareFor.name } : undefined} />
       <Button variant="outline" className="max-w-56 gap-2" onClick={() => { setMode("list"); setOpen(true); }}>
         <span className="truncate">{journal?.name ?? "Journal"}</span><ChevronDown className="h-4 w-4" />
       </Button>

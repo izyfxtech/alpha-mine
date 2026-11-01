@@ -2,7 +2,7 @@
 -- Run with `supabase test db` (pgTAP). One transaction, rolled back.
 begin;
 create extension if not exists pgtap;
-select plan(33);
+select plan(37);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-0000000000b1', 'b1@test.local'),
@@ -100,6 +100,19 @@ select lives_ok($$select public.import_mt_report('20000000-0000-0000-0000-000000
   jsonb_build_object('external_id','M2','raw_symbol','EURUSD','direction','long','entry_at','2026-10-21T08:00:00Z','exit_at','2026-10-21T09:00:00Z','entry_price',1.12,'exit_price',1.14,'quantity',0.3,'gross_pnl',60,'commission',0,'swap',0))))$$, 're-importing merged tickets succeeds');
 select is((select count(*)::int from public.trades where journal_id = '20000000-0000-0000-0000-000000000003' and external_id in ('M1', 'M2')), 1, 'merged-away tickets are not re-inserted');
 select is((select gross_pnl from public.trades where external_id = 'M1'), 70::numeric, 're-import does not overwrite the merged trade with one position''s profit');
+
+-- ------------------------------------------------------------------------------ repair mode (AM-M14)
+create function pg_temp.rp(_entry text, _qty numeric) returns jsonb language sql as $f$
+  select jsonb_build_object('platform','mt5','account',jsonb_build_object('login','777','server','S','currency','USD'),'instruments','[]'::jsonb,'cashflows','[]'::jsonb,'positions',jsonb_build_array(
+    jsonb_build_object('external_id','R1','raw_symbol','EURUSD','direction','long','entry_at',_entry,'exit_at','2026-10-22T11:00:00Z','entry_price',1.10,'exit_price',1.11,'quantity',_qty,'gross_pnl',10,'commission',0,'swap',0)))
+$f$;
+select lives_ok($$select public.import_mt_report('20000000-0000-0000-0000-000000000003', pg_temp.rp('2026-10-22T10:00:00Z', 0.1))$$, 'first import of a trade');
+update public.trades set notes = 'my note', setup_id = null where external_id = 'R1' and journal_id = '20000000-0000-0000-0000-000000000003';
+select public.import_mt_report('20000000-0000-0000-0000-000000000003', pg_temp.rp('2026-10-22T09:00:00Z', 0.2));
+select is((select entry_at from public.trades where external_id = 'R1' and journal_id = '20000000-0000-0000-0000-000000000003'), '2026-10-22T10:00:00Z'::timestamptz, 'a normal re-import never moves broker times');
+select public.import_mt_report('20000000-0000-0000-0000-000000000003', pg_temp.rp('2026-10-22T09:00:00Z', 0.2), true);
+select is((select (entry_at, quantity)::text from public.trades where external_id = 'R1' and journal_id = '20000000-0000-0000-0000-000000000003'), '("2026-10-22 09:00:00+00",0.2)', 'repair mode corrects times and size');
+select is((select notes from public.trades where external_id = 'R1' and journal_id = '20000000-0000-0000-0000-000000000003'), 'my note', 'repair mode keeps what the user wrote');
 
 -- ------------------------------------------------------------------------------ integrity (AM-M18, M19, M20)
 select throws_ok($$insert into public.trades (journal_id, direction, entry_at, entry_price, quantity) values ('20000000-0000-0000-0000-000000000001', 'long', now(), 1, 0)$$, '23514', null, 'quantity 0 is rejected');

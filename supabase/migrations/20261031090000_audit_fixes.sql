@@ -250,7 +250,11 @@ create index if not exists trade_rule_checks_journal_idx on public.trade_rule_ch
 -- ---------------------------------------------------------------------------------------------------------------
 -- import_mt_report (AM-M13, M15) with merged tickets honoured (AM-H07)
 -- ---------------------------------------------------------------------------------------------------------------
-create or replace function public.import_mt_report(_journal_id uuid, _payload jsonb)
+-- _repair = true also corrects the BROKER-OWNED fields (times, size, prices, direction) of trades that were imported
+-- before with a wrong guess (typically the server time zone). Everything the user wrote stays: notes, setup, tags,
+-- comments, screenshots (AM-M14).
+drop function if exists public.import_mt_report(uuid, jsonb);
+create or replace function public.import_mt_report(_journal_id uuid, _payload jsonb, _repair boolean default false)
 returns jsonb
 language plpgsql
 security definer
@@ -351,6 +355,13 @@ begin
     from src s
     left join public.instruments i on i.journal_id = _journal_id and i.symbol = s.raw_symbol
     on conflict (journal_id, external_id) do update set
+      entry_at = case when _repair then excluded.entry_at else t.entry_at end,
+      exit_at = case when _repair then excluded.exit_at else t.exit_at end,
+      entry_price = case when _repair then excluded.entry_price else t.entry_price end,
+      exit_price = case when _repair then excluded.exit_price else t.exit_price end,
+      quantity = case when _repair then excluded.quantity else t.quantity end,
+      direction = case when _repair then excluded.direction else t.direction end,
+      raw_symbol = case when _repair then excluded.raw_symbol else t.raw_symbol end,
       gross_pnl = excluded.gross_pnl,
       fees = round(-(coalesce(coalesce(excluded.commission, t.commission), 0) + coalesce(coalesce(excluded.swap, t.swap), 0)), 8),
       commission = coalesce(excluded.commission, t.commission),
@@ -361,6 +372,8 @@ begin
     where not exists (select 1 from public.merged_trade_ids m where m.journal_id = t.journal_id and m.merged_into = t.id)
       and ((t.gross_pnl, t.fees, t.commission, t.swap) is distinct from
            (excluded.gross_pnl, round(-(coalesce(coalesce(excluded.commission, t.commission), 0) + coalesce(coalesce(excluded.swap, t.swap), 0)), 8), coalesce(excluded.commission, t.commission), coalesce(excluded.swap, t.swap))
+       or (_repair and (t.entry_at, t.exit_at, t.entry_price, t.exit_price, t.quantity, t.direction, t.raw_symbol) is distinct from
+                        (excluded.entry_at, excluded.exit_at, excluded.entry_price, excluded.exit_price, excluded.quantity, excluded.direction, excluded.raw_symbol))
        or (t.stop_loss is null and excluded.stop_loss is not null)
        or (t.take_profit is null and excluded.take_profit is not null)
        or (t.instrument_id is null and excluded.instrument_id is not null))
@@ -377,6 +390,12 @@ begin
   -- next compute-pnl run re-checks them. Applied rows keep their rollback data.
   if cardinality(v_changed) > 0 then
     delete from public.trade_pnl_audit where trade_id = any (v_changed) and not applied;
+    -- A repaired trade has new prices or size, so the risk the engine stored for the old ones is stale: clear it and the
+    -- audit, and the next compute-pnl run works both out again.
+    if _repair then
+      delete from public.trade_pnl_audit where trade_id = any (v_changed);
+      update public.trades set risk_amount = null where id = any (v_changed) and source in ('mt4', 'mt5');
+    end if;
   end if;
 
   -- Deposits and withdrawals (optional, idempotent on the terminal's deal/ticket number).
@@ -405,5 +424,5 @@ begin
 end
 $$;
 
-revoke execute on function public.import_mt_report(uuid, jsonb) from public, anon;
-grant execute on function public.import_mt_report(uuid, jsonb) to authenticated;
+revoke execute on function public.import_mt_report(uuid, jsonb, boolean) from public, anon;
+grant execute on function public.import_mt_report(uuid, jsonb, boolean) to authenticated;

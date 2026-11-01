@@ -183,3 +183,21 @@ describe("import -> P&L engine round trip", () => {
     expect(out).toEqual({ EURUSD: "OK", USDJPY: "OK", XAUUSD: "OK" });
   });
 });
+
+describe("balance rows with a numeric comment (AM-M12)", () => {
+  it.each(["98765", "123456", "Deposit", ""])("reads a 5,000 deposit with comment %j as 5,000, never as the 30,000 balance", (comment) => {
+    const ops = parseMt5Rows(
+      [[ "Positions" ], POS_HEADER, rows.eur,
+       [ "Deals" ], ["Time", "Deal", "Symbol", "Type", "Direction", "Volume", "Price", "Order", "Commission", "Fee", "Swap", "Profit", "Balance", "Comment"],
+       ["2026.10.25 00:00:00", "9", "", "balance", "", "", "", "", "", "", "", "5 000.00", "30 000.00", comment]]).balanceOps;
+    expect(ops).toHaveLength(1);
+    expect(ops[0]!.amount).toBe(5000);
+    expect(ops[0]!.comment).toBe(comment);
+  });
+  it("a zero-decimal currency still reads its two numbers", () => {
+    const ops = parseMt5Rows([["Positions"], POS_HEADER, rows.eur, ["Deals"], ["Time", "Deal", "Type", "Profit", "Balance", "Comment"],
+      ["2026.10.25 00:00:00", "9", "", "balance", "", "", "500000", "3000000", "Deposit"]]).balanceOps;
+    expect(ops[0]!.amount).toBe(500000);
+    expect(ops[0]!.comment).toBe("Deposit");
+  });
+});

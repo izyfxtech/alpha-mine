@@ -59,7 +59,7 @@ function Sessions() {
       <div className="rounded-lg bg-card shadow-[0_1px_5px_rgba(60,40,90,0.07)]">
         <div className="flex flex-wrap items-center gap-2 p-4">
           <Button variant="ink" size="sm" onClick={() => setEdit("new")}><Plus className="h-4 w-4" />Add More</Button>
-          <Button variant="secondary" size="sm" disabled={!sel.size} onClick={async () => { await Promise.all([...sel].map((id) => t.remove(id))); setSel(new Set()); }}><Trash2 className="h-4 w-4" />Delete</Button>
+          <Button variant="secondary" size="sm" disabled={!sel.size} onClick={async () => { if (!confirm(`Permanently delete ${sel.size} session${sel.size === 1 ? "" : "s"}? This cannot be undone.`)) return; const done = await Promise.all([...sel].map((id) => t.remove(id))); setSel(new Set([...sel].filter((_, i) => !done[i]))); }}><Trash2 className="h-4 w-4" />Delete</Button>
           <div className="flex-1" />
           <DateRangeButton value={range} onChange={setRange} className="w-[260px]" />
            <CategorySelect categories={journal?.session_categories ?? []} value={cats} onChange={setCats} className="w-80" placeholder="Session Categories" />

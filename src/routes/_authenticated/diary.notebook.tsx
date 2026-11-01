@@ -108,7 +108,7 @@ function Notebook() {
             <>
               <div className="mb-3 flex items-center gap-2">
                 <input value={title} onChange={(e) => setTitle(e.target.value)} className="flex-1 bg-transparent text-[16px] font-bold outline-none" />
-                <Button variant="ghost" size="icon" onClick={() => { pages.remove(page.id); setSel(null); }} title="Delete note"><Trash2 className="h-4 w-4" /></Button>
+                <Button variant="ghost" size="icon" onClick={async () => { if (!confirm(`Permanently delete "${page.title || "Untitled"}"? This cannot be undone.`)) return; if (await pages.remove(page.id)) setSel(null); }} title="Delete note"><Trash2 className="h-4 w-4" /></Button>
               </div>
               <RichEditor value={content} onChange={setContent} className="min-h-0 flex-1" />
             </>

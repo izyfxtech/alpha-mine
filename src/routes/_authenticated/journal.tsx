@@ -92,6 +92,15 @@ function JournalPage() {
     return [...trades].sort((a, b) => { const x = c.get(a), y = c.get(b); return (x < y ? -1 : x > y ? 1 : 0) * (sort.asc ? 1 : -1); });
   }, [trades, sort]);
   const chosen = trades.filter((t) => sel.has(t.id));
+  // The selection can only hold trades on the current filtered list: a filter change drops the rest, so Delete,
+  // Duplicate and Merge always act on exactly the trades the user can see ticked (AM-Y04).
+  useEffect(() => {
+    setSel((s) => {
+      const visible = new Set(trades.map((t) => t.id));
+      const kept = [...s].filter((id) => visible.has(id));
+      return kept.length === s.size ? s : new Set(kept); // same Set when nothing changed, so this never re-renders in a loop
+    });
+  }, [trades]);
   const fillRef = useFillViewport<HTMLDivElement>();
   const [pageSize, setPageSize] = useState(50);
   const [page, setPage] = useState(0);
@@ -126,8 +135,10 @@ function JournalPage() {
   }, [journal?.id, layout, layoutReady]);
 
   async function del() {
-    if (!confirm(`Delete ${sel.size} trade(s)?`)) return;
-    const { error } = await supabase.from("trades").delete().in("id", [...sel]);
+    const ids = chosen.map((t) => t.id);
+    if (!ids.length) return;
+    if (!confirm(`Permanently delete ${ids.length} trade${ids.length === 1 ? "" : "s"}, with their notes, tags and screenshots? This cannot be undone.`)) return;
+    const { error } = await supabase.from("trades").delete().in("id", ids);
     if (error) return toast.error(error.message);
     sweepStorage(); setSel(new Set()); qc.invalidateQueries(); toast.success("Deleted");
   }
@@ -230,7 +241,7 @@ function JournalPage() {
             <colgroup><col style={{ width: 40 }} /><col style={{ width: 28 }} /><col style={{ width: 28 }} />{cols.map((c) => <col key={c.k} style={{ width: layout.widths[c.k] ?? c.width ?? 110 }} />)}</colgroup>
             <thead className="sticky top-0 z-10 bg-card">
               <tr className="h-[42px] border-b text-left text-[12px] text-foreground">
-                <th className="w-10 p-3"><Checkbox checked={sel.size === trades.length} onCheckedChange={(v) => setSel(v ? new Set(trades.map((t) => t.id)) : new Set())} /></th>
+                <th className="w-10 p-3"><Checkbox checked={trades.length > 0 && chosen.length === trades.length ? true : chosen.length > 0 ? "indeterminate" : false} onCheckedChange={(v) => setSel(v ? new Set(trades.map((t) => t.id)) : new Set())} /></th>
                 <th className="w-8" /><th className="w-8" />
                 {cols.map((c) => (
                   <th key={c.k} draggable onDragStart={() => { dragKey.current = c.k; }} onDragOver={(e) => e.preventDefault()} onDrop={() => dropColumn(c.k)} className={cn("relative cursor-grab select-none overflow-hidden px-3 text-[12px] font-semibold text-foreground", alignRight(c.k) && "text-right")} onClick={() => setSort({ k: c.k, asc: sort.k === c.k ? !sort.asc : false })}>
