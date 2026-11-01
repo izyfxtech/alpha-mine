@@ -58,7 +58,6 @@ export function niceTicks(min: number, max: number, count = 6) {
   return { ticks, lo, hi };
 }
 /** Axis label: whole numbers as-is, fractional marks (2,5 / 7,5) keep their decimals instead of being rounded. */
-export const deNum = (n: number) => (Math.abs(n) >= 100000 ? `${(n / 1000).toFixed(0)}k` : n.toLocaleString("de-DE", { maximumFractionDigits: 2 }));
 
 /** Props for a numeric Y axis with round scale marks (e.g. 0, 5, 10, 15) so a value like 12.34 is simply drawn between marks. */
 export function yScale(values: (number | null | undefined)[], opts: { count?: number; integer?: boolean } = {}) {
@@ -102,6 +101,9 @@ export function tradeAxis(max: number, target = 18) {
 /** Collect the numeric values of the given series keys, for yScale(). */
 export const seriesValues = (data: Record<string, unknown>[], keys: string[]) => data.flatMap((d) => keys.map((k) => d[k] as number));
 
+/** Axis tick: whole thousands up to 100k, then 123k. en-US like every other figure in the app. */
+export const axisNum = (n: number) => (Math.abs(n) >= 100000 ? `${(n / 1000).toFixed(0)}k` : n.toLocaleString("en-US", { maximumFractionDigits: 2 }));
+
 export function PnlBars({ data, x, y = "pnl", height = 260, fmt, angle }: { data: Record<string, unknown>[]; x: string; y?: string; height?: number; fmt?: (n: number) => string; angle?: boolean }) {
   const tilt = angle ?? data.length > 6;
   const f = fmt ?? ((n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 2 }));
@@ -112,7 +114,7 @@ export function PnlBars({ data, x, y = "pnl", height = 260, fmt, angle }: { data
       <BarChart data={data} margin={{ top: 8, right: 4, left: 0, bottom: 0 }} barCategoryGap="28%">
         <CartesianGrid vertical={false} stroke="var(--color-grid)" />
         <XAxis dataKey={x} tick={axis} tickLine={false} axisLine={false} interval={0} angle={tilt ? -45 : -15} textAnchor="end" height={tilt ? 58 : 42} tickMargin={6} />
-        <YAxis tick={axis} tickLine={false} axisLine={false} width={42} ticks={ticks} domain={[lo, hi]} tickFormatter={deNum} interval={0} />
+        <YAxis tick={axis} tickLine={false} axisLine={false} width={42} ticks={ticks} domain={[lo, hi]} tickFormatter={axisNum} interval={0} />
         <RRef y={0} stroke="var(--color-axis-line)" />
         <Tooltip cursor={{ fill: "rgba(90,186,80,0.08)" }} content={({ active, payload }) => {
           if (!active || !payload?.length) return null;
@@ -183,7 +185,7 @@ export function DataTable({ cols, rows }: { cols: { k: string; l: string; money?
 export type EquityPoint = { x: number | string; v: number; v2?: number; ma20?: number; ma50?: number; tilt?: number; label?: string; id?: string };
 
 export function EquityChart({
-  data, height = 280, xLabel, yLabel, compact, valueName = "Return ($)", value2Name, fmt = (n: number) => n.toLocaleString("de-DE", { maximumFractionDigits: 2 }), showTilt, baseline = 0, onPointClick,
+  data, height = 280, xLabel, yLabel, compact, valueName = "Return ($)", value2Name, fmt = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 2 }), showTilt, baseline = 0, onPointClick,
 }: {
   data: EquityPoint[]; height?: number | `${number}%`; xLabel?: string; yLabel?: string; compact?: boolean; valueName?: string; value2Name?: string; fmt?: (n: number) => string; showTilt?: boolean; baseline?: number; onPointClick?: (p: EquityPoint) => void;
 }) {
@@ -214,7 +216,7 @@ export function EquityChart({
   // At a split of 0 or 1 one colour owns the whole gradient; keeping the second colour's stops would paint a stray band at the edge.
   const fillOnly = offFill >= 1 ? "up" : offFill <= 0 ? "down" : null;
   const lineOnly = offLine >= 1 ? "up" : offLine <= 0 ? "down" : null;
-  const tickFmt = (n: number) => n.toLocaleString("de-DE", { maximumFractionDigits: 2 });
+  const tickFmt = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 2 });
   const numericX = pts.length > 1 && typeof pts[0]!.x === "number";
   const xMax = numericX ? Math.max(...pts.map((p) => Number(p.x))) : 0;
   const xStep = numericX ? [1, 2, 5, 6, 10, 20, 25, 50, 100, 200, 250, 500, 1000].find((st) => xMax / st <= 18) ?? 1000 : 1;

@@ -91,7 +91,7 @@ function Analysis() {
             <BarChart data={vs} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid vertical={false} stroke="var(--color-border)" />
               <XAxis dataKey="k" tick={axis} tickLine={false} axisLine={{ stroke: "var(--color-border)" }} />
-              <YAxis tick={axis} tickLine={false} axisLine={{ stroke: "var(--color-border)" }} tickFormatter={(v: number) => v.toLocaleString("de-DE")} {...yScale(vs.map((d) => d.v))} />
+              <YAxis tick={axis} tickLine={false} axisLine={{ stroke: "var(--color-border)" }} tickFormatter={(v: number) => v.toLocaleString("en-US")} {...yScale(vs.map((d) => d.v))} />
               <Tooltip {...tooltipStyle} formatter={(v) => fmt(Number(v))} cursor={{ fill: "var(--color-muted)" }} />
               <Bar dataKey="v" name="Return" maxBarSize={180} isAnimationActive={false}>{vs.map((d) => <Cell key={d.k} fill={d.v >= 0 ? "var(--color-chart-1)" : "var(--color-chart-2)"} />)}</Bar>
             </BarChart>

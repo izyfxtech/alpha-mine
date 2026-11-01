@@ -97,19 +97,17 @@ const DEFAULT_STATS: [string, string[]][] = [
   ["Missed Trades", ["Process", "Sleep", "Couldnt trade"]],
 ];
 
-export async function createJournal(name: string, startingBalance = 10000, currency = "USD", extra: { markets?: string[]; deposit_date?: string | null; trade_type?: string; broker?: string | null; quantity_unit?: "lots" | "units" | null } = {}) {
-  const { data, error } = await supabase
-    .from("journals")
-    .insert({ name, starting_balance: startingBalance, currency, ...extra })
-    .select()
-    .single();
+export async function createJournal(name: string, startingBalance = 10000, currency = "USD", extra: { markets?: string[]; deposit_date?: string | null; trade_type?: string; broker?: string | null; quantity_unit?: "lots" | "units" | null } = {}, onlyIfNone = false) {
+  // One database call = one transaction: the journal and its default comments, statistics and setups arrive together.
+  const { data, error } = await supabase.rpc("create_journal", {
+    _journal: { name, starting_balance: startingBalance, currency, ...extra } as never,
+    _comments: DEFAULT_COMMENTS as never,
+    _stats: DEFAULT_STATS.map(([statName, options]) => ({ name: statName, options })) as never,
+    _setups: ["Pullback", "Breakout", "Retest", "Pinbar"] as never,
+    _only_if_none: onlyIfNone,
+  });
   if (error) throw error;
-  await supabase.from("comment_definitions").insert(DEFAULT_COMMENTS.map((c, position) => ({ ...c, position, journal_id: data.id })));
-  const { data: cats } = await supabase.from("custom_stat_categories").insert(DEFAULT_STATS.map(([name], position) => ({ name, position, journal_id: data.id }))).select("id,name");
-  const opts = (cats ?? []).flatMap((c) => (DEFAULT_STATS.find(([n]) => n === c.name)?.[1] ?? []).map((label) => ({ label, category_id: c.id, journal_id: data.id })));
-  if (opts.length) await supabase.from("custom_stat_options").insert(opts);
-  await supabase.from("setups").insert(["Pullback", "Breakout", "Retest", "Pinbar"].map((name, position) => ({ name, position, journal_id: data.id })));
-  return data;
+  return data as unknown as Journal;
 }
 
 interface Ctx {
@@ -134,7 +132,8 @@ export function JournalProvider({ children }: { children: ReactNode }) {
     queryFn: async () => {
       const { data, error } = await supabase.from("journals").select("*").order("created_at");
       if (error) throw error;
-      if (!data.length) return [await createJournal("Trading Journal")] as Journal[];
+      // The server creates the first journal at most once per user, even if several tabs ask at the same moment.
+      if (!data.length) return [await createJournal("Trading Journal", 10000, "USD", {}, true)] as Journal[];
       return data as Journal[];
     },
   });

@@ -30,7 +30,7 @@ export const Route = createFileRoute("/_authenticated/chart-lab/$chart")({
 });
 
 /* ---------------- shared building blocks ---------------- */
-const tickFmt = (n: number) => Math.round(n * 100) / 100 === Math.round(n) ? Math.round(n).toLocaleString("de-DE") : n.toLocaleString("de-DE");
+const tickFmt = (n: number) => Math.round(n * 100) / 100 === Math.round(n) ? Math.round(n).toLocaleString("en-US") : n.toLocaleString("en-US");
 const sorted = (ts: Trade[]) => [...ts].sort((a, b) => a.entry_at.localeCompare(b.entry_at));
 
 function Select<T extends string>({ label, value, options, onChange, width = "w-40" }: { label: string; value: T; options: readonly T[]; onChange: (v: T) => void; width?: string }) {

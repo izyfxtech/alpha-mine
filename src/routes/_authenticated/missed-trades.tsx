@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { fmtPrice } from "@/lib/pnl/format-price";
 import { fromInputValue, localDateTime, toInputValue } from "@/lib/time/local-time";
 import { countOption, fetchAllRows } from "@/lib/journal/fetch-all";
 import { useState } from "react";
@@ -95,13 +96,13 @@ function MissedTrades() {
                   <td className="px-3">{r.option_type}</td>
                   <td className="px-3">{r.setup}</td>
                   <td className="px-3"><Pill tone={pnl}>{r.direction === "long" ? "BUY" : "SELL"}</Pill></td>
-                  <td className="px-3 text-right">{f2(n(r.entry_price), 3)}</td>
+                  <td className="px-3 text-right">{fmtPrice(n(r.entry_price))}</td>
                   <td className="px-3 text-right">{f2(Number(r.quantity))}</td>
-                  <td className="px-3 text-right">{f2(n(r.take_profit), 3)}</td>
-                  <td className="px-3 text-right">{f2(n(r.stop_loss), 3)}</td>
+                  <td className="px-3 text-right">{fmtPrice(n(r.take_profit))}</td>
+                  <td className="px-3 text-right">{fmtPrice(n(r.stop_loss))}</td>
                   <td className="px-3 text-right">{f2(m.rPlanned, 5)}</td>
                   <td className="px-3 text-right">{f2(m.rMultiple)}</td>
-                  <td className="px-3 text-right">{f2(n(r.exit_price), 3)}</td>
+                  <td className="px-3 text-right">{fmtPrice(n(r.exit_price))}</td>
                   <td className="px-3 text-right">{f2(pnl)}</td>
                   <td className="px-3">{dt(r.exit_at)}</td>
                   <td className="px-3 text-right">{f2((pnl / start) * 100)}</td>

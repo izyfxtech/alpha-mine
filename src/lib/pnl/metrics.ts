@@ -259,6 +259,8 @@ export function computeStats(trades: Trade[], startingBalance: number, cashflows
     expectancy: avg(trades.map((t) => t.net_pnl)),
     avgR: avg(rs),
     totalR: sum(rs),
+    /** How many trades have an R-multiple. 0 means R is unknown for the whole set, which is not the same as 0R. */
+    rCount: rs.length,
     biggestWin: wins.length ? Math.max(...wins.map((t) => t.net_pnl)) : 0,
     biggestLoss: losses.length ? Math.min(...losses.map((t) => t.net_pnl)) : 0,
     fees: sum(trades.map((t) => t.fees)),

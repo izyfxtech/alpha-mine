@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'POST only' }, 405);
   const auth = req.headers.get('Authorization');
   if (!auth) return json({ error: 'Missing Authorization header' }, 401);
-  const body = await req.json().catch(() => null) as { journal_id?: string; trade_ids?: string[]; apply?: boolean } | null;
+  const body = await req.json().catch(() => null) as { journal_id?: string; trade_ids?: string[]; apply?: boolean; refresh?: boolean; retry_skipped?: boolean } | null;
   if (!body?.journal_id || !UUID.test(body.journal_id)) return json({ error: 'journal_id (uuid) is required' }, 400);
   if (body.trade_ids && !(Array.isArray(body.trade_ids) && body.trade_ids.every((i) => UUID.test(i)))) return json({ error: 'trade_ids must be uuids' }, 400);
 
@@ -64,6 +64,10 @@ Deno.serve(async (req) => {
       if (body.trade_ids) q = q.in('id', body.trade_ids);
       return q;
     });
+    // Re-open trades that were skipped or errored earlier, BEFORE reading which trades are already done.
+    if (body.retry_skipped === true) {
+      await admin.from('trade_pnl_audit').delete().eq('journal_id', j.id).eq('engine_version', ENGINE_VERSION).in('status', ['skipped', 'error']);
+    }
     const done = new Set((await pageAll<{ trade_id: string }>((a, b) =>
       user.from('trade_pnl_audit').select('trade_id').eq('journal_id', j.id).eq('engine_version', ENGINE_VERSION).range(a, b))).map((r) => r.trade_id));
     // Apply phase: runs first so it also works when every trade was audited by an earlier call.
@@ -86,7 +90,11 @@ Deno.serve(async (req) => {
       }
     };
 
-    const pending = all.filter((t) => !done.has(t.id));
+    // `refresh` re-audits exactly the trades named in trade_ids (after the user edited a stop, size or price); it is only
+    // honoured for a batch that fits one call, so it can never loop. `retry_skipped` re-opens trades that were skipped or
+    // errored earlier (e.g. before the journal's quantity unit was set).
+    const refresh = body.refresh === true && Array.isArray(body.trade_ids) && body.trade_ids.length > 0 && body.trade_ids.length <= BATCH;
+    const pending = all.filter((t) => refresh || !done.has(t.id));
     const todo = pending.slice(0, BATCH);
     const remaining = pending.length - todo.length;
     if (!todo.length) { await applyRisk(); return json({ ok: true, processed: 0, remaining: 0, applied }); }
@@ -135,7 +143,7 @@ Deno.serve(async (req) => {
     let computed = 0, skippedCount = 0, errors = 0;
     const audit = [];
     for (const row of todo) {
-      const base = { trade_id: row.id, journal_id: j.id, engine_version: ENGINE_VERSION, prev_gross_pnl: row.gross_pnl, prev_net_pnl: row.net_pnl, prev_fees: row.fees, prev_risk_amount: row.risk_amount };
+      const base = { applied: false, applied_at: null, trade_id: row.id, journal_id: j.id, engine_version: ENGINE_VERSION, prev_gross_pnl: row.gross_pnl, prev_net_pnl: row.net_pnl, prev_fees: row.fees, prev_risk_amount: row.risk_amount };
       const r = results.get(row.id);
       if (skipped.has(row.id)) { skippedCount++; audit.push({ ...base, status: 'skipped', skip_reason: skipped.get(row.id) }); continue; }
       if (typeof r === 'string') { errors++; audit.push({ ...base, status: 'error', skip_reason: r }); continue; }

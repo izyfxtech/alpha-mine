@@ -53,6 +53,14 @@ Deno.serve(async (req) => {
     if (error) throw new Error(error.message);
     if (!rows?.length) return json({ removed: 0, remaining: 0 });
 
+    // Never delete a file a screenshot row still points at (journal copies share files); just drop it from the queue.
+    const { data: used, error: usedErr } = await admin.from('trade_screenshots').select('path').in('path', rows.map((r) => r.path as string));
+    if (usedErr) throw new Error(usedErr.message);
+    const inUse = new Set((used ?? []).map((u) => u.path as string));
+    const stale = rows.filter((r) => inUse.has(r.path as string));
+    if (stale.length) await admin.from('storage_cleanup').delete().in('id', stale.map((r) => r.id as number));
+    rows.splice(0, rows.length, ...rows.filter((r) => !inUse.has(r.path as string)));
+
     let removed = 0;
     const failed: string[] = [];
     for (const bucket of [...new Set(rows.map((r) => r.bucket as string))]) {

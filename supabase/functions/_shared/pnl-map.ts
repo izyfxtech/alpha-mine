@@ -53,7 +53,8 @@ export function guessDigits(rows: TradeRow[]): Map<string, number> {
 }
 
 export function mapTrade(row: TradeRow, ins: InstrumentRow | undefined, journal: JournalRow, digitsGuess: Map<string, number>): Mapped {
-  if (row.pnl_manual && (row.source ?? 'manual') === 'manual') return { skip: 'P&L entered by hand is never overwritten' };
+  // A P&L typed by hand is still audited: the engine only ever WRITES planned risk, never gross, net or fees, so there is
+  // nothing to protect, and skipping these trades is what left every hand-entered forex trade without an R-multiple.
   if (row.is_break_even) return { skip: 'marked break even' };
   if (!has(row.entry_price) || !has(row.exit_price) || !row.entry_at || !row.exit_at) return { skip: 'trade is not closed or has no prices' };
   if (!has(row.quantity) || Number(row.quantity) <= 0) return { skip: 'no quantity' };

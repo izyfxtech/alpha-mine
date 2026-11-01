@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { fmtPrice } from "@/lib/pnl/format-price";
 import { fromInputValue, toInputValue } from "@/lib/time/local-time";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -12,6 +13,7 @@ import { COMPLIANCE_LABEL, type RuleStatus } from "@/lib/pnl/compliance";
 import { isOpen, type Trade } from "@/lib/pnl/metrics";
 import { cn } from "@/lib/utils";
 import { keepStoredGross, resolveGross } from "@/lib/pnl/trade-form";
+import { auditTrades } from "@/lib/pnl/pnl-audit";
 import { useScreenshots, saveShots, deleteShot, type Shot } from "@/components/journal/Screenshots";
 import { FloatInput, FloatSelect, Segmented, SectionTitle, type Opt } from "@/components/journal/trade-form/fields";
 import { ScreenshotSlots, type PendingShot } from "@/components/journal/trade-form/ScreenshotSlots";
@@ -284,6 +286,10 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
       for (const s of removed) await deleteShot(s);
       await saveShots(journal.id, id, pending);
       toast.success(trade ? "Trade updated" : "Trade added");
+      // Planned risk (and so the R-multiple) for forex, metals and other lot-based trades comes from the P&L engine, which
+      // knows contract sizes, pip values and currency conversion. Ask it for this one trade now; the page refreshes when it
+      // answers. Never blocks or fails the save.
+      if (journal.quantity_unit && !stillOpen && isNum(f.stop_loss)) auditTrades(journal.id, [id]).then(() => qc.invalidateQueries(), () => undefined);
       if (onSaved) await onSaved();
       qc.invalidateQueries();
       setOpen(false);
@@ -385,7 +391,7 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
                 </div>
                 {(extraEntries.length > 0 || extraExits.length > 0) && avgEntry != null && (
                   <p className="mt-2 text-[11.5px] text-muted-foreground tabular">
-                    Avg entry {avgEntry.toFixed(4)} · size {totalQty}{avgExit != null && ` · avg exit ${avgExit.toFixed(4)}`}
+                    Avg entry {fmtPrice(avgEntry)} · size {totalQty}{avgExit != null && ` · avg exit ${fmtPrice(avgExit)}`}
                   </p>
                 )}
                 {vis("notes") && (

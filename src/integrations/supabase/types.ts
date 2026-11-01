@@ -1262,6 +1262,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_journal: { Args: { _journal: Json; _comments?: Json; _stats?: Json; _setups?: Json; _only_if_none?: boolean }; Returns: Database["public"]["Tables"]["journals"]["Row"] }
       import_mt_report: { Args: { _journal_id: string; _payload: Json; _repair?: boolean }; Returns: Json }
       merge_trades: { Args: { _ids: string[] }; Returns: string }
       owns_journal: { Args: { _j: string }; Returns: boolean }

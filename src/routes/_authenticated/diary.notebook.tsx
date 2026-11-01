@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { localDateTime } from "@/lib/time/local-time";
+import { localDateTime, localToday } from "@/lib/time/local-time";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Folder, FolderOpen, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -53,7 +53,7 @@ function Notebook() {
   const addNote = async () => {
     const target = folder === ALL ? names[0] ?? "Diary" : folder;
     if (!names.includes(target)) await folders.insert({ name: target, position: 0 });
-    const today = new Date().toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+    const today = localToday();
     const r = await pages.insert({ folder: target, title: today, content: "" });
     if (r) setSel(r.id);
   };

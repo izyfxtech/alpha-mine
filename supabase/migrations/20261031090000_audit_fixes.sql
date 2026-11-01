@@ -35,6 +35,12 @@ begin
     -- A client that sends null for a column it does not own must not wipe a stored value (the engine owns the
     -- risk of imported trades).
     new.risk_amount := old.risk_amount;
+  elsif tg_op = 'UPDATE' and new.source = 'manual' and unit is distinct from 'units'
+        and (new.stop_loss is distinct from old.stop_loss or new.entry_price is distinct from old.entry_price or new.quantity is distinct from old.quantity)
+        and new.risk_amount is not distinct from old.risk_amount then
+    -- Lots (or a journal with no unit yet): the engine, not this trigger, works risk out. The old figure described the
+    -- old stop or size, so clear it; the app asks the engine to compute it again right after the save.
+    new.risk_amount := null;
   elsif new.source = 'manual' and unit = 'units' and (
           (tg_op = 'INSERT' and new.risk_amount is null)
        or (tg_op = 'UPDATE' and (new.stop_loss is distinct from old.stop_loss or new.entry_price is distinct from old.entry_price or new.quantity is distinct from old.quantity)
@@ -210,7 +216,9 @@ grant all on public.storage_cleanup to service_role;
 
 create or replace function public.queue_screenshot_file() returns trigger language plpgsql security definer set search_path = public as $$
 begin
-  if old.path is not null and old.path !~* '^https?:' then
+  -- A copied journal re-uses the same files, so a path is only queued once NO screenshot row points at it any more.
+  if old.path is not null and old.path !~* '^https?:'
+     and not exists (select 1 from public.trade_screenshots s where s.path = old.path) then
     insert into public.storage_cleanup (bucket, path) values ('screenshots', old.path) on conflict do nothing;
   end if;
   return old;
@@ -234,6 +242,59 @@ end $$;
 drop trigger if exists journals_backfill_risk on public.journals;
 create trigger journals_backfill_risk after update of quantity_unit on public.journals
   for each row execute function public.journals_backfill_risk();
+
+-- One atomic call creates a journal and its default comments, statistics and setups (AM-M04). With _only_if_none it
+-- creates the very first journal at most once per user, however many tabs or retries ask at the same moment: the
+-- advisory lock serialises them, so a read of the journal list can never leave a duplicate or a half-seeded journal.
+create or replace function public.create_journal(
+  _journal jsonb, _comments jsonb default '[]'::jsonb, _stats jsonb default '[]'::jsonb, _setups jsonb default '[]'::jsonb, _only_if_none boolean default false)
+returns public.journals
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+  j public.journals;
+  c record;
+  v_cat uuid;
+begin
+  if v_uid is null then raise exception 'You must be signed in.' using errcode = '42501'; end if;
+  perform pg_advisory_xact_lock(hashtextextended('create_journal:' || v_uid::text, 0));
+  if _only_if_none then
+    select * into j from public.journals where owner_id = v_uid order by created_at limit 1;
+    if found then return j; end if;
+  end if;
+
+  insert into public.journals (name, starting_balance, currency, broker, markets, deposit_date, trade_type, quantity_unit)
+  values (
+    coalesce(nullif(trim(_journal ->> 'name'), ''), 'Trading Journal'),
+    coalesce((_journal ->> 'starting_balance')::numeric, 10000),
+    upper(coalesce(nullif(_journal ->> 'currency', ''), 'USD')),
+    nullif(_journal ->> 'broker', ''),
+    coalesce(array(select jsonb_array_elements_text(coalesce(_journal -> 'markets', '[]'::jsonb))), '{}'::text[]),
+    nullif(_journal ->> 'deposit_date', '')::date,
+    coalesce(nullif(_journal ->> 'trade_type', ''), 'Spot'),
+    nullif(_journal ->> 'quantity_unit', ''))
+  returning * into j;
+
+  insert into public.comment_definitions (journal_id, phase, label, sentiment, position)
+  select j.id, t.c ->> 'phase', t.c ->> 'label', coalesce(t.c ->> 'sentiment', 'neutral'), (t.ord - 1)::int
+  from jsonb_array_elements(coalesce(_comments, '[]'::jsonb)) with ordinality as t(c, ord);
+
+  for c in select t.v, t.ord from jsonb_array_elements(coalesce(_stats, '[]'::jsonb)) with ordinality as t(v, ord) loop
+    insert into public.custom_stat_categories (journal_id, name, position) values (j.id, c.v ->> 'name', (c.ord - 1)::int) returning id into v_cat;
+    insert into public.custom_stat_options (journal_id, category_id, label, position)
+    select j.id, v_cat, o.label, (o.ord - 1)::int from jsonb_array_elements_text(coalesce(c.v -> 'options', '[]'::jsonb)) with ordinality as o(label, ord);
+  end loop;
+
+  insert into public.setups (journal_id, name, position)
+  select j.id, s.name, (s.ord - 1)::int from jsonb_array_elements_text(coalesce(_setups, '[]'::jsonb)) with ordinality as s(name, ord);
+  return j;
+end
+$$;
+revoke execute on function public.create_journal(jsonb, jsonb, jsonb, jsonb, boolean) from public, anon;
+grant execute on function public.create_journal(jsonb, jsonb, jsonb, jsonb, boolean) to authenticated;
 
 grant all on public.planned_trade_custom_stats to service_role;
 

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { fmtPrice } from "@/lib/pnl/format-price";
 import { fromInputValue, localDateTime, toInputValue } from "@/lib/time/local-time";
 import { RecordScreenshots } from "@/components/journal/Screenshots";
 import { useState } from "react";
@@ -116,10 +117,10 @@ function PlansPage() {
                   <td className="px-3">{r.option_type}</td>
                   <td className="px-3">{r.setup}</td>
                   <td className="px-3"><span className="inline-block rounded-full bg-chip px-2.5 py-[3px] text-xs font-medium leading-none">{r.direction === "long" ? "BUY" : "SELL"}</span></td>
-                  <td className="px-3 text-right">{f2(n(r.entry_price), 3)}</td>
+                  <td className="px-3 text-right">{fmtPrice(n(r.entry_price))}</td>
                   <td className="px-3 text-right">{f2(Number(r.quantity))}</td>
-                  <td className="px-3 text-right">{f2(n(r.take_profit), 3)}</td>
-                  <td className="px-3 text-right">{f2(n(r.stop_loss), 3)}</td>
+                  <td className="px-3 text-right">{fmtPrice(n(r.take_profit))}</td>
+                  <td className="px-3 text-right">{fmtPrice(n(r.stop_loss))}</td>
                   <td className="px-3">{r.expiry_date ?? ""}</td>
                   <td className="px-3 text-right">{f2(Number(r.multiplier ?? 1))}</td>
                   {cats.map((c) => <td key={c.id} className="px-3">{optionLabel(r.id, c.id)}</td>)}

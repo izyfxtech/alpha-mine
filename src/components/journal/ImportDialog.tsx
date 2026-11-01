@@ -24,6 +24,15 @@ const TZ_OPTIONS: { value: string; label: string; tz: ServerTz }[] = [
 ];
 const CHUNK = 500;
 
+/** The first sheet of an .xlsx as rows of text, exactly as Excel displays them (dates and numbers keep their format). */
+async function sheetRows(bytes: Uint8Array): Promise<string[][]> {
+  const XLSX = await import("xlsx");
+  const wb = XLSX.read(bytes, { type: "array", cellDates: false });
+  const ws = wb.Sheets[wb.SheetNames[0] ?? ""];
+  if (!ws) return [];
+  return (XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, raw: false, blankrows: false }) as unknown[][]).map((r) => r.map((c) => (c == null ? "" : String(c))));
+}
+
 export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const { journal } = useJournal();
   const qc = useQueryClient();
@@ -39,19 +48,8 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   const [csvZone, setCsvZone] = useState<CsvZone>("utc");
   const [decimalChoice, setDecimalChoice] = useState<"auto" | Decimal>("auto");
 
-  async function onFile(file: File) {
-    if (/\.(html?|xlsx)$/i.test(file.name)) {
-      setCsv(null);
-      try {
-        setMt(parseMtReport(new Uint8Array(await file.arrayBuffer())));
-      } catch (e) {
-        setMt(null);
-        toast.error((e as Error).message);
-      }
-      return;
-    }
-    setMt(null);
-    const raw = parseCsv(await file.text());
+  /** Shows a table (CSV text or a spreadsheet sheet) in the column-mapping step. */
+  function loadTable(raw: string[][]) {
     if (!raw.length) return void toast.error("That file has no rows.");
     const h = detectHeaderRow(raw);
     const p = { header: raw[h] ?? [], rows: raw.slice(h + 1) };
@@ -59,6 +57,30 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
     const auto = suggestMapping(p.header);
     setMap(auto as Record<string, string>);
     setAsFills(looksLikeFills(auto));
+  }
+
+  async function onFile(file: File) {
+    if (/\.(html?|xlsx)$/i.test(file.name)) {
+      setCsv(null);
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      try {
+        setMt(parseMtReport(bytes));
+      } catch (e) {
+        setMt(null);
+        // A spreadsheet that is not a MetaTrader report may still be a plain trade log: read its first sheet like a CSV.
+        const sheet = /\.xlsx$/i.test(file.name) ? await sheetRows(bytes).catch(() => null) : null;
+        const mapped = sheet && sheet.length ? suggestMapping(sheet[detectHeaderRow(sheet)] ?? []) : null;
+        if (sheet && mapped?.entry_at && mapped.entry_price) {
+          loadTable(sheet);
+          toast.info("Read as a spreadsheet trade log, not a MetaTrader report. Check the column mapping below.");
+        } else {
+          toast.error((e as Error).message);
+        }
+      }
+      return;
+    }
+    setMt(null);
+    loadTable(parseCsv(await file.text()));
   }
 
   /** Date order and decimal separator, from the user's choice or from the whole file. null = the file cannot say. */

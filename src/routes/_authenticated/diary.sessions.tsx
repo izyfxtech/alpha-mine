@@ -98,7 +98,7 @@ function Sessions() {
                     <td className="px-3 text-center"><TiltMeter value={avgTilt(ts)} /></td>
                     <td className="px-3 text-right">{s.net.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="px-3 text-right">{fmtNum(s.roi)}</td>
-                    <td className="px-3 text-right">{fmtNum(s.totalR)}</td>
+                    <td className="px-3 text-right">{s.rCount ? fmtNum(s.totalR) : "—"}</td>
                     <td />
                   </tr>
                 );
@@ -179,7 +179,7 @@ function SessionSheet({ session, trades, start, currency, categories, onClose, o
           <div className="grid grid-cols-3 gap-2">
             <Box l="Trades" v={s.count} /><Box l="Winners" v={s.wins} /><Box l="Losers" v={s.losses} />
             <Box l="Break even" v={s.be} /><Box l="Winrate" v={`${s.winRate.toFixed(2)}%`} /><Box l="Gain" v={fmtMoney(s.net, currency)} />
-            <Box l="Gain %" v={`${s.roi.toFixed(2)}%`} /><Box l="R-Multiple" v={fmtNum(s.totalR)} />
+            <Box l="Gain %" v={`${s.roi.toFixed(2)}%`} /><Box l="R-Multiple" v={s.rCount ? fmtNum(s.totalR) : "—"} />
             <Box l={`Tiltmeter ${tilt > 0 ? "+" : ""}${tilt}`} v={<TiltMeter value={avgTilt(ts)} />} />
           </div>
         </div>

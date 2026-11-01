@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { fmtPrice } from "@/lib/pnl/format-price";
 import { localDateTime } from "@/lib/time/local-time";
 import { countOption, fetchAllRows } from "@/lib/journal/fetch-all";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -48,10 +49,10 @@ const COLS: Col[] = [
   { k: "rules", l: "Rules", get: (t) => COMPLIANCE_LABEL[complianceOf(t.ruleChecks)], render: (t) => { const c = complianceOf(t.ruleChecks); return c === "unrated" ? <span className="text-t4">—</span> : <span className={cn("text-xs font-medium", c === "followed" ? "text-profit" : c === "violated" ? "text-loss" : "text-amber-600")}>{COMPLIANCE_LABEL[c]}</span>; } },
   { k: "direction", l: "Direction", get: (t) => t.direction, render: (t) => pill(t, t.direction) },
   { k: "quantity", l: "Quantity", get: (t) => t.quantity, render: (t) => num(t.quantity, 2) },
-  { k: "entry_price", l: "Entry Price", get: (t) => t.entry_price, render: (t) => num(t.entry_price, 3) },
-  { k: "exit_price", l: "Exit Price", get: (t) => t.exit_price ?? "", render: (t) => (t.exit_price == null ? "" : num(t.exit_price, 3)) },
-  { k: "take_profit", l: "TP Price", get: (t) => t.take_profit ?? "", render: (t) => (t.take_profit == null ? "" : num(Number(t.take_profit), 2)) },
-  { k: "stop_loss", l: "SL Price", get: (t) => t.stop_loss ?? "", render: (t) => (t.stop_loss == null ? "" : num(Number(t.stop_loss), 3)) },
+  { k: "entry_price", l: "Entry Price", get: (t) => t.entry_price, render: (t) => fmtPrice(t.entry_price) },
+  { k: "exit_price", l: "Exit Price", get: (t) => t.exit_price ?? "", render: (t) => fmtPrice(t.exit_price) },
+  { k: "take_profit", l: "TP Price", get: (t) => t.take_profit ?? "", render: (t) => fmtPrice(t.take_profit) },
+  { k: "stop_loss", l: "SL Price", get: (t) => t.stop_loss ?? "", render: (t) => fmtPrice(t.stop_loss) },
   { k: "fees", l: "Fees ($)", get: (t) => t.fees, render: (t) => num(t.fees, 2) },
   { k: "gross_pnl", l: "Gross P&L", get: (t) => t.gross_pnl, render: (t) => num(t.gross_pnl, 2) },
   { k: "net_pnl", l: "Return ($)", get: (t) => t.net_pnl, render: (t) => <span className={pnlText(t)}>{num(t.net_pnl, 2)}</span> },
