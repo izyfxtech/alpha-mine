@@ -2,3 +2,6 @@ allowBuilds:
   esbuild: true
   supabase: true
 minimumReleaseAge: 0
+permissions:
+  '@tanstack/react-start':
+    skills: true
