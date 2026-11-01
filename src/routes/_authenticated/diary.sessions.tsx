@@ -9,7 +9,7 @@ import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMe
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { RichEditor } from "@/components/RichEditor";
 import { TiltMeter } from "@/components/kit";
-import { useJournal, useTrades } from "@/lib/journal/journal-context";
+import { useJournal, useJournalFlows, useTrades } from "@/lib/journal/journal-context";
 import { useJournalTable, type Row } from "@/lib/journal/crud";
 import { computeStats, dayKey, fmtMoney, fmtNum, type Trade } from "@/lib/pnl/metrics";
 import { cn } from "@/lib/utils";
@@ -46,6 +46,7 @@ function Sessions() {
   const [edit, setEdit] = useState<Session | "new" | null>(null);
   const [asc, setAsc] = useState(true);
   const start = journal?.starting_balance ?? 0;
+  const flows = useJournalFlows();
 
   const rows = useMemo(() => t.rows
     .filter((r) => (!range.a || (r.period_end ?? r.session_date) >= range.a) && (!range.b || (r.period_start ?? r.session_date) <= range.b))
@@ -79,7 +80,7 @@ function Sessions() {
               {rows.length === 0 && <tr><td colSpan={14} className="py-10 text-center text-sm text-muted-foreground">No sessions yet. Click “Add More” to review a trading period.</td></tr>}
               {rows.map((r) => {
                 const ts = trades.filter((x) => inPeriod(x, r.period_start ?? r.session_date, r.period_end ?? r.session_date));
-                const s = computeStats(ts, start);
+                const s = computeStats(ts, start, flows);
                 return (
                   <tr key={r.id} onClick={() => setEdit(r)} className="cursor-pointer tabular hover:bg-muted/50">
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
@@ -138,7 +139,7 @@ function SessionSheet({ session, trades, start, currency, categories, onClose, o
   const [rating, setRating] = useState(session?.rating ?? 0);
   const [content, setContent] = useState(session?.content ?? session?.notes ?? "");
   const ts = useMemo(() => trades.filter((t) => inPeriod(t, a, b)).sort((x, y) => x.entry_at.localeCompare(y.entry_at)), [trades, a, b]);
-  const s = computeStats(ts, start);
+  const s = computeStats(ts, start, useJournalFlows());
   let c = 0;
   const curve = [{ v: 0 }, ...ts.map((t) => ({ v: (c += t.net_pnl) }))];
   const tilt = Math.round(ts.reduce((acc, t) => acc + t.tilt, 0));

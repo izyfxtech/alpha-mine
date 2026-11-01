@@ -108,3 +108,16 @@ R-multiples where a stop loss was set.
 
 `/prop-challenge` replays your closed trades against a firm's rules (profit target, drawdown, daily loss, minimum days,
 consistency). It uses closed trades only and does not model payouts or scaling plans.
+
+## Storage clean-up (screenshots)
+
+Deleting a screenshot row (directly, or through a deleted trade, merged trade, journal or account) queues its file in
+`storage_cleanup`. The `sweep-storage` Edge Function removes queued files through the Storage API; the app calls it
+after deletes. Files of deleted accounts have no signed-in user, so schedule it too: a daily `POST` to the function
+with `Authorization: Bearer <CRON_SECRET>` (pg_cron + pg_net, or any scheduler). Deploy it with
+`supabase functions deploy sweep-storage`.
+
+## After the audit-fixes migration
+
+Run `supabase/diagnostics/legacy_rows.sql`. Legacy rows that break the new CHECK constraints are listed there; repair
+them and then `validate constraint` (the commands are in the file header).

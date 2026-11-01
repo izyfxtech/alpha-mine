@@ -1263,6 +1263,7 @@ export type Database = {
     }
     Functions: {
       import_mt_report: { Args: { _journal_id: string; _payload: Json }; Returns: Json }
+      merge_trades: { Args: { _ids: string[] }; Returns: string }
       owns_journal: { Args: { _j: string }; Returns: boolean }
       shared_journal: { Args: { _token: string }; Returns: Json }
     }

@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { countOption, fetchAllRows } from "@/lib/journal/fetch-all";
 import type { Database } from "@/integrations/supabase/types";
 
 type Tables = Database["public"]["Tables"];
@@ -14,9 +15,9 @@ export function useJournalTable<T extends TableName>(table: T, journalId: string
     queryKey: [table, journalId, orderBy, ascending],
     enabled: !!journalId,
     queryFn: async () => {
-      const { data, error } = await (supabase as any).from(table).select("*").eq("journal_id", journalId!).order(orderBy, { ascending });
-      if (error) throw error;
-      return data as unknown as Row<T>[];
+      // Every row (not just the first Max Rows), ordered with `id` as the tiebreaker so pages never repeat or skip.
+      const rows = await fetchAllRows<Row<T>>((from, to, first) => (supabase as any).from(table).select("*", countOption(first)).eq("journal_id", journalId!).order(orderBy, { ascending }).order("id").range(from, to));
+      return rows;
     },
   });
   const done = () => { qc.invalidateQueries({ queryKey: [table] }); qc.invalidateQueries({ queryKey: ["lookups"] }); qc.invalidateQueries({ queryKey: ["trades"] }); };

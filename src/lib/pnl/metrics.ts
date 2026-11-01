@@ -85,13 +85,14 @@ export function enrichTrade(
   };
 }
 
-export function riskOf(t: Pick<TradeRow, "risk_amount" | "stop_loss" | "entry_price" | "quantity">) {
-  if (t.risk_amount && Number(t.risk_amount) > 0) return Number(t.risk_amount);
-  if (t.stop_loss != null) {
-    const r = Math.abs(Number(t.entry_price) - Number(t.stop_loss)) * Number(t.quantity);
-    return r > 0 ? r : null;
-  }
-  return null;
+/**
+ * Planned risk in account currency, or null when it is not known. It comes from risk_amount only (the database
+ * trigger derives it for spot trades sized in units, the P&L engine for imported ones). A price-distance fallback
+ * is wrong whenever quantity is lots (0.10 lot x 50 pips is not 0.0005 of anything), so R is left blank instead.
+ */
+export function riskOf(t: Pick<TradeRow, "risk_amount">) {
+  const r = t.risk_amount == null ? NaN : Number(t.risk_amount);
+  return Number.isFinite(r) && r > 0 ? r : null;
 }
 
 /** A trade without an exit is still open: it has no result yet and must stay out of every statistic. */
@@ -130,22 +131,35 @@ export function annotateAccount<T extends Trade>(trades: T[], start: number, cas
   return trades.map((t) => ({ ...t, ...(out.get(t.id) ?? { accountSize: start, retPct: 0 }) }));
 }
 
-export function equityCurve(trades: Trade[], start: number) {
+/**
+ * Equity after every trade. Deposits and withdrawals dated on or before a trade's day are applied to both the
+ * equity and the running peak, so a deposit never looks like profit and a withdrawal never looks like drawdown.
+ * `cashflows` is required on purpose: leaving it out used to give every page its own balance.
+ */
+export function equityCurve(trades: Trade[], start: number, cashflows: Cashflow[]) {
   const sorted = [...trades].sort((a, b) => a.entry_at.localeCompare(b.entry_at));
+  const flows = [...cashflows].sort((a, b) => a.occurred_on.localeCompare(b.occurred_on));
+  let fi = 0;
   let eq = start;
   let peak = start;
   let tilt = 0;
   return sorted.map((t, i) => {
+    const d = dayKey(t.entry_at);
+    while (fi < flows.length && flows[fi]!.occurred_on <= d) {
+      const a = Number(flows[fi++]!.amount);
+      eq += a;
+      peak += a;
+    }
     eq += t.net_pnl;
     peak = Math.max(peak, eq);
     tilt += t.tilt;
     return {
       i: i + 1,
       id: t.id,
-      date: dayKey(t.entry_at),
+      date: d,
       equity: +eq.toFixed(2),
       pnl: t.net_pnl,
-      drawdown: peak ? +(((eq - peak) / peak) * 100).toFixed(2) : 0,
+      drawdown: peak > 0 ? +(((eq - peak) / peak) * 100).toFixed(2) : 0,
       tilt, // running sum of discipline points
     };
   });
@@ -163,8 +177,37 @@ export function milestoneLevel(current: number, goal: number) {
   return { level: level + 1, name: MILESTONE_LEVELS[level], progress: Math.floor(((current - lo) / (hi - lo)) * 100) };
 }
 
-/** cashflow = net deposits minus withdrawals; ROI is net P&L over starting balance plus net cashflow. */
-export function computeStats(trades: Trade[], startingBalance: number, cashflow = 0) {
+/**
+ * The base a period report must use for its own return: the balance just before `from` (a yyyy-mm-dd day) is the
+ * starting balance, plus deposits and withdrawals dated before it, plus the net P&L of every earlier trade. Only the
+ * cashflows dated inside [from, to] are returned for the period itself, so a 2025 return never divides by money that
+ * was deposited in 2026. Pass the journal's unfiltered trades as `all`.
+ */
+export function periodBase(all: Trade[], start: number, flows: Cashflow[], from: string, to: string) {
+  const earlierFlows = sum(flows.filter((f) => f.occurred_on < from).map((f) => Number(f.amount)));
+  const earlierNet = sum(all.filter((t) => dayKey(t.entry_at) < from).map((t) => t.net_pnl));
+  return { base: start + earlierFlows + earlierNet, flows: flows.filter((f) => f.occurred_on >= from && f.occurred_on <= to) };
+}
+
+/** Mean over deviation of the R values that exist, scaled by sqrt(n) (n capped at 100). Needs two or more R values. */
+export function sqnOf(rs: number[]) {
+  const sd = stdev(rs);
+  return rs.length > 1 && sd ? (avg(rs) / sd) * Math.sqrt(Math.min(rs.length, 100)) : 0;
+}
+
+/** Sortino on per-trade P&L: mean over downside deviation, the root mean square of the losses taken over ALL trades. */
+export function sortinoOf(pnls: number[]) {
+  if (!pnls.length) return 0;
+  const dd = Math.sqrt(sum(pnls.map((x) => Math.min(0, x) ** 2)) / pnls.length);
+  return dd ? avg(pnls) / dd : 0;
+}
+
+/**
+ * `cashflows` are the journal's dated deposits (+) and withdrawals (-); it is required so every page that shows a
+ * balance, ROI or drawdown applies them. ROI is net P&L over starting balance plus net cashflows.
+ */
+export function computeStats(trades: Trade[], startingBalance: number, cashflows: Cashflow[]) {
+  const cashflow = sum(cashflows.map((c) => Number(c.amount)));
   const wins = trades.filter(isWin);
   const losses = trades.filter(isLoss);
   const be = trades.filter(isBE);
@@ -172,7 +215,7 @@ export function computeStats(trades: Trade[], startingBalance: number, cashflow 
   const grossWin = sum(wins.map((t) => t.net_pnl));
   const grossLoss = Math.abs(sum(losses.map((t) => t.net_pnl)));
   const profitFactor = grossLoss ? grossWin / grossLoss : grossWin ? Infinity : 0;
-  const curve = equityCurve(trades, startingBalance);
+  const curve = equityCurve(trades, startingBalance, cashflows);
   const maxDD = curve.length ? Math.abs(Math.min(0, ...curve.map((c) => c.drawdown))) : 0;
 
   const days = new Map<string, number>();
@@ -196,7 +239,8 @@ export function computeStats(trades: Trade[], startingBalance: number, cashflow 
 
   const streak: ("W" | "L" | "B")[] = sorted.slice(-5).map((t) => (isWin(t) ? "W" : isLoss(t) ? "L" : "B"));
 
-  const sqn = rs.length > 1 ? (avg(rs) / stdev(rs)) * Math.sqrt(Math.min(rs.length, 100)) : 0;
+  const sqn = sqnOf(rs);
+  const sortino = sortinoOf(trades.map((t) => t.net_pnl));
 
   return {
     count: trades.length,
@@ -228,6 +272,7 @@ export function computeStats(trades: Trade[], startingBalance: number, cashflow 
     score,
     streak,
     sqn,
+    sortino,
     followedPlanPct: trades.length ? (trades.filter((t) => t.followedPlan).length / trades.length) * 100 : 0,
     balance: invested + net,
     curve,
@@ -295,11 +340,12 @@ export function consecutive(trades: Trade[]) {
 }
 
 export function fmtMoney(v: number, currency = "USD") {
+  if (Number.isNaN(v)) return "–";
   if (!isFinite(v)) return "∞";
   return new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 2 }).format(v);
 }
-export const fmtPct = (v: number) => `${isFinite(v) ? v.toFixed(2) : "∞"}%`;
-export const fmtNum = (v: number, d = 2) => (isFinite(v) ? v.toFixed(d) : "∞");
+export const fmtPct = (v: number) => (Number.isNaN(v) ? "–" : `${isFinite(v) ? v.toFixed(2) : "∞"}%`);
+export const fmtNum = (v: number, d = 2) => (Number.isNaN(v) ? "–" : isFinite(v) ? v.toFixed(d) : "∞");
 export function fmtHold(min: number) {
   return `${(min / 60).toFixed(1)}h / ${(min / 1440).toFixed(1)}d / ${Math.round(min).toLocaleString()}m`;
 }

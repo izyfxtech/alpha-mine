@@ -9,8 +9,8 @@ export const Route = createFileRoute("/_authenticated/milestones")({
 });
 
 function Milestones() {
-  const { trades, journal } = useTrades({ unfiltered: true });
-  const s = computeStats(trades, journal?.starting_balance ?? 0);
+  const { trades, journal, flows } = useTrades({ unfiltered: true });
+  const s = computeStats(trades, journal?.starting_balance ?? 0, flows);
   const milestones = [
     { title: "Journaled Trades", description: "The path to your first true sample size. Journal 50 trades to get meaningful data in AlphaMine.", icon: BookOpen, tone: "var(--chart-5)", current: s.count, goal: 50 },
     { title: "Disciplined Trader", description: "Keep improving your trading discipline by keeping the Tiltmeter green on 100 trades.", icon: ShieldCheck, tone: "var(--chart-3)", current: trades.filter((t) => t.tilt > 0).length, goal: 100 },

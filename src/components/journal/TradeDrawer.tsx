@@ -10,6 +10,7 @@ import { useJournal, useLookups } from "@/lib/journal/journal-context";
 import { COMPLIANCE_LABEL, type RuleStatus } from "@/lib/pnl/compliance";
 import { isOpen, type Trade } from "@/lib/pnl/metrics";
 import { cn } from "@/lib/utils";
+import { keepStoredGross, resolveGross } from "@/lib/pnl/trade-form";
 import { useScreenshots, saveShots, deleteShot, type Shot } from "@/components/journal/Screenshots";
 import { FloatInput, FloatSelect, Segmented, SectionTitle, type Opt } from "@/components/journal/trade-form/fields";
 import { ScreenshotSlots, type PendingShot } from "@/components/journal/trade-form/ScreenshotSlots";
@@ -23,7 +24,16 @@ export const useTradeDrawer = () => {
 };
 
 type Leg = { price: string; qty: string };
-const local = (iso?: string | null) => (iso ? new Date(new Date(iso).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : "");
+const pad = (n: number) => String(n).padStart(2, "0");
+/** ISO instant to the value of a datetime-local input, in the browser's zone AT THAT DATE (DST-correct), seconds kept. */
+const local = (iso?: string | null) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+};
+/** The stored instant when the field was not edited (so a note change never moves a broker time), else the typed one. */
+const instant = (typed: string, original?: string | null) => (original && typed === local(original) ? original : new Date(typed).toISOString());
+const price = (v: number) => +v.toFixed(10);
 const num = (v: string) => (v.trim() === "" ? null : Number(v));
 const isNum = (v: string) => v.trim() !== "" && Number.isFinite(Number(v));
 
@@ -112,7 +122,7 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
   const show = (t?: Trade, opts?: DrawerOpts) => {
     setNavList(opts?.list ?? []);
     setTrade(t); setF(toForm(t ?? opts?.prefill)); setTab("regular"); setOnSaved(() => opts?.onSaved);
-    setExtraEntries([]); setExtraExits([]); setGrossTouched(!!t && t.exit_price != null);
+    setExtraEntries([]); setExtraExits([]); setGrossTouched(!!t && keepStoredGross(t, journal?.quantity_unit));
     setFav(t?.is_favorite ?? false);
     setComments(t?.comments.map((c) => c.id) ?? []);
     setStats(t?.customStats ?? []);
@@ -150,8 +160,11 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
   const [avgExitLegs] = blend([{ price: f.exit_price, qty: String(Math.max(totalQty - extraExitQty, 0)) }, ...extraExits]);
   const avgExit = stillOpen ? null : avgExitLegs;
   const sign = f.direction === "short" ? -1 : 1;
-  const autoGross = avgEntry != null && avgExit != null && f.direction ? +((avgExit - avgEntry) * totalQty * sign).toFixed(2) : null;
-  const grossVal = stillOpen || f.is_break_even ? 0 : grossTouched && isNum(f.gross_pnl) ? Number(f.gross_pnl) : autoGross;
+  // Price distance times quantity is only money when the journal says quantity is in units. In a lots journal, or while the
+  // unit is not set, the P&L must be typed (and then it is kept as typed).
+  const autoGross = journal?.quantity_unit === "units" && avgEntry != null && avgExit != null && f.direction ? +((avgExit - avgEntry) * totalQty * sign).toFixed(2) : null;
+  const resolved = resolveGross({ open: stillOpen, breakEven: f.is_break_even, touched: grossTouched, typed: f.gross_pnl, auto: autoGross, wasManual: !!trade?.pnl_manual });
+  const grossVal = resolved.gross;
   const net = grossVal == null ? null : +(grossVal - (Number(f.fees) || 0)).toFixed(2);
 
   const opts = useMemo(() => ({
@@ -214,31 +227,40 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
     if (err) { toast.error(err); if (tab !== "regular") setTab("regular"); return; }
     setSaving(true);
     try {
-      const row = {
-        journal_id: journal.id,
-        instrument_id: f.instrument_id,
+      // Imported trades: the broker owns times, prices, size and money, so only the trader's own columns are sent.
+      const imported = !!trade && !!trade.source && trade.source !== "manual";
+      const owned = {
         setup_id: f.setup_id || null,
-        direction: f.direction,
-        entry_at: new Date(f.entry_at).toISOString(),
-        exit_at: stillOpen ? null : new Date(f.exit_at).toISOString(),
-        entry_price: +avgEntry!.toFixed(6),
-        exit_price: stillOpen ? null : +avgExit!.toFixed(6),
-        quantity: totalQty,
         stop_loss: num(f.stop_loss),
         take_profit: num(f.take_profit),
         high_price: num(f.high_price),
         low_price: num(f.low_price),
         otp_hit: f.otp_hit === "" ? null : f.otp_hit === "yes",
         is_break_even: f.is_break_even,
-        gross_pnl: grossVal!,
-        fees: Number(f.fees) || 0,
-        risk_amount: null,
         is_favorite: fav,
         notes: f.notes || null,
       };
+      // A typed P&L (anything but the auto-calculated figure) is the trader's, so the trigger must not recompute it.
+      const full = {
+        ...owned,
+        journal_id: journal.id,
+        instrument_id: f.instrument_id,
+        direction: f.direction,
+        entry_at: instant(f.entry_at, trade?.entry_at),
+        exit_at: stillOpen ? null : instant(f.exit_at, trade?.exit_at),
+        entry_price: price(avgEntry!),
+        exit_price: stillOpen ? null : price(avgExit!),
+        quantity: totalQty,
+        gross_pnl: grossVal!,
+        fees: Number(f.fees) || 0,
+        pnl_manual: resolved.manual,
+        // risk_amount is deliberately not sent: the database derives it, and imported trades keep the engine's value.
+        ...(trade ? {} : { trade_type: journal.trade_type }),
+      };
+      const row = imported ? owned : full;
       const res = trade
         ? await supabase.from("trades").update(row).eq("id", trade.id).select("id").single()
-        : await supabase.from("trades").insert(row).select("id").single();
+        : await supabase.from("trades").insert(full).select("id").single();
       if (res.error) throw res.error;
       const id = res.data.id;
       const [d1, d2, d3] = await Promise.all([
@@ -363,6 +385,7 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
                       <FloatInput label="Net P/L" value={net == null ? "" : net.toFixed(2)} disabled />
                       <FloatInput label="Gross P/L *" value={grossTouched ? f.gross_pnl : autoGross?.toFixed(2) ?? ""} onChange={(v) => { setGrossTouched(v !== ""); set("gross_pnl")(v); }} />
                     </div>
+                    {journal?.quantity_unit !== "units" && <p className="text-[11.5px] text-muted-foreground">{journal?.quantity_unit === "lots" ? "Quantity is in lots, so enter the P/L yourself." : "Set the quantity unit in Journal settings to calculate P/L and R automatically. Until then, enter the P/L yourself."}</p>}
                     {vis("fees") && <FloatInput label="Fees" value={f.fees} onChange={set("fees")} />}
                   </div>
                 </div>

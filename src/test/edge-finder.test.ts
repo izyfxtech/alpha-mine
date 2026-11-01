@@ -22,14 +22,14 @@ const byId = (cards: ReturnType<typeof computeEdgeFinder>, id: string) => cards.
 
 describe("Edge Finder", () => {
   it("returns seven cards that are not ready until there are 10 trades", () => {
-    const cards = computeEdgeFinder(Array.from({ length: 9 }, (_, i) => trade(i, 10)), 10_000);
+    const cards = computeEdgeFinder(Array.from({ length: 9 }, (_, i) => trade(i, 10)), 10_000, []);
     expect(cards).toHaveLength(7);
     expect(cards.every((c) => !c.ready)).toBe(true);
   });
   it("rates a profitable journal and separates rule-following trades from mistakes", () => {
     const clean = Array.from({ length: 12 }, (_, i) => trade(i, 100, ["positive"]));
     const bad = Array.from({ length: 6 }, (_, i) => trade(20 + i, -50, ["negative"]));
-    const cards = computeEdgeFinder([...clean, ...bad], 10_000);
+    const cards = computeEdgeFinder([...clean, ...bad], 10_000, []);
     expect(byId(cards, "profitability").rating).toBe("good");
     const edge = byId(cards, "system-edge");
     expect(edge.ready).toBe(true);
@@ -42,7 +42,7 @@ describe("Edge Finder", () => {
   });
   it("shows a trend once the journal is older than 30 days", () => {
     const trades = Array.from({ length: 60 }, (_, i) => trade(i, i % 3 ? 40 : -20, ["positive"]));
-    const cards = computeEdgeFinder(trades, 10_000);
+    const cards = computeEdgeFinder(trades, 10_000, []);
     expect(byId(cards, "profitability").trend).toBeDefined();
   });
 });

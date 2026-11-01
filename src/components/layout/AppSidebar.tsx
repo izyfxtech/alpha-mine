@@ -57,7 +57,7 @@ function Group({ item, collapsed, path }: { item: NavItem; collapsed: boolean; p
 export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
   const [dark, setDark] = useState(false);
-  const { trades, journal } = useTrades({ unfiltered: true });
+  const { trades, journal, flows } = useTrades({ unfiltered: true });
   const { settings } = useProfile();
   const drawer = useTradeDrawer();
   const [importOpen, setImportOpen] = useState(false);
@@ -68,7 +68,7 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
     document.documentElement.classList.toggle("dark", next);
     localStorage.setItem("am.theme", next ? "dark" : "light");
   };
-  const balance = journal ? computeStats(trades, journal.starting_balance).balance : 0;
+  const balance = journal ? computeStats(trades, journal.starting_balance, flows).balance : 0;
 
   return (
     <aside className={cn("flex h-full shrink-0 flex-col border-r bg-sidebar transition-[width]", collapsed ? "w-14" : "w-52")}>

@@ -4,7 +4,7 @@ import { eachDayOfInterval, endOfMonth, endOfWeek, format, isSameMonth, startOfM
 import { AccentStat } from "@/components/kit";
 import { Button } from "@/components/ui/button";
 import { useTrades } from "@/lib/journal/journal-context";
-import { computeStats, dayKey, fmtMoney, fmtPct } from "@/lib/pnl/metrics";
+import { computeStats, dayKey, fmtMoney, fmtPct, periodBase } from "@/lib/pnl/metrics";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/reports/annual")({
@@ -17,7 +17,7 @@ export const Route = createFileRoute("/_authenticated/reports/annual")({
 });
 
 function Annual() {
-  const { trades, journal, cashflow } = useTrades();
+  const { trades, all, journal, flows } = useTrades();
   const search = Route.useSearch();
   const navigate = useNavigate();
   const year = search.year ?? new Date().getFullYear();
@@ -32,7 +32,8 @@ function Annual() {
     yearTrades.forEach((t) => m.set(dayKey(t.entry_at), (m.get(dayKey(t.entry_at)) ?? 0) + t.net_pnl));
     return m;
   }, [yearTrades]);
-  const s = computeStats(yearTrades, journal?.starting_balance ?? 0, cashflow);
+  const period = periodBase(all, journal?.starting_balance ?? 0, flows, `${year}-01-01`, `${year}-12-31`);
+  const s = computeStats(yearTrades, period.base, period.flows);
   const cur = journal?.currency;
 
   return (

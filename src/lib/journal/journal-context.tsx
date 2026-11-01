@@ -25,6 +25,8 @@ export interface Journal {
   mt_platform?: string | null;
   mt_server?: string | null;
   mt_login?: string | null;
+  /** 'lots' for MetaTrader journals: price distance times quantity is then NOT money. */
+  quantity_unit?: "lots" | "units" | null;
 }
 export type Range = { min?: number | undefined; max?: number | undefined };
 export interface Filters {
@@ -94,7 +96,7 @@ const DEFAULT_STATS: [string, string[]][] = [
   ["Missed Trades", ["Process", "Sleep", "Couldnt trade"]],
 ];
 
-export async function createJournal(name: string, startingBalance = 10000, currency = "USD", extra: { markets?: string[]; deposit_date?: string | null; trade_type?: string; broker?: string | null } = {}) {
+export async function createJournal(name: string, startingBalance = 10000, currency = "USD", extra: { markets?: string[]; deposit_date?: string | null; trade_type?: string; broker?: string | null; quantity_unit?: "lots" | "units" | null } = {}) {
   const { data, error } = await supabase
     .from("journals")
     .insert({ name, starting_balance: startingBalance, currency, ...extra })
@@ -195,20 +197,28 @@ export function useLookups(journalId?: string) {
   });
 }
 
+import { countOption, fetchAllRows } from "./fetch-all";
+export { fetchAllRows };
+
 export async function fetchTrades(journalIds: string[]): Promise<Trade[]> {
   if (!journalIds.length) return [];
+  const all = <T,>(table: string, cols: string, order: string[]) =>
+    fetchAllRows<T>((from, to, first) => {
+      let q = supabase.from(table as never).select(cols, countOption(first)).in("journal_id", journalIds);
+      for (const o of order) q = q.order(o, { ascending: true });
+      return q.range(from, to) as never;
+    });
   const [t, i, s, tc, cd, cs, jr, cf, rc] = await Promise.all([
-    supabase.from("trades").select("*").in("journal_id", journalIds).order("entry_at", { ascending: false }).limit(5000),
-    supabase.from("instruments").select("id,symbol").in("journal_id", journalIds),
-    supabase.from("setups").select("id,name").in("journal_id", journalIds),
-    supabase.from("trade_comments").select("*").in("journal_id", journalIds),
-    supabase.from("comment_definitions").select("*").in("journal_id", journalIds),
-    supabase.from("trade_custom_stats").select("trade_id,option_id").in("journal_id", journalIds),
+    fetchAllRows<TradeRow>((from, to, first) => supabase.from("trades").select("*", countOption(first)).in("journal_id", journalIds).order("entry_at", { ascending: false }).order("id").range(from, to) as never).then((data) => ({ data, error: null })),
+    all<{ id: string; symbol: string }>("instruments", "id,symbol", ["id"]).then((data) => ({ data })),
+    all<{ id: string; name: string }>("setups", "id,name", ["id"]).then((data) => ({ data })),
+    all<{ trade_id: string; comment_definition_id: string }>("trade_comments", "*", ["trade_id", "comment_definition_id"]).then((data) => ({ data })),
+    all<{ id: string; label: string; phase: string; sentiment: string }>("comment_definitions", "*", ["id"]).then((data) => ({ data })),
+    all<{ trade_id: string; option_id: string }>("trade_custom_stats", "trade_id,option_id", ["trade_id", "option_id"]).then((data) => ({ data })),
     supabase.from("journals").select("id,starting_balance").in("id", journalIds),
-    supabase.from("journal_cashflows").select("journal_id,occurred_on,amount").in("journal_id", journalIds),
-    supabase.from("trade_rule_checks").select("trade_id,rule_id,status").in("journal_id", journalIds),
+    all<{ journal_id: string; occurred_on: string; amount: number }>("journal_cashflows", "journal_id,occurred_on,amount,id", ["id"]).then((data) => ({ data })),
+    all<{ trade_id: string; rule_id: string; status: string }>("trade_rule_checks", "trade_id,rule_id,status", ["trade_id", "rule_id"]).then((data) => ({ data })),
   ]);
-  if (t.error) throw t.error;
   const im = new Map((i.data ?? []).map((x) => [x.id, x.symbol]));
   const sm = new Map((s.data ?? []).map((x) => [x.id, x.name]));
   const cm = new Map((cd.data ?? []).map((x) => [x.id, x]));
@@ -222,7 +232,7 @@ export async function fetchTrades(journalIds: string[]): Promise<Trade[]> {
   (cs.data ?? []).forEach((r) => stats.set(r.trade_id, [...(stats.get(r.trade_id) ?? []), r.option_id]));
   const checks = new Map<string, RuleCheck[]>();
   (rc.data ?? []).forEach((r) => checks.set(r.trade_id, [...(checks.get(r.trade_id) ?? []), { rule_id: r.rule_id, status: r.status as RuleCheck["status"] }]));
-  const enriched = (t.data as TradeRow[]).map((row) => ({ ...enrichTrade(row, im, sm, byTrade.get(row.id) ?? []), customStats: stats.get(row.id) ?? [], ruleChecks: checks.get(row.id) ?? [] }));
+  const enriched = t.data.map((row) => ({ ...enrichTrade(row, im, sm, byTrade.get(row.id) ?? []), customStats: stats.get(row.id) ?? [], ruleChecks: checks.get(row.id) ?? [] }));
   const annotated = new Map<string, Trade>();
   (jr.data ?? []).forEach((j) => {
     const flows = (cf.data ?? []).filter((c) => c.journal_id === j.id).map((c) => ({ occurred_on: c.occurred_on, amount: Number(c.amount) }));
@@ -242,9 +252,16 @@ export function useCashflows(journalId?: string) {
       return data;
     },
   });
-  const rows = q.data ?? [];
-  const total = rows.reduce((a, r) => a + Number(r.amount), 0);
-  return { rows, total, flows: rows.map((r) => ({ occurred_on: r.occurred_on, amount: Number(r.amount) })) as Cashflow[] };
+  const rows = useMemo(() => q.data ?? [], [q.data]);
+  const total = useMemo(() => rows.reduce((a, r) => a + Number(r.amount), 0), [rows]);
+  const flows = useMemo(() => rows.map((r) => ({ occurred_on: r.occurred_on, amount: Number(r.amount) })) as Cashflow[], [rows]);
+  return { rows, total, flows };
+}
+
+/** The active journal's dated deposits and withdrawals, for every page that shows a balance, ROI or drawdown. */
+export function useJournalFlows(): Cashflow[] {
+  const { journal } = useJournal();
+  return useCashflows(journal?.id).flows;
 }
 
 export function applyFilters(trades: Trade[], f: Filters, ruleNames?: ReadonlyMap<string, string>) {
@@ -297,5 +314,5 @@ export function useTrades(opts: { unfiltered?: boolean; includeOpen?: boolean } 
   const all = opts.includeOpen ? everything : closed;
   const trades = useMemo(() => (opts.unfiltered ? all : applyFilters(all, filters, ruleNames)), [all, filters, opts.unfiltered, ruleNames]);
   const cash = useCashflows(journal?.id);
-  return { trades, all, open, isLoading: q.isLoading, journal, cashflow: cash.total };
+  return { trades, all, open, isLoading: q.isLoading, journal, cashflow: cash.total, flows: cash.flows };
 }

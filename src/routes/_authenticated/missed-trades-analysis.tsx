@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { countOption, fetchAllRows } from "@/lib/journal/fetch-all";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { EquityChart, Panel, axis, tooltipStyle, yScale } from "@/components/kit";
-import { useJournal, useTrades } from "@/lib/journal/journal-context";
+import { useJournal, useJournalFlows, useTrades } from "@/lib/journal/journal-context";
 import { useJournalTable } from "@/lib/journal/crud";
 import { computeStats, fmtMoney, fmtNum } from "@/lib/pnl/metrics";
 import { missedMetrics } from "./missed-trades";
@@ -43,7 +44,7 @@ function Analysis() {
   const categories = useJournalTable("custom_stat_categories", journal?.id, "position", true);
   const options = useJournalTable("custom_stat_options", journal?.id, "position", true);
   const [category, setCategory] = useState("");
-  const links = useQuery({ queryKey: ["missed_trade_custom_stats", journal?.id], enabled: !!journal, queryFn: async () => { const { data, error } = await supabase.from("missed_trade_custom_stats").select("missed_trade_id,option_id").eq("journal_id", journal?.id ?? ""); if (error) throw error; return data; } });
+  const links = useQuery({ queryKey: ["missed_trade_custom_stats", journal?.id], enabled: !!journal, queryFn: () => fetchAllRows<{ missed_trade_id: string; option_id: string }>((from, to, first) => supabase.from("missed_trade_custom_stats").select("missed_trade_id,option_id", countOption(first)).eq("journal_id", journal?.id ?? "").order("missed_trade_id").order("option_id").range(from, to) as never) });
   const [unit, setUnit] = useState<Unit>("cur");
   const start = journal?.starting_balance ?? 0;
   const cur = journal?.currency ?? "USD";
@@ -66,7 +67,7 @@ function Analysis() {
   vs.push({ k: "Total", v: +(vs[0].v + vs[1].v).toFixed(2) });
   const selectedCategory = category || categories.rows.find((c) => c.name === "Missed Trades")?.id || categories.rows[0]?.id || "";
   const tagData = options.rows.filter((o) => o.category_id === selectedCategory).map((o) => ({ k: o.label, v: (links.data ?? []).filter((l) => l.option_id === o.id && missed.rows.some((m) => m.id === l.missed_trade_id)).length })).sort((a, b) => b.v - a.v);
-  const s = computeStats(trades, start);
+  const s = computeStats(trades, start, useJournalFlows());
 
   const rows: [string, (b: ReturnType<typeof block>) => string][] = [
     ["Avg. RRR Planned", (b) => fmtNum(b.rrr)], ["Avg. R - Multiple", (b) => fmtNum(b.avgR)], ["Sum. R - Multiple", (b) => fmtNum(b.sumR)],

@@ -17,8 +17,8 @@ const SHOWN = 20;
 const COLORS = ["var(--color-chart-1)", "var(--color-chart-2)", "var(--color-chart-3)", "var(--color-chart-4)", "var(--color-chart-5)", "var(--color-chart-1)"];
 
 function Simulator() {
-  const { trades, journal } = useTrades();
-  const base = computeStats(trades, journal?.starting_balance ?? 10000);
+  const { trades, journal, flows } = useTrades();
+  const base = computeStats(trades, journal?.starting_balance ?? 10000, flows);
   const cur = journal?.currency;
   const [p, setP] = useState({ balance: 10000, winRate: 50, avgWin: 150, avgLoss: 100, sims: 100, trades: 100 });
   const [seed, setSeed] = useState(0);

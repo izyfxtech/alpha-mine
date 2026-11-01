@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
+import { sweepStorage } from "@/lib/media/sweep-storage";
 import { createJournal, useJournal, type Journal } from "@/lib/journal/journal-context";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +35,7 @@ export function JournalPicker() {
     if (!confirm(`Delete "${j.name}" and all its trades? This cannot be undone.`)) return;
     const { error } = await supabase.from("journals").delete().eq("id", j.id);
     if (error) return toast.error(error.message);
+    sweepStorage();
     if (j.id === journal?.id) setJournalId(journals.find((x) => x.id !== j.id)!.id);
     qc.invalidateQueries();
   }
@@ -89,12 +91,12 @@ export function JournalPicker() {
 
 function NewJournal({ onDone, onBack }: { onDone: (id: string) => void; onBack: () => void }) {
   const qc = useQueryClient();
-  const [f, setF] = useState({ name: "", currency: "USD", amount: "10000", deposit_date: "", trade_type: "Spot", markets: [] as string[] });
+  const [f, setF] = useState({ name: "", currency: "USD", amount: "10000", deposit_date: "", trade_type: "Spot", quantity_unit: "", markets: [] as string[] });
   const [busy, setBusy] = useState(false);
   async function submit() {
     setBusy(true);
     try {
-      const j = await createJournal(f.name.trim() || "New Journal", Number(f.amount) || 0, f.currency, { markets: f.markets, deposit_date: f.deposit_date || null, trade_type: f.trade_type });
+      const j = await createJournal(f.name.trim() || "New Journal", Number(f.amount) || 0, f.currency, { markets: f.markets, deposit_date: f.deposit_date || null, trade_type: f.trade_type, quantity_unit: f.quantity_unit === "units" || f.quantity_unit === "lots" ? f.quantity_unit : null });
       await qc.invalidateQueries({ queryKey: ["journals"] });
       toast.success("Journal created");
       onDone(j.id);
@@ -106,6 +108,7 @@ function NewJournal({ onDone, onBack }: { onDone: (id: string) => void; onBack: 
       <div className="grid grid-cols-2 gap-3">
         <div><Label className="text-xs">Currency</Label><select className={sel} value={f.currency} onChange={(e) => setF({ ...f, currency: e.target.value })}>{CURRENCIES.map((c) => <option key={c}>{c}</option>)}</select></div>
         <div><Label className="text-xs">Trade type</Label><select className={sel} value={f.trade_type} onChange={(e) => setF({ ...f, trade_type: e.target.value })}>{["Spot", "Options", "Futures"].map((c) => <option key={c}>{c}</option>)}</select></div>
+        <div><Label className="text-xs">Quantity is in</Label><select className={sel} value={f.quantity_unit} onChange={(e) => setF({ ...f, quantity_unit: e.target.value })}><option value="">Not set</option><option value="units">Units</option><option value="lots">Lots</option></select></div>
         <div><Label className="text-xs">Initial amount</Label><Input type="number" value={f.amount} onChange={(e) => setF({ ...f, amount: e.target.value })} /></div>
         <div><Label className="text-xs">Deposit date</Label><Input type="date" value={f.deposit_date} onChange={(e) => setF({ ...f, deposit_date: e.target.value })} /></div>
       </div>
@@ -136,7 +139,7 @@ function CopyJournal({ source, onDone, onBack }: { source: Journal; onDone: (id:
     try {
       const { data: j, error } = await supabase.from("journals").insert({
         name, currency: source.currency, starting_balance: source.starting_balance, broker: source.broker, markets: source.markets,
-        deposit_date: source.deposit_date, trade_type: source.trade_type, auto_pnl: source.auto_pnl, session_categories: source.session_categories,
+        deposit_date: source.deposit_date, trade_type: source.trade_type, auto_pnl: source.auto_pnl, quantity_unit: source.quantity_unit, session_categories: source.session_categories,
       }).select().single();
       if (error) throw error;
       const jid = j.id;

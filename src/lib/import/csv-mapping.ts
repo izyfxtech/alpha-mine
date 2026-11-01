@@ -60,8 +60,25 @@ export function looksLikeFills(m: Partial<Record<Field, string>>): boolean {
   return !!(m.entry_at && m.direction && m.quantity && m.entry_price && m.instrument) && !m.exit_price && !m.exit_at && !m.gross_pnl && !m.net_pnl;
 }
 
-/** RFC 4180 style parser: quoted fields may hold commas, doubled quotes and line breaks. Strips a BOM. */
-export function parseCsv(text: string): string[][] {
+/**
+ * The delimiter of a CSV: comma, semicolon (European exports) or tab. Decided from the header line, outside quotes,
+ * because data rows can hold decimal commas ("1,0850") that would outvote a semicolon separator.
+ * Falls back to the first lines when the header has none (a single-column file).
+ */
+export function detectDelimiter(text: string): string {
+  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter((l) => l.trim()).slice(0, 10);
+  const outsideQuotes = (line: string, d: string) => { let q = false, n = 0; for (const c of line) { if (c === '"') q = !q; else if (!q && c === d) n++; } return n; };
+  const pick = (count: (d: string) => number) => {
+    let best = ",", bestCount = 0;
+    for (const d of [",", ";", "\t"]) { const n = count(d); if (n > bestCount) { best = d; bestCount = n; } }
+    return { best, bestCount };
+  };
+  const head = pick((d) => outsideQuotes(lines[0] ?? "", d));
+  return head.bestCount > 0 ? head.best : pick((d) => lines.reduce((a, l) => a + outsideQuotes(l, d), 0)).best;
+}
+
+/** RFC 4180 style parser: quoted fields may hold the delimiter, doubled quotes and line breaks. Strips a BOM. */
+export function parseCsv(text: string, delimiter = detectDelimiter(text)): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
   let cell = "";
@@ -74,7 +91,7 @@ export function parseCsv(text: string): string[][] {
       else if (c === '"') quoted = false;
       else cell += c;
     } else if (c === '"') quoted = true;
-    else if (c === ",") { row.push(cell.trim()); cell = ""; }
+    else if (c === delimiter) { row.push(cell.trim()); cell = ""; }
     else if (c === "\n" || c === "\r") {
       if (c === "\r" && src[i + 1] === "\n") i++;
       row.push(cell.trim()); cell = "";

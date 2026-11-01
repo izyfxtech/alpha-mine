@@ -3,7 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { addMonths, format, startOfMonth } from "date-fns";
 import { ArrowDown, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
-import { fetchTrades, useJournal } from "@/lib/journal/journal-context";
+import { fetchAllRows, fetchTrades, useJournal } from "@/lib/journal/journal-context";
+import { countOption } from "@/lib/journal/fetch-all";
+import { supabase } from "@/integrations/supabase/client";
 import { bucketPerformance, computeStats, fmtNum, fmtPct, groupPerformance, MONTHS, WEEKDAYS, type Trade } from "@/lib/pnl/metrics";
 import { EquityChart, Panel, PnlBars, Stat } from "@/components/kit";
 import { KpiCards } from "@/components/analytics/KpiCards";
@@ -29,12 +31,19 @@ function Portfolio() {
   const ids = journals.map((j) => j.id);
   const { data: allTrades = [] } = useQuery({ queryKey: ["trades", "portfolio", ids], queryFn: () => fetchTrades(ids), enabled: ids.length > 0 });
   const active = journals.filter((j) => !off.has(j.id));
-  const balOf = useMemo(() => new Map(journals.map((j) => [j.id, Number(j.starting_balance) || 1])), [journals]);
-  // Portfolio works in % of each journal's own balance so different currencies/sizes compare fairly.
-  const trades = useMemo(() => allTrades.filter((t) => !off.has(t.journal_id)).map((t) => ({ ...t, pct: (t.net_pnl / (balOf.get(t.journal_id) ?? 1)) * 100 })), [allTrades, off, balOf]);
+  // Dated deposits and withdrawals of every journal, so each journal's balance and drawdown match its own pages.
+  const { data: allFlows = [] } = useQuery({
+    queryKey: ["journal_cashflows", "portfolio", ids],
+    enabled: ids.length > 0,
+    queryFn: () => fetchAllRows<{ id: string; journal_id: string; occurred_on: string; amount: number }>((from, to, first) => supabase.from("journal_cashflows").select("id,journal_id,occurred_on,amount", countOption(first)).in("journal_id", ids).order("id").range(from, to) as never),
+  });
+  // Portfolio works in % of each journal's own balance before the trade (deposits included), so different currencies and
+  // sizes compare fairly. A journal with no balance has no meaningful % and contributes 0 instead of a made-up 1.
+  const trades = useMemo(() => allTrades.filter((t) => !off.has(t.journal_id)).map((t) => ({ ...t, pct: t.accountSize > 0 ? t.retPct : 0 })), [allTrades, off]);
   const pctTrades: Trade[] = useMemo(() => trades.map((t) => ({ ...t, net_pnl: unit === "pct" ? +t.pct.toFixed(4) : t.r ?? 0 })), [trades, unit]);
-  const per = useMemo(() => active.map((j) => ({ j, s: computeStats(trades.filter((t) => t.journal_id === j.id), Number(j.starting_balance)), ts: trades.filter((t) => t.journal_id === j.id) })), [active, trades]);
-  const s = computeStats(pctTrades, 100);
+  const per = useMemo(() => active.map((j) => ({ j, s: computeStats(trades.filter((t) => t.journal_id === j.id), Number(j.starting_balance), allFlows.filter((f) => f.journal_id === j.id).map((f) => ({ occurred_on: f.occurred_on, amount: Number(f.amount) }))), ts: trades.filter((t) => t.journal_id === j.id) })), [active, trades, allFlows]);
+  // pctTrades already carry returns in % (or R), so there is no money cashflow to apply on this combined view.
+  const s = computeStats(pctTrades, 100, []);
   const fmtU = (v: number) => (unit === "pct" ? `${fmtNum(v)}%` : `${fmtNum(v)}R`);
   let c = 0;
   const curve = [...pctTrades].sort((a, b) => a.entry_at.localeCompare(b.entry_at)).map((t, i) => { c += t.net_pnl; return { x: i + 1, v: +c.toFixed(2), label: t.entry_at.slice(0, 10) }; });
