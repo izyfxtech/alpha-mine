@@ -1,3 +1,4 @@
+import { inferAssetClass } from "@/lib/pnl/asset-class";
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -118,7 +119,7 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
         const ids = new Map<string, string>((have ?? []).map((x) => [named(x)[column]!, named(x).id!]));
         const fresh = [...new Set(names.filter((n): n is string => !!n && !ids.has(n)))];
         if (fresh.length) {
-          const { data, error: e2 } = await supabase.from(table).insert(fresh.map((n) => ({ [column]: n, journal_id: journal.id })) as never).select(`id,${column}`);
+          const { data, error: e2 } = await supabase.from(table).insert(fresh.map((n) => ({ [column]: n, ...(table === "instruments" ? { asset_class: inferAssetClass(n, journal.markets) } : {}), journal_id: journal.id })) as never).select(`id,${column}`);
           if (e2) throw e2;
           data?.forEach((x) => ids.set(named(x)[column]!, named(x).id!));
         }
@@ -180,7 +181,7 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
       const im = new Map((ins ?? []).map((i) => [i.symbol, i.id]));
       const newSyms = [...new Set(res.trades.map((t) => t.symbol))].filter((x) => !im.has(x));
       if (newSyms.length) {
-        const { data, error } = await supabase.from("instruments").insert(newSyms.map((symbol) => ({ symbol, journal_id: journal.id }))).select("id,symbol");
+        const { data, error } = await supabase.from("instruments").insert(newSyms.map((symbol) => ({ symbol, asset_class: inferAssetClass(symbol, journal.markets), journal_id: journal.id }))).select("id,symbol");
         if (error) throw error;
         data?.forEach((i) => im.set(i.symbol, i.id));
       }

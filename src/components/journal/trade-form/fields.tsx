@@ -1,7 +1,8 @@
 import { useMemo, useState, type ReactNode } from "react";
 import type React from "react";
-import { Check, ChevronDown, Plus } from "lucide-react";
+import { CalendarDays, Check, ChevronDown, Plus } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarPanel } from "@/components/ui/date-picker";
 import { cn } from "@/lib/utils";
 
 /** Outlined field whose label sits inside when empty and floats onto the border when filled. */
@@ -36,6 +37,27 @@ export function FloatInput({ label, value, onChange, type = "number", right, dis
         className={cn("tf-input", align === "right" && type === "number" ? "text-right" : "text-left", !filled && "opacity-0")}
       />
     </FloatBox>
+  );
+}
+
+/**
+ * Date and time field in the same outlined style as the others. Opens a calendar whose month and year dropdowns keep the
+ * day grid on show, so an exact date is picked in one go. Value: yyyy-MM-ddTHH:mm[:ss], "" when empty.
+ */
+export function FloatDateTime({ label, value, onChange, placeholder, disabled }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; disabled?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const text = value ? `${value.slice(0, 10)} ${value.slice(11, 16)}` : "";
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild disabled={disabled}>
+        <button type="button" className="w-full text-left" aria-label={label}>
+          <FloatBox label={label} filled={!!text || open} disabled={disabled} right={<CalendarDays className="h-4 w-4" />}>
+            <span className="tf-input truncate">{text || (open ? placeholder : "")}</span>
+          </FloatBox>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-auto p-3"><CalendarPanel withTime value={value} onChange={onChange} onClose={() => setOpen(false)} /></PopoverContent>
+    </Popover>
   );
 }
 

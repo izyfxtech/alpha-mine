@@ -25,7 +25,7 @@ const BATCH = 200;
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type', 'Access-Control-Allow-Methods': 'POST, OPTIONS' };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 
-const TRADE_COLS = 'id,direction,entry_at,exit_at,entry_price,exit_price,quantity,stop_loss,take_profit,gross_pnl,net_pnl,fees,commission,swap,risk_amount,source,raw_symbol,is_break_even,pnl_manual,instrument_id';
+const TRADE_COLS = 'id,direction,entry_at,exit_at,entry_price,exit_price,quantity,stop_loss,take_profit,gross_pnl,net_pnl,fees,commission,swap,other_fees,risk_amount,source,raw_symbol,is_break_even,pnl_manual,instrument_id';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const fx = (d: { toFixed(n: number): string } | null | undefined, n = 8) => (d ? d.toFixed(n) : null);
 
@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
     if (!todo.length) { await applyRisk(); return json({ ok: true, processed: 0, remaining: 0, applied }); }
 
     const instruments = new Map((await pageAll<InstrumentRow>((a, b) =>
-      user.from('instruments').select('id,symbol,contract_size,digits,profit_currency,kind').eq('journal_id', j.id).range(a, b))).map((i) => [i.id, i]));
+      user.from('instruments').select('id,symbol,contract_size,digits,profit_currency,kind,asset_class').eq('journal_id', j.id).range(a, b))).map((i) => [i.id, i]));
     const digits = guessDigits(all);
 
     // Map rows to engine inputs; anything that cannot be computed safely becomes a 'skipped' audit row.

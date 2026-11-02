@@ -18,6 +18,8 @@ import { useJournalTable, type Row } from "@/lib/journal/crud";
 import { useTradeDrawer } from "@/components/journal/TradeDrawer";
 import { MissedSheet } from "./missed-trades";
 import { cn } from "@/lib/utils";
+import { useDialogs } from "@/components/ui/confirm";
+import { DatePicker, DateTimePicker } from "@/components/ui/date-picker";
 
 export const Route = createFileRoute("/_authenticated/plans")({
   head: () => ({
@@ -37,6 +39,7 @@ const f2 = (v: number | null | undefined, d = 2) => (v == null ? "" : v.toLocale
 const dt = (iso?: string | null) => localDateTime(iso);
 
 function PlansPage() {
+  const { confirm } = useDialogs();
   const { journal } = useJournal();
   const { data: lk } = useLookups(journal?.id);
   const t = useJournalTable("planned_trades", journal?.id, "entry_at");
@@ -59,7 +62,7 @@ function PlansPage() {
     setSel(new Set());
   };
   const del = async () => {
-    if (!confirm(`Delete ${sel.size} planned trade(s)?`)) return;
+    if (!(await confirm({ title: "Delete planned trades?", message: `Delete ${sel.size} planned trade${sel.size === 1 ? "" : "s"}? This cannot be undone.`, destructive: true }))) return;
     await Promise.all([...sel].map((id) => t.remove(id)));
     setSel(new Set());
   };
@@ -182,7 +185,7 @@ function PlanSheet({ row, journalId, onClose, onSave, selectedStats = [] }: { ro
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF((p) => ({ ...p, [k]: e.target.value }));
   const sel = "h-9 w-full rounded-md border bg-background px-2 text-sm";
   const field = (l: string, k: keyof typeof f, type = "text", list?: string) => (
-    <div className="space-y-1"><Label className="text-xs">{l}</Label><Input type={type} step="any" list={list} value={f[k]} onChange={set(k)} /></div>
+    <div className="space-y-1"><Label className="text-xs">{l}</Label>{type === "datetime-local" ? <DateTimePicker aria-label={l} value={f[k]} onChange={(v) => set(k)({ target: { value: v } })} /> : type === "date" ? <DatePicker aria-label={l} value={f[k]} onChange={(v) => set(k)({ target: { value: v } })} /> : <Input type={type} step="any" list={list} value={f[k]} onChange={set(k)} />}</div>
   );
   return (
     <Sheet open onOpenChange={(o) => !o && onClose()}>

@@ -17,6 +17,7 @@ import { useJournal, useLookups, useTrades } from "@/lib/journal/journal-context
 import { useJournalTable, type Row } from "@/lib/journal/crud";
 import type { Trade } from "@/lib/pnl/metrics";
 import { cn } from "@/lib/utils";
+import { useDialogs } from "@/components/ui/confirm";
 
 export const Route = createFileRoute("/_authenticated/strategy-lab/alternatives")({
   head: () => ({
@@ -46,6 +47,7 @@ function useResults(journalId?: string) {
 }
 
 function Alternatives() {
+  const { confirm } = useDialogs();
   const { journal } = useJournal();
   const { trades } = useTrades({ unfiltered: true });
   const { data: lk } = useLookups(journal?.id);
@@ -57,7 +59,7 @@ function Alternatives() {
 
   const tradesFor = (setupId: string | null) => trades.filter((x) => x.setup_id === setupId).sort((a, b) => a.entry_at.localeCompare(b.entry_at));
   const del = async () => {
-    if (!confirm(`Delete ${sel.size} strateg${sel.size === 1 ? "y" : "ies"}?`)) return;
+    if (!(await confirm({ title: `Delete ${sel.size} strateg${sel.size === 1 ? "y" : "ies"}?`, message: "This cannot be undone.", destructive: true }))) return;
     await Promise.all([...sel].map((id) => t.remove(id)));
     setSel(new Set());
   };

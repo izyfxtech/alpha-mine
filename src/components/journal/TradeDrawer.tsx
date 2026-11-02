@@ -3,7 +3,7 @@ import { fmtPrice } from "@/lib/pnl/format-price";
 import { fromInputValue, toInputValue } from "@/lib/time/local-time";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CalendarDays, ChevronLeft, ChevronRight, Plus, Settings, Star, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Settings, Star, X } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,9 @@ import { cn } from "@/lib/utils";
 import { keepStoredGross, resolveGross } from "@/lib/pnl/trade-form";
 import { auditTrades } from "@/lib/pnl/pnl-audit";
 import { useScreenshots, saveShots, deleteShot, type Shot } from "@/components/journal/Screenshots";
-import { FloatInput, FloatSelect, Segmented, SectionTitle, type Opt } from "@/components/journal/trade-form/fields";
+import { FloatDateTime, FloatInput, FloatSelect, Segmented, SectionTitle, type Opt } from "@/components/journal/trade-form/fields";
+import { useDialogs } from "@/components/ui/confirm";
+import { inferAssetClass, quantityLabel, quantityUnitOf } from "@/lib/pnl/asset-class";
 import { ScreenshotSlots, type PendingShot } from "@/components/journal/trade-form/ScreenshotSlots";
 
 export type DrawerOpts = { prefill?: Partial<Trade>; onSaved?: () => void | Promise<void>; /** Trades in display order, enables Previous/Next inside the editor. */ list?: Trade[] };
@@ -31,6 +33,7 @@ const local = toInputValue;
 const instant = fromInputValue;
 const price = (v: number) => +v.toFixed(10);
 const num = (v: string) => (v.trim() === "" ? null : Number(v));
+const signedCost = (v: string) => { const n = Number(v) || 0; return n === 0 ? 0 : -n; };
 const isNum = (v: string) => v.trim() !== "" && Number.isFinite(Number(v));
 
 function toForm(t?: Partial<Trade>) {
@@ -46,7 +49,11 @@ function toForm(t?: Partial<Trade>) {
     stop_loss: t?.stop_loss?.toString() ?? "",
     take_profit: t?.take_profit?.toString() ?? "",
     gross_pnl: t && t.exit_price != null ? String(t.gross_pnl) : "",
-    fees: t && t.fees ? String(t.fees) : "",
+    // Costs are shown as positive numbers (a cost). commission and swap are stored broker-signed (negative = a cost).
+    commission: t?.commission ? String(-Number(t.commission)) : "",
+    swap: t?.swap ? String(-Number(t.swap)) : "",
+    // A trade that only has a stored total (older rows, CSV import) shows that total as "other fees".
+    other_fees: t?.other_fees ? String(t.other_fees) : t && t.fees && t.commission == null && t.swap == null ? String(t.fees) : "",
     high_price: t?.high_price?.toString() ?? "",
     low_price: t?.low_price?.toString() ?? "",
     otp_hit: (t?.otp_hit == null ? "" : t.otp_hit ? "yes" : "no") as "yes" | "no" | "",
@@ -79,8 +86,8 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
   const [fav, setFav] = useState(false);
   const [comments, setComments] = useState<string[]>([]);
   const [stats, setStats] = useState<string[]>([]);
-  const [stillOpen, setStillOpen] = useState(false);
   const [ruleSt, setRuleSt] = useState<Record<string, RuleStatus>>({});
+  const { confirm } = useDialogs();
   const [pending, setPending] = useState<PendingShot[]>([]);
   const [removed, setRemoved] = useState<Shot[]>([]);
   const [saving, setSaving] = useState(false);
@@ -114,15 +121,16 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
   });
   const myAlts = altStrats.filter((a) => a.setup_id && a.setup_id === f.setup_id);
   const [onSaved, setOnSaved] = useState<DrawerOpts["onSaved"]>();
+  /** How quantity is read for an instrument: stocks are units, forex pairs are lots, anything else follows the journal. */
+  const unitFor = (instrumentId?: string | null) => quantityUnitOf((lk?.all.instruments ?? []).find((i) => i.id === instrumentId)?.asset_class, journal?.quantity_unit);
   const [navList, setNavList] = useState<Trade[]>([]);
   const show = (t?: Trade, opts?: DrawerOpts) => {
     setNavList(opts?.list ?? []);
     setTrade(t); setF(toForm(t ?? opts?.prefill)); setTab("regular"); setOnSaved(() => opts?.onSaved);
-    setExtraEntries([]); setExtraExits([]); setGrossTouched(!!t && keepStoredGross(t, journal?.quantity_unit));
+    setExtraEntries([]); setExtraExits([]); setGrossTouched(!!t && keepStoredGross(t, unitFor(t.instrument_id)));
     setFav(t?.is_favorite ?? false);
     setComments(t?.comments.map((c) => c.id) ?? []);
     setStats(t?.customStats ?? []);
-    setStillOpen(t ? isOpen(t) : false);
     setRuleSt(Object.fromEntries((t?.ruleChecks ?? []).map((c) => [c.rule_id, c.status])));
     setPending([]); setRemoved([]); setNewCat(null);
     setOpen(true);
@@ -130,11 +138,11 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
   // Previous / Next trade inside the editor (Alt+Left / Alt+Right), asking before discarding unsaved edits
   const navIdx = trade ? navList.findIndex((x) => x.id === trade.id) : -1;
   const canPrev = navIdx > 0, canNext = navIdx >= 0 && navIdx < navList.length - 1;
-  const go = (dir: -1 | 1) => {
+  const go = async (dir: -1 | 1) => {
     const target = navList[navIdx + dir];
     if (!target || !trade) return;
     const dirty = JSON.stringify(f) !== JSON.stringify(toForm(trade));
-    if (dirty && !window.confirm("Discard unsaved changes to this trade?")) return;
+    if (dirty && !(await confirm({ title: "Discard changes?", message: "You have unsaved changes to this trade.", confirmLabel: "Discard", destructive: true }))) return;
     show(target, { list: navList, onSaved });
   };
   useEffect(() => {
@@ -142,7 +150,7 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
     const onKey = (e: KeyboardEvent) => {
       if (!e.altKey || (e.key !== "ArrowLeft" && e.key !== "ArrowRight")) return;
       e.preventDefault();
-      go(e.key === "ArrowLeft" ? -1 : 1);
+      void go(e.key === "ArrowLeft" ? -1 : 1);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -154,14 +162,18 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
   const [avgEntry, totalQty] = blend([{ price: f.entry_price, qty: f.quantity }, ...extraEntries]);
   const extraExitQty = extraExits.reduce((s, l) => s + (Number(l.qty) || 0), 0);
   const [avgExitLegs] = blend([{ price: f.exit_price, qty: String(Math.max(totalQty - extraExitQty, 0)) }, ...extraExits]);
+  // A trade with no exit date is open: no checkbox, nothing else to tick. Giving it an exit date closes it.
+  const stillOpen = f.exit_at === "";
+  const unit = unitFor(f.instrument_id);
   const avgExit = stillOpen ? null : avgExitLegs;
   const sign = f.direction === "short" ? -1 : 1;
   // Price distance times quantity is only money when the journal says quantity is in units. In a lots journal, or while the
   // unit is not set, the P&L must be typed (and then it is kept as typed).
-  const autoGross = journal?.quantity_unit === "units" && avgEntry != null && avgExit != null && f.direction ? +((avgExit - avgEntry) * totalQty * sign).toFixed(2) : null;
+  const autoGross = unit === "units" && avgEntry != null && avgExit != null && f.direction ? +((avgExit - avgEntry) * totalQty * sign).toFixed(2) : null;
   const resolved = resolveGross({ open: stillOpen, breakEven: f.is_break_even, touched: grossTouched, typed: f.gross_pnl, auto: autoGross, wasManual: !!trade?.pnl_manual });
   const grossVal = resolved.gross;
-  const net = grossVal == null ? null : +(grossVal - (Number(f.fees) || 0)).toFixed(2);
+  const cost = (Number(f.commission) || 0) + (Number(f.swap) || 0) + (Number(f.other_fees) || 0);
+  const net = grossVal == null ? null : +(grossVal - cost).toFixed(2);
 
   const opts = useMemo(() => ({
     instruments: [...(lk?.instruments ?? []).map((i) => ({ id: i.id, label: i.symbol })), ...(lk?.all.instruments ?? []).filter((i) => i.disabled && i.id === trade?.instrument_id).map((i) => ({ id: i.id, label: `${i.symbol} (disabled)` }))] as Opt[],
@@ -173,7 +185,7 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
   const refreshLookups = () => qc.invalidateQueries({ queryKey: ["lookups", journal?.id] });
   async function create(table: "instruments" | "setups", label: string) {
     if (!journal) return null;
-    const row = table === "instruments" ? { symbol: label.toUpperCase(), journal_id: journal.id } : { name: label, journal_id: journal.id };
+    const row = table === "instruments" ? { symbol: label.toUpperCase(), asset_class: inferAssetClass(label, journal.markets), journal_id: journal.id } : { name: label, journal_id: journal.id };
     const { data, error } = await supabase.from(table).insert(row as never).select("id").single();
     if (error) { toast.error(error.message); return null; }
     await refreshLookups();
@@ -207,10 +219,11 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
     if (!f.direction) return "Direction is required.";
     if (!isNum(f.entry_price)) return "Entry price is required.";
     if (!isNum(f.quantity) || Number(f.quantity) <= 0) return "Quantity must be greater than 0.";
-    if (!stillOpen) {
-      if (!f.exit_at) return "Exit date is required.";
+    if (stillOpen) {
+      if (isNum(f.exit_price)) return "Add the exit date too, or clear the exit price: a trade without an exit date is saved as open.";
+    } else {
       if (new Date(f.exit_at) < new Date(f.entry_at)) return "Exit date can't be before entry date.";
-      if (!isNum(f.exit_price)) return "Exit price is required.";
+      if (!isNum(f.exit_price)) return "Exit price is required once the trade has an exit date.";
       if (extraExitQty > totalQty) return "Partial exits exceed the position size.";
     }
     if (grossVal == null) return "Gross P/L is required.";
@@ -224,7 +237,6 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
     setSaving(true);
     try {
       // Imported trades: the broker owns times, prices, size and money, so only the trader's own columns are sent.
-      const imported = !!trade && !!trade.source && trade.source !== "manual";
       const owned = {
         setup_id: f.setup_id || null,
         stop_loss: num(f.stop_loss),
@@ -248,7 +260,11 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
         exit_price: stillOpen ? null : price(avgExit!),
         quantity: totalQty,
         gross_pnl: grossVal!,
-        fees: Number(f.fees) || 0,
+        // commission and swap are broker-signed (negative = a cost); the database adds the three parts up into fees.
+        commission: signedCost(f.commission),
+        swap: signedCost(f.swap),
+        other_fees: Number(f.other_fees) || 0,
+        fees: cost,
         pnl_manual: resolved.manual,
         // risk_amount is deliberately not sent: the database derives it, and imported trades keep the engine's value.
         ...(trade ? {} : { trade_type: journal.trade_type }),
@@ -289,7 +305,7 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
       // Planned risk (and so the R-multiple) for forex, metals and other lot-based trades comes from the P&L engine, which
       // knows contract sizes, pip values and currency conversion. Ask it for this one trade now; the page refreshes when it
       // answers. Never blocks or fails the save.
-      if (journal.quantity_unit && !stillOpen && isNum(f.stop_loss)) auditTrades(journal.id, [id]).then(() => qc.invalidateQueries(), () => undefined);
+      if (!stillOpen && isNum(f.stop_loss)) auditTrades(journal.id, [id]).then(() => qc.invalidateQueries(), () => undefined);
       if (onSaved) await onSaved();
       qc.invalidateQueries();
       setOpen(false);
@@ -316,6 +332,7 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
       <button type="button" aria-label="Remove" onClick={() => setLegs(legs.filter((_, j) => j !== i))} className="text-muted-foreground hover:text-foreground"><X className="h-3.5 w-3.5" /></button>
     </div>
   );
+  const imported = !!trade && !!trade.source && trade.source !== "manual";
   const visibleShots = shots.filter((s) => !removed.some((r) => r.id === s.id));
 
   return (
@@ -328,15 +345,15 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
             <SheetTitle className="text-[15px] font-semibold">{trade ? `Edit Trade #${trade.trade_no}` : "New Trade"}</SheetTitle>
             {navList.length > 1 && trade && (
               <span className="flex items-center gap-0.5">
-                <button type="button" aria-label="Previous trade" title="Previous trade (Alt+←)" disabled={!canPrev} onClick={() => go(-1)} className="rounded p-1 hover:bg-muted disabled:opacity-30"><ChevronLeft className="h-4 w-4" /></button>
-                <button type="button" aria-label="Next trade" title="Next trade (Alt+→)" disabled={!canNext} onClick={() => go(1)} className="rounded p-1 hover:bg-muted disabled:opacity-30"><ChevronRight className="h-4 w-4" /></button>
+                <button type="button" aria-label="Previous trade" title="Previous trade (Alt+←)" disabled={!canPrev} onClick={() => void go(-1)} className="rounded p-1 hover:bg-muted disabled:opacity-30"><ChevronLeft className="h-4 w-4" /></button>
+                <button type="button" aria-label="Next trade" title="Next trade (Alt+→)" disabled={!canNext} onClick={() => void go(1)} className="rounded p-1 hover:bg-muted disabled:opacity-30"><ChevronRight className="h-4 w-4" /></button>
               </span>
             )}
             <Popover>
               <PopoverTrigger aria-label="Form settings"><Settings className="h-[17px] w-[17px]" /></PopoverTrigger>
               <PopoverContent align="start" className="w-56 p-3 text-[12.5px]">
                 <p className="mb-2 font-semibold">Show fields</p>
-                {[["setup", "Setup"], ["sltp", "Stop Loss / Take Profit"], ["fees", "Fees"], ["notes", "Personal Notes"], ["price", "Advanced Price Data"], ["custom", "Custom Stats"]].map(([k, l]) => (
+                {[["setup", "Setup"], ["sltp", "Stop Loss / Take Profit"], ["fees", "Commission / Swap / Fees"], ["notes", "Personal Notes"], ["price", "Advanced Price Data"], ["custom", "Custom Stats"]].map(([k, l]) => (
                   <label key={k} className="flex cursor-pointer items-center gap-2 py-1">
                     <input type="checkbox" checked={vis(k!)} onChange={() => toggleHidden(k!)} className="accent-current" /> {l}
                   </label>
@@ -358,7 +375,7 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
               <div>
                 <SectionTitle>General Trade Data</SectionTitle>
                 <div className="space-y-3">
-                  <FloatInput label="Entry Date *" type="datetime-local" value={f.entry_at} onChange={set("entry_at")} align="left" right={<CalendarDays className="h-4 w-4" />} />
+                  <FloatDateTime label="Entry Date *" value={f.entry_at} onChange={set("entry_at")} />
                   <FloatSelect label="Instrument *" options={opts.instruments} value={f.instrument_id ? [f.instrument_id] : []} onChange={(v) => set("instrument_id")(v[0] ?? "")} onCreate={(l) => create("instruments", l)} />
                   {vis("setup") && <FloatSelect label="Setup" options={opts.setups} value={f.setup_id ? [f.setup_id] : []} onChange={(v) => set("setup_id")(v[0] ?? "")} onCreate={(l) => create("setups", l)} />}
                 </div>
@@ -370,23 +387,28 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
                     <SectionTitle>Trade Entry</SectionTitle>
                     <FloatInput label="Entry Price *" value={f.entry_price} onChange={set("entry_price")} right={plusBtn(() => setExtraEntries([...extraEntries, { price: "", qty: "" }]), "Add entry")} />
                     {extraEntries.map((_, i) => legRow(extraEntries, setExtraEntries, i, "Entry"))}
-                    <FloatInput label="Quantity *" value={f.quantity} onChange={set("quantity")} />
+                    <FloatInput label={`${quantityLabel(unit)} *`} value={f.quantity} onChange={set("quantity")} />
                     {vis("sltp") && <FloatInput label="Stop Loss" value={f.stop_loss} onChange={set("stop_loss")} />}
                     {vis("sltp") && <FloatInput label="Take Profit" value={f.take_profit} onChange={set("take_profit")} />}
                   </div>
                   <div className="space-y-3">
                     <SectionTitle>Trade Exit</SectionTitle>
-                    <label className="flex items-center gap-2 text-[13px]"><input type="checkbox" checked={stillOpen} onChange={(e) => setStillOpen(e.target.checked)} />Trade is still open</label>
-                    {!stillOpen && <>
-                    <FloatInput label="Exit Date*" type="datetime-local" value={f.exit_at} onChange={set("exit_at")} align="left" right={<CalendarDays className="h-4 w-4" />} />
-                    <FloatInput label="Exit Price *" value={f.exit_price} onChange={set("exit_price")} right={plusBtn(() => setExtraExits([...extraExits, { price: "", qty: "" }]), "Add exit")} />
-                    {extraExits.map((_, i) => legRow(extraExits, setExtraExits, i, "Exit"))}</>}
+                    <FloatDateTime label="Exit Date" value={f.exit_at} onChange={set("exit_at")} />
+                    {stillOpen && <p className="-mt-1 text-[11.5px] text-muted-foreground">No exit date: this trade is saved as open.</p>}
+                    <FloatInput label={stillOpen ? "Exit Price" : "Exit Price *"} value={f.exit_price} onChange={set("exit_price")} right={plusBtn(() => setExtraExits([...extraExits, { price: "", qty: "" }]), "Add exit")} />
+                    {extraExits.map((_, i) => legRow(extraExits, setExtraExits, i, "Exit"))}
                     <div className="grid grid-cols-2 gap-3">
                       <FloatInput label="Net P/L" value={net == null ? "" : net.toFixed(2)} disabled />
                       <FloatInput label="Gross P/L *" value={grossTouched ? f.gross_pnl : autoGross?.toFixed(2) ?? ""} onChange={(v) => { setGrossTouched(v !== ""); set("gross_pnl")(v); }} />
                     </div>
-                    {journal?.quantity_unit !== "units" && <p className="text-[11.5px] text-muted-foreground">{journal?.quantity_unit === "lots" ? "Quantity is in lots, so enter the P/L yourself." : "Set the quantity unit in Journal settings to calculate P/L and R automatically. Until then, enter the P/L yourself."}</p>}
-                    {vis("fees") && <FloatInput label="Fees" value={f.fees} onChange={set("fees")} />}
+                    {unit !== "units" && <p className="text-[11.5px] text-muted-foreground">{unit === "lots" ? "Forex is traded in lots, so enter the P/L yourself." : "Pick an instrument to calculate P/L automatically. Until then, enter the P/L yourself."}</p>}
+                    {vis("fees") && (
+                      <div className="space-y-3">
+                        <FloatInput label="Commission" value={f.commission} onChange={set("commission")} disabled={imported} />
+                        <FloatInput label="Swap" value={f.swap} onChange={set("swap")} disabled={imported} />
+                        <FloatInput label="Other fees" value={f.other_fees} onChange={set("other_fees")} disabled={imported} />
+                      </div>
+                    )}
                   </div>
                 </div>
                 {(extraEntries.length > 0 || extraExits.length > 0) && avgEntry != null && (

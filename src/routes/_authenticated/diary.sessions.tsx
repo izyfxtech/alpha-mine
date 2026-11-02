@@ -14,6 +14,8 @@ import { useJournal, useJournalFlows, useTrades } from "@/lib/journal/journal-co
 import { useJournalTable, type Row } from "@/lib/journal/crud";
 import { computeStats, dayKey, fmtMoney, fmtNum, type Trade } from "@/lib/pnl/metrics";
 import { cn } from "@/lib/utils";
+import { useDialogs } from "@/components/ui/confirm";
+import { DatePicker, DateTimePicker } from "@/components/ui/date-picker";
 
 export const Route = createFileRoute("/_authenticated/diary/sessions")({
   head: () => ({ meta: [{ title: "Sessions — AlphaMine" }, { name: "description", content: "Review trading periods with ratings, notes and stats." }, { property: "og:title", content: "Sessions — AlphaMine" }, { property: "og:description", content: "Review trading periods with ratings, notes and stats." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
@@ -38,6 +40,7 @@ function Stars({ value, onChange, size = "h-4 w-4" }: { value: number; onChange?
 }
 
 function Sessions() {
+  const { confirm } = useDialogs();
   const { journal } = useJournal();
   const { trades } = useTrades({ unfiltered: true });
   const t = useJournalTable("diary_sessions", journal?.id, "period_start", true);
@@ -59,7 +62,7 @@ function Sessions() {
       <div className="rounded-lg bg-card shadow-[0_1px_5px_rgba(60,40,90,0.07)]">
         <div className="flex flex-wrap items-center gap-2 p-4">
           <Button variant="ink" size="sm" onClick={() => setEdit("new")}><Plus className="h-4 w-4" />Add More</Button>
-          <Button variant="secondary" size="sm" disabled={!sel.size} onClick={async () => { if (!confirm(`Permanently delete ${sel.size} session${sel.size === 1 ? "" : "s"}? This cannot be undone.`)) return; const done = await Promise.all([...sel].map((id) => t.remove(id))); setSel(new Set([...sel].filter((_, i) => !done[i]))); }}><Trash2 className="h-4 w-4" />Delete</Button>
+          <Button variant="secondary" size="sm" disabled={!sel.size} onClick={async () => { if (!(await confirm({ title: `Delete ${sel.size} session${sel.size === 1 ? "" : "s"}?`, message: "This cannot be undone.", destructive: true }))) return; const done = await Promise.all([...sel].map((id) => t.remove(id))); setSel(new Set([...sel].filter((_, i) => !done[i]))); }}><Trash2 className="h-4 w-4" />Delete</Button>
           <div className="flex-1" />
           <DateRangeButton value={range} onChange={setRange} className="w-[260px]" />
            <CategorySelect categories={journal?.session_categories ?? []} value={cats} onChange={setCats} className="w-80" placeholder="Session Categories" />
@@ -160,8 +163,8 @@ function SessionSheet({ session, trades, start, currency, categories, onClose, o
           <fieldset className="relative rounded-md border px-3 pb-2 pt-3">
             <legend className="absolute -top-2 left-2 bg-card px-1 text-xs">Period *</legend>
             <div className="flex items-center gap-2 text-sm">
-              <input type="date" value={a} onChange={(e) => setA(e.target.value)} className="bg-transparent outline-none" />–
-              <input type="date" value={b} min={a} onChange={(e) => setB(e.target.value)} className="bg-transparent outline-none" />
+              <DatePicker aria-label="Start date" value={a} onChange={setA} className="h-8" />–
+              <DatePicker aria-label="End date" value={b} onChange={(v) => setB(v && a && v < a ? a : v)} className="h-8" />
             </div>
           </fieldset>
            <CategorySelect categories={categories} value={cats} onChange={setCats} className="h-11 w-full" placeholder="Session Category *" />

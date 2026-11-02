@@ -69,3 +69,18 @@ describe('pickRiskApplications', () => {
     expect(pickRiskApplications(rows)).toEqual([{ trade_id: 'a', risk_amount: 12.5 }, { trade_id: 'f', risk_amount: 7 }]);
   });
 });
+
+describe('mapTrade: unit follows the instrument', () => {
+  it('a forex instrument is lots and a stock is units, whatever the journal says', () => {
+    const fx = mapTrade(base, { ...ins, asset_class: 'forex' }, { ...lotsJournal, quantity_unit: null }, new Map());
+    expect(fx).toHaveProperty('trade');
+    const stock = mapTrade({ ...base, quantity: 50000 }, { ...ins, asset_class: 'stock' }, { ...lotsJournal, quantity_unit: 'lots' }, new Map());
+    if ('trade' in stock) expect(stock.trade.lots.toNumber()).toBeCloseTo(0.5, 6);
+    else throw new Error('expected a trade');
+  });
+  it('other fees count as a separate cost next to commission and swap', () => {
+    const m = mapTrade({ ...base, commission: -7, swap: -1.5, other_fees: 2 } as never, ins, lotsJournal, new Map());
+    if ('trade' in m) { expect(m.trade.broker?.commission?.toNumber()).toBe(-7); expect(m.trade.broker?.fee?.toNumber()).toBe(-2); }
+    else throw new Error('expected a trade');
+  });
+});

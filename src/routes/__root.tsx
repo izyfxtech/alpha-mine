@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
+import { DialogProvider } from "@/components/ui/confirm";
 import { supabase } from "@/integrations/supabase/client";
 import { MkShell } from "@/components/marketing/marketing-shell";
 
@@ -108,7 +109,9 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
+      <DialogProvider>
+        <Outlet />
+      </DialogProvider>
       <Toaster richColors position="top-right" />
     </QueryClientProvider>
   );

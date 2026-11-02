@@ -16,6 +16,8 @@ import { useJournalTable, type Row } from "@/lib/journal/crud";
 import { supabase } from "@/integrations/supabase/client";
 import { RecordScreenshots } from "@/components/journal/Screenshots";
 import { cn } from "@/lib/utils";
+import { useDialogs } from "@/components/ui/confirm";
+import { DatePicker, DateTimePicker } from "@/components/ui/date-picker";
 
 export const Route = createFileRoute("/_authenticated/missed-trades")({
   head: () => ({ meta: [{ title: "Missed Trades — AlphaMine" }, { name: "description", content: "Log the trades you saw but didn't take." }, { property: "og:title", content: "Missed Trades — AlphaMine" }, { property: "og:description", content: "Log the trades you saw but didn't take." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
@@ -39,6 +41,7 @@ const f2 = (v: number | null | undefined, d = 2) => (v == null ? "" : v.toLocale
 const dt = (iso?: string | null) => localDateTime(iso);
 
 function MissedTrades() {
+  const { confirm } = useDialogs();
   const { journal } = useJournal();
   const qc = useQueryClient();
   const { data: statLinks = [] } = useQuery({ queryKey: ["missed_trade_custom_stats", journal?.id], enabled: !!journal, queryFn: () => fetchAllRows<{ missed_trade_id: string; option_id: string }>((from, to, first) => supabase.from("missed_trade_custom_stats").select("missed_trade_id,option_id", countOption(first)).eq("journal_id", journal?.id ?? "").order("missed_trade_id").order("option_id").range(from, to) as never) });
@@ -61,7 +64,7 @@ function MissedTrades() {
     refreshStats();
     setSel(new Set());
   };
-  const del = async () => { if (!confirm(`Delete ${sel.size} missed trade(s)?`)) return; await Promise.all([...sel].map((id) => t.remove(id))); setSel(new Set()); };
+  const del = async () => { if (!(await confirm({ title: `Delete ${sel.size} missed trade${sel.size === 1 ? "" : "s"}?`, message: "This cannot be undone.", destructive: true }))) return; await Promise.all([...sel].map((id) => t.remove(id))); setSel(new Set()); };
 
   const heads = ["Entry Date", "Instrument", "Trade Type", "Option Type", "Setup", "Direction", "Entry Price", "Quantity", "TP Price", "SL Price", "R planned", "R-Multiple", "Exit Price", "Return ($)", "Exit Date", "Return (%)", "Expiry Date", "Multiplier", ...cats.map((c) => c.name), "Reason"];
   return (
@@ -152,7 +155,7 @@ export function MissedSheet({ row, journalId, onClose, onSave, title, selectedSt
   };
   const sel = "h-9 w-full rounded-md border bg-background px-2 text-sm";
   const F = ({ l, k, type = "text", list }: { l: string; k: keyof typeof f; type?: string; list?: string }) => (
-    <div className="space-y-1"><Label className="text-xs">{l}</Label><Input type={type} step="any" list={list} value={f[k]} onChange={set(k)} /></div>
+    <div className="space-y-1"><Label className="text-xs">{l}</Label>{type === "datetime-local" ? <DateTimePicker aria-label={l} value={f[k]} onChange={(v) => set(k)({ target: { value: v } })} /> : type === "date" ? <DatePicker aria-label={l} value={f[k]} onChange={(v) => set(k)({ target: { value: v } })} /> : <Input type={type} step="any" list={list} value={f[k]} onChange={set(k)} />}</div>
   );
   return (
     <Sheet open onOpenChange={(o) => !o && onClose()}>

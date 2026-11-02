@@ -11,6 +11,7 @@ import { axis, seriesValues, tooltipStyle, tradeAxis, yScale } from "@/component
 import { useJournal } from "@/lib/journal/journal-context";
 import { useJournalTable, type Row } from "@/lib/journal/crud";
 import { cn } from "@/lib/utils";
+import { useDialogs } from "@/components/ui/confirm";
 
 export const Route = createFileRoute("/_authenticated/strategy-lab/backtester")({
   head: () => ({
@@ -38,6 +39,7 @@ export function summarize(outcomes: string[], rows: number[][]) {
 const joinBy = (xs: (string | number)[]) => xs.join(" / ");
 
 function Backtester() {
+  const { confirm } = useDialogs();
   const { journal } = useJournal();
   const t = useJournalTable("backtests", journal?.id, "created_at", true);
   const [sel, setSel] = useState<Set<string>>(new Set());
@@ -45,7 +47,7 @@ function Backtester() {
   const maxOutcomes = Math.max(2, ...t.rows.map((r) => r.outcomes.length));
 
   const del = async () => {
-    if (!confirm(`Delete ${sel.size} backtest(s)?`)) return;
+    if (!(await confirm({ title: `Delete ${sel.size} backtest${sel.size === 1 ? "" : "s"}?`, message: "This cannot be undone.", destructive: true }))) return;
     await Promise.all([...sel].map((id) => t.remove(id)));
     setSel(new Set());
   };

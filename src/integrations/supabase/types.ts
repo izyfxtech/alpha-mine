@@ -1125,6 +1125,7 @@ export type Database = {
           raw_symbol: string | null
           commission: number | null
           swap: number | null
+          other_fees: number
         }
         Insert: {
           created_at?: string
@@ -1159,6 +1160,7 @@ export type Database = {
           raw_symbol?: string | null
           commission?: number | null
           swap?: number | null
+          other_fees?: number
         }
         Update: {
           created_at?: string
@@ -1193,6 +1195,7 @@ export type Database = {
           raw_symbol?: string | null
           commission?: number | null
           swap?: number | null
+          other_fees?: number
         }
         Relationships: [
           {
