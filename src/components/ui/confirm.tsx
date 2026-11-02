@@ -48,8 +48,10 @@ export function useDialogs(): DialogApi {
 export function DialogProvider({ children }: { children: ReactNode }) {
   const [pending, setPending] = useState<Pending | null>(null);
   const [text, setText] = useState("");
+  // The ref mirrors `pending` and is only written where the state is set (never during render), so a second question
+  // asked in the same tick still finds and cancels the first.
   const current = useRef<Pending | null>(null);
-  current.current = pending;
+  const show = useCallback((p: Pending | null) => { current.current = p; setPending(p); }, []);
 
   // Asking while another question is open cancels the first one, so no promise is ever left hanging.
   const cancelOpen = useCallback(() => {
@@ -61,20 +63,20 @@ export function DialogProvider({ children }: { children: ReactNode }) {
   const api = useMemo<DialogApi>(() => ({
     confirm: (o) => new Promise<boolean>((resolve) => {
       cancelOpen();
-      setPending({ kind: "confirm", opts: typeof o === "string" ? { message: o } : o, resolve });
+      show({ kind: "confirm", opts: typeof o === "string" ? { message: o } : o, resolve });
     }),
     prompt: (o) => new Promise<string | null>((resolve) => {
       cancelOpen();
       const opts = typeof o === "string" ? { title: o } : o;
       setText(opts.defaultValue ?? "");
-      setPending({ kind: "prompt", opts, resolve });
+      show({ kind: "prompt", opts, resolve });
     }),
-  }), [cancelOpen]);
+  }), [cancelOpen, show]);
 
   const close = (result: boolean | string | null) => {
     const p = current.current;
     if (!p) return;
-    setPending(null);
+    show(null);
     if (p.kind === "confirm") p.resolve(result === true); else p.resolve(typeof result === "string" ? result : null);
   };
 
