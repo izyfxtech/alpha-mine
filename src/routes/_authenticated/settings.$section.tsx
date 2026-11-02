@@ -21,6 +21,8 @@ import { useProfile } from "@/lib/profile-settings";
 import { useJournalTable } from "@/lib/journal/crud";
 import { SETTINGS } from "@/lib/nav";
 import { cn } from "@/lib/utils";
+import { useDialogs } from "@/components/ui/confirm";
+import { DatePicker, DateTimePicker } from "@/components/ui/date-picker";
 
 export const Route = createFileRoute("/_authenticated/settings/$section")({
   head: ({ params }) => {
@@ -76,13 +78,14 @@ const sentimentTone = (s: string) => (s === "positive" ? "text-profit" : s === "
 
 /** Trash on an active item retires it (it stays on existing trades); on a disabled item it deletes it for good. */
 function RowActions({ disabled, name, used, onDisable, onRestore, onDelete }: { disabled: boolean; name: string; used: number; onDisable: () => void; onRestore: () => void; onDelete: () => void }) {
+  const { confirm } = useDialogs();
   if (!disabled) {
     return <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" aria-label={`Disable ${name}`} title="Disable (keeps it on existing trades)" onClick={onDisable}><Trash2 className="h-4 w-4" /></Button>;
   }
   return (
     <span className="flex shrink-0 items-center gap-1">
       <Button size="sm" variant="outline" className="h-7 text-xs" aria-label={`Restore ${name}`} onClick={onRestore}><RotateCcw className="h-3 w-3" />Restore</Button>
-      <Button size="icon" variant="ghost" className="h-8 w-8" aria-label={`Delete ${name} permanently`} title={used ? `Used by ${plural(used, "trade")}` : "Delete permanently"} onClick={() => { if (confirm(`Permanently delete "${name}"?${used ? ` It is on ${plural(used, "trade")}; they will lose it.` : ""} This cannot be undone.`)) onDelete(); }}><X className="h-4 w-4" /></Button>
+      <Button size="icon" variant="ghost" className="h-8 w-8" aria-label={`Delete ${name} permanently`} title={used ? `Used by ${plural(used, "trade")}` : "Delete permanently"} onClick={async () => { if (await confirm({ title: `Delete "${name}" permanently?`, message: `${used ? `It is on ${plural(used, "trade")}; they will lose it. ` : ""}This cannot be undone.`, destructive: true })) onDelete(); }}><X className="h-4 w-4" /></Button>
     </span>
   );
 }
@@ -226,6 +229,7 @@ function JournalSettings() {
 /* ---------------------- Deposits & Withdrawals (cashflows) ---------------------- */
 
 function Cashflows() {
+  const { confirm } = useDialogs();
   const { journal } = useJournal();
   const t = useJournalTable("journal_cashflows", journal?.id, "occurred_on", false);
   const [open, setOpen] = useState(false);
@@ -255,7 +259,7 @@ function Cashflows() {
                 <td className="px-2">{money(r.amount)}</td>
                 <td className="px-2">{money(r.balance)}</td>
                 <td className="px-2 text-t2">{r.note}</td>
-                <td className="px-2 text-right">{!r.locked && <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground" aria-label="Delete transaction" onClick={() => { if (confirm("Delete this transaction? Balances and returns will be recalculated.")) t.remove(r.id); }}><Trash2 className="h-4 w-4" /></Button>}</td>
+                <td className="px-2 text-right">{!r.locked && <Button variant="ghost" size="icon" className="h-8 w-8 text-foreground" aria-label="Delete transaction" onClick={async () => { if (await confirm({ title: "Delete transaction?", message: "Balances and returns will be recalculated.", destructive: true })) t.remove(r.id); }}><Trash2 className="h-4 w-4" /></Button>}</td>
               </tr>
             ))}
             {!rows.length && <tr><td colSpan={5} className="px-4 py-6 text-center text-t4">No deposits or withdrawals yet.</td></tr>}
@@ -267,7 +271,7 @@ function Cashflows() {
           <DialogTitle>Add deposit or withdrawal</DialogTitle>
           <DialogDescription className="sr-only">Record money added to or taken from the account.</DialogDescription>
           <div className="space-y-3">
-            <Input type="date" aria-label="Date" value={date} onChange={(e) => setDate(e.target.value)} />
+            <DatePicker aria-label="Date" value={date} onChange={setDate} />
             <select aria-label="Type" className={sel} value={kind} onChange={(e) => setKind(e.target.value)}><option value="deposit">Deposit</option><option value="withdrawal">Withdrawal</option></select>
             <Input type="number" step="0.01" min="0.01" placeholder="Amount" aria-label="Amount" value={amount} onChange={(e) => setAmount(e.target.value)} />
             <Input placeholder="Reason (optional)" aria-label="Reason" value={note} onChange={(e) => setNote(e.target.value)} />
@@ -471,14 +475,15 @@ type OptRow = { id: string; label: string; category_id: string; disabled: boolea
 const SLOTS = 20;
 
 function StatCard({ slot, cat, tab, cats, options, opts, usage }: { slot: number; cat?: CatRow; tab: "active" | "disabled"; cats: ReturnType<typeof useJournalTable<"custom_stat_categories">>; options: ReturnType<typeof useJournalTable<"custom_stat_options">>; opts: OptRow[]; usage: Map<string, number> }) {
+  const { confirm } = useDialogs();
   const mine = opts.filter((o) => o.category_id === cat?.id);
   const shown = mine.filter((o) => (tab === "disabled") === !!o.disabled);
   const { rowProps, over } = useDragReorder(shown.map((o) => o.id), (ids) => options.reorder(ids));
   const title = cat?.name ?? `Custom Comment ${slot}`;
-  const remove = () => {
+  const remove = async () => {
     if (!cat) return;
     const n = mine.reduce((a, o) => a + (usage.get(o.id) ?? 0), 0);
-    if (confirm(`Permanently delete "${cat.name}" and all of its tags?${n ? ` ${plural(n, "tag assignment")} on your trades will be removed too.` : ""} This cannot be undone.`)) void cats.remove(cat.id);
+    if (await confirm({ title: `Delete "${cat.name}" permanently?`, message: `All of its tags are deleted too.${n ? ` ${plural(n, "tag assignment")} on your trades will be removed.` : ""} This cannot be undone.`, destructive: true })) void cats.remove(cat.id);
   };
   return (
     <section className={cn(card, "group min-h-[200px] min-w-0 pb-2")}>

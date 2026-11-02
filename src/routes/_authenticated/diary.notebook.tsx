@@ -7,6 +7,7 @@ import { RichEditor, stripHtml } from "@/components/RichEditor";
 import { useJournal } from "@/lib/journal/journal-context";
 import { useJournalTable } from "@/lib/journal/crud";
 import { cn } from "@/lib/utils";
+import { useDialogs } from "@/components/ui/confirm";
 
 export const Route = createFileRoute("/_authenticated/diary/notebook")({
   head: () => ({ meta: [{ title: "Notebook — AlphaMine" }, { name: "description", content: "Your trading notebook, organised in folders." }, { property: "og:title", content: "Notebook — AlphaMine" }, { property: "og:description", content: "Your trading notebook, organised in folders." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
@@ -17,6 +18,7 @@ const ALL = "__all__";
 const fmtStamp = (iso: string) => localDateTime(iso);
 
 function Notebook() {
+  const { confirm, prompt } = useDialogs();
   const { journal } = useJournal();
   const pages = useJournalTable("notebook_pages", journal?.id, "updated_at");
   const folders = useJournalTable("notebook_folders", journal?.id, "position", true);
@@ -58,11 +60,11 @@ function Notebook() {
     if (r) setSel(r.id);
   };
   const newFolder = async () => {
-    const n = prompt("Folder name")?.trim();
+    const n = (await prompt({ title: "New folder", label: "Folder name", confirmLabel: "Create" }))?.trim();
     if (n) await folders.insert({ name: n, position: names.length });
   };
   const renameFolder = async (name: string) => {
-    const n = prompt("Rename folder", name)?.trim();
+    const n = (await prompt({ title: "Rename folder", label: "Folder name", defaultValue: name, confirmLabel: "Rename" }))?.trim();
     if (!n || n === name) return;
     const f = folders.rows.find((x) => x.name === name);
     if (f) await folders.update(f.id, { name: n }); else await folders.insert({ name: n, position: names.length });
@@ -70,7 +72,7 @@ function Notebook() {
     if (folder === name) setFolder(n);
   };
   const deleteFolder = async (name: string) => {
-    if (!confirm(`Delete folder "${name}" and its notes?`)) return;
+    if (!(await confirm({ title: `Delete folder "${name}"?`, message: "Every note in it is deleted too. This cannot be undone.", destructive: true }))) return;
     await Promise.all(pages.rows.filter((p) => p.folder === name).map((p) => pages.remove(p.id)));
     const f = folders.rows.find((x) => x.name === name);
     if (f) await folders.remove(f.id);
@@ -108,7 +110,7 @@ function Notebook() {
             <>
               <div className="mb-3 flex items-center gap-2">
                 <input value={title} onChange={(e) => setTitle(e.target.value)} className="flex-1 bg-transparent text-[16px] font-bold outline-none" />
-                <Button variant="ghost" size="icon" onClick={async () => { if (!confirm(`Permanently delete "${page.title || "Untitled"}"? This cannot be undone.`)) return; if (await pages.remove(page.id)) setSel(null); }} title="Delete note"><Trash2 className="h-4 w-4" /></Button>
+                <Button variant="ghost" size="icon" onClick={async () => { if (!(await confirm({ title: `Delete "${page.title || "Untitled"}"?`, message: "This cannot be undone.", destructive: true }))) return; if (await pages.remove(page.id)) setSel(null); }} title="Delete note"><Trash2 className="h-4 w-4" /></Button>
               </div>
               <RichEditor value={content} onChange={setContent} className="min-h-0 flex-1" />
             </>

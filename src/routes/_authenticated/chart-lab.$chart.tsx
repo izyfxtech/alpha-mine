@@ -12,6 +12,7 @@ import { computeStats, fmtMoney, fmtNum, groupBy, isLoss, isWin, potentialR, sor
 import { AccentStat, Empty, StatGrid, axis, niceTicks, pctScale, seriesValues, tradeAxis, yScale } from "@/components/kit";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { XModeSelect, pointTitle, tradeTime, useXMode, xAxisLabel, xAxisProps } from "@/components/analytics/x-axis";
 
 export const Route = createFileRoute("/_authenticated/chart-lab/$chart")({
   loader: ({ params }) => {
@@ -200,34 +201,35 @@ function Drawdown({ trades, cur, start }: { trades: Trade[]; cur: string; start:
   const drawer = useTradeDrawer();
   const ordered = useMemo(() => sorted(trades), [trades]);
   const [display, setDisplay] = useState<"Return ($)" | "Return (%)">("Return ($)");
+  const [xm, setXm] = useXMode();
   const { data, worst, avgDD, current, topBottom, bottomTop } = useMemo(() => {
     let eq = 0, peak = 0, peakIdx = 0;
     const pts = sorted(trades).map((t, i) => {
       eq += t.net_pnl;
       if (eq >= peak) { peak = eq; peakIdx = i; }
       const dd = eq - peak;
-      return { x: i + 1, dd, ddPct: start + peak ? (dd / (start + peak)) * 100 : 0, peakIdx };
+      return { x: i + 1, t: tradeTime(t), dd, ddPct: start + peak ? (dd / (start + peak)) * 100 : 0, peakIdx };
     });
     const min = pts.reduce((m, p) => (p.dd < m.dd ? p : m), pts[0] ?? { dd: 0, x: 0, peakIdx: 0, ddPct: 0 });
     const troughIdx = (min?.x ?? 1) - 1;
     const recover = pts.findIndex((p, i) => i > troughIdx && p.dd === 0);
     const negs = pts.filter((p) => p.dd < 0);
     return {
-      data: pts.map((p) => ({ x: p.x, v: +(display === "Return ($)" ? p.dd : p.ddPct).toFixed(2) })),
+      data: pts.map((p) => ({ x: p.x, t: p.t, v: +(display === "Return ($)" ? p.dd : p.ddPct).toFixed(2) })),
       worst: Math.abs(min?.dd ?? 0), avgDD: negs.length ? Math.abs(negs.reduce((a, p) => a + p.dd, 0) / negs.length) : 0,
       current: Math.abs(pts[pts.length - 1]?.dd ?? 0), topBottom: troughIdx - (min?.peakIdx ?? 0), bottomTop: recover > 0 ? recover - troughIdx : 0,
     };
   }, [trades, display, start]);
   return (
     <div className="space-y-4">
-      <ChartCard size="full" controls={<Select label="Display" value={display} options={["Return ($)", "Return (%)"] as const} onChange={setDisplay} />}>
+      <ChartCard size="full" controls={<><Select label="Display" value={display} options={["Return ($)", "Return (%)"] as const} onChange={setDisplay} /><XModeSelect value={xm} onChange={setXm} /></>}>
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 8, right: 8, left: 4, bottom: 18 }} className="cursor-pointer" onClick={(e: { activeIndex?: number | string | null }) => { const t = ordered[Number(e?.activeIndex)]; if (t) drawer.open(t); }}>
             <defs><linearGradient id="ddg" x1="0" y1="0" x2="0" y2="1"><stop offset={0} stopColor="var(--color-chart-2)" stopOpacity={0.05} /><stop offset={1} stopColor="var(--color-chart-2)" stopOpacity={0.85} /></linearGradient></defs>
             <CartesianGrid vertical={false} stroke="var(--color-grid)" />
-            <XAxis dataKey="x" tick={axis} tickLine={false} axisLine={false} {...tradeAxis(data.length)} label={{ value: "Trades", position: "insideBottom", offset: -12, style: axis }} />
+            <XAxis tick={axis} tickLine={false} axisLine={false} {...xAxisProps(xm, data.length)} label={{ value: xAxisLabel(xm), position: "insideBottom", offset: -12, style: axis }} />
             <YAxis tick={axis} tickLine={false} axisLine={false} width={58} tickFormatter={tickFmt} {...yScale(data.map((d) => d.v))} label={{ value: `Drawdown (${display === "Return ($)" ? "$" : "%"})`, angle: -90, position: "insideLeft", style: { ...axis, textAnchor: "middle" } }} />
-            <Tooltip content={({ active, payload }) => active && payload?.length ? <Tip title={`Trade #${(payload[0].payload as { x: number }).x}`} lines={[["Drawdown", display === "Return ($)" ? fmtMoney((payload[0].payload as { v: number }).v, cur) : `${(payload[0].payload as { v: number }).v}%`]]} /> : null} />
+            <Tooltip content={({ active, payload }) => active && payload?.length ? <Tip title={pointTitle(xm, payload[0].payload as { x: number; t: number })} lines={[["Drawdown", display === "Return ($)" ? fmtMoney((payload[0].payload as { v: number }).v, cur) : `${(payload[0].payload as { v: number }).v}%`]]} /> : null} />
             <Area type="monotone" dataKey="v" stroke="var(--color-chart-2)" strokeWidth={1.5} fill="url(#ddg)" baseValue={0} isAnimationActive={false} />
           </AreaChart>
         </ResponsiveContainer>
@@ -245,11 +247,12 @@ function Drawdown({ trades, cur, start }: { trades: Trade[]; cur: string; start:
 
 function Efficiency({ trades }: { trades: Trade[] }) {
   const drawer = useTradeDrawer();
+  const [xm, setXm] = useXMode();
   const s = sorted(trades);
   const ordered = s;
   const mistake = (t: Trade, phase?: string) => t.comments.some((c) => c.sentiment === "negative" && (!phase || c.phase === phase));
   let clean = 0;
-  const data = s.map((t, i) => { if (!mistake(t)) clean++; return { x: i + 1, v: +((clean / (i + 1)) * 100).toFixed(2) }; });
+  const data = s.map((t, i) => { if (!mistake(t)) clean++; return { x: i + 1, t: tradeTime(t), v: +((clean / (i + 1)) * 100).toFixed(2) }; });
   if (!data.length) return <Empty>No trades yet.</Empty>;
   const best = Math.max(...data.map((d) => d.v));
   let bestIdx = 0; data.forEach((d, i) => { if (d.v === best) bestIdx = i; });
@@ -257,14 +260,14 @@ function Efficiency({ trades }: { trades: Trade[] }) {
   const rows = (["entry", "exit", "management"] as const).map((p) => ({ k: p === "entry" ? "Entries" : p === "exit" ? "Exits" : "Management", m: pct((t) => mistake(t, p)), f: pct((t) => t.comments.some((c) => c.phase === p && c.sentiment === "positive")) }));
   return (
     <div className="space-y-4">
-      <ChartCard size="md">
+      <ChartCard size="md" controls={<XModeSelect value={xm} onChange={setXm} />}>
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 8, right: 8, left: 4, bottom: 18 }} className="cursor-pointer" onClick={(e: { activeIndex?: number | string | null }) => { const t = ordered[Number(e?.activeIndex)]; if (t) drawer.open(t); }}>
             <defs><linearGradient id="effg" x1="0" y1="0" x2="0" y2="1"><stop offset={0} stopColor="var(--color-chart-1)" stopOpacity={0.75} /><stop offset={1} stopColor="var(--color-chart-1)" stopOpacity={0.05} /></linearGradient></defs>
             <CartesianGrid vertical={false} stroke="var(--color-grid)" />
-            <XAxis dataKey="x" tick={axis} tickLine={false} axisLine={false} {...tradeAxis(data.length)} label={{ value: "Trades", position: "insideBottom", offset: -12, style: axis }} />
+            <XAxis tick={axis} tickLine={false} axisLine={false} {...xAxisProps(xm, data.length)} label={{ value: xAxisLabel(xm), position: "insideBottom", offset: -12, style: axis }} />
             <YAxis tick={axis} tickLine={false} axisLine={false} width={50} {...pctScale} label={{ value: "Efficiency (%)", angle: -90, position: "insideLeft", style: { ...axis, textAnchor: "middle" } }} />
-            <Tooltip content={({ active, payload }) => active && payload?.length ? <Tip title={`Trade #${(payload[0].payload as { x: number }).x}`} lines={[["Efficiency", `${(payload[0].payload as { v: number }).v}%`]]} /> : null} />
+            <Tooltip content={({ active, payload }) => active && payload?.length ? <Tip title={pointTitle(xm, payload[0].payload as { x: number; t: number })} lines={[["Efficiency", `${(payload[0].payload as { v: number }).v}%`]]} /> : null} />
             <Area type="monotone" dataKey="v" stroke="var(--color-chart-1)" strokeWidth={1.5} fill="url(#effg)" isAnimationActive={false} />
           </AreaChart>
         </ResponsiveContainer>
@@ -461,6 +464,7 @@ function RiskDistribution({ trades, start }: { trades: Trade[]; start: number })
 }
 
 function SQN({ trades, start }: { trades: Trade[]; start: number }) {
+  const [xm, setXm] = useXMode();
   const s = computeStats(trades, start, useJournalFlows());
   const rate = (q: number) => q < 1.6 ? "Poor" : q < 2 ? "Below average" : q < 2.5 ? "Average" : q < 3 ? "Good" : q < 5 ? "Excellent" : "Superb";
   const rating = rate(s.sqn);
@@ -471,18 +475,18 @@ function SQN({ trades, start }: { trades: Trade[]; start: number }) {
   }).sort((a, b) => b.sqn - a.sqn);
   const roll = sorted(trades).map((_, i, arr) => {
     const w = arr.slice(Math.max(0, i - 29), i + 1).map((t) => t.r).filter((v): v is number => v != null);
-    return { x: i + 1, v: w.length > 2 ? +sqnOf(w).toFixed(2) : 0 };
+    return { x: i + 1, t: tradeTime(arr[i]!), v: w.length > 2 ? +sqnOf(w).toFixed(2) : 0 };
   });
   return (
     <div className="space-y-4">
-      <ChartCard legend={<Dot c="bg-chart-5">Rolling SQN (30 trades)</Dot>}>
+      <ChartCard controls={<XModeSelect value={xm} onChange={setXm} />} legend={<Dot c="bg-chart-5">Rolling SQN (30 trades)</Dot>}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={roll} margin={{ top: 8, right: 8, left: 4, bottom: 18 }}>
             <CartesianGrid vertical={false} stroke="var(--color-grid)" />
-            <XAxis dataKey="x" tick={axis} tickLine={false} axisLine={false} {...tradeAxis(roll.length ? Math.max(...roll.map((r) => r.x)) : 1)} label={{ value: "Trades", position: "insideBottom", offset: -12, style: axis }} />
+            <XAxis tick={axis} tickLine={false} axisLine={false} {...xAxisProps(xm, roll.length ? Math.max(...roll.map((r) => r.x)) : 1)} label={{ value: xAxisLabel(xm), position: "insideBottom", offset: -12, style: axis }} />
             <YAxis tick={axis} tickLine={false} axisLine={false} width={50} {...yScale(roll.map((r) => r.v))} label={{ value: "SQN", angle: -90, position: "insideLeft", style: { ...axis, textAnchor: "middle" } }} />
             <ReferenceLine y={0} stroke="var(--color-muted-foreground)" />
-            <Tooltip contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 12 }} labelFormatter={(l) => `Trade #${l}`} />
+            <Tooltip contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 12 }} labelFormatter={(l, pl) => pointTitle(xm, { x: (pl?.[0]?.payload as { x?: number } | undefined)?.x ?? Number(l), t: xm === "date" ? Number(l) : undefined })} />
             <Line type="monotone" dataKey="v" name="SQN" stroke="var(--color-chart-5)" strokeWidth={1.5} dot={false} isAnimationActive={false} />
           </LineChart>
         </ResponsiveContainer>
@@ -506,18 +510,19 @@ function SQN({ trades, start }: { trades: Trade[]; start: number }) {
 }
 
 function WinRate({ trades }: { trades: Trade[] }) {
+  const [xm, setXm] = useXMode();
   const s = sorted(trades);
-  const d = s.map((_, i) => { const w = s.slice(Math.max(0, i - 19), i + 1); return { x: i + 1, rolling: +((w.filter(isWin).length / w.length) * 100).toFixed(1), overall: +((s.slice(0, i + 1).filter(isWin).length / (i + 1)) * 100).toFixed(1) }; });
+  const d = s.map((_, i) => { const w = s.slice(Math.max(0, i - 19), i + 1); return { x: i + 1, t: tradeTime(s[i]!), rolling: +((w.filter(isWin).length / w.length) * 100).toFixed(1), overall: +((s.slice(0, i + 1).filter(isWin).length / (i + 1)) * 100).toFixed(1) }; });
   const last = d[d.length - 1];
   return (
     <div className="space-y-4">
-      <ChartCard legend={<><Dot c="bg-profit">Winrate</Dot><Dot c="bg-chart-5">Rolling (20)</Dot></>}>
+      <ChartCard controls={<XModeSelect value={xm} onChange={setXm} />} legend={<><Dot c="bg-profit">Winrate</Dot><Dot c="bg-chart-5">Rolling (20)</Dot></>}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={d} margin={{ top: 8, right: 8, left: 4, bottom: 18 }}>
             <CartesianGrid vertical={false} stroke="var(--color-grid)" />
-            <XAxis dataKey="x" tick={axis} tickLine={false} axisLine={false} {...tradeAxis(d.length ? Math.max(...d.map((p) => p.x)) : 1)} label={{ value: "Trades", position: "insideBottom", offset: -12, style: axis }} />
+            <XAxis tick={axis} tickLine={false} axisLine={false} {...xAxisProps(xm, d.length ? Math.max(...d.map((p) => p.x)) : 1)} label={{ value: xAxisLabel(xm), position: "insideBottom", offset: -12, style: axis }} />
             <YAxis tick={axis} tickLine={false} axisLine={false} width={50} {...pctScale} label={{ value: "Winrate (%)", angle: -90, position: "insideLeft", style: { ...axis, textAnchor: "middle" } }} />
-            <Tooltip contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 12 }} labelFormatter={(l) => `Trade #${l}`} />
+            <Tooltip contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 12 }} labelFormatter={(l, pl) => pointTitle(xm, { x: (pl?.[0]?.payload as { x?: number } | undefined)?.x ?? Number(l), t: xm === "date" ? Number(l) : undefined })} />
             <Line type="monotone" dataKey="overall" name="Winrate" stroke="var(--color-chart-1)" strokeWidth={2} dot={false} isAnimationActive={false} />
             <Line type="monotone" dataKey="rolling" name="Rolling (20)" stroke="var(--color-chart-5)" strokeWidth={1.5} dot={false} isAnimationActive={false} />
           </LineChart>
@@ -743,23 +748,24 @@ function CustomStatistics({ trades, start, cur }: { trades: Trade[]; start: numb
 
 function TradeManagement({ trades }: { trades: Trade[] }) {
   const drawer = useTradeDrawer();
+  const [xm, setXm] = useXMode();
   const rows = useMemo(() => sorted(trades).map((t) => ({ t, a: t.r, p: potentialR(t) })).filter((x): x is { t: Trade; a: number; p: number } => x.a != null && x.p != null), [trades]);
   if (!rows.length) return <Empty>Add a stop loss and take profit to your trades (plus whether the target was hit, or the high / low price) to see trade management.</Empty>;
   let A = 0, P = 0;
-  const data = rows.map(({ t, a, p }, i) => { A += a; P += p; return { x: i + 1, actual: +A.toFixed(2), potential: +P.toFixed(2), effect: +(A - P).toFixed(2), trade: t }; });
+  const data = rows.map(({ t, a, p }, i) => { A += a; P += p; return { x: i + 1, t: tradeTime(t), actual: +A.toFixed(2), potential: +P.toFixed(2), effect: +(A - P).toFixed(2), trade: t }; });
   const managed = rows.filter((r) => Math.abs(r.a - r.p) > 1e-6);
   const good = managed.filter((r) => r.a > r.p).length;
   const last = data[data.length - 1];
   return (
     <div className="space-y-4">
-      <ChartCard legend={<><Dot c="bg-chart-5">Actual R</Dot><Dot c="bg-profit">R gained by managing</Dot><Dot c="bg-muted-foreground">Potential R</Dot></>}>
+      <ChartCard controls={<XModeSelect value={xm} onChange={setXm} />} legend={<><Dot c="bg-chart-5">Actual R</Dot><Dot c="bg-profit">R gained by managing</Dot><Dot c="bg-muted-foreground">Potential R</Dot></>}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 8, right: 8, left: 4, bottom: 18 }} className="cursor-pointer" onClick={(e: { activeIndex?: number | string | null }) => { const d = data[Number(e?.activeIndex)]; if (d) drawer.open(d.trade); }}>
             <CartesianGrid vertical={false} stroke="var(--color-grid)" />
-            <XAxis dataKey="x" tick={axis} tickLine={false} axisLine={false} {...tradeAxis(data.length)} label={{ value: "Trades", position: "insideBottom", offset: -12, style: axis }} />
+            <XAxis tick={axis} tickLine={false} axisLine={false} {...xAxisProps(xm, data.length)} label={{ value: xAxisLabel(xm), position: "insideBottom", offset: -12, style: axis }} />
             <YAxis tick={axis} tickLine={false} axisLine={false} width={50} {...yScale(seriesValues(data as unknown as Record<string, unknown>[], ["actual", "potential", "effect"]))} label={{ value: "R Multiple", angle: -90, position: "insideLeft", style: { ...axis, textAnchor: "middle" } }} />
             <ReferenceLine y={0} stroke="var(--color-muted-foreground)" />
-            <Tooltip content={({ active, payload }) => { if (!active || !payload?.length) return null; const d = payload[0].payload as (typeof data)[number]; return <Tip title={`Trade #${d.x}`} lines={[["Actual", `${fmtNum(d.actual)}R`], ["Potential", `${fmtNum(d.potential)}R`], ["Managing effect", `${fmtNum(d.effect)}R`]]} />; }} />
+            <Tooltip content={({ active, payload }) => { if (!active || !payload?.length) return null; const d = payload[0].payload as (typeof data)[number]; return <Tip title={pointTitle(xm, d)} lines={[["Actual", `${fmtNum(d.actual)}R`], ["Potential", `${fmtNum(d.potential)}R`], ["Managing effect", `${fmtNum(d.effect)}R`]]} />; }} />
             <Line type="monotone" dataKey="actual" stroke="var(--color-chart-5)" strokeWidth={2} dot={false} isAnimationActive={false} />
             <Line type="monotone" dataKey="effect" stroke="var(--color-chart-1)" strokeWidth={1.5} dot={false} isAnimationActive={false} />
             <Line type="monotone" dataKey="potential" stroke="var(--color-muted-foreground)" strokeWidth={1.5} strokeDasharray="4 3" dot={false} isAnimationActive={false} />

@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameMonth, parseISO, startOfMonth, startOfWeek } from "date-fns";
+import { eachDayOfInterval, endOfMonth, endOfWeek, format, isSameMonth, parseISO, startOfMonth, startOfWeek } from "date-fns";
 import { useProfile } from "@/lib/profile-settings";
-import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarDays } from "lucide-react";
+import { MonthYearNav } from "@/components/ui/date-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
@@ -24,12 +25,8 @@ export function DateRangeButton({ value, onChange, className }: { value: { a: st
       <PopoverTrigger asChild>
         <button type="button" className={cn("flex h-9 items-center gap-2 rounded-md border bg-card px-3 text-[12px]", className)}><CalendarDays className="h-4 w-4" /><span className={cn(!value.a && "text-t4")}>{label}</span></button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-[264px] p-3">
-        <div className="mb-2 flex items-center justify-between">
-          <button type="button" aria-label="Previous month" className="rounded p-1 hover:bg-muted" onClick={() => setMonth(addMonths(month, -1))}><ChevronLeft className="h-4 w-4" /></button>
-          <span className="text-[12px] font-semibold">{format(month, "MMMM yyyy")}</span>
-          <button type="button" aria-label="Next month" className="rounded p-1 hover:bg-muted" onClick={() => setMonth(addMonths(month, 1))}><ChevronRight className="h-4 w-4" /></button>
-        </div>
+      <PopoverContent align="start" className="w-[288px] p-3">
+        <MonthYearNav month={month} onChange={setMonth} />
         <div className="grid grid-cols-7 gap-y-1 text-center text-xs text-t4">{(weekStartsOn === 0 ? ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"] : ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]).map((d) => <span key={d}>{d}</span>)}</div>
         <div className="mt-1 grid grid-cols-7 gap-y-1 text-center text-[12px]">
           {days.map((d) => {

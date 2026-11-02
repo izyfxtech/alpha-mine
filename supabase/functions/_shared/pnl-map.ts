@@ -19,6 +19,7 @@ export interface TradeRow {
   fees: number | string | null;
   commission: number | string | null;
   swap: number | string | null;
+  other_fees?: number | string | null;
   risk_amount: number | string | null;
   source: string | null;
   raw_symbol: string | null;
@@ -33,6 +34,8 @@ export interface InstrumentRow {
   digits: number | null;
   profit_currency: string | null;
   kind: 'fx' | 'metal' | 'crypto' | 'index' | 'cfd' | null;
+  /** 'forex' = quantity is lots, 'stock' = quantity is units. Decides the unit per instrument; the journal's unit is the fallback. */
+  asset_class?: string | null;
 }
 export interface JournalRow { id: string; currency: string; quantity_unit: 'lots' | 'units' | null }
 
@@ -58,7 +61,9 @@ export function mapTrade(row: TradeRow, ins: InstrumentRow | undefined, journal:
   if (row.is_break_even) return { skip: 'marked break even' };
   if (!has(row.entry_price) || !has(row.exit_price) || !row.entry_at || !row.exit_at) return { skip: 'trade is not closed or has no prices' };
   if (!has(row.quantity) || Number(row.quantity) <= 0) return { skip: 'no quantity' };
-  if (!journal.quantity_unit) return { skip: 'journal quantity unit (lots or units) is not set' };
+  // Quantity is read from the instrument's class (forex = lots, stock = units); only an instrument without a class uses the journal's unit.
+  const unit = ins?.asset_class === 'stock' ? 'units' : ins?.asset_class === 'forex' ? 'lots' : journal.quantity_unit;
+  if (!unit) return { skip: 'journal quantity unit (lots or units) is not set' };
   const symbol = row.raw_symbol ?? ins?.symbol;
   if (!symbol) return { skip: 'no instrument symbol' };
 
@@ -82,7 +87,7 @@ export function mapTrade(row: TradeRow, ins: InstrumentRow | undefined, journal:
   if (spec.contractSizeSource === 'default') notes.push(`contract size defaulted to ${spec.contractSize.toString()}`);
 
   const qty = D(row.quantity);
-  const lots = journal.quantity_unit === 'lots' ? qty : qty.div(spec.contractSize);
+  const lots = unit === 'lots' ? qty : qty.div(spec.contractSize);
 
   // Costs. MetaTrader style columns win; otherwise AlphaMine `fees` (a positive cost) is used.
   const broker: NonNullable<ClosedTrade['broker']> = {};
@@ -91,6 +96,8 @@ export function mapTrade(row: TradeRow, ins: InstrumentRow | undefined, journal:
   if (has(row.commission)) broker.commission = D(row.commission);
   if (has(row.swap)) broker.swap = D(row.swap);
   if (!has(row.commission) && !has(row.swap) && has(row.fees) && Number(row.fees) !== 0) broker.fee = D(row.fees).neg();
+  // With commission or swap present, any further cost the trader entered (other_fees, a positive cost) is a separate fee.
+  else if ((has(row.commission) || has(row.swap)) && has(row.other_fees) && Number(row.other_fees) !== 0) broker.fee = D(row.other_fees).neg();
 
   return {
     notes,

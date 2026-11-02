@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { complianceOf, type RuleCheck } from "@/lib/pnl/compliance";
 import { matchesQuery } from "@/lib/journal/search";
+import { quantityUnitOf } from "@/lib/pnl/asset-class";
 import { annotateAccount, enrichTrade, isOpen, isWin, isLoss, isBE, type Cashflow, type Trade, type TradeRow, type Sentiment } from "@/lib/pnl/metrics";
 
 export interface Journal {
@@ -210,12 +211,12 @@ export async function fetchTrades(journalIds: string[]): Promise<Trade[]> {
     });
   const [t, i, s, tc, cd, cs, jr, cf, rc] = await Promise.all([
     fetchAllRows<TradeRow>((from, to, first) => supabase.from("trades").select("*", countOption(first)).in("journal_id", journalIds).order("entry_at", { ascending: false }).order("id").range(from, to) as never).then((data) => ({ data, error: null })),
-    all<{ id: string; symbol: string }>("instruments", "id,symbol", ["id"]).then((data) => ({ data })),
+    all<{ id: string; symbol: string; asset_class: string | null }>("instruments", "id,symbol,asset_class", ["id"]).then((data) => ({ data })),
     all<{ id: string; name: string }>("setups", "id,name", ["id"]).then((data) => ({ data })),
     all<{ trade_id: string; comment_definition_id: string }>("trade_comments", "*", ["trade_id", "comment_definition_id"]).then((data) => ({ data })),
     all<{ id: string; label: string; phase: string; sentiment: string }>("comment_definitions", "*", ["id"]).then((data) => ({ data })),
     all<{ trade_id: string; option_id: string }>("trade_custom_stats", "trade_id,option_id", ["trade_id", "option_id"]).then((data) => ({ data })),
-    supabase.from("journals").select("id,starting_balance").in("id", journalIds),
+    supabase.from("journals").select("id,starting_balance,currency,quantity_unit").in("id", journalIds),
     all<{ journal_id: string; occurred_on: string; amount: number }>("journal_cashflows", "journal_id,occurred_on,amount,id", ["id"]).then((data) => ({ data })),
     all<{ trade_id: string; rule_id: string; status: string }>("trade_rule_checks", "trade_id,rule_id,status", ["trade_id", "rule_id"]).then((data) => ({ data })),
   ]);
@@ -232,7 +233,13 @@ export async function fetchTrades(journalIds: string[]): Promise<Trade[]> {
   (cs.data ?? []).forEach((r) => stats.set(r.trade_id, [...(stats.get(r.trade_id) ?? []), r.option_id]));
   const checks = new Map<string, RuleCheck[]>();
   (rc.data ?? []).forEach((r) => checks.set(r.trade_id, [...(checks.get(r.trade_id) ?? []), { rule_id: r.rule_id, status: r.status as RuleCheck["status"] }]));
-  const enriched = t.data.map((row) => ({ ...enrichTrade(row, im, sm, byTrade.get(row.id) ?? []), customStats: stats.get(row.id) ?? [], ruleChecks: checks.get(row.id) ?? [] }));
+  const classOf = new Map((i.data ?? []).map((x) => [x.id, x.asset_class]));
+  const jInfo = new Map((jr.data ?? []).map((j) => [j.id, { currency: j.currency as string, unit: j.quantity_unit as string | null }]));
+  const riskCtx = (row: TradeRow) => {
+    const j = jInfo.get(row.journal_id);
+    return { unit: quantityUnitOf(row.instrument_id ? classOf.get(row.instrument_id) : null, j?.unit), accountCurrency: j?.currency };
+  };
+  const enriched = t.data.map((row) => ({ ...enrichTrade(row, im, sm, byTrade.get(row.id) ?? [], riskCtx), customStats: stats.get(row.id) ?? [], ruleChecks: checks.get(row.id) ?? [] }));
   const annotated = new Map<string, Trade>();
   (jr.data ?? []).forEach((j) => {
     const flows = (cf.data ?? []).filter((c) => c.journal_id === j.id).map((c) => ({ occurred_on: c.occurred_on, amount: Number(c.amount) }));

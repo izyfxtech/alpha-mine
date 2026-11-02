@@ -1,6 +1,7 @@
 // Shared metrics engine: every page computes stats from here so numbers always match.
 import { localDay } from "@/lib/time/local-time";
 import type { RuleCheck } from "@/lib/pnl/compliance";
+import { plannedRisk, type RiskContext } from "@/lib/pnl/risk";
 
 export type Sentiment = "positive" | "negative" | "neutral";
 
@@ -35,8 +36,9 @@ export interface TradeRow {
   source?: string; // set by the MetaTrader import / trigger
   external_id?: string | null; // set by the MetaTrader import / trigger
   raw_symbol?: string | null; // set by the MetaTrader import / trigger
-  commission?: number | null; // set by the MetaTrader import / trigger
-  swap?: number | null; // set by the MetaTrader import / trigger
+  commission?: number | null; // broker-signed (negative = a cost), set by the MetaTrader import or the trade form
+  swap?: number | null; // broker-signed (negative = a cost)
+  other_fees?: number; // any other cost, positive = a cost. fees (the total cost) = -(commission + swap) + other_fees
 }
 
 export interface Trade extends TradeRow {
@@ -58,11 +60,14 @@ export function enrichTrade(
   instruments: Map<string, string>,
   setups: Map<string, string>,
   comments: Trade["comments"],
+  /** What is needed to work planned risk out when the database has none stored (instrument class, account currency). */
+  riskCtx?: (t: TradeRow) => RiskContext,
 ): Trade {
   const pos = comments.filter((c) => c.sentiment === "positive").length;
   const neg = comments.filter((c) => c.sentiment === "negative").length;
   const tilt = pos - neg;
-  const risk = riskOf(t);
+  // One rule for every trade: stored risk first, else worked out from the stop loss (see lib/pnl/risk.ts).
+  const risk = riskCtx ? plannedRisk(t, { symbol: (t.instrument_id && instruments.get(t.instrument_id)) || t.raw_symbol, ...riskCtx(t) }) : riskOf(t);
   const net = Number(t.net_pnl);
   return {
     ...t,

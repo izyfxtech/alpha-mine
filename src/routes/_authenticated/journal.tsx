@@ -24,6 +24,7 @@ import { ScreenshotGallery, TradeCards } from "@/components/journal/TradeViews";
 import { Empty, TiltMeter } from "@/components/kit";
 import { cn } from "@/lib/utils";
 import { defaultJournalTableLayout, moveJournalColumn, normalizeJournalTableLayout, suggestedColumnWidth, type JournalTableLayout } from "@/lib/journal/journal-table-layout";
+import { useDialogs } from "@/components/ui/confirm";
 
 export const Route = createFileRoute("/_authenticated/journal")({
   head: () => ({ meta: [{ title: "Journal — AlphaMine" }, { name: "description", content: "All trades in your journal." }, { property: "og:title", content: "Journal — AlphaMine" }, { property: "og:description", content: "All trades in your journal." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
@@ -63,6 +64,7 @@ const COLS: Col[] = [
 ];
 
 function JournalPage() {
+  const { confirm } = useDialogs();
   const { trades } = useTrades({ includeOpen: true });
   const { filters, setFilters, journal } = useJournal();
   const [qText, setQText] = useState(filters.q ?? "");
@@ -138,7 +140,7 @@ function JournalPage() {
   async function del() {
     const ids = chosen.map((t) => t.id);
     if (!ids.length) return;
-    if (!confirm(`Permanently delete ${ids.length} trade${ids.length === 1 ? "" : "s"}, with their notes, tags and screenshots? This cannot be undone.`)) return;
+    if (!(await confirm({ title: `Delete ${ids.length} trade${ids.length === 1 ? "" : "s"}?`, message: "Their notes, tags and screenshots are deleted too. This cannot be undone.", destructive: true }))) return;
     const { error } = await supabase.from("trades").delete().in("id", ids);
     if (error) return toast.error(error.message);
     sweepStorage(); setSel(new Set()); qc.invalidateQueries(); toast.success("Deleted");

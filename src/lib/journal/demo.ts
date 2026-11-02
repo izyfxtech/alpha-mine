@@ -1,3 +1,4 @@
+import { inferAssetClass } from "@/lib/pnl/asset-class";
 import { supabase } from "@/integrations/supabase/client";
 
 const SYMBOLS: [string, number, number][] = [
@@ -15,7 +16,7 @@ export async function seedDemoTrades(journalId: string) {
   if (!import.meta.env.DEV) throw new Error("Reference fixtures are development-only");
   const { data: existing } = await supabase.from("instruments").select("id,symbol").eq("journal_id", journalId);
   const have = new Map((existing ?? []).map((i) => [i.symbol, i.id]));
-  const missing = SYMBOLS.filter(([s]) => !have.has(s)).map(([symbol]) => ({ symbol, journal_id: journalId }));
+  const missing = SYMBOLS.filter(([s]) => !have.has(s)).map(([symbol]) => ({ symbol, asset_class: inferAssetClass(symbol), journal_id: journalId }));
   if (missing.length) {
     const { data } = await supabase.from("instruments").insert(missing).select("id,symbol");
     data?.forEach((i) => have.set(i.symbol, i.id));

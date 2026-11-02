@@ -14,15 +14,18 @@ import { cn } from "@/lib/utils";
 import { countOption, fetchAllRows } from "@/lib/journal/fetch-all";
 import { useProfile } from "@/lib/profile-settings";
 import { ShareJournalDialog } from "@/components/journal/ShareJournal";
+import { DatePicker } from "@/components/ui/date-picker";
+import { JOURNAL_MARKETS } from "@/lib/pnl/asset-class";
+import { useDialogs } from "@/components/ui/confirm";
 
 export const CURRENCIES = ["USD", "EUR", "GBP", "JPY", "CHF", "AUD", "CAD", "NGN", "ZAR", "INR"];
-export const MARKETS = ["Forex", "Stocks", "Crypto", "Futures", "Options", "Indices", "Commodities"];
 const sel = "h-9 w-full rounded-md border bg-background px-2 text-sm";
 
 type Mode = "list" | "new" | { copy: Journal };
 
 /** Searchable journal picker with create, copy, share and delete actions. */
 export function JournalPicker() {
+  const { confirm } = useDialogs();
   const { journals, journal, setJournalId } = useJournal();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -35,7 +38,7 @@ export function JournalPicker() {
 
   async function remove(j: Journal) {
     if (journals.length < 2) return toast.error("You need at least one journal");
-    if (!confirm(`Delete "${j.name}" and all its trades? This cannot be undone.`)) return;
+    if (!(await confirm({ title: `Delete "${j.name}"?`, message: "All of its trades, notes and screenshots are deleted too. This cannot be undone.", destructive: true }))) return;
     const { error } = await supabase.from("journals").delete().eq("id", j.id);
     if (error) return toast.error(error.message);
     sweepStorage();
@@ -91,12 +94,14 @@ export function JournalPicker() {
 
 function NewJournal({ onDone, onBack }: { onDone: (id: string) => void; onBack: () => void }) {
   const qc = useQueryClient();
-  const [f, setF] = useState({ name: "", currency: "USD", amount: "10000", deposit_date: "", trade_type: "Spot", quantity_unit: "", markets: [] as string[] });
+  // Only what a journal needs to exist. How quantity is read (lots or shares) follows from each instrument's class, so it is not asked here.
+  const [f, setF] = useState({ name: "", currency: "USD", amount: "10000", deposit_date: "", markets: ["Forex"] as string[] });
   const [busy, setBusy] = useState(false);
   async function submit() {
+    if (!f.markets.length) return toast.error("Pick at least one market.");
     setBusy(true);
     try {
-      const j = await createJournal(f.name.trim() || "New Journal", Number(f.amount) || 0, f.currency, { markets: f.markets, deposit_date: f.deposit_date || null, trade_type: f.trade_type, quantity_unit: f.quantity_unit === "units" || f.quantity_unit === "lots" ? f.quantity_unit : null });
+      const j = await createJournal(f.name.trim() || "New Journal", Number(f.amount) || 0, f.currency, { markets: f.markets, deposit_date: f.deposit_date || null, trade_type: "Spot" });
       await qc.invalidateQueries({ queryKey: ["journals"] });
       toast.success("Journal created");
       onDone(j.id);
@@ -107,17 +112,15 @@ function NewJournal({ onDone, onBack }: { onDone: (id: string) => void; onBack: 
       <div><Label className="text-xs">Name</Label><Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></div>
       <div className="grid grid-cols-2 gap-3">
         <div><Label className="text-xs">Currency</Label><select className={sel} value={f.currency} onChange={(e) => setF({ ...f, currency: e.target.value })}>{CURRENCIES.map((c) => <option key={c}>{c}</option>)}</select></div>
-        <div><Label className="text-xs">Trade type</Label><select className={sel} value={f.trade_type} onChange={(e) => setF({ ...f, trade_type: e.target.value })}>{["Spot", "Options", "Futures"].map((c) => <option key={c}>{c}</option>)}</select></div>
-        <div><Label className="text-xs">Quantity is in</Label><select className={sel} value={f.quantity_unit} onChange={(e) => setF({ ...f, quantity_unit: e.target.value })}><option value="">Not set</option><option value="units">Units</option><option value="lots">Lots</option></select></div>
         <div><Label className="text-xs">Initial amount</Label><Input type="number" value={f.amount} onChange={(e) => setF({ ...f, amount: e.target.value })} /></div>
-        <div><Label className="text-xs">Deposit date</Label><Input type="date" value={f.deposit_date} onChange={(e) => setF({ ...f, deposit_date: e.target.value })} /></div>
+        <div className="col-span-2"><Label className="text-xs">Deposit date</Label><DatePicker aria-label="Deposit date" value={f.deposit_date} onChange={(v) => setF({ ...f, deposit_date: v })} /></div>
       </div>
       <div>
-        <Label className="text-xs">Markets traded</Label>
+        <Label className="text-xs">Markets</Label>
         <div className="mt-1 flex flex-wrap gap-1.5">
-          {MARKETS.map((m) => {
+          {JOURNAL_MARKETS.map((m) => {
             const on = f.markets.includes(m);
-            return <button key={m} type="button" onClick={() => setF({ ...f, markets: on ? f.markets.filter((x) => x !== m) : [...f.markets, m] })} className={cn("rounded-full border px-3 py-1 text-xs", on && "border-ink bg-ink text-ink-foreground")}>{m}</button>;
+            return <button key={m} type="button" aria-pressed={on} onClick={() => setF({ ...f, markets: on ? f.markets.filter((x) => x !== m) : [...f.markets, m] })} className={cn("rounded-full border px-3 py-1 text-xs", on && "border-ink bg-ink text-ink-foreground")}>{m}</button>;
           })}
         </div>
       </div>

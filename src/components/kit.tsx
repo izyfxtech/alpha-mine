@@ -185,15 +185,18 @@ export function DataTable({ cols, rows }: { cols: { k: string; l: string; money?
 export type EquityPoint = { x: number | string; v: number; v2?: number; ma20?: number; ma50?: number; tilt?: number; label?: string; id?: string };
 
 export function EquityChart({
-  data, height = 280, xLabel, yLabel, compact, valueName = "Return ($)", value2Name, fmt = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 2 }), showTilt, baseline = 0, onPointClick,
+  data, height = 280, xLabel, yLabel, compact, valueName = "Return ($)", value2Name, fmt = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 2 }), showTilt, baseline = 0, onPointClick, xMode = "trade",
 }: {
   data: EquityPoint[]; height?: number | `${number}%`; xLabel?: string; yLabel?: string; compact?: boolean; valueName?: string; value2Name?: string; fmt?: (n: number) => string; showTilt?: boolean; baseline?: number; onPointClick?: (p: EquityPoint) => void;
+  /** "date": every point's x is a timestamp (ms) and the axis is a real time axis; "trade": x is the running trade number. */
+  xMode?: "trade" | "date";
 }) {
   const id = useId().replace(/:/g, "");
   const vals = data.flatMap((d) => [d.v, d.v2 ?? d.v]);
   const max = Math.max(baseline, ...vals);
   const min = Math.min(baseline, ...vals);
-  const pts = data.length && data[0].x !== 0 ? [{ x: 0, v: baseline, v2: data[0].v2 !== undefined ? baseline : undefined } as EquityPoint, ...data] : data;
+  const dateMode = xMode === "date";
+  const pts = !dateMode && data.length && data[0].x !== 0 ? [{ x: 0, v: baseline, v2: data[0].v2 !== undefined ? baseline : undefined } as EquityPoint, ...data] : data;
   const span = Math.max(1, max - min);
   // More scale marks than before (audit): ~10 intervals on big charts, ~7 on the compact Home chart.
   const raw = span / (compact ? 7 : 10);
@@ -217,7 +220,7 @@ export function EquityChart({
   const fillOnly = offFill >= 1 ? "up" : offFill <= 0 ? "down" : null;
   const lineOnly = offLine >= 1 ? "up" : offLine <= 0 ? "down" : null;
   const tickFmt = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 2 });
-  const numericX = pts.length > 1 && typeof pts[0]!.x === "number";
+  const numericX = !dateMode && pts.length > 1 && typeof pts[0]!.x === "number";
   const xMax = numericX ? Math.max(...pts.map((p) => Number(p.x))) : 0;
   const xStep = numericX ? [1, 2, 5, 6, 10, 20, 25, 50, 100, 200, 250, 500, 1000].find((st) => xMax / st <= 18) ?? 1000 : 1;
   const xTicks = numericX && !compact ? Array.from({ length: Math.floor(xMax / xStep) + 1 }, (_, i) => i * xStep) : undefined;
@@ -241,7 +244,7 @@ export function EquityChart({
           </linearGradient>
         </defs>
         <CartesianGrid vertical={false} stroke="var(--color-grid)" />
-        <XAxis dataKey="x" hide={compact} type={xTicks ? "number" : "category"} domain={xTicks ? [0, "dataMax"] : undefined} ticks={xTicks} tick={axis} tickLine={false} axisLine={{ stroke: "var(--color-border)" }} minTickGap={compact ? 20 : 40}
+        <XAxis dataKey="x" hide={compact} type={xTicks || dateMode ? "number" : "category"} scale={dateMode ? "time" : undefined} domain={dateMode ? ["dataMin", "dataMax"] : xTicks ? [0, "dataMax"] : undefined} ticks={xTicks} tickFormatter={dateMode ? (n: number) => new Date(n).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "2-digit" }) : undefined} tick={axis} tickLine={false} axisLine={{ stroke: "var(--color-border)" }} minTickGap={compact ? 20 : 40}
           label={xLabel ? { value: xLabel, position: "insideBottom", offset: -12, style: axis } : undefined} />
         <YAxis yAxisId="eq" tick={axis} tickLine={false} axisLine={{ stroke: "var(--color-border)" }} width={compact ? 48 : 58} tickFormatter={tickFmt}
           domain={[lo, hi]} ticks={ticks} interval={0}

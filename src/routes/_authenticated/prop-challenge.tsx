@@ -8,6 +8,8 @@ import { useJournalTable, type Row } from "@/lib/journal/crud";
 import { useTrades } from "@/lib/journal/journal-context";
 import { fmtMoney } from "@/lib/pnl/metrics";
 import { PRESETS, dayKey, evaluateChallenge, type Amount, type Challenge, type Rule, type RuleProgress } from "@/lib/pnl/prop-challenge";
+import { useDialogs } from "@/components/ui/confirm";
+import { DatePicker, DateTimePicker } from "@/components/ui/date-picker";
 
 export const Route = createFileRoute("/_authenticated/prop-challenge")({
   head: () => ({ meta: [{ title: "Prop Challenge — AlphaMine" }, { name: "description", content: "Track prop firm challenge rules: profit target, drawdown, daily loss and consistency." }] }),
@@ -33,6 +35,7 @@ const newRule = (kind: Rule["kind"]): Rule => {
 };
 
 function PropChallengePage() {
+  const { confirm } = useDialogs();
   const { journal, all } = useTrades({ unfiltered: true });
   const table = useJournalTable("prop_challenges", journal?.id, "created_at", true);
   const [creating, setCreating] = useState(false);
@@ -44,7 +47,7 @@ function PropChallengePage() {
       {creating && <CreateForm defaultBalance={journal.starting_balance} onCreate={async (v) => { const r = await table.insert(v); if (r) setCreating(false); }} />}
       {!table.isLoading && table.rows.length === 0 && !creating && <Empty>No challenges yet. Create one to see how close you are to passing, and how close you are to a breach.</Empty>}
       {table.rows.map((c) => (
-        <ChallengeCard key={c.id} row={c} trades={all} currency={journal.currency} onSave={(rules) => table.update(c.id, { rules: rules as never })} onDelete={() => { if (confirm(`Delete "${c.name}"?`)) table.remove(c.id); }} />
+        <ChallengeCard key={c.id} row={c} trades={all} currency={journal.currency} onSave={(rules) => table.update(c.id, { rules: rules as never })} onDelete={async () => { if (await confirm({ title: `Delete "${c.name}"?`, message: "This challenge and its rules are deleted. This cannot be undone.", destructive: true })) table.remove(c.id); }} />
       ))}
     </div>
   );
@@ -68,7 +71,7 @@ function CreateForm({ defaultBalance, onCreate }: { defaultBalance: number; onCr
       }}>
         <label className="flex flex-col gap-1 text-xs text-muted-foreground">Name<input className={field} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. 100k Phase 1" /></label>
         <label className="flex flex-col gap-1 text-xs text-muted-foreground">Starting balance<input className={field} type="number" min="1" value={balance} onChange={(e) => setBalance(e.target.value)} /></label>
-        <label className="flex flex-col gap-1 text-xs text-muted-foreground">First trading day (optional)<input className={field} type="date" value={started} onChange={(e) => setStarted(e.target.value)} /></label>
+        <label className="flex flex-col gap-1 text-xs text-muted-foreground">First trading day (optional)<DatePicker aria-label="First trading day" value={started} onChange={setStarted} /></label>
         <label className="flex flex-col gap-1 text-xs text-muted-foreground">Firm day ends in time zone<select className={field} value={zone} onChange={(e) => setZone(e.target.value)}>{ZONES.map((z) => <option key={z}>{z}</option>)}</select></label>
         <label className="flex flex-col gap-1 text-xs text-muted-foreground sm:col-span-2">Rule set<select className={field} value={preset} onChange={(e) => setPreset(e.target.value)}>{PRESETS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}</select></label>
         <div className="sm:col-span-2"><Button type="submit">Create</Button></div>

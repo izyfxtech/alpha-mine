@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { activeFilterCount, useJournal, useLookups, useTrades, type Filters, type Range } from "@/lib/journal/journal-context";
 import { cn } from "@/lib/utils";
+import { DatePicker, DateTimePicker } from "@/components/ui/date-picker";
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const DAYS = [[1, "Monday"], [2, "Tuesday"], [3, "Wednesday"], [4, "Thursday"], [5, "Friday"], [6, "Saturday"], [0, "Sunday"]] as const;
@@ -151,8 +152,8 @@ export function FilterPanel({ mode }: { mode: FilterMode }) {
         <RangeTile icon={L("R")} label="R-Multiple Gain" unit="R" value={f.rMultiple} onChange={(v) => up({ rMultiple: v })} />
         <Tile icon={<Calendar className="h-3.5 w-3.5" />} label="Date Range" value={dateVal} active={!!dateVal} onClear={() => up({ from: undefined, to: undefined })} wide>
           <div className="grid grid-cols-2 gap-2 p-1">
-            <label className="space-y-1"><span className="text-muted-foreground">From</span><input type="date" className="h-8 w-full rounded border bg-background px-2" value={f.from ?? ""} onChange={(e) => up({ from: e.target.value || undefined })} /></label>
-            <label className="space-y-1"><span className="text-muted-foreground">To</span><input type="date" className="h-8 w-full rounded border bg-background px-2" value={f.to ?? ""} onChange={(e) => up({ to: e.target.value || undefined })} /></label>
+            <label className="space-y-1"><span className="text-muted-foreground">From</span><DatePicker aria-label="From date" className="h-8" value={f.from ?? ""} onChange={(v) => up({ from: v || undefined })} /></label>
+            <label className="space-y-1"><span className="text-muted-foreground">To</span><DatePicker aria-label="To date" className="h-8" value={f.to ?? ""} onChange={(v) => up({ to: v || undefined })} /></label>
           </div>
         </Tile>
 

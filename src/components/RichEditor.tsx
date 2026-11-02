@@ -4,12 +4,14 @@ import {
   Printer, Redo2, Table, Type, Underline, Undo2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useDialogs } from "@/components/ui/confirm";
 
 /** Lightweight rich-text editor (bold, lists, links, tables…) storing HTML. */
 export function RichEditor({ value, onChange, placeholder = "Edit Your Content Here!", className, compactToolbar }: {
   value: string; onChange: (html: string) => void; placeholder?: string; className?: string; compactToolbar?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const { prompt } = useDialogs();
   useEffect(() => {
     if (ref.current && ref.current.innerHTML !== value) ref.current.innerHTML = value;
   }, [value]);
@@ -17,6 +19,16 @@ export function RichEditor({ value, onChange, placeholder = "Edit Your Content H
     ref.current?.focus();
     document.execCommand(cmd, false, arg);
     onChange(ref.current?.innerHTML ?? "");
+  };
+  /** Asks for a URL in the app's own dialog. The dialog takes focus, so the text selection is put back before the command runs. */
+  const askUrl = async (title: string, cmd: string) => {
+    const sel = window.getSelection();
+    const saved = sel && sel.rangeCount && ref.current?.contains(sel.anchorNode) ? sel.getRangeAt(0).cloneRange() : null;
+    const u = (await prompt({ title, label: "URL", placeholder: "https://", confirmLabel: "Insert" }))?.trim();
+    if (!u) return;
+    ref.current?.focus();
+    if (saved) { const s2 = window.getSelection(); s2?.removeAllRanges(); s2?.addRange(saved); }
+    run(cmd, u);
   };
   const B = ({ icon: I, cmd, arg, title, onClick }: { icon: typeof Bold; cmd?: string; arg?: string; title: string; onClick?: () => void }) => (
     <button type="button" title={title} onMouseDown={(e) => e.preventDefault()} onClick={onClick ?? (() => cmd && run(cmd, arg))}
@@ -33,8 +45,8 @@ export function RichEditor({ value, onChange, placeholder = "Edit Your Content H
   );
   const mid = (
     <>
-      <B icon={Link2} title="Link" onClick={() => { const u = prompt("Link URL"); if (u) run("createLink", u); }} />
-      <B icon={ImageIcon} title="Image" onClick={() => { const u = prompt("Image URL"); if (u) run("insertImage", u); }} />
+      <B icon={Link2} title="Link" onClick={() => void askUrl("Insert link", "createLink")} />
+      <B icon={ImageIcon} title="Image" onClick={() => void askUrl("Insert image", "insertImage")} />
       <B icon={Table} title="Table" onClick={() => run("insertHTML", '<table class="re-table"><tr><td>&nbsp;</td><td>&nbsp;</td></tr><tr><td>&nbsp;</td><td>&nbsp;</td></tr></table><p></p>')} />
       <B icon={Minus} cmd="insertHorizontalRule" title="Divider" />
     </>
