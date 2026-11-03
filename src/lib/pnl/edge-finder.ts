@@ -1,3 +1,4 @@
+import { safeCurrency } from "@/lib/currencies";
 import { computeStats, equityCurve, potentialR, type Cashflow, type Trade } from "@/lib/pnl/metrics";
 import { complianceReport } from "@/lib/pnl/compliance";
 
@@ -29,7 +30,7 @@ export interface EdgeCard {
 const SCORE: Record<Rating, number> = { good: 6, ok: 4, poor: 2 };
 const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
 const pct = (n: number, d = 1) => `${n.toFixed(d)}%`;
-const money = (n: number, cur: string) => `${n < 0 ? "-" : "+"}${new Intl.NumberFormat("en-US", { style: "currency", currency: cur }).format(Math.abs(n))}`;
+const money = (n: number, cur: string) => `${n < 0 ? "-" : "+"}${new Intl.NumberFormat("en-US", { style: "currency", currency: safeCurrency(cur) }).format(Math.abs(n))}`;
 const MIN_TRADES = 10;
 
 const hasNeg = (t: Trade, phase?: string) => t.comments.some((c) => c.sentiment === "negative" && (!phase || c.phase === phase));

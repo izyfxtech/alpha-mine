@@ -9,6 +9,11 @@ export type TableName = "backtests" | "alt_strategies" | "planned_trades" | "not
 export type Row<T extends TableName> = Tables[T]["Row"];
 
 /** Journal-scoped list + insert/update/delete helpers for simple tables. */
+/** Tables behind the pickers (instruments, setups, tags, rules, plans). */
+const LOOKUP_TABLES = new Set(["instruments", "setups", "comment_definitions", "trading_plans", "custom_stat_categories", "custom_stat_options", "trading_rules"]);
+/** Tables whose rows are folded into every trade (names, tags, rule checks, balance via cashflows). */
+const TRADE_DEPENDENT_TABLES = new Set(["instruments", "setups", "comment_definitions", "custom_stat_categories", "custom_stat_options", "trading_rules", "journal_cashflows", "trades"]);
+
 export function useJournalTable<T extends TableName>(table: T, journalId: string | undefined, orderBy = "created_at", ascending = false) {
   const qc = useQueryClient();
   const q = useQuery({
@@ -20,7 +25,12 @@ export function useJournalTable<T extends TableName>(table: T, journalId: string
       return rows;
     },
   });
-  const done = () => { qc.invalidateQueries({ queryKey: [table] }); qc.invalidateQueries({ queryKey: ["lookups"] }); qc.invalidateQueries({ queryKey: ["trades"] }); };
+  // Only what the write can change is refetched. A note autosave must not download the whole trade history again (AM-M31).
+  const done = () => {
+    qc.invalidateQueries({ queryKey: [table] });
+    if (LOOKUP_TABLES.has(table)) qc.invalidateQueries({ queryKey: ["lookups"] });
+    if (TRADE_DEPENDENT_TABLES.has(table)) qc.invalidateQueries({ queryKey: ["trades"] });
+  };
   const fail = (e: { message: string } | null) => { if (e) { toast.error(e.message); return true; } return false; };
   return {
     rows: q.data ?? [],

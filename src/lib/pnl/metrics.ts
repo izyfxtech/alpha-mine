@@ -1,4 +1,5 @@
 // Shared metrics engine: every page computes stats from here so numbers always match.
+import { safeCurrency } from "@/lib/currencies";
 import { localDay } from "@/lib/time/local-time";
 import type { RuleCheck } from "@/lib/pnl/compliance";
 import { rewardRisk, riskMoney, rMultiple } from "@/lib/pnl/calc";
@@ -378,7 +379,7 @@ export function consecutive(trades: Trade[]) {
 export function fmtMoney(v: number, currency = "USD") {
   if (Number.isNaN(v)) return "–";
   if (!isFinite(v)) return "∞";
-  return new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 2 }).format(v);
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: safeCurrency(currency), maximumFractionDigits: 2 }).format(v);
 }
 export const fmtPct = (v: number) => (Number.isNaN(v) ? "–" : `${isFinite(v) ? v.toFixed(2) : "∞"}%`);
 export const fmtNum = (v: number, d = 2) => (Number.isNaN(v) ? "–" : isFinite(v) ? v.toFixed(d) : "∞");
