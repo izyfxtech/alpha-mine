@@ -1,8 +1,9 @@
 -- Regression tests for the forensic audit fixes (trade trigger, sharing, merge, import guards, integrity).
+-- Risk is no longer stored by the database: R comes from prices in the app (src/lib/pnl/calc.ts).
 -- Run with `supabase test db` (pgTAP). One transaction, rolled back.
 begin;
 create extension if not exists pgtap;
-select plan(44);
+select plan(36);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-0000000000b1', 'b1@test.local'),
@@ -31,32 +32,25 @@ select is((select gross_pnl from public.trades where id = '30000000-0000-0000-00
 insert into public.trades (id, journal_id, direction, entry_at, exit_at, entry_price, exit_price, quantity, stop_loss, gross_pnl, pnl_manual, source, risk_amount)
 values ('30000000-0000-0000-0000-000000000004', '20000000-0000-0000-0000-000000000003', 'long', '2026-10-20T08:00Z', '2026-10-20T09:00Z', 1.0850, 1.0912, 0.10, 1.0800, 61.30, true, 'mt5', 50);
 update public.trades set notes = 'edited', risk_amount = null where id = '30000000-0000-0000-0000-000000000004';
-select is((select risk_amount from public.trades where id = '30000000-0000-0000-0000-000000000004'), 50::numeric, 'editing an imported trade keeps its engine-computed risk');
 
 insert into public.trades (id, journal_id, direction, entry_at, exit_at, entry_price, exit_price, quantity, stop_loss)
 values ('30000000-0000-0000-0000-000000000005', '20000000-0000-0000-0000-000000000001', 'long', '2026-10-20T08:00Z', '2026-10-20T09:00Z', 100, 110, 2, 95);
-select is((select risk_amount from public.trades where id = '30000000-0000-0000-0000-000000000005'), 10::numeric, 'manual spot trade: risk derived from the stop');
 update public.trades set stop_loss = null where id = '30000000-0000-0000-0000-000000000005';
-select is((select risk_amount from public.trades where id = '30000000-0000-0000-0000-000000000005'), null, 'clearing the stop clears the derived risk');
 
 insert into public.trades (id, journal_id, direction, entry_at, exit_at, entry_price, exit_price, quantity, stop_loss)
 values ('30000000-0000-0000-0000-000000000006', '20000000-0000-0000-0000-000000000002', 'long', '2026-10-20T08:00Z', '2026-10-20T09:00Z', 1.0850, 1.0912, 0.10, 1.0800);
-select is((select risk_amount from public.trades where id = '30000000-0000-0000-0000-000000000006'), null, 'lots: risk is not derived from price distance times lots');
 
 -- ------------------------------------------------------------------------------ unknown unit (AM-M09, AM-H01)
 update public.journals set quantity_unit = null where id = '20000000-0000-0000-0000-000000000003';
 insert into public.trades (id, journal_id, direction, entry_at, exit_at, entry_price, exit_price, quantity, stop_loss, gross_pnl)
 values ('30000000-0000-0000-0000-000000000007', '20000000-0000-0000-0000-000000000003', 'long', '2026-10-20T08:00Z', '2026-10-20T09:00Z', 1.0850, 1.0912, 0.10, 1.0800, 62.00);
 select is((select gross_pnl from public.trades where id = '30000000-0000-0000-0000-000000000007'), 62.00::numeric, 'unit not set: the P&L the user supplied is kept, never recomputed');
-select is((select risk_amount from public.trades where id = '30000000-0000-0000-0000-000000000007'), null, 'unit not set: no risk is derived from price distance times quantity');
 update public.journals set quantity_unit = 'lots' where id = '20000000-0000-0000-0000-000000000003';
 
 insert into public.journals (id, owner_id, name, currency, quantity_unit) values ('20000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-0000000000b1', 'Later units', 'USD', null);
 insert into public.trades (id, journal_id, direction, entry_at, exit_at, entry_price, exit_price, quantity, stop_loss, gross_pnl, pnl_manual)
 values ('30000000-0000-0000-0000-000000000008', '20000000-0000-0000-0000-000000000005', 'long', '2026-10-20T08:00Z', '2026-10-20T09:00Z', 100, 110, 2, 95, 20, true);
 update public.journals set quantity_unit = 'units' where id = '20000000-0000-0000-0000-000000000005';
-select is((select risk_amount from public.trades where id = '30000000-0000-0000-0000-000000000008'), 10::numeric, 'choosing "units" gives existing manual trades their risk');
-select is((select gross_pnl from public.trades where id = '30000000-0000-0000-0000-000000000008'), 20::numeric, 'the backfill never changes money');
 
 -- ------------------------------------------------------------------------------ sharing (AM-H08)
 update public.journals set share_token = '40000000-0000-0000-0000-000000000001' where id = '20000000-0000-0000-0000-000000000001';
@@ -107,7 +101,6 @@ values ('30000000-0000-0000-0000-0000000000b1', '20000000-0000-0000-0000-0000000
 update public.trades set risk_amount = risk_amount, notes = 'only a note' where id = '30000000-0000-0000-0000-0000000000b1';
 select is((select risk_amount from public.trades where id = '30000000-0000-0000-0000-0000000000b1'), 50::numeric, 'a note edit leaves the engine-computed risk alone');
 update public.trades set stop_loss = 1.0820 where id = '30000000-0000-0000-0000-0000000000b1';
-select is((select risk_amount from public.trades where id = '30000000-0000-0000-0000-0000000000b1'), null, 'moving the stop of a lots trade clears the stale risk so the engine recomputes it');
 
 -- ------------------------------------------------------------------------------ repair mode (AM-M14)
 create function pg_temp.rp(_entry text, _qty numeric) returns jsonb language sql as $f$

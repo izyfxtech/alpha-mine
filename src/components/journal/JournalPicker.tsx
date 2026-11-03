@@ -15,7 +15,7 @@ import { countOption, fetchAllRows } from "@/lib/journal/fetch-all";
 import { useProfile } from "@/lib/profile-settings";
 import { ShareJournalDialog } from "@/components/journal/ShareJournal";
 import { DatePicker } from "@/components/ui/date-picker";
-import { JOURNAL_MARKETS } from "@/lib/pnl/asset-class";
+import { JOURNAL_MARKETS } from "@/lib/pnl/instrument-catalogue";
 import { useDialogs } from "@/components/ui/confirm";
 
 export const CURRENCIES = ["USD", "EUR", "GBP", "JPY", "CHF", "AUD", "CAD", "NGN", "ZAR", "INR"];
