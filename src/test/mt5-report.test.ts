@@ -201,3 +201,22 @@ describe("balance rows with a numeric comment (AM-M12)", () => {
     expect(ops[0]!.comment).toBe("Deposit");
   });
 });
+
+describe("initial stop from the Orders table", () => {
+  const ORD = ["Open Time", "Order", "Symbol", "Type", "Volume", "Price", "S / L", "T / P", "Time", "State", "Comment"];
+  const html = `<html><body><table>
+    ${th(["Trade History Report"])}${td(["Account:", "61596838 (USD, Pepperstone-Demo, demo, Hedge)"])}
+    ${th(["Positions"])}${th(POS_HEADER)}
+    ${td(["2026.09.28 23:51:16", "391010696", "NZDUSD", "sell", "0.43", "0.56652", "0.56644", "0.56192", "2026.10.01 05:07:27", "0.56192", "0.00", "1.19", "197.80"])}
+    ${td(["2026.10.07 12:03:19", "397972480", "AUDUSD", "buy", "0.75", "0.69752", "0.69617", "0.70124", "2026.10.07 13:22:56", "0.69617", "0.00", "0.00", "-101.25"])}
+    ${th(["Orders"])}${th(ORD)}
+    ${td(["2026.09.28 23:51:16", "391010696", "NZDUSD", "sell", "0.43 / 0.43", "market", "0.56882", "", "2026.09.28 23:51:16", "filled", ""])}
+    ${td(["2026.10.01 05:07:27", "393173852", "NZDUSD", "buy", "0.43 / 0.43", "0.56192", "", "", "2026.10.01 05:07:27", "filled", "[tp 0.56192]"])}
+    ${td(["2026.10.07 12:03:19", "397972480", "AUDUSD", "buy", "0.75 / 0.75", "market", "0.69617", "", "2026.10.07 12:03:19", "filled", ""])}
+  </table></body></html>`;
+  it("reads the stop as placed, so a stop trailed into profit keeps its real risk", () => {
+    const r = parseMt5Report(new TextEncoder().encode(html));
+    expect(r.positions[0]).toMatchObject({ stopLoss: 0.56644, initialStopLoss: 0.56882 });
+    expect(r.positions[1]).toMatchObject({ stopLoss: 0.69617, initialStopLoss: 0.69617 });
+  });
+});

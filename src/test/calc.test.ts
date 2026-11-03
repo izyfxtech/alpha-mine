@@ -72,3 +72,21 @@ describe("enrichTrade", () => {
     expect(t.risk_amount).toBeNull(); // a cross needs a rate: money blank, R fine
   });
 });
+
+describe("blank R reasons", () => {
+  it("says why", async () => {
+    const { rBlankReason } = await import("@/lib/pnl/calc");
+    expect(rBlankReason({ ...long, stop_loss: null })).toBe("No stop loss");
+    expect(rBlankReason({ ...long, stop_loss: 0 })).toBe("No stop loss");
+    expect(rBlankReason({ ...long, stop_loss: 1.09 })).toMatch(/moved to or past entry/);
+    expect(rBlankReason(long)).toBeNull();
+  });
+});
+
+describe("initial stop", () => {
+  const trailed = { direction: "short", entry_price: 0.56652, stop_loss: 0.56644, initial_stop: 0.56882, exit_price: 0.56192 };
+  it("R uses the stop the trade was opened with, not the trailed one", () => {
+    expect(rMultiple(trailed)).toBeCloseTo((0.56652 - 0.56192) / (0.56882 - 0.56652), 6); // 2R
+    expect(rMultiple({ ...trailed, initial_stop: null })).toBeNull(); // trailed into profit, nothing recorded
+  });
+});

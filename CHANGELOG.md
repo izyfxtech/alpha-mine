@@ -4,6 +4,10 @@ Newest first. Dates are the day the work landed on `main`.
 
 ## 2026-11-03
 
+- **Initial stop.** `trades.initial_stop` is the stop a trade was opened with; it is set automatically the first time a valid stop is saved and never changed by later edits, so a stop trailed to break-even or into profit no longer blanks R. R uses it (falling back to the current stop). Migration `20261104090000_initial_stop.sql` adds the column, backfills it from stops still on the losing side, and updates `import_mt_report`.
+- **MT5 import** reads the stop as placed from the report's Orders table (the Positions table only has the last stop) and a lone S/L cell is no longer dropped. Re-importing a report fills `initial_stop` on trades already in the journal.
+- **Estimated R**: a closed trade with no measurable R shows "~1.3R est." (net P&L over the journal's median risk, needs 3+ trades with a real stop). Never counted in R statistics. Hover a "—" to see why a trade has no R.
+
 - **Simple calculations.** R-multiple is now a pure price ratio, `(exit - entry) x side / |entry - stop|` (`src/lib/pnl/calc.ts`): same for every instrument, present for every trade with a stop and an exit, no engine or Edge Function involved. Money (gross P&L, money at risk, open-trade what-ifs, missed trades) is price move x quantity x contract size from the instrument's asset class.
 - **Instrument catalogue** (`src/lib/pnl/instrument-catalogue.ts`): forex majors/crosses/exotics, metals, crypto, indices, energies, futures, with aliases (GOLD, DJ30, USTEC...) and broker suffixes (.a, m, .pro). Classes: forex, metal, crypto, index, energy, stock, future. Unknown symbols are stocks. Bare futures roots (ES, NG) need a month code or `1!` so they never shadow stock tickers.
 - Removed: `risk.ts`, `asset-class.ts`, the engine calls after saving a trade, after imports and from Settings, and the database risk logic (migration `20261103090000_simple_calculations.sql`, which also drops `journals_backfill_risk`). The pnl-engine and `compute-pnl` stay in the repo, unused by these paths.

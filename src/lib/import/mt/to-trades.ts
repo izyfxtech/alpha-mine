@@ -73,6 +73,7 @@ export interface TradeInsertRow {
   exit_price: number;
   quantity: number;
   stop_loss: number | null;
+  initial_stop?: number | null;
   take_profit: number | null;
   gross_pnl: number;
   fees: number;
@@ -105,6 +106,7 @@ export function positionToTrade(
     exit_price: p.closePrice,
     quantity: p.volume, // lots: the journal's quantity_unit is set to 'lots' on import
     stop_loss: p.stopLoss,
+    initial_stop: p.initialStopLoss ?? null,
     take_profit: p.takeProfit,
     gross_pnl: p.profit,
     fees,
@@ -186,6 +188,7 @@ export interface PositionPayload {
   exit_price: number;
   quantity: number;
   stop_loss: number | null;
+  initial_stop?: number | null;
   take_profit: number | null;
   gross_pnl: number;
   commission: number;
@@ -221,6 +224,7 @@ export function toImportPayload(
       exit_price: t.exit_price,
       quantity: t.quantity,
       stop_loss: t.stop_loss,
+      initial_stop: t.initial_stop ?? null,
       take_profit: t.take_profit,
       gross_pnl: t.gross_pnl,
       commission: t.commission,
