@@ -63,6 +63,25 @@ export function checkCompatibility(report: MtReport, journal: JournalLink): Comp
   return { ok: true, warnings };
 }
 
+/**
+ * What can go wrong when a report is imported into a journal it does not match, in plain words for a confirmation dialog.
+ * `reason` is the mismatch itself (from checkCompatibility or the database). Importing is allowed: this is the warning.
+ */
+export function mismatchRisks(reason: string): string[] {
+  const out = [
+    "Trades, balance, drawdown and every statistic of this journal will mix numbers from different sources.",
+    "Deposits and withdrawals from this report are added to this journal's balance as well.",
+  ];
+  if (/currency/i.test(reason)) out.unshift("Amounts are in a different currency and will be read as if they were in this journal's currency, with no conversion.");
+  if (/report is for account|is an? .* report/i.test(reason)) out.push("Ticket numbers are only unique within one account. They are prefixed with the account number so they cannot overwrite each other, but removing a report later means deleting its trades by hand.");
+  if (/linked to another journal/i.test(reason)) out.push("The same trades will exist in two journals, so any combined view double counts them.");
+  return out;
+}
+
+export function isMismatchError(message: string): boolean {
+  return /report is for account|is an? .* report, but this journal|report is in .*journal currency|already linked to another journal|has no account number, but this journal is linked/i.test(message);
+}
+
 export interface TradeInsertRow {
   journal_id: string;
   instrument_id: string | null;
@@ -210,12 +229,13 @@ export interface ImportPayload {
 export function toImportPayload(
   report: MtReport,
   tz: ServerTz,
-  opts: { withCashflows?: boolean } = {},
+  opts: { withCashflows?: boolean; /** Prefix for every ticket / deal id, so a report of another account cannot collide with the journal's own tickets. */ namespace?: string } = {},
 ): ImportPayload {
+  const ns = (id: string) => (opts.namespace ? `${opts.namespace}:${id}` : id);
   const positions = report.positions.map((p): PositionPayload => {
     const t = positionToTrade(p, "", null, tz, report.platform);
     return {
-      external_id: t.external_id,
+      external_id: ns(t.external_id),
       raw_symbol: t.raw_symbol,
       direction: t.direction,
       entry_at: t.entry_at,
@@ -233,7 +253,7 @@ export function toImportPayload(
   });
   const cashflows = opts.withCashflows
     ? balanceOpsToCashflows(report, "", tz).map(({ external_id, occurred_on, amount, note }) => ({
-        external_id,
+        external_id: ns(external_id),
         occurred_on,
         amount,
         note,
