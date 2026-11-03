@@ -20,7 +20,7 @@ export const priceMove = (direction: string, from: number, to: number) => (to - 
 /** Distance from entry to the INITIAL stop. A stop on the profit side (moved past break-even) says nothing about the risk taken, so it gives null. */
 export function riskDistance(direction: string, entry: unknown, stop: unknown): number | null {
   const e = num(entry), s = num(stop);
-  if (e == null || s == null) return null;
+  if (e == null || s == null || s <= 0) return null; // a stop of 0 means "none"
   const d = priceMove(direction, s, e);
   return d > 0 ? d : null;
 }
@@ -34,6 +34,14 @@ export function rMultiple(t: PricedTrade, at: unknown = t.exit_price): number | 
   if (risk == null || e == null || x == null) return null;
   if (t.is_break_even && at === t.exit_price) return 0;
   return priceMove(t.direction, e, x) / risk;
+}
+
+/** Why a closed trade has no R, in words for the UI. Null when it has one. */
+export function rBlankReason(t: PricedTrade): string | null {
+  if (rMultiple(t) != null) return null;
+  if (num(t.stop_loss) == null || (num(t.stop_loss) ?? 0) <= 0) return "No stop loss";
+  if (num(t.exit_price) == null) return "No exit price";
+  return "Stop is at or beyond entry (moved after entry), so the original risk is unknown";
 }
 
 /** Planned reward : risk. Null unless there is a stop and a target on the winning side. */

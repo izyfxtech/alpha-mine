@@ -72,3 +72,13 @@ describe("enrichTrade", () => {
     expect(t.risk_amount).toBeNull(); // a cross needs a rate: money blank, R fine
   });
 });
+
+describe("blank R reasons", () => {
+  it("says why", async () => {
+    const { rBlankReason } = await import("@/lib/pnl/calc");
+    expect(rBlankReason({ ...long, stop_loss: null })).toBe("No stop loss");
+    expect(rBlankReason({ ...long, stop_loss: 0 })).toBe("No stop loss");
+    expect(rBlankReason({ ...long, stop_loss: 1.09 })).toMatch(/beyond entry/);
+    expect(rBlankReason(long)).toBeNull();
+  });
+});

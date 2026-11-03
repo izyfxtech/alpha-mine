@@ -1,3 +1,4 @@
+import { rBlankReason } from "@/lib/pnl/calc";
 import { createFileRoute } from "@tanstack/react-router";
 import { fmtPrice } from "@/lib/pnl/format-price";
 import { localDateTime } from "@/lib/time/local-time";
@@ -58,7 +59,7 @@ const COLS: Col[] = [
   { k: "gross_pnl", l: "Gross P&L", get: (t) => t.gross_pnl, render: (t) => num(t.gross_pnl, 2) },
   { k: "net_pnl", l: "Return ($)", get: (t) => t.net_pnl, render: (t) => <span className={pnlText(t)}>{num(t.net_pnl, 2)}</span> },
   { k: "ret_pct", l: "Return (%)", get: (t) => t.retPct, render: (t) => <span className={pnlText(t)}>{num(t.retPct, 2)}</span> },
-  { k: "r", l: "R-Multiple", get: (t) => t.r ?? 0, render: (t) => (t.r == null ? "" : `${fmtNum(t.r)}R`) },
+  { k: "r", l: "R-Multiple", get: (t) => t.r ?? 0, render: (t) => (t.r == null ? (isOpen(t) ? "" : <span className="text-muted-foreground" title={rBlankReason(t) ?? ""}>—</span>) : `${fmtNum(t.r)}R`) },
   { k: "risk_amount", l: "Risk Amount", get: (t) => t.risk_amount ?? "", render: (t) => (t.risk_amount == null ? "" : num(Number(t.risk_amount), 2)) },
   { k: "notes", l: "Notes", get: (t) => t.notes ?? "", render: (t) => <span className="inline-block max-w-48 truncate align-middle">{t.notes ?? ""}</span> },
 ];
