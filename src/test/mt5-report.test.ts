@@ -220,3 +220,20 @@ describe("initial stop from the Orders table", () => {
     expect(r.positions[1]).toMatchObject({ stopLoss: 0.69617, initialStopLoss: 0.69617 });
   });
 });
+
+describe("importing into a journal that does not match", () => {
+  const report = parseMt5Report(utf8(reportHtml()));
+  it("is a warning with plain-words risks, not a block", async () => {
+    const { mismatchRisks, isMismatchError, toImportPayload } = await import("@/lib/import/mt/to-trades");
+    const c = checkCompatibility(report, { currency: "EUR" });
+    expect(c.ok).toBe(false);
+    expect(mismatchRisks("This report is in USD, but the journal currency is EUR.").join(" ")).toMatch(/different currency/);
+    expect(mismatchRisks("This report is for account 1, but this journal is linked to account 2.").join(" ")).toMatch(/Ticket numbers/);
+    for (const m of ["This MetaTrader account is already linked to another journal.", "This report is for account 1, but this journal is linked to account 2.", "This is an MT5 report, but this journal is linked to an MT4 account.", "This report is in USD, but the journal currency is EUR."]) expect(isMismatchError(m)).toBe(true);
+    expect(isMismatchError("Too many trades in one import")).toBe(false);
+    const tz = { kind: "fixed", offsetMinutes: 0 } as const;
+    const plain = toImportPayload(report, tz, { withCashflows: true });
+    const ns = toImportPayload(report, tz, { withCashflows: true, namespace: "mt5-999" });
+    expect(ns.positions[0]!.external_id).toBe(`mt5-999:${plain.positions[0]!.external_id}`);
+  });
+});

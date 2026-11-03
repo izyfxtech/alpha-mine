@@ -1,3 +1,4 @@
+import { safeCurrency } from "@/lib/currencies";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ChevronRight, Moon, Sun, PanelLeftClose, PanelLeftOpen, Upload } from "lucide-react";
@@ -99,7 +100,7 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
       <div className="space-y-2 p-2">
         {collapsed && settings.showBalance && (
           <div className="rounded-lg bg-background px-1 py-2.5 text-center text-xs font-bold tabular" title={fmtMoney(balance, journal?.currency)}>
-            {new Intl.NumberFormat("en-US", { style: "currency", currency: journal?.currency || "USD", notation: "compact", maximumFractionDigits: 0 }).format(balance)}
+            {new Intl.NumberFormat("en-US", { style: "currency", currency: safeCurrency(journal?.currency), notation: "compact", maximumFractionDigits: 0 }).format(balance)}
           </div>
         )}
         {!collapsed && settings.showBalance && (

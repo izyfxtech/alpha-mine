@@ -1,6 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo } from "react";
-import { eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, startOfMonth, startOfWeek } from "date-fns";
+import { addDays, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, startOfMonth, startOfWeek } from "date-fns";
 import { useJournal } from "@/lib/journal/journal-context";
 import { dayKey, type Trade } from "@/lib/pnl/metrics";
 import { TiltMeter } from "@/components/kit";
@@ -26,7 +26,7 @@ export function ProfitCalendar({ trades, month, fmt, tall }: { trades: Trade[]; 
   const { showWeeklyTotals: weekly, showCalendarWinrate: showWr, weekStartsOn } = useProfile().settings;
   const start = startOfWeek(startOfMonth(month), { weekStartsOn });
   let days = eachDayOfInterval({ start, end: endOfWeek(endOfMonth(month), { weekStartsOn }) });
-  while (days.length < 42) days = eachDayOfInterval({ start, end: new Date(days[days.length - 1].getTime() + 7 * 864e5) });
+  while (days.length < 42) days = eachDayOfInterval({ start, end: addDays(days[days.length - 1], 7) });
   const rows: Date[][] = [];
   for (let i = 0; i < days.length; i += 7) rows.push(days.slice(i, i + 7));
   const today = new Date();

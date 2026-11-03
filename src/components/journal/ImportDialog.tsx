@@ -1,3 +1,4 @@
+import { useDialogs } from "@/components/ui/confirm";
 import { assetClassFor as inferAssetClass } from "@/lib/pnl/instrument-catalogue";
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -11,7 +12,7 @@ import { fillsToTrades, type RawFill } from "@/lib/import/fills-import";
 import { FIELDS, detectHeaderRow, looksLikeFills, parseCsv, suggestMapping } from "@/lib/import/csv-mapping";
 import { buildCsvTrades, detectDateOrder, detectDecimal, parseDateTime, parseNumber, type CsvZone, type DateOrder, type Decimal } from "@/lib/import/csv-rows";
 import { parseMtReport, type MtReport } from "@/lib/import/mt/parse-report";
-import { checkCompatibility, summarize, toImportPayload } from "@/lib/import/mt/to-trades";
+import { checkCompatibility, isMismatchError, mismatchRisks, summarize, toImportPayload } from "@/lib/import/mt/to-trades";
 import type { Json } from "@/integrations/supabase/types";
 import type { ServerTz } from "@engine/time.ts";
 
@@ -35,6 +36,7 @@ async function sheetRows(bytes: Uint8Array): Promise<string[][]> {
 
 export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const { journal } = useJournal();
+  const { confirm } = useDialogs();
   const qc = useQueryClient();
   const [csv, setCsv] = useState<{ header: string[]; rows: string[][] } | null>(null);
   const [map, setMap] = useState<Record<string, string>>({});
@@ -227,15 +229,40 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
 
   async function runMt() {
     if (!mt || !journal) return;
-    const compat = checkCompatibility(mt, journal);
-    if (!compat.ok) return void toast.error(compat.error);
     const tz = TZ_OPTIONS.find((o) => o.value === tzKey)!.tz;
+    // A report that does not match this journal is a warning, not a wall: the person decides.
+    const compat = checkCompatibility(mt, journal);
+    const askFirst = async (reason: string) => confirm({
+      title: "This report does not match this journal",
+      message: (
+        <div className="space-y-2 text-left">
+          <p>{reason}</p>
+          <p className="font-medium text-foreground">If you import it anyway:</p>
+          <ul className="list-disc space-y-1 pl-5">{mismatchRisks(reason).map((r) => <li key={r}>{r}</li>)}</ul>
+          <p>Importing into a separate journal for this account keeps the numbers clean.</p>
+        </div>
+      ),
+      confirmLabel: "Import anyway", destructive: true,
+    });
+    let force = false;
+    if (!compat.ok) {
+      if (!(await askFirst(compat.error))) return;
+      force = true;
+    }
     setBusy(true);
     try {
       // One database call = one transaction: instruments, account link, trades and deposits land together or not at all.
       // Re-importing is safe: unchanged trades are left alone, late commission/swap is updated, your notes never are.
-      const payload = toImportPayload(mt, tz, { withCashflows: withCash });
-      const { data, error } = await supabase.rpc("import_mt_report", { _journal_id: journal.id, _payload: payload as unknown as Json, _repair: repair });
+      const otherAccount = !!mt.account?.login && !!journal.mt_login && journal.mt_login !== mt.account.login;
+      const namespace = force && (otherAccount || (!!journal.mt_platform && journal.mt_platform !== mt.platform)) ? `${mt.platform}-${mt.account?.login ?? "acct"}` : undefined;
+      const call = (f: boolean, ns?: string) => supabase.rpc("import_mt_report", { _journal_id: journal.id, _payload: toImportPayload(mt, tz, { withCashflows: withCash, namespace: ns }) as unknown as Json, _repair: repair, _force: f });
+      let res = await call(force, namespace);
+      // The database knows things the file does not (this account is linked to another of your journals).
+      if (res.error && !force && isMismatchError(res.error.message)) {
+        if (!(await askFirst(res.error.message))) { setBusy(false); return; }
+        res = await call(true, undefined);
+      }
+      const { data, error } = res;
       if (error) throw error;
       const r = data as { inserted: number; updated: number; unchanged: number; cashflows: number };
       const parts = [`${r.inserted} new`, r.updated ? `${r.updated} updated` : null, r.unchanged ? `${r.unchanged} already up to date` : null, withCash ? `${r.cashflows} deposits/withdrawals` : null].filter(Boolean);
