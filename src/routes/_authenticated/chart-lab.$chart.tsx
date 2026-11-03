@@ -343,7 +343,7 @@ function HoldingTime({ trades, cur, start }: { trades: Trade[]; cur: string; sta
   const [display, setDisplay] = useState<"Return ($)" | "Return (%)" | "R Multiple (R)">("Return ($)");
   const [unit, setUnit] = useState<"Minutes" | "Hours" | "Days">("Days");
   const div = unit === "Days" ? 1440 : unit === "Hours" ? 60 : 1;
-  const pts = trades.filter((t) => t.holdMinutes != null).map((t, i) => ({ x: +(t.holdMinutes! / div).toFixed(2), y: +(display === "Return ($)" ? t.net_pnl : display === "Return (%)" ? t.retPct : (t.r ?? 0)).toFixed(2), id: i + 1, trade: t, exit: t.exit_at?.slice(0, 16).replace("T", " ") ?? "", win: t.net_pnl >= 0, pnl: t.net_pnl }));
+  const pts = trades.filter((t) => t.holdMinutes != null && (display === "Return ($)" || display === "Return (%)" || t.r != null)).map((t, i) => ({ x: +(t.holdMinutes! / div).toFixed(2), y: +(display === "Return ($)" ? t.net_pnl : display === "Return (%)" ? t.retPct : (t.r ?? 0)).toFixed(2), id: i + 1, trade: t, exit: t.exit_at?.slice(0, 16).replace("T", " ") ?? "", win: t.net_pnl >= 0, pnl: t.net_pnl }));
   if (!pts.length) return <Empty>Add exit dates to your trades to see holding time.</Empty>;
   const W = pts.filter((p) => p.win && p.pnl > 0), L = pts.filter((p) => p.pnl < 0);
   const avg = (a: number[]) => (a.length ? a.reduce((s, x) => s + x, 0) / a.length : 0);

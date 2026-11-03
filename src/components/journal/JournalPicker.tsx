@@ -1,3 +1,4 @@
+import { CURRENCIES } from "@/lib/currencies";
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Copy, Plus, Search, Share2, Trash2 } from "lucide-react";
@@ -18,7 +19,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { JOURNAL_MARKETS } from "@/lib/pnl/instrument-catalogue";
 import { useDialogs } from "@/components/ui/confirm";
 
-export const CURRENCIES = ["USD", "EUR", "GBP", "JPY", "CHF", "AUD", "CAD", "NGN", "ZAR", "INR"];
+export { CURRENCIES };
 const sel = "h-9 w-full rounded-md border bg-background px-2 text-sm";
 
 type Mode = "list" | "new" | { copy: Journal };

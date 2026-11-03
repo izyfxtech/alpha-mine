@@ -1,3 +1,4 @@
+import { CURRENCIES, safeCurrency } from "@/lib/currencies";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { localToday } from "@/lib/time/local-time";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -35,7 +36,7 @@ export const Route = createFileRoute("/_authenticated/settings/$section")({
   component: SettingsPage,
 });
 
-const CURRENCIES = ["USD", "EUR", "GBP", "JPY", "CHF", "AUD", "CAD", "NGN", "ZAR", "INR"];
+
 const currencyName = (c: string) => { try { return `${new Intl.DisplayNames(["en"], { type: "currency" }).of(c) ?? c} (${c})`; } catch { return c; } };
 const MARKETS = ["Stocks", "Forex", "Futures", "Crypto", "Indices", "Commodities"];
 const TRADE_TYPES = ["Spot", "Futures", "Options", "CFD"];
@@ -230,7 +231,7 @@ function Cashflows() {
   const [amount, setAmount] = useState("");
   const [kind, setKind] = useState("deposit");
   const [note, setNote] = useState("");
-  const money = (n: number) => `${n < 0 ? "-" : ""}${Math.abs(n).toLocaleString("en-US", { style: "currency", currency: journal?.currency ?? "USD" })}`;
+  const money = (n: number) => `${n < 0 ? "-" : ""}${Math.abs(n).toLocaleString("en-US", { style: "currency", currency: safeCurrency(journal?.currency) })}`;
   const rows = useMemo(() => {
     const start = Number(journal?.starting_balance ?? 0);
     const list = [...(start ? [{ id: "start", occurred_on: (journal?.deposit_date ?? journal?.created_at ?? "").slice(0, 10), amount: start, note: "Starting balance", locked: true }] : []), ...t.rows.map((r) => ({ id: r.id, occurred_on: r.occurred_on, amount: Number(r.amount), note: r.note, locked: false }))]

@@ -1,3 +1,4 @@
+import { safeCurrency } from "@/lib/currencies";
 import { createFileRoute } from "@tanstack/react-router";
 import { localDateTime, localDay } from "@/lib/time/local-time";
 import { useQuery } from "@tanstack/react-query";
@@ -88,7 +89,7 @@ function Portfolio() {
               return (
                 <tr key={j.id} className={cn("text-right", tone, x.net < 0 ? "bg-loss-soft/40" : x.net > 0 ? "bg-profit-soft/25" : "")}>
                   <td className="max-w-[130px] truncate px-2 py-2 text-left"><button className="hover:underline" onClick={() => setJournalId(j.id)}>{j.name}</button></td>
-                  {[x.balance.toLocaleString("en-US", { style: "currency", currency: j.currency || "USD" }), n2(x.roi), (x.rCount ? n2(x.totalR) : "—"), x.avgPnl.toLocaleString("en-US", { style: "currency", currency: j.currency || "USD" }), n2(ap), n2(x.avgR), n2(x.profitFactor), n2(x.winRate), x.count, n2(x.score)].map((v, i) => <td key={i} className="whitespace-nowrap px-2 py-2">{v}</td>)}
+                  {[x.balance.toLocaleString("en-US", { style: "currency", currency: safeCurrency(j.currency) }), n2(x.roi), (x.rCount ? n2(x.totalR) : "—"), x.avgPnl.toLocaleString("en-US", { style: "currency", currency: j.currency || "USD" }), n2(ap), n2(x.avgR), n2(x.profitFactor), n2(x.winRate), x.count, n2(x.score)].map((v, i) => <td key={i} className="whitespace-nowrap px-2 py-2">{v}</td>)}
                   <td className="w-40 px-4"><div className="flex h-[14px] items-center border-l-2 border-t4"><div className={x.net >= 0 ? "h-full bg-chart-1" : "h-full bg-chart-2"} style={{ width: `${(Math.abs(x.roi) / max) * 100}%` }} /></div></td>
                 </tr>
               );

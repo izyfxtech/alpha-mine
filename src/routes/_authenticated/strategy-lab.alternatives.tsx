@@ -136,9 +136,9 @@ function StrategySheet({ row, setups, tradesFor, results, onClose, onSave }: {
     for (const x of results.filter((r) => r.strategy_id === row?.id)) m[x.trade_id] = { p: String(x.alt_profit), r: String(x.alt_r) };
     setAlt(m);
   }, [row?.id, results]);
-  const chart = tr.map((x, i) => ({ n: i + 1, Profit: +x.net_pnl.toFixed(2), "Alternative Profit": Number(val(x).p) || 0, "R-Multiple": +(x.r ?? 0).toFixed(2), "Alternative R-Multiple": Number(val(x).r) || 0 }));
   const def = (x: Trade) => ({ p: String(+x.net_pnl.toFixed(2)), r: String(+(x.r ?? 0).toFixed(2)) });
   const val = (x: Trade) => alt[x.id] ?? def(x);
+  const chart = tr.map((x, i) => ({ n: i + 1, Profit: +x.net_pnl.toFixed(2), "Alternative Profit": Number(val(x).p) || 0, "R-Multiple": +(x.r ?? 0).toFixed(2), "Alternative R-Multiple": Number(val(x).r) || 0 }));
   const setCell = (x: Trade, k: "p" | "r", v: string) => setAlt((p) => ({ ...p, [x.id]: { ...(p[x.id] ?? def(x)), [k]: v } }));
 
   return (
