@@ -59,6 +59,22 @@ function sectionOf(row: string[]): Section | null {
   return t && (SECTIONS as readonly string[]).includes(t) ? (t as Section) : null;
 }
 
+/**
+ * S/L and T/P cells of a row. Two cells are both columns. A lone number could be either (an empty cell may have been
+ * trimmed away), so it is placed by where it sits against the open price: a buy's stop is below it, a sell's above.
+ * Only values on the losing side count as a stop and only values on the winning side as a target.
+ */
+export function classifyStops(side: string, openPrice: number, cells: string[]): { sl: number | null; tp: number | null } {
+  const buy = side === "buy";
+  const loss = (v: number) => (buy ? v < openPrice : v > openPrice);
+  const nums = cells.map((x) => parseNumber(x)).filter((v): v is number => v !== null && v > 0);
+  const pick = (v: number | undefined) => (v === undefined ? null : v);
+  if (cells.length >= 2 && nums.length === 2 && cells.every((x) => parseNumber(x) !== null)) return { sl: pick(nums[0]), tp: pick(nums[1]) };
+  const sl = nums.find((v) => loss(v)) ?? null;
+  const tp = nums.find((v) => !loss(v) && v !== openPrice) ?? null;
+  return { sl, tp };
+}
+
 type PositionRow =
   { ok: true; pos: MtPosition; digits: number } | { ok: false; reason: string; ignore?: boolean };
 
@@ -102,10 +118,9 @@ function parsePositionRow(raw: string[]): PositionRow {
     return { ok: false, reason: "unreadable commission/swap/profit" };
   if (close < open) return { ok: false, reason: "close time precedes open time" };
 
-  // Between openPrice (index 5) and closeTime: S/L and T/P. Two cells = both columns present.
+  // Between openPrice (index 5) and closeTime: S/L and T/P, either of which may be blank.
   const mid = c.slice(6, closeIdx);
-  const sl = mid.length >= 2 ? parseNumber(mid[0]) : null;
-  const tp = mid.length >= 2 ? parseNumber(mid[1]) : null;
+  const { sl, tp } = classifyStops(type, openPrice, mid);
 
   const digits = Math.max(
     decimalsOf(c[5]),
@@ -183,6 +198,9 @@ export function parseMt5Rows(rows: string[][]): MtReport {
 
   let section: Section | null = null;
   let sawPositionsHeader = false;
+  // Opening orders carry the S/L and T/P as they were PLACED. The position row only has the last ones, which a trailing
+  // stop has moved, so the initial stop is read from here (a hedging position's ticket is its opening order's ticket).
+  const orderStops = new Map<string, { side: string; cells: string[] }>();
   const seen = new Set<string>();
 
   rows.forEach((row, idx) => {
@@ -206,11 +224,26 @@ export function parseMt5Rows(rows: string[][]): MtReport {
       } else if (!r.ignore) {
         report.skipped.push({ row: idx + 1, reason: r.reason });
       }
+    } else if (section === "orders") {
+      const c = trimCells(row);
+      const side = (c[3] ?? "").toLowerCase();
+      if (parseWallTime(c[0] ?? "") !== null && /^\d+$/.test(c[1] ?? "") && (side === "buy" || side === "sell")) {
+        // Cells between the price (index 5) and the second datetime (the order's own time).
+        const end = c.findIndex((x, i) => i >= 6 && parseWallTime(x) !== null);
+        if (end > 6) orderStops.set(c[1]!, { side, cells: c.slice(6, end) });
+      }
     } else if (section === "deals") {
       const b = parseBalanceRow(row);
       if (b) report.balanceOps.push(b);
     }
   });
+
+  for (const p of report.positions) {
+    const o = orderStops.get(p.ticket);
+    if (!o || o.side !== p.side) continue;
+    const { sl } = classifyStops(o.side, p.openPrice, o.cells);
+    if (sl !== null) p.initialStopLoss = sl;
+  }
 
   if (!sawPositionsHeader) {
     throw new MtParseError(

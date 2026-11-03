@@ -20,6 +20,7 @@ export interface TradeRow {
   exit_price: number | null;
   quantity: number;
   stop_loss: number | null;
+  initial_stop?: number | null; // the stop the trade was opened with (never changed by trailing); R uses it
   take_profit: number | null;
   high_price: number | null;
   low_price: number | null;
@@ -52,6 +53,7 @@ export interface Trade extends TradeRow {
   followedPlan: boolean; // no negative comment on the trade
   accountSize: number; // running balance before this trade (start + cashflows + prior net)
   retPct: number; // net P&L as % of accountSize
+  rEst?: number | null; // estimated R for a closed trade with no usable stop (net P&L over the journal's typical risk); never in R statistics
   r: number | null; // R multiple from prices (lib/pnl/calc.ts), null without a stop or an exit
   spec?: Spec | null; // the instrument's asset-class spec, for money what-ifs
   account?: string | null; // account currency
@@ -104,6 +106,26 @@ export function enrichTrade(
 export function riskOf(t: Pick<TradeRow, "risk_amount">) {
   const r = t.risk_amount == null ? NaN : Number(t.risk_amount);
   return Number.isFinite(r) && r > 0 ? r : null;
+}
+
+/**
+ * For closed trades with no measurable R (no stop, or a stop moved past entry with no initial stop recorded), an ESTIMATE: net
+ * P&L over the journal's typical money risk (median of the risk on its trades that do have a real stop, at least 3 of them).
+ * Shown as "~1.3R est." and never counted in R statistics, so measured and estimated R cannot mix.
+ */
+export function withEstimatedR<T extends Trade>(trades: T[]): T[] {
+  const byJournal = new Map<string, number[]>();
+  for (const t of trades) if (t.r != null && t.risk_amount != null && Number(t.risk_amount) > 0) byJournal.set(t.journal_id, [...(byJournal.get(t.journal_id) ?? []), Number(t.risk_amount)]);
+  const typical = new Map<string, number>();
+  for (const [j, v] of byJournal) {
+    if (v.length < 3) continue;
+    const a = [...v].sort((x, y) => x - y), m = a.length >> 1;
+    typical.set(j, a.length % 2 ? a[m]! : (a[m - 1]! + a[m]!) / 2);
+  }
+  return trades.map((t) => {
+    const risk = typical.get(t.journal_id);
+    return t.r == null && risk && !isOpen(t) ? { ...t, rEst: t.net_pnl / risk } : t;
+  });
 }
 
 /** A trade without an exit is still open: it has no result yet and must stay out of every statistic. */

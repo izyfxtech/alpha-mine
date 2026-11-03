@@ -6,7 +6,7 @@ import { complianceOf, type RuleCheck } from "@/lib/pnl/compliance";
 import { matchesQuery } from "@/lib/journal/search";
 import { rewardRisk } from "@/lib/pnl/calc";
 import { specFor } from "@/lib/pnl/instrument-catalogue";
-import { annotateAccount, enrichTrade, isOpen, isWin, isLoss, isBE, type Cashflow, type Trade, type TradeRow, type Sentiment } from "@/lib/pnl/metrics";
+import { annotateAccount, enrichTrade, withEstimatedR, isOpen, isWin, isLoss, isBE, type Cashflow, type Trade, type TradeRow, type Sentiment } from "@/lib/pnl/metrics";
 
 export interface Journal {
   id: string;
@@ -242,7 +242,7 @@ export async function fetchTrades(journalIds: string[]): Promise<Trade[]> {
     const flows = (cf.data ?? []).filter((c) => c.journal_id === j.id).map((c) => ({ occurred_on: c.occurred_on, amount: Number(c.amount) }));
     annotateAccount(enriched.filter((x) => x.journal_id === j.id), Number(j.starting_balance), flows).forEach((x) => annotated.set(x.id, x));
   });
-  return enriched.map((x) => annotated.get(x.id) ?? x);
+  return withEstimatedR(enriched.map((x) => annotated.get(x.id) ?? x));
 }
 
 /** Deposits (+) and withdrawals (-) for a journal. */

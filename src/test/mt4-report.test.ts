@@ -317,6 +317,7 @@ describe("MT4 -> journal rows", () => {
       exit_price: 1.0912,
       quantity: 0.1,
       stop_loss: 1.08,
+      initial_stop: null,
       take_profit: 1.095,
       gross_pnl: 62,
       commission: -0.8,

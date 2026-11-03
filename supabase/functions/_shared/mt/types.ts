@@ -26,6 +26,8 @@ export interface MtPosition {
   openPrice: number;
   closePrice: number;
   stopLoss: number | null;
+  /** The stop as it was placed with the opening order (MT5 Orders table), before any trailing. Absent when the report does not say. */
+  initialStopLoss?: number | null;
   takeProfit: number | null;
   /** Signed account-currency amounts, exactly as booked (costs are negative). MT4 taxes are folded into commission. */
   commission: number;

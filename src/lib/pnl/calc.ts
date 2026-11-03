@@ -25,11 +25,14 @@ export function riskDistance(direction: string, entry: unknown, stop: unknown): 
   return d > 0 ? d : null;
 }
 
-export interface PricedTrade { direction: string; entry_price: unknown; stop_loss?: unknown; exit_price?: unknown; take_profit?: unknown; is_break_even?: boolean | null }
+/** The stop the trade was opened with: the saved initial stop, else the current one. Later trailing never changes R. */
+export const stopOf = (t: { initial_stop?: unknown; stop_loss?: unknown }) => (num(t.initial_stop) != null && (num(t.initial_stop) ?? 0) > 0 ? t.initial_stop : t.stop_loss);
+
+export interface PricedTrade { direction: string; entry_price: unknown; stop_loss?: unknown; initial_stop?: unknown; exit_price?: unknown; take_profit?: unknown; is_break_even?: boolean | null }
 
 /** R of an exited trade, or of any price passed in (an open trade's what-if). Null when the stop or the price is missing. */
 export function rMultiple(t: PricedTrade, at: unknown = t.exit_price): number | null {
-  const risk = riskDistance(t.direction, t.entry_price, t.stop_loss);
+  const risk = riskDistance(t.direction, t.entry_price, stopOf(t));
   const e = num(t.entry_price), x = num(at);
   if (risk == null || e == null || x == null) return null;
   if (t.is_break_even && at === t.exit_price) return 0;
@@ -39,9 +42,10 @@ export function rMultiple(t: PricedTrade, at: unknown = t.exit_price): number | 
 /** Why a closed trade has no R, in words for the UI. Null when it has one. */
 export function rBlankReason(t: PricedTrade): string | null {
   if (rMultiple(t) != null) return null;
-  if (num(t.stop_loss) == null || (num(t.stop_loss) ?? 0) <= 0) return "No stop loss";
+  const stop = num(stopOf(t));
+  if (stop == null || stop <= 0) return "No stop loss";
   if (num(t.exit_price) == null) return "No exit price";
-  return "Stop is at or beyond entry (moved after entry), so the original risk is unknown";
+  return "Stop was moved to or past entry and the original stop was not recorded";
 }
 
 /** Planned reward : risk. Null unless there is a stop and a target on the winning side. */
@@ -80,7 +84,7 @@ export function grossPnl(t: MoneyTrade, spec: Spec | null | undefined, account: 
 
 /** Money lost if the initial stop is hit (positive), or null without a valid stop or a way to value it. */
 export function riskMoney(t: MoneyTrade, spec: Spec | null | undefined, account: string | null | undefined): number | null {
-  const d = riskDistance(t.direction, t.entry_price, t.stop_loss);
+  const d = riskDistance(t.direction, t.entry_price, stopOf(t));
   if (d == null) return null;
   const v = moneyValue(d, t.quantity, t.entry_price, spec, account);
   return v == null ? null : +v.toFixed(2);
