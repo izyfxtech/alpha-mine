@@ -2,6 +2,14 @@
 
 Newest first. Dates are the day the work landed on `main`.
 
+## 2026-11-03
+
+- **Simple calculations.** R-multiple is now a pure price ratio, `(exit - entry) x side / |entry - stop|` (`src/lib/pnl/calc.ts`): same for every instrument, present for every trade with a stop and an exit, no engine or Edge Function involved. Money (gross P&L, money at risk, open-trade what-ifs, missed trades) is price move x quantity x contract size from the instrument's asset class.
+- **Instrument catalogue** (`src/lib/pnl/instrument-catalogue.ts`): forex majors/crosses/exotics, metals, crypto, indices, energies, futures, with aliases (GOLD, DJ30, USTEC...) and broker suffixes (.a, m, .pro). Classes: forex, metal, crypto, index, energy, stock, future. Unknown symbols are stocks. Bare futures roots (ES, NG) need a month code or `1!` so they never shadow stock tickers.
+- Removed: `risk.ts`, `asset-class.ts`, the engine calls after saving a trade, after imports and from Settings, and the database risk logic (migration `20261103090000_simple_calculations.sql`, which also drops `journals_backfill_risk`). The pnl-engine and `compute-pnl` stay in the repo, unused by these paths.
+- Fixed: backtester counted blank cells as break-even; simulator win rate included break-evens while avg loss did not; Chart Lab "Average (R)" divided by trades without an R.
+- R is gross of costs (it measures the trade against its stop); net P&L still includes commission, swap and other fees.
+
 ## 2026-11-02
 
 - **R-multiple on every trade**: planned risk now comes from one rule (`src/lib/pnl/risk.ts`): the stored `risk_amount` if there is one, otherwise worked out from the stop loss (shares: distance x quantity; forex pairs quoted in, or based on, the account currency: distance x lots x contract size). Cross pairs that need another currency's rate, unknown units and trailed stops stay blank instead of being guessed. The P&L engine still refines imported trades.

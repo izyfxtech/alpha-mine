@@ -1,4 +1,4 @@
-import { inferAssetClass } from "@/lib/pnl/asset-class";
+import { assetClassFor as inferAssetClass } from "@/lib/pnl/instrument-catalogue";
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -10,7 +10,6 @@ import { seedDemoTrades } from "@/lib/journal/demo";
 import { fillsToTrades, type RawFill } from "@/lib/import/fills-import";
 import { FIELDS, detectHeaderRow, looksLikeFills, parseCsv, suggestMapping } from "@/lib/import/csv-mapping";
 import { buildCsvTrades, detectDateOrder, detectDecimal, parseDateTime, parseNumber, type CsvZone, type DateOrder, type Decimal } from "@/lib/import/csv-rows";
-import { auditJournalPnl } from "@/lib/pnl/pnl-audit";
 import { parseMtReport, type MtReport } from "@/lib/import/mt/parse-report";
 import { checkCompatibility, summarize, toImportPayload } from "@/lib/import/mt/to-trades";
 import type { Json } from "@/integrations/supabase/types";
@@ -242,12 +241,6 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
       const parts = [`${r.inserted} new`, r.updated ? `${r.updated} updated` : null, r.unchanged ? `${r.unchanged} already up to date` : null, withCash ? `${r.cashflows} deposits/withdrawals` : null].filter(Boolean);
       toast.success(`Imported: ${parts.join(", ")}`);
 
-      // Audit new and changed trades and fill in R-multiples. Failure here never undoes the import.
-      if (r.inserted + r.updated > 0) {
-        auditJournalPnl(journal.id, { apply: true })
-          .then((a) => { qc.invalidateQueries(); if (a.reconciliation.MISMATCH) toast.warning(`${a.reconciliation.MISMATCH} trades differ from an independent P&L check`); })
-          .catch(() => toast.warning("Trades imported, but the P&L check could not run. R-multiples will be missing until it does."));
-      }
       qc.invalidateQueries();
       setMt(null);
       onOpenChange(false);

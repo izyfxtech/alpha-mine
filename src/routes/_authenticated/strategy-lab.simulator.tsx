@@ -32,7 +32,8 @@ function Simulator() {
     setP((x) => ({
       ...x,
       balance: Math.round(base.balance),
-      winRate: +base.winRate.toFixed(1),
+      // Wins over wins + losses: avgLoss is measured on losers only, so break-evens must not dilute the rate.
+      winRate: +(wins.length + losses.length ? (wins.length / (wins.length + losses.length)) * 100 : base.winRate).toFixed(1),
       avgWin: +(avg(wins) || x.avgWin).toFixed(2),
       avgLoss: +(avg(losses) || x.avgLoss).toFixed(2),
     }));

@@ -1,7 +1,8 @@
 // Shared metrics engine: every page computes stats from here so numbers always match.
 import { localDay } from "@/lib/time/local-time";
 import type { RuleCheck } from "@/lib/pnl/compliance";
-import { plannedRisk, type RiskContext } from "@/lib/pnl/risk";
+import { rewardRisk, riskMoney, rMultiple } from "@/lib/pnl/calc";
+import type { Spec } from "@/lib/pnl/instrument-catalogue";
 
 export type Sentiment = "positive" | "negative" | "neutral";
 
@@ -51,7 +52,9 @@ export interface Trade extends TradeRow {
   followedPlan: boolean; // no negative comment on the trade
   accountSize: number; // running balance before this trade (start + cashflows + prior net)
   retPct: number; // net P&L as % of accountSize
-  r: number | null;
+  r: number | null; // R multiple from prices (lib/pnl/calc.ts), null without a stop or an exit
+  spec?: Spec | null; // the instrument's asset-class spec, for money what-ifs
+  account?: string | null; // account currency
   holdMinutes: number | null;
 }
 
@@ -60,17 +63,21 @@ export function enrichTrade(
   instruments: Map<string, string>,
   setups: Map<string, string>,
   comments: Trade["comments"],
-  /** What is needed to work planned risk out when the database has none stored (instrument class, account currency). */
-  riskCtx?: (t: TradeRow) => RiskContext,
+  /** The trade's instrument spec and the account currency: only used to show the money at risk. R never needs them. */
+  moneyCtx?: (t: TradeRow) => { spec: Spec | null; account: string | null | undefined },
 ): Trade {
   const pos = comments.filter((c) => c.sentiment === "positive").length;
   const neg = comments.filter((c) => c.sentiment === "negative").length;
   const tilt = pos - neg;
-  // One rule for every trade: stored risk first, else worked out from the stop loss (see lib/pnl/risk.ts).
-  const risk = riskCtx ? plannedRisk(t, { symbol: (t.instrument_id && instruments.get(t.instrument_id)) || t.raw_symbol, ...riskCtx(t) }) : riskOf(t);
   const net = Number(t.net_pnl);
+  // R is a ratio of prices (lib/pnl/calc.ts). Money at risk is only for display.
+  const priced = { ...t, entry_price: Number(t.entry_price), exit_price: t.exit_price == null ? null : Number(t.exit_price) };
+  const r = isOpen(t) ? null : rMultiple(priced);
+  const ctx = moneyCtx?.(t);
+  const risk = ctx ? riskMoney(priced, ctx.spec, ctx.account) : null;
   return {
     ...t,
+    risk_amount: risk ?? riskOf(t),
     entry_price: Number(t.entry_price),
     exit_price: t.exit_price == null ? null : Number(t.exit_price),
     quantity: Number(t.quantity),
@@ -86,16 +93,14 @@ export function enrichTrade(
     followedPlan: neg === 0,
     accountSize: 0,
     retPct: 0,
-    r: risk ? net / risk : null,
+    r,
+    spec: ctx?.spec ?? null,
+    account: ctx?.account ?? null,
     holdMinutes: t.exit_at ? (new Date(t.exit_at).getTime() - new Date(t.entry_at).getTime()) / 60000 : null,
   };
 }
 
-/**
- * Planned risk in account currency, or null when it is not known. It comes from risk_amount only (the database
- * trigger derives it for spot trades sized in units, the P&L engine for imported ones). A price-distance fallback
- * is wrong whenever quantity is lots (0.10 lot x 50 pips is not 0.0005 of anything), so R is left blank instead.
- */
+/** Money at risk in the account currency, for display only (R does not use it). Null when it cannot be known. */
 export function riskOf(t: Pick<TradeRow, "risk_amount">) {
   const r = t.risk_amount == null ? NaN : Number(t.risk_amount);
   return Number.isFinite(r) && r > 0 ? r : null;
@@ -378,11 +383,9 @@ export const MONTHS = ["January", "February", "March", "April", "May", "June", "
 
 /** R the trade would have made if left alone (set-and-forget): TP, SL or unknown. Used by Chart Lab and Edge Finder. */
 export function potentialR(t: Trade): number | null {
-  if (t.stop_loss == null || t.take_profit == null) return null;
+  const tpR = rewardRisk(t);
+  if (tpR == null) return null;
   const long = t.direction !== "short";
-  const risk = Math.abs(t.entry_price - Number(t.stop_loss));
-  if (!risk) return null;
-  const tpR = Math.abs(Number(t.take_profit) - t.entry_price) / risk;
   if (t.otp_hit === true) return tpR;
   if (t.otp_hit === false) return -1;
   if (t.high_price != null && t.low_price != null) {

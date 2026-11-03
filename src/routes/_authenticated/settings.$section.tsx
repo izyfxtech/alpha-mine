@@ -14,7 +14,6 @@ import { Empty, Panel } from "@/components/kit";
 import { DragHandle, EditableText, TypedConfirm, plural, useDragReorder, useUsage } from "@/components/settings-parts";
 import { supabase } from "@/integrations/supabase/client";
 import { sweepStorage } from "@/lib/media/sweep-storage";
-import { auditJournalPnl } from "@/lib/pnl/pnl-audit";
 import { useJournal, useTrades } from "@/lib/journal/journal-context";
 import { STARTER_RULES } from "@/lib/pnl/compliance";
 import { useProfile } from "@/lib/profile-settings";
@@ -197,12 +196,6 @@ function JournalSettings() {
             if (error) toast.error(error.message); else {
               toast.success("Journal saved");
               refresh();
-              // Choosing lots or units is what lets the engine work out risk and R: audit this journal now, including
-              // trades it skipped earlier because the unit was not set.
-              if (f.quantity_unit && f.quantity_unit !== (journal.quantity_unit ?? "")) {
-                toast.info("Working out risk and R-multiples for your trades…");
-                auditJournalPnl(journal.id, { apply: true, retrySkipped: true }).then((r) => { toast.success(`R-multiples updated for ${r.applied} trade${r.applied === 1 ? "" : "s"}.`); refresh(); }, (e) => toast.error(`Could not work out R-multiples: ${(e as Error).message}`));
-              }
             }
           }}>Save</Button>
           <Button size="sm" variant="secondary" disabled={!dirty} onClick={() => setF(initial)}>Reset</Button>

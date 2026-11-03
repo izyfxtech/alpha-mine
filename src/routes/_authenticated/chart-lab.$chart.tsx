@@ -89,7 +89,9 @@ function valueOf(ts: Trade[], d: Display, start: number) {
   const unit = d.includes("(%)") ? "pct" : d.includes("(R)") ? "r" : "cur";
   if (d === "Winrate (%)") return (ts.filter(isWin).length / n) * 100;
   if (d === "Number of Trades") return ts.length;
-  const total = unit === "pct" ? (start ? (ts.reduce((a, t) => a + t.net_pnl, 0) / start) * 100 : 0) : unit === "r" ? ts.reduce((a, t) => a + (t.r ?? 0), 0) : ts.reduce((a, t) => a + t.net_pnl, 0);
+  // R only counts trades that have an R, so "Average (R)" is per trade with a stop, not diluted by trades without one.
+  if (unit === "r") { const rs = ts.map((t) => t.r).filter((r): r is number => r != null); const sum = rs.reduce((a, r) => a + r, 0); return avg ? (rs.length ? sum / rs.length : 0) : sum; }
+  const total = unit === "pct" ? (start ? (ts.reduce((a, t) => a + t.net_pnl, 0) / start) * 100 : 0) : ts.reduce((a, t) => a + t.net_pnl, 0);
   return total / div;
 }
 const fmtD = (d: Display, v: number, cur: string) => d.includes("($)") ? fmtMoney(v, cur) : d.includes("(R)") ? `${fmtNum(v)}R` : d === "Number of Trades" ? String(v) : `${fmtNum(v)}%`;

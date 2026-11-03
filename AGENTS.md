@@ -4,7 +4,7 @@
 - All performance numbers come from `src/lib/pnl/metrics.ts` — one engine so every page agrees.
 - Simple journal-scoped tables use the `useJournalTable` helper in `src/lib/journal/crud.ts` — keeps CRUD/invalidation consistent.
 - Every journal-owned table carries `journal_id` and uses the `owns_journal()` RLS policy — single ownership check.
-- Trade P&L (gross/net/risk) is recomputed by a DB trigger from prices — stored numbers can't drift from inputs.
+- Trade maths lives in `src/lib/pnl/calc.ts` (R from prices; money from price move x quantity x contract size) and `instrument-catalogue.ts` (symbol -> asset class). The DB trigger only fills P&L for spot stocks without a typed P&L, splits costs and sets net = gross - fees. See `docs/CALCULATIONS.md`.
 - Trade screenshots live in a private storage bucket under `<user_id>/…` and are shown via signed URLs; rows whose path starts with `http` are external URLs.
 - Custom stats are category → option rows linked to trades via `trade_custom_stats` — user-defined tags without schema changes.
 - tsconfig has `noUncheckedIndexedAccess`/`exactOptionalPropertyTypes`/`noImplicitReturns` off — ported code was written without them.
@@ -16,7 +16,7 @@
 - See `docs/ARCHITECTURE.md` for the folder map and pipelines; run `pnpm check` before pushing. Use the `@engine/` and `@shared/` aliases instead of relative paths into `supabase/`.
 - Rule compliance: per-trade per-rule checks live in `trade_rule_checks` (no row = not rated); a trade's overall status is derived by `complianceOf`, never stored. The cost-of-rule-breaking estimate in `src/lib/pnl/compliance.ts` is withheld below `MIN_FOLLOWED`/`MIN_VIOLATED` trades.
 - Open trades (no exit date/price, `isOpen`) are excluded by `useTrades()` unless `includeOpen: true`; only the journal table and the Open Trades page opt in. Chart and report click-through goes through `useDrillDown` (filter patch + navigate to /journal).
-- Quantity unit comes from the instrument, not the journal: `instruments.asset_class` (`forex` = lots, `stock` = units) via `quantityUnitOf` in `src/lib/pnl/asset-class.ts`, used identically by the trigger, the trade form and `compute-pnl`. The journal's `quantity_unit` is only the fallback for instruments without a class (MetaTrader imports set it to lots).
-- Planned risk and R have one definition, `plannedRisk` in `src/lib/pnl/risk.ts`: stored `risk_amount`, else derived from the stop where no exchange rate history is needed, else blank. Never add another R formula.
+- Quantity unit comes from the instrument's asset class (`specFor` in `src/lib/pnl/instrument-catalogue.ts`): forex, metals, indices, energies, futures = lots / contracts; crypto and stocks = units. An unknown symbol is a stock (or an unsized lot contract in a forex-only journal). Never add another unit rule.
+- R has one definition, `rMultiple` in `src/lib/pnl/calc.ts`: side x (exit - entry) / |entry - initial stop|. No quantity, currency or engine is involved, so every trade with a stop and an exit has one. `risk_amount` is display-only money.
 - Costs: `commission` and `swap` are broker-signed (negative = a cost), `other_fees` is a positive cost, `fees` is their total and is set by the trigger. A trade with no exit date/price is open; there is no separate flag.
 - Confirmations and text prompts use `useDialogs()` (`components/ui/confirm.tsx`), never `window.confirm`/`prompt`; dates use `DatePicker`/`DateTimePicker`, never native date inputs.

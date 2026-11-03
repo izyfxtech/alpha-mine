@@ -11,13 +11,13 @@ const row = (over: Partial<TradeRow> = {}): TradeRow => ({
 
 const trade = (id: string, at: string, net: number): Trade => ({ ...enrichTrade(row({ id, entry_at: at, net_pnl: net, risk_amount: null }), new Map(), new Map(), []) });
 
-describe("R multiple (AM-H01)", () => {
-  it("is null, not lots-as-units nonsense, when risk_amount is unknown", () => {
-    expect(riskOf(row({ risk_amount: null }))).toBeNull();
-    expect(enrichTrade(row({ risk_amount: null }), new Map(), new Map(), []).r).toBeNull();
+describe("R multiple", () => {
+  it("is the price ratio whatever the stored risk or lots: 62 pips over a 50 pip stop = 1.24R", () => {
+    expect(enrichTrade(row({ risk_amount: null }), new Map(), new Map(), []).r).toBeCloseTo(1.24, 6);
+    expect(enrichTrade(row({ risk_amount: 50 }), new Map(), new Map(), []).r).toBeCloseTo(1.24, 6);
   });
-  it("is net P&L over the stored risk when it is known: 61.30 / 50 = 1.226", () => {
-    expect(enrichTrade(row({ risk_amount: 50 }), new Map(), new Map(), []).r).toBeCloseTo(1.226, 6);
+  it("is blank without a stop", () => {
+    expect(enrichTrade(row({ stop_loss: null }), new Map(), new Map(), []).r).toBeNull();
   });
 });
 
@@ -80,7 +80,7 @@ describe("trade form P&L ownership (AM-H03)", () => {
   it("a calculated P&L stays calculated: editing prices recalculates instead of freezing the old figure", () => {
     expect(resolveGross({ ...base })).toEqual({ gross: 20, manual: false });
     // an existing calculated trade is not 'touched' on open, so a price edit (auto 20 -> 35) follows the prices
-    expect(keepStoredGross({ exit_price: 110, pnl_manual: false }, "units")).toBe(false);
+    expect(keepStoredGross({ exit_price: 110, pnl_manual: false }, true)).toBe(false);
     expect(resolveGross({ ...base, auto: 35 })).toEqual({ gross: 35, manual: false });
   });
   it("a typed P&L that differs from the calculation is the trader's: the database must not recompute it", () => {
@@ -91,11 +91,11 @@ describe("trade form P&L ownership (AM-H03)", () => {
   });
   it("lots, or a journal without a unit: nothing is calculated, so what is typed is kept and manual", () => {
     expect(resolveGross({ ...base, auto: null, touched: true, typed: "62" })).toEqual({ gross: 62, manual: true });
-    expect(keepStoredGross({ exit_price: 1.09, pnl_manual: false }, "lots")).toBe(true);
-    expect(keepStoredGross({ exit_price: 1.09, pnl_manual: false }, null)).toBe(true);
+    expect(keepStoredGross({ exit_price: 1.09, pnl_manual: false }, false)).toBe(true);
+    expect(keepStoredGross({ exit_price: 1.09, pnl_manual: false }, false)).toBe(true);
   });
   it("an already manual or imported P&L stays manual and is kept when the trade is reopened", () => {
-    expect(keepStoredGross({ exit_price: 110, pnl_manual: true }, "units")).toBe(true);
+    expect(keepStoredGross({ exit_price: 110, pnl_manual: true }, true)).toBe(true);
     expect(resolveGross({ ...base, touched: true, typed: "20", wasManual: true }).manual).toBe(true);
   });
   it("open and break-even trades are 0 and keep whatever ownership they had", () => {

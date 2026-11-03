@@ -4,7 +4,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { complianceOf, type RuleCheck } from "@/lib/pnl/compliance";
 import { matchesQuery } from "@/lib/journal/search";
-import { quantityUnitOf } from "@/lib/pnl/asset-class";
+import { rewardRisk } from "@/lib/pnl/calc";
+import { specFor } from "@/lib/pnl/instrument-catalogue";
 import { annotateAccount, enrichTrade, isOpen, isWin, isLoss, isBE, type Cashflow, type Trade, type TradeRow, type Sentiment } from "@/lib/pnl/metrics";
 
 export interface Journal {
@@ -65,11 +66,7 @@ export function activeFilterCount(f: Filters) {
 }
 
 /** Planned reward:risk from TP/SL. */
-export function plannedRRR(t: Trade) {
-  if (t.stop_loss == null || t.take_profit == null) return null;
-  const risk = Math.abs(t.entry_price - Number(t.stop_loss));
-  return risk ? Math.abs(Number(t.take_profit) - t.entry_price) / risk : null;
-}
+export const plannedRRR = (t: Trade) => rewardRisk(t);
 
 const DEFAULT_COMMENTS: { phase: string; label: string; sentiment: Sentiment }[] = [
   { phase: "entry", label: "Perfect entry", sentiment: "positive" },
@@ -216,7 +213,7 @@ export async function fetchTrades(journalIds: string[]): Promise<Trade[]> {
     all<{ trade_id: string; comment_definition_id: string }>("trade_comments", "*", ["trade_id", "comment_definition_id"]).then((data) => ({ data })),
     all<{ id: string; label: string; phase: string; sentiment: string }>("comment_definitions", "*", ["id"]).then((data) => ({ data })),
     all<{ trade_id: string; option_id: string }>("trade_custom_stats", "trade_id,option_id", ["trade_id", "option_id"]).then((data) => ({ data })),
-    supabase.from("journals").select("id,starting_balance,currency,quantity_unit").in("id", journalIds),
+    supabase.from("journals").select("id,starting_balance,currency,quantity_unit,markets").in("id", journalIds),
     all<{ journal_id: string; occurred_on: string; amount: number }>("journal_cashflows", "journal_id,occurred_on,amount,id", ["id"]).then((data) => ({ data })),
     all<{ trade_id: string; rule_id: string; status: string }>("trade_rule_checks", "trade_id,rule_id,status", ["trade_id", "rule_id"]).then((data) => ({ data })),
   ]);
@@ -233,13 +230,13 @@ export async function fetchTrades(journalIds: string[]): Promise<Trade[]> {
   (cs.data ?? []).forEach((r) => stats.set(r.trade_id, [...(stats.get(r.trade_id) ?? []), r.option_id]));
   const checks = new Map<string, RuleCheck[]>();
   (rc.data ?? []).forEach((r) => checks.set(r.trade_id, [...(checks.get(r.trade_id) ?? []), { rule_id: r.rule_id, status: r.status as RuleCheck["status"] }]));
-  const classOf = new Map((i.data ?? []).map((x) => [x.id, x.asset_class]));
-  const jInfo = new Map((jr.data ?? []).map((j) => [j.id, { currency: j.currency as string, unit: j.quantity_unit as string | null }]));
-  const riskCtx = (row: TradeRow) => {
+  const jInfo = new Map((jr.data ?? []).map((j) => [j.id, { currency: j.currency as string, unit: j.quantity_unit as string | null, markets: (j.markets ?? []) as string[] }]));
+  const moneyCtx = (row: TradeRow) => {
     const j = jInfo.get(row.journal_id);
-    return { unit: quantityUnitOf(row.instrument_id ? classOf.get(row.instrument_id) : null, j?.unit), accountCurrency: j?.currency };
+    const symbol = (row.instrument_id && im.get(row.instrument_id)) || row.raw_symbol;
+    return { spec: specFor(symbol, { markets: j?.markets, journalUnit: j?.unit }), account: j?.currency };
   };
-  const enriched = t.data.map((row) => ({ ...enrichTrade(row, im, sm, byTrade.get(row.id) ?? [], riskCtx), customStats: stats.get(row.id) ?? [], ruleChecks: checks.get(row.id) ?? [] }));
+  const enriched = t.data.map((row) => ({ ...enrichTrade(row, im, sm, byTrade.get(row.id) ?? [], moneyCtx), customStats: stats.get(row.id) ?? [], ruleChecks: checks.get(row.id) ?? [] }));
   const annotated = new Map<string, Trade>();
   (jr.data ?? []).forEach((j) => {
     const flows = (cf.data ?? []).filter((c) => c.journal_id === j.id).map((c) => ({ occurred_on: c.occurred_on, amount: Number(c.amount) }));

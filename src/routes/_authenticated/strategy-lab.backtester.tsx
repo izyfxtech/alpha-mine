@@ -31,7 +31,8 @@ const LINE_COLORS = ["var(--color-chart-1)", "var(--color-chart-2)", "var(--colo
 /** Per-outcome summary for a grid of results (rows × outcomes). */
 export function summarize(outcomes: string[], rows: number[][]) {
   return outcomes.map((_, j) => {
-    const col = rows.map((r) => Number(r[j]) || 0);
+    // A blank cell is not a result: only filled cells count (a typed 0 is a break-even).
+    const col = rows.map((r) => r[j]).filter((v) => v != null && String(v).trim() !== "" && Number.isFinite(Number(v))).map(Number);
     const w = col.filter((v) => v > 0).length, l = col.filter((v) => v < 0).length, be = col.length - w - l;
     return { w, l, be, total: col.reduce((s, v) => s + v, 0), winrate: col.length ? (w / col.length) * 100 : 0 };
   });

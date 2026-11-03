@@ -1,3 +1,5 @@
+import { grossPnl, rMultiple as rMultiple_, rewardRisk } from "@/lib/pnl/calc";
+import { specFor } from "@/lib/pnl/instrument-catalogue";
 import { createFileRoute } from "@tanstack/react-router";
 import { fmtPrice } from "@/lib/pnl/format-price";
 import { fromInputValue, localDateTime, toInputValue } from "@/lib/time/local-time";
@@ -30,10 +32,10 @@ const n = (v: unknown) => (v == null || v === "" ? null : Number(v));
 
 /** Derived numbers for a missed trade — shared with the analysis page. */
 export function missedMetrics(m: Missed) {
-  const e = n(m.entry_price), sl = n(m.stop_loss), tp = n(m.take_profit), q = Number(m.quantity) || 1;
-  const riskPer = e != null && sl != null ? Math.abs(e - sl) : null;
-  const rPlanned = riskPer && tp != null && e != null ? ((tp - e) * (m.direction === "long" ? 1 : -1)) / riskPer : null;
-  const rMultiple = riskPer ? Number(m.net_pnl) / (riskPer * q) : Number(m.hypothetical_r) || null;
+  const t = { direction: m.direction, entry_price: n(m.entry_price), stop_loss: n(m.stop_loss), take_profit: n(m.take_profit), exit_price: n(m.exit_price) };
+  const rPlanned = rewardRisk(t);
+  // R is the price ratio (lib/pnl/calc.ts); the typed hypothetical R only fills in when there is no stop to measure from.
+  const rMultiple = rMultiple_(t) ?? (Number(m.hypothetical_r) || null);
   return { rPlanned, rMultiple };
 }
 
@@ -138,6 +140,7 @@ function Pill({ tone, children }: { tone: number; children: React.ReactNode }) {
 }
 
 export function MissedSheet({ row, journalId, onClose, onSave, title, selectedStats = [] }: { row: Partial<Missed> | null; title?: string; journalId?: string; selectedStats?: string[]; onClose: () => void; onSave: (v: Partial<Missed>, stats: string[]) => Promise<void> }) {
+  const { journal } = useJournal();
   const { data: lk } = useLookups(journalId); const instruments = lk?.instruments ?? [], setups = lk?.setups ?? [];
   const [stats, setStats] = useState<string[]>(selectedStats);
   const s = (v: unknown) => (v == null ? "" : String(v));
@@ -150,8 +153,8 @@ export function MissedSheet({ row, journalId, onClose, onSave, title, selectedSt
   });
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF((p) => ({ ...p, [k]: e.target.value }));
   const auto = () => {
-    const e = n(f.entry_price), x = n(f.exit_price), q = n(f.quantity) ?? 1;
-    return e != null && x != null ? +((x - e) * q * (f.direction === "long" ? 1 : -1)).toFixed(2) : 0;
+    // Same money formula as a real trade: move x quantity x contract size, in the account currency (0 when it needs a rate).
+    return grossPnl({ direction: f.direction, entry_price: n(f.entry_price), exit_price: n(f.exit_price), quantity: n(f.quantity) ?? 1 }, specFor(f.instrument, { markets: journal?.markets }), journal?.currency) ?? 0;
   };
   const sel = "h-9 w-full rounded-md border bg-background px-2 text-sm";
   const F = ({ l, k, type = "text", list }: { l: string; k: keyof typeof f; type?: string; list?: string }) => (

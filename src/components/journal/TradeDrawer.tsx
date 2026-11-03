@@ -13,11 +13,11 @@ import { COMPLIANCE_LABEL, type RuleStatus } from "@/lib/pnl/compliance";
 import { isOpen, type Trade } from "@/lib/pnl/metrics";
 import { cn } from "@/lib/utils";
 import { keepStoredGross, resolveGross } from "@/lib/pnl/trade-form";
-import { auditTrades } from "@/lib/pnl/pnl-audit";
+import { grossPnl } from "@/lib/pnl/calc";
 import { useScreenshots, saveShots, deleteShot, type Shot } from "@/components/journal/Screenshots";
 import { FloatDateTime, FloatInput, FloatSelect, Segmented, SectionTitle, type Opt } from "@/components/journal/trade-form/fields";
 import { useDialogs } from "@/components/ui/confirm";
-import { inferAssetClass, quantityLabel, quantityUnitOf } from "@/lib/pnl/asset-class";
+import { assetClassFor, quantityLabel, specFor } from "@/lib/pnl/instrument-catalogue";
 import { ScreenshotSlots, type PendingShot } from "@/components/journal/trade-form/ScreenshotSlots";
 
 export type DrawerOpts = { prefill?: Partial<Trade>; onSaved?: () => void | Promise<void>; /** Trades in display order, enables Previous/Next inside the editor. */ list?: Trade[] };
@@ -121,13 +121,13 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
   });
   const myAlts = altStrats.filter((a) => a.setup_id && a.setup_id === f.setup_id);
   const [onSaved, setOnSaved] = useState<DrawerOpts["onSaved"]>();
-  /** How quantity is read for an instrument: stocks are units, forex pairs are lots, anything else follows the journal. */
-  const unitFor = (instrumentId?: string | null) => quantityUnitOf((lk?.all.instruments ?? []).find((i) => i.id === instrumentId)?.asset_class, journal?.quantity_unit);
+  /** The instrument's asset class decides how quantity is read (lots or units) and what one lot is worth. */
+  const specOf = (instrumentId?: string | null) => specFor((lk?.all.instruments ?? []).find((i) => i.id === instrumentId)?.symbol, { markets: journal?.markets, journalUnit: journal?.quantity_unit });
   const [navList, setNavList] = useState<Trade[]>([]);
   const show = (t?: Trade, opts?: DrawerOpts) => {
     setNavList(opts?.list ?? []);
     setTrade(t); setF(toForm(t ?? opts?.prefill)); setTab("regular"); setOnSaved(() => opts?.onSaved);
-    setExtraEntries([]); setExtraExits([]); setGrossTouched(!!t && keepStoredGross(t, unitFor(t.instrument_id)));
+    setExtraEntries([]); setExtraExits([]); setGrossTouched(!!t && keepStoredGross(t, grossPnl(t, t.spec, t.account) != null));
     setFav(t?.is_favorite ?? false);
     setComments(t?.comments.map((c) => c.id) ?? []);
     setStats(t?.customStats ?? []);
@@ -164,12 +164,13 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
   const [avgExitLegs] = blend([{ price: f.exit_price, qty: String(Math.max(totalQty - extraExitQty, 0)) }, ...extraExits]);
   // A trade with no exit date is open: no checkbox, nothing else to tick. Giving it an exit date closes it.
   const stillOpen = f.exit_at === "";
-  const unit = unitFor(f.instrument_id);
+  const spec = specOf(f.instrument_id);
+  const unit = spec.unit;
   const avgExit = stillOpen ? null : avgExitLegs;
   const sign = f.direction === "short" ? -1 : 1;
-  // Price distance times quantity is only money when the journal says quantity is in units. In a lots journal, or while the
-  // unit is not set, the P&L must be typed (and then it is kept as typed).
-  const autoGross = unit === "units" && avgEntry != null && avgExit != null && f.direction ? +((avgExit - avgEntry) * totalQty * sign).toFixed(2) : null;
+  // Price move x quantity x the instrument's contract size (lib/pnl/calc.ts). Null when that needs an exchange rate or a size we
+  // do not have: the P&L is then typed, and kept as typed.
+  const autoGross = f.direction ? grossPnl({ direction: f.direction, entry_price: avgEntry, exit_price: avgExit, quantity: totalQty }, spec, journal?.currency) : null;
   const resolved = resolveGross({ open: stillOpen, breakEven: f.is_break_even, touched: grossTouched, typed: f.gross_pnl, auto: autoGross, wasManual: !!trade?.pnl_manual });
   const grossVal = resolved.gross;
   const cost = (Number(f.commission) || 0) + (Number(f.swap) || 0) + (Number(f.other_fees) || 0);
@@ -185,7 +186,7 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
   const refreshLookups = () => qc.invalidateQueries({ queryKey: ["lookups", journal?.id] });
   async function create(table: "instruments" | "setups", label: string) {
     if (!journal) return null;
-    const row = table === "instruments" ? { symbol: label.toUpperCase(), asset_class: inferAssetClass(label, journal.markets), journal_id: journal.id } : { name: label, journal_id: journal.id };
+    const row = table === "instruments" ? { symbol: label.toUpperCase(), asset_class: assetClassFor(label, journal.markets), journal_id: journal.id } : { name: label, journal_id: journal.id };
     const { data, error } = await supabase.from(table).insert(row as never).select("id").single();
     if (error) { toast.error(error.message); return null; }
     await refreshLookups();
@@ -305,7 +306,6 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
       // Planned risk (and so the R-multiple) for forex, metals and other lot-based trades comes from the P&L engine, which
       // knows contract sizes, pip values and currency conversion. Ask it for this one trade now; the page refreshes when it
       // answers. Never blocks or fails the save.
-      if (!stillOpen && isNum(f.stop_loss)) auditTrades(journal.id, [id]).then(() => qc.invalidateQueries(), () => undefined);
       if (onSaved) await onSaved();
       qc.invalidateQueries();
       setOpen(false);

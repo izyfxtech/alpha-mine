@@ -13,7 +13,7 @@ import { useProfile } from "@/lib/profile-settings";
 import { ImportDialog } from "@/components/journal/ImportDialog";
 import { useTradeDrawer } from "@/components/journal/TradeDrawer";
 import { CURRENCIES } from "@/components/journal/JournalPicker";
-import { JOURNAL_MARKETS as MARKETS } from "@/lib/pnl/asset-class";
+import { JOURNAL_MARKETS as MARKETS } from "@/lib/pnl/instrument-catalogue";
 import { cn } from "@/lib/utils";
 
 export const OPEN_ONBOARDING_EVENT = "am:open-onboarding";

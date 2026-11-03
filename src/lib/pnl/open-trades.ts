@@ -1,13 +1,14 @@
-import { riskOf, type Trade } from "@/lib/pnl/metrics";
+import type { Trade } from "@/lib/pnl/metrics";
+import { dirOf, grossPnl, rMultiple, riskMoney, rewardRisk } from "@/lib/pnl/calc";
 
 export interface OpenRow {
   trade: Trade;
   dir: 1 | -1;
-  /** Money at risk if the stop is hit (null without a stop or risk amount). */
+  /** Money at risk if the stop is hit (null without a stop, or when the money cannot be worked out). */
   risk: number | null;
   /** Notional exposure at entry. */
   exposure: number;
-  /** Money made if the target is hit, and the planned reward:risk. */
+  /** Money made if the target is hit / lost if the stop is hit. */
   atTarget: number | null;
   atStop: number | null;
   plannedRR: number | null;
@@ -17,20 +18,20 @@ export interface OpenRow {
   ageDays: number;
 }
 
-const move = (t: Trade, price: number) => (price - Number(t.entry_price)) * Number(t.quantity) * (t.direction === "short" ? -1 : 1);
-
-/** Same price formula as the journal trigger, so what-if numbers match what closing the trade would record. */
+/** Same formulas as a closed trade (lib/pnl/calc.ts), so what-if numbers match what closing the trade would record. */
 export function openRow(t: Trade, price: number | null, now = Date.now()): OpenRow {
-  const risk = riskOf(t);
-  const atTarget = t.take_profit != null ? move(t, Number(t.take_profit)) : null;
-  const atStop = t.stop_loss != null ? move(t, Number(t.stop_loss)) : null;
-  const unrealized = price != null && Number.isFinite(price) ? move(t, price) : null;
+  const spec = t.spec ?? null, account = t.account ?? null;
+  const at = (p: unknown) => (p == null ? null : grossPnl(t, spec, account, p));
+  const hasPrice = price != null && Number.isFinite(price);
+  const size = spec && spec.contractSize > 0 ? spec.contractSize : 1;
   return {
-    trade: t, dir: t.direction === "short" ? -1 : 1, risk,
-    exposure: Math.abs(Number(t.entry_price) * Number(t.quantity)),
-    atTarget, atStop,
-    plannedRR: risk && atTarget != null ? atTarget / risk : null,
-    unrealized, unrealizedR: unrealized != null && risk ? unrealized / risk : null,
+    trade: t, dir: dirOf(t.direction),
+    risk: riskMoney(t, spec, account),
+    exposure: Math.abs(Number(t.entry_price) * Number(t.quantity) * size),
+    atTarget: at(t.take_profit), atStop: at(t.stop_loss),
+    plannedRR: rewardRisk(t),
+    unrealized: hasPrice ? at(price) : null,
+    unrealizedR: hasPrice ? rMultiple({ ...t, is_break_even: false }, price) : null,
     ageDays: Math.max(0, (now - new Date(t.entry_at).getTime()) / 86400000),
   };
 }

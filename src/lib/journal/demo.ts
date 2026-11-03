@@ -1,4 +1,4 @@
-import { inferAssetClass } from "@/lib/pnl/asset-class";
+import { assetClassFor as inferAssetClass } from "@/lib/pnl/instrument-catalogue";
 import { supabase } from "@/integrations/supabase/client";
 
 const SYMBOLS: [string, number, number][] = [
