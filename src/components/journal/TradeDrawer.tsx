@@ -1,3 +1,4 @@
+import { storageJson, storageSet } from "@/lib/safe-storage";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { fmtPrice } from "@/lib/pnl/format-price";
 import { fromInputValue, toInputValue } from "@/lib/time/local-time";
@@ -92,7 +93,7 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
   const [removed, setRemoved] = useState<Shot[]>([]);
   const [saving, setSaving] = useState(false);
   const [newCat, setNewCat] = useState<string | null>(null);
-  const [hidden, setHidden] = useState<string[]>(() => (typeof window === "undefined" ? [] : JSON.parse(localStorage.getItem("am.tradeform.hidden") ?? "[]")));
+  const [hidden, setHidden] = useState<string[]>(() => storageJson<string[]>("am.tradeform.hidden", []));
   const { data: shots = [] } = useScreenshots(journal?.id, trade?.id ?? "__none__");
   const { data: legs = [] } = useQuery({
     queryKey: ["trade_executions", trade?.id],
@@ -342,7 +343,7 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
 
   const toggleHidden = (k: string) => setHidden((h) => {
     const n = h.includes(k) ? h.filter((x) => x !== k) : [...h, k];
-    localStorage.setItem("am.tradeform.hidden", JSON.stringify(n));
+    storageSet("am.tradeform.hidden", JSON.stringify(n));
     return n;
   });
   const vis = (k: string) => !hidden.includes(k);

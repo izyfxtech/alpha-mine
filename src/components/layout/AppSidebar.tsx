@@ -1,3 +1,4 @@
+import { storageSet } from "@/lib/safe-storage";
 import { safeCurrency } from "@/lib/currencies";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -67,7 +68,7 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
     const next = !dark;
     setDark(next);
     document.documentElement.classList.toggle("dark", next);
-    localStorage.setItem("am.theme", next ? "dark" : "light");
+    storageSet("am.theme", next ? "dark" : "light");
   };
   const balance = journal ? computeStats(trades, journal.starting_balance, flows).balance : 0;
 

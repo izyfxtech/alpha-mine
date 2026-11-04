@@ -1,3 +1,4 @@
+import { compareKeys, pushTo } from "@/lib/group";
 import { createFileRoute } from "@tanstack/react-router";
 import { localMonth } from "@/lib/time/local-time";
 import { Fragment, useMemo, useRef, useState } from "react";
@@ -76,8 +77,8 @@ function rowStats(ts: Trade[]) {
 
 function group(ts: Trade[], c: Crit) {
   const m = new Map<string, Trade[]>();
-  ts.forEach((t) => c.get(t).forEach((k) => m.set(k, [...(m.get(k) ?? []), t])));
-  return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  ts.forEach((t) => c.get(t).forEach((k) => pushTo(m, k, t)));
+  return [...m.entries()].sort((a, b) => compareKeys(a[0], b[0]));
 }
 
 function Analytics() {

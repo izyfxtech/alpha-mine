@@ -10,9 +10,10 @@ export async function compressImage(file: File): Promise<File> {
     const canvas = document.createElement("canvas");
     canvas.width = Math.round(bmp.width * scale); canvas.height = Math.round(bmp.height * scale);
     const ctx = canvas.getContext("2d");
-    if (!ctx) return file;
+    if (!ctx) { bmp.close(); return file; }
     ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height); // JPEG has no transparency
     ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+    bmp.close(); // frees the decoded image now instead of whenever it is collected
     for (const q of [0.85, 0.7, 0.55]) {
       const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, "image/jpeg", q));
       if (blob && (blob.size <= MAX_BYTES || q === 0.55)) return blob.size < file.size ? new File([blob], file.name.replace(/\.\w+$/, "") + ".jpg", { type: "image/jpeg" }) : file;
