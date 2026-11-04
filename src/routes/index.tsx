@@ -47,7 +47,7 @@ function Landing() {
           <p className="mx-auto mt-6 text-lg text-[var(--mk-mute)]" style={{ maxWidth: 600, textWrap: "balance" }}>AlphaMine is a trading journal that puts hard numbers on your results and on your discipline. Import from MetaTrader 5, tag your decisions, and see what actually pays.</p>
           <div className="mt-8 flex flex-col items-center gap-3">
             <Link to="/auth" search={{ mode: "signup" }} className="mk-btn mk-btn-pri">Start journaling free <ArrowRight size={18} weight="bold" /></Link>
-            <p className="text-sm text-[var(--mk-mute)]">Sixteen Chart Lab reports. Private to your account.</p>
+            <p className="text-sm text-[var(--mk-mute)]">Seventeen Chart Lab reports. Private to your account.</p>
           </div>
           <Rv className="mt-16"><Stage><Dashboard /></Stage></Rv>
         </section>
@@ -68,7 +68,7 @@ function Landing() {
             <Bento span="lg:col-span-2" icon={Brain} title="Tilt meter" body="Tag entries, management and exits as disciplined or not, then watch the score move by day.">
               <div className="space-y-3" aria-hidden>{[["Entries", 84], ["Management", 71], ["Exits", 90]].map(([k, v]) => <Meter key={k} label={String(k)} value={Number(v)} />)}</div>
             </Bento>
-            <Bento span="lg:col-span-2" icon={ChartLineUp} title="Chart Lab" body="Sixteen reports including drawdown, exit analysis, holding time and SQN by setup.">
+            <Bento span="lg:col-span-2" icon={ChartLineUp} title="Chart Lab" body="Seventeen reports including drawdown, exit analysis, holding time and SQN by setup.">
               <div className="flex h-20 items-end gap-2" aria-hidden>{[30, 52, 40, 68, 56, 80, 64, 92].map((h, i) => <div key={i} className="flex-1 rounded-t" style={{ height: `${h}%`, background: i === 7 ? "var(--mk-acc)" : "var(--mk-line)" }} />)}</div>
             </Bento>
             <Bento span="lg:col-span-2" icon={MagnifyingGlass} title="Edge Finder" body="Surfaces the setups, sessions and instruments where your results separate from luck.">

@@ -9,7 +9,7 @@ export const Route = createFileRoute("/features/")({
   head: () => ({ meta: [{ title: "Features | AlphaMine" }, { name: "description", content: DESC }, { property: "og:title", content: "Features | AlphaMine" }, { property: "og:description", content: DESC }, { property: "og:type", content: "website" }], links: [{ rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" }] }),
   component: () => (
     <SiteLayout>
-      <PageHero eyebrow="Features" title="One journal, every angle on your trading" lead="Log trades, score your discipline, read sixteen reports and test ideas on your own history, all in one place.">
+      <PageHero eyebrow="Features" title="One journal, every angle on your trading" lead="Log trades, score your discipline, read seventeen reports and test ideas on your own history, all in one place.">
         <Link to="/auth" search={{ mode: "signup" }} className="mk-btn mk-btn-pri">Start journaling free <ArrowRight size={18} weight="bold" /></Link>
       </PageHero>
       <Section n="01" label="The core tools" title="Six tools that work from the same trade data">

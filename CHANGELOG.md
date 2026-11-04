@@ -4,6 +4,10 @@ Newest first. Dates are the day the work landed on `main`.
 
 ## 2026-11-04 (failed saves)
 
+- Reset password (L42): shows an invalid/expired-link message when there is no recovery session. Marketing copy says seventeen charts (L40). L35 (empty Entry Date) was already validated.
+
+- Notebook (L26): an edit is kept until the save succeeds, with a Saved / Saving / Not saved indicator; saves on tab hide and close (with a leave warning if unsaved); renaming a folder moves notes first so no ghost folder remains, and asks before merging into an existing name.
+
 - **L25**: a failed save no longer loses work. Backtester and Sessions keep the sheet open when the save fails; Alternatives, Missed and Plans stop on a failed update. Tags, comments and rule checks on trades, missed trades, plans and alternative results are synced (add what is missing, then remove what is gone) instead of delete-then-insert, so a failure part-way never wipes them. Plan to Missed removes the new missed row if its tags fail, so a retry cannot duplicate it.
 - **L30**: a failing "delete journal" shows an error and keeps the dialog; saving a profile before it has loaded no longer throws; sign-up and reset now require 8 characters like Settings. **L44**: a failed lookups fetch shows an error instead of empty pickers.
 
