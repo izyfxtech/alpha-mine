@@ -1,9 +1,11 @@
+import { safeUrl, sanitizeHtml } from "@/lib/sanitize-html";
 import { useEffect, useRef } from "react";
 import {
   AlignCenter, AlignLeft, Bold, Image as ImageIcon, Italic, Link2, ListOrdered, Maximize2, Minus, Pilcrow,
   Printer, Redo2, Table, Type, Underline, Undo2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import { useDialogs } from "@/components/ui/confirm";
 
 /** Lightweight rich-text editor (bold, lists, links, tables…) storing HTML. */
@@ -13,7 +15,7 @@ export function RichEditor({ value, onChange, placeholder = "Edit Your Content H
   const ref = useRef<HTMLDivElement>(null);
   const { prompt } = useDialogs();
   useEffect(() => {
-    if (ref.current && ref.current.innerHTML !== value) ref.current.innerHTML = value;
+    if (ref.current && ref.current.innerHTML !== value) ref.current.innerHTML = sanitizeHtml(value);
   }, [value]);
   const run = (cmd: string, arg?: string) => {
     ref.current?.focus();
@@ -24,8 +26,10 @@ export function RichEditor({ value, onChange, placeholder = "Edit Your Content H
   const askUrl = async (title: string, cmd: string) => {
     const sel = window.getSelection();
     const saved = sel && sel.rangeCount && ref.current?.contains(sel.anchorNode) ? sel.getRangeAt(0).cloneRange() : null;
-    const u = (await prompt({ title, label: "URL", placeholder: "https://", confirmLabel: "Insert" }))?.trim();
-    if (!u) return;
+    const typed = await prompt({ title, label: "URL (http, https or mailto)", placeholder: "https://", confirmLabel: "Insert" });
+    if (typed == null) return;
+    const u = safeUrl(typed, cmd === "insertImage" ? "image" : "link");
+    if (!u) { toast.error("Only http, https and mailto links are allowed."); return; }
     ref.current?.focus();
     if (saved) { const s2 = window.getSelection(); s2?.removeAllRanges(); s2?.addRange(saved); }
     run(cmd, u);

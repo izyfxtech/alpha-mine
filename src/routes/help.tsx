@@ -5,7 +5,7 @@ import { CtaBand, PageHero, SiteLayout } from "@/components/marketing/site";
 const DESC = "Answers about getting started, importing trades, sharing, and the tools inside AlphaMine.";
 const groups = [
   { id: "start", title: "Getting started", items: [
-    ["How do I create an account?", "Open the sign in page and choose Create account. Sign up with your email and a password of at least 6 characters, or continue with Google. We email you a link to confirm your address."],
+    ["How do I create an account?", "Open the sign in page and choose Create account. Sign up with your email and a password of at least 8 characters, or continue with Google. We email you a link to confirm your address."],
     ["What is a journal?", "A journal is a separate set of trades with its own broker, currency and starting balance. You can keep more than one, and every report follows the journal you have selected."],
     ["How do I add my first trade?", "Open Journal and add a trade with its instrument, setup and result, or import a report to bring in your history at once."],
   ] },
@@ -15,7 +15,7 @@ const groups = [
   ] },
   { id: "tools", title: "Tools", items: [
     ["What is the tilt meter?", "You tag entries, management and exits as disciplined or not. Those tags roll up into a tilt score for each day."],
-    ["What is Chart Lab?", "Sixteen reports built from your journal, including drawdown, exit analysis, holding time and SQN by setup. Select part of a chart to open the trades behind it."],
+    ["What is Chart Lab?", "Seventeen reports built from your journal, including drawdown, exit analysis, holding time and SQN by setup. Select part of a chart to open the trades behind it."],
     ["How does Edge Finder rate my trading?", "It looks across your journal and marks each area as Strong, Average or Needs attention, with a trend marker and the detail behind each card."],
     ["What does the simulator need?", "Your win rate, average gain, average loss, starting balance, number of simulations and trades per simulation. It then shows the range of final balances and the longest winning and losing streaks."],
   ] },

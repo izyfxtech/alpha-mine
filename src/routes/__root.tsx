@@ -1,3 +1,4 @@
+import { storageGet } from "@/lib/safe-storage";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -100,7 +101,7 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
   useEffect(() => {
-    if (localStorage.getItem("am.theme") === "dark") document.documentElement.classList.add("dark");
+    if (storageGet("am.theme") === "dark") document.documentElement.classList.add("dark");
     const { data } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_IN" || event === "SIGNED_OUT") router.invalidate();
     });

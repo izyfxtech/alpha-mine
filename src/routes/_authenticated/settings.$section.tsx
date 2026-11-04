@@ -127,7 +127,8 @@ function Account() {
           <div><Label className="text-xs">Display name</Label><Input value={f.display_name} onChange={(e) => setF({ ...f, display_name: e.target.value })} /></div>
           <div><Label className="text-xs">Base currency</Label><select className={sel} value={f.base_currency} onChange={(e) => setF({ ...f, base_currency: e.target.value })}>{CURRENCIES.map((c) => <option key={c} value={c}>{currencyName(c)}</option>)}</select></div>
           <Button onClick={async () => {
-            const { error } = await supabase.from("profiles").upsert({ id: data!.id, ...f });
+            if (!data) return void toast.error("Your profile has not loaded yet. Try again in a moment.");
+            const { error } = await supabase.from("profiles").upsert({ id: data.id, ...f });
             if (error) toast.error(error.message); else { toast.success("Profile saved"); qc.invalidateQueries({ queryKey: ["profile"] }); }
           }}>Save profile</Button>
         </div>

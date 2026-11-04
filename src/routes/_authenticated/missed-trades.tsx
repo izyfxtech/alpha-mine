@@ -1,3 +1,4 @@
+import { syncLinks } from "@/lib/journal/sync-links";
 import { grossPnl, rMultiple as rMultiple_, rewardRisk } from "@/lib/pnl/calc";
 import { specFor } from "@/lib/pnl/instrument-catalogue";
 import { createFileRoute } from "@tanstack/react-router";
@@ -124,11 +125,10 @@ function MissedTrades() {
       {edit && <MissedSheet key={edit === "new" ? "new" : edit.id} row={edit === "new" ? null : edit} journalId={journal?.id} selectedStats={edit === "new" ? [] : statLinks.filter((s) => s.missed_trade_id === edit.id).map((s) => s.option_id)}
         onClose={() => setEdit(null)}
         onSave={async (v, ids) => {
-          const saved = edit === "new" ? await t.insert(v) : (await t.update(edit.id, v), edit);
+          const saved = edit === "new" ? await t.insert(v) : (await t.update(edit.id, v)) ? edit : null;
           if (!saved || !journal) return;
-          const { error: delError } = await supabase.from("missed_trade_custom_stats").delete().eq("missed_trade_id", saved.id);
-          if (delError) { toast.error(delError.message); return; }
-          if (ids.length) { const { error } = await supabase.from("missed_trade_custom_stats").insert(ids.map((option_id) => ({ missed_trade_id: saved.id, option_id, journal_id: journal.id }))); if (error) { toast.error(error.message); return; } }
+          const err = await syncLinks("missed_trade_custom_stats", "missed_trade_id", saved.id, journal.id, ids);
+          if (err) { toast.error(err); return; }
           await refreshStats(); setEdit(null);
         }} />}
     </div>

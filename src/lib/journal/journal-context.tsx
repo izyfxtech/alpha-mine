@@ -1,3 +1,5 @@
+import { pushTo } from "@/lib/group";
+import { storageGet, storageSet } from "@/lib/safe-storage";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { localDay } from "@/lib/time/local-time";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -123,7 +125,7 @@ export function JournalProvider({ children }: { children: ReactNode }) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [filters, setFilters] = useState<Filters>({});
 
-  useEffect(() => setActiveId(localStorage.getItem("am.journal")), []);
+  useEffect(() => setActiveId(storageGet("am.journal")), []);
 
   const { data: journals = [] } = useQuery({
     queryKey: ["journals"],
@@ -145,7 +147,7 @@ export function JournalProvider({ children }: { children: ReactNode }) {
     journals,
     journal: journal ? { ...journal, starting_balance: Number(journal.starting_balance) } : null,
     setJournalId: (id) => {
-      localStorage.setItem("am.journal", id);
+      storageSet("am.journal", id);
       void supabase.from("journals").update({ last_used_at: new Date().toISOString() }).eq("id", id);
       setActiveId(id);
       setFilters({});
@@ -177,6 +179,9 @@ export function useLookups(journalId?: string) {
         supabase.from("custom_stat_options").select("*").eq("journal_id", journalId!).order("position").order("created_at"),
         supabase.from("trading_rules").select("*").eq("journal_id", journalId!).order("position").order("created_at"),
       ]);
+      // A failed fetch must not look like an empty list of pickers: let the query report the error.
+      const failed = [i, s, c, p, sc, so, ru].find((r) => r.error)?.error;
+      if (failed) throw failed;
       // Disabled ("retired") items stay on the trades that use them but are hidden from every picker.
       const on = <T extends { disabled?: boolean }>(rows: T[] | null) => (rows ?? []).filter((r) => !r.disabled);
       const comments = (c.data ?? []) as { id: string; phase: string; label: string; sentiment: Sentiment; journal_id: string; disabled?: boolean }[];
@@ -224,12 +229,12 @@ export async function fetchTrades(journalIds: string[]): Promise<Trade[]> {
   (tc.data ?? []).forEach((r) => {
     const d = cm.get(r.comment_definition_id);
     if (!d) return;
-    byTrade.set(r.trade_id, [...(byTrade.get(r.trade_id) ?? []), { id: d.id, label: d.label, phase: d.phase, sentiment: d.sentiment as Sentiment }]);
+    pushTo(byTrade, r.trade_id, { id: d.id, label: d.label, phase: d.phase, sentiment: d.sentiment as Sentiment });
   });
   const stats = new Map<string, string[]>();
-  (cs.data ?? []).forEach((r) => stats.set(r.trade_id, [...(stats.get(r.trade_id) ?? []), r.option_id]));
+  (cs.data ?? []).forEach((r) => pushTo(stats, r.trade_id, r.option_id));
   const checks = new Map<string, RuleCheck[]>();
-  (rc.data ?? []).forEach((r) => checks.set(r.trade_id, [...(checks.get(r.trade_id) ?? []), { rule_id: r.rule_id, status: r.status as RuleCheck["status"] }]));
+  (rc.data ?? []).forEach((r) => pushTo(checks, r.trade_id, { rule_id: r.rule_id, status: r.status as RuleCheck["status"] }));
   const jInfo = new Map((jr.data ?? []).map((j) => [j.id, { currency: j.currency as string, unit: j.quantity_unit as string | null, markets: (j.markets ?? []) as string[] }]));
   const moneyCtx = (row: TradeRow) => {
     const j = jInfo.get(row.journal_id);

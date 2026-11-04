@@ -39,18 +39,40 @@ function Notebook() {
   // Pending (unsaved) edit, kept in a ref so it can be flushed when the user switches notes quickly
   // instead of being dropped by the debounce timer.
   const pending = useRef<{ id: string; title: string; content: string } | null>(null);
-  const flush = () => {
-    const p = pending.current; pending.current = null;
-    if (p) void pages.update(p.id, { title: p.title, content: p.content, updated_at: new Date().toISOString() });
+  const [saveState, setSaveState] = useState<"saved" | "saving" | "failed">("saved");
+  const flush = async () => {
+    const p = pending.current;
+    if (!p) return;
+    setSaveState("saving");
+    const ok = await pages.update(p.id, { title: p.title, content: p.content, updated_at: new Date().toISOString() });
+    if (ok) {
+      // Only clear if nothing newer was typed while the request was in flight.
+      if (pending.current === p) pending.current = null;
+      setSaveState(pending.current ? "saving" : "saved");
+    } else {
+      // Keep the edit so the next change, retry or leaving the page tries again.
+      if (!pending.current) pending.current = p;
+      setSaveState("failed");
+    }
   };
-  useEffect(() => { flush(); setTitle(page?.title ?? ""); setContent(page?.content ?? ""); }, [page?.id]);
+  useEffect(() => { void flush(); setTitle(page?.title ?? ""); setContent(page?.content ?? ""); }, [page?.id]);
   useEffect(() => {
     if (!page || (title === page.title && content === (page.content ?? ""))) return;
     pending.current = { id: page.id, title, content };
-    const h = setTimeout(flush, 700);
+    setSaveState("saving");
+    const h = setTimeout(() => void flush(), 700);
     return () => clearTimeout(h);
   }, [title, content]);
-  useEffect(() => flush, []); // save on leaving the page
+  useEffect(() => {
+    // Save when leaving the page, hiding the tab or closing it; warn if an edit is still unsaved.
+    const hide = () => { if (document.visibilityState === "hidden") void flush(); };
+    const warn = (e: BeforeUnloadEvent) => { if (pending.current) { void flush(); e.preventDefault(); e.returnValue = ""; } };
+    document.addEventListener("visibilitychange", hide);
+    const leave = () => void flush();
+    window.addEventListener("pagehide", leave);
+    window.addEventListener("beforeunload", warn);
+    return () => { document.removeEventListener("visibilitychange", hide); window.removeEventListener("beforeunload", warn); window.removeEventListener("pagehide", leave); void flush(); };
+  }, []);
 
   const addNote = async () => {
     const target = folder === ALL ? names[0] ?? "Diary" : folder;
@@ -66,9 +88,17 @@ function Notebook() {
   const renameFolder = async (name: string) => {
     const n = (await prompt({ title: "Rename folder", label: "Folder name", defaultValue: name, confirmLabel: "Rename" }))?.trim();
     if (!n || n === name) return;
+    if (names.some((x) => x.toLowerCase() === n.toLowerCase() && x !== name)) {
+      if (!(await confirm({ title: `Merge into "${n}"?`, message: `A folder called "${n}" already exists. The notes from "${name}" will be moved into it.` }))) return;
+    }
+    // Move the notes first; the folder row is renamed only once every note moved, so a failure never leaves a ghost folder.
+    const moved = await Promise.all(pages.rows.filter((p) => p.folder === name).map((p) => pages.update(p.id, { folder: n })));
+    if (moved.some((ok) => !ok)) return;
     const f = folders.rows.find((x) => x.name === name);
-    if (f) await folders.update(f.id, { name: n }); else await folders.insert({ name: n, position: names.length });
-    await Promise.all(pages.rows.filter((p) => p.folder === name).map((p) => pages.update(p.id, { folder: n })));
+    const target = folders.rows.find((x) => x.name === n);
+    if (f && target) await folders.remove(f.id);
+    else if (f) await folders.update(f.id, { name: n });
+    else if (!target) await folders.insert({ name: n, position: names.length });
     if (folder === name) setFolder(n);
   };
   const deleteFolder = async (name: string) => {
@@ -110,6 +140,7 @@ function Notebook() {
             <>
               <div className="mb-3 flex items-center gap-2">
                 <input value={title} onChange={(e) => setTitle(e.target.value)} className="flex-1 bg-transparent text-[16px] font-bold outline-none" />
+                <span className={cn("text-xs", saveState === "failed" ? "text-destructive" : "text-t4")} role="status">{saveState === "saving" ? "Saving…" : saveState === "failed" ? "Not saved — retrying on your next edit" : "Saved"}</span>
                 <Button variant="ghost" size="icon" onClick={async () => { if (!(await confirm({ title: `Delete "${page.title || "Untitled"}"?`, message: "This cannot be undone.", destructive: true }))) return; if (await pages.remove(page.id)) setSel(null); }} title="Delete note"><Trash2 className="h-4 w-4" /></Button>
               </div>
               <RichEditor value={content} onChange={setContent} className="min-h-0 flex-1" />

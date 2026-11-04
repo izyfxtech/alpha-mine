@@ -1,3 +1,4 @@
+import { compareKeys, pushTo } from "@/lib/group";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { localDay } from "@/lib/time/local-time";
 import { useDrillDown } from "@/lib/journal/drilldown";
@@ -136,11 +137,11 @@ function GroupChart({ trades, start, cur, by, noun, order, extraControl, showTab
   const [sort, setSort] = useState<Sort>(order ? "By Name" : "By Value");
   const groups = useMemo(() => {
     const m = new Map<string, Trade[]>();
-    trades.forEach((t) => by(t).forEach((k) => m.set(k, [...(m.get(k) ?? []), t])));
+    trades.forEach((t) => by(t).forEach((k) => pushTo(m, k, t)));
     let rows = [...m.entries()].map(([k, ts]) => ({ k, ts, v: +valueOf(ts, display, start).toFixed(2), n: ts.length }));
     if (sort === "By Value") rows.sort((a, b) => b.v - a.v);
     else if (sort === "By Trades") rows.sort((a, b) => b.n - a.n);
-    else rows.sort((a, b) => (order ? order.indexOf(a.k) - order.indexOf(b.k) : a.k.localeCompare(b.k)));
+    else rows.sort((a, b) => (order?.length ? order.indexOf(a.k) - order.indexOf(b.k) : compareKeys(a.k, b.k)));
     return rows;
   }, [trades, by, display, sort, start, order]);
   if (!groups.length) return <Empty>No data for this chart yet.</Empty>;

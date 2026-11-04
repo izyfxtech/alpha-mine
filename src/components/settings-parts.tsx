@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { GripVertical } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -75,7 +76,7 @@ export function TypedConfirm({ open, onOpenChange, title, description, phrase, c
         <Input autoFocus value={typed} onChange={(e) => setTyped(e.target.value)} aria-label="Confirmation text" placeholder={phrase} />
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button variant="destructive" disabled={typed.trim() !== phrase || busy} onClick={async () => { setBusy(true); try { await onConfirm(); setTyped(""); onOpenChange(false); } finally { setBusy(false); } }}>{confirmLabel}</Button>
+          <Button variant="destructive" disabled={typed.trim() !== phrase || busy} onClick={async () => { setBusy(true); try { await onConfirm(); setTyped(""); onOpenChange(false); } catch (e) { toast.error((e as Error).message || "That did not work. Nothing was changed."); } finally { setBusy(false); } }}>{confirmLabel}</Button>
         </div>
       </DialogContent>
     </Dialog>
