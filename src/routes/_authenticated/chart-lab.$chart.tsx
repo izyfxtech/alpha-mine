@@ -309,7 +309,7 @@ function ExitAnalysis({ trades }: { trades: Trade[] }) {
   const yt = niceTicks(Math.min(-100, ...data.map((d) => Math.min(d.dn, d.exit))), Math.max(100, ...data.map((d) => Math.max(d.up, d.exit))), 6);
   return (
     <div className="space-y-4">
-      <ChartCard size="full" legend={<><Dot c="bg-profit">Updraw</Dot><Dot c="bg-loss">Drawdown</Dot></>}>
+      <ChartCard size="full" legend={<><Dot c="bg-profit">Updraw</Dot><Dot c="bg-loss">Drawdown</Dot>{rows.length > 30 && <span className="text-xs text-muted-foreground">Last 30 of {rows.length} trades</span>}</>}>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} stackOffset="sign" margin={{ top: 8, right: 8, left: 4, bottom: 18 }} className="cursor-pointer" onClick={(e: { activeIndex?: number | string | null }) => { const d = data[Number(e?.activeIndex)]; if (d) drawer.open(d.trade); }}>
             <CartesianGrid vertical={false} stroke="var(--color-grid)" />
@@ -321,7 +321,7 @@ function ExitAnalysis({ trades }: { trades: Trade[] }) {
             <Tooltip content={({ active, payload }) => active && payload?.length ? <Tip title={`Trade ${(payload[0].payload as { x: number }).x}`} lines={[["Updraw", `${(payload[0].payload as { up: number }).up}%`], ["Drawdown", `${(payload[0].payload as { dn: number }).dn}%`], ["Exit", `${(payload[0].payload as { exit: number }).exit}%`]]} /> : null} />
             <Bar dataKey="up" stackId="a" fill="var(--color-chart-1)" isAnimationActive={false} />
             <Bar dataKey="dn" stackId="a" fill="var(--color-chart-2)" isAnimationActive={false} />
-            <Scatter dataKey="exit" fill="#111" shape={(pp: { cx?: number; cy?: number }) => <circle cx={pp.cx} cy={pp.cy} r={2.5} fill="#111" />} isAnimationActive={false} />
+            <Scatter dataKey="exit" fill="var(--color-foreground)" shape={(pp: { cx?: number; cy?: number }) => <circle cx={pp.cx} cy={pp.cy} r={2.5} fill="var(--color-foreground)" />} isAnimationActive={false} />
           </ComposedChart>
         </ResponsiveContainer>
       </ChartCard>

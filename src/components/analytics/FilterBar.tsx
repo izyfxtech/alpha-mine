@@ -70,7 +70,9 @@ function Tile({ icon, label, value, active, onClear, children, wide }: { icon?: 
         <button className={cn("relative flex h-9 w-full items-center gap-1.5 rounded-md border border-line2 bg-card px-3 text-left text-[12px]", active && "border-foreground")}>
           {value != null && <span className="absolute -top-2 left-2 bg-card px-1 text-xs text-muted-foreground">{label}</span>}
           {icon}<span className="flex-1 truncate">{value ?? label}</span>
-          {active ? <X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" onClick={(e) => { e.stopPropagation(); onClear(); }} /> : <ChevronDown className="h-3.5 w-3.5" />}
+          {active ? <span role="button" tabIndex={0} aria-label={`Clear ${label}`} className="grid place-items-center rounded text-muted-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2"
+            onClick={(e) => { e.stopPropagation(); onClear(); }}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onClear(); } }}><X className="h-3.5 w-3.5" /></span> : <ChevronDown className="h-3.5 w-3.5" />}
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className={cn("max-h-80 overflow-auto p-2 text-xs", wide ? "w-72" : "w-56")}>{children}</PopoverContent>

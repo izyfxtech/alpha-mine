@@ -26,6 +26,9 @@ export function ScreenshotSlots({ existing, pending, onAdd, onRemoveExisting, on
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
       if (e.defaultPrevented) return;
+      // An image pasted into a text field (Notes, a price) belongs to that field, not to the screenshots.
+      const t = e.target as HTMLElement | null;
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
       const files = Array.from(e.clipboardData?.files ?? []).filter((f) => f.type.startsWith("image/"));
       if (!files.length) return;
       e.preventDefault();
@@ -49,7 +52,10 @@ export function ScreenshotSlots({ existing, pending, onAdd, onRemoveExisting, on
 }
 
 function fromFiles(files: FileList | File[]): PendingShot[] {
-  return Array.from(files).filter((f) => f.type.startsWith("image/")).map((file) => ({ key: crypto.randomUUID(), file, preview: URL.createObjectURL(file) }));
+  const all = Array.from(files);
+  const images = all.filter((f) => f.type.startsWith("image/"));
+  if (all.length > images.length) toast.error(`${all.length - images.length} file${all.length - images.length === 1 ? " was" : "s were"} skipped: only images can be added.`);
+  return images.map((file) => ({ key: crypto.randomUUID(), file, preview: URL.createObjectURL(file) }));
 }
 
 function EmptySlot({ onAdd }: { onAdd: (p: PendingShot[]) => void }) {
@@ -58,7 +64,7 @@ function EmptySlot({ onAdd }: { onAdd: (p: PendingShot[]) => void }) {
   const addUrl = () => {
     const v = url.trim();
     if (!v) return;
-    if (!/^https?:\/\/\S+$/i.test(v)) { toast.error("Paste a valid image link (https://…)"); return; }
+    if (!/^https:\/\/\S+$/i.test(v)) { toast.error("Paste a valid image link (https://…)"); return; }
     onAdd([{ key: crypto.randomUUID(), url: v, preview: v }]);
     setUrl("");
   };
