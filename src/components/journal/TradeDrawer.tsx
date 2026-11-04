@@ -186,9 +186,33 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
   const refreshLookups = () => qc.invalidateQueries({ queryKey: ["lookups", journal?.id] });
   async function create(table: "instruments" | "setups", label: string) {
     if (!journal) return null;
-    const row = table === "instruments" ? { symbol: label.toUpperCase(), asset_class: assetClassFor(label, journal.markets), journal_id: journal.id } : { name: label, journal_id: journal.id };
+    const text = label.trim();
+    if (!text) return null;
+    const column = table === "instruments" ? "symbol" : "name";
+    const value = table === "instruments" ? text.toUpperCase() : text;
+    // The name may already exist (typed in another case, or retired and hidden from the picker): use that one instead of
+    // failing on the unique (journal, name) rule.
+    const existing = (table === "instruments" ? lk?.all.instruments : lk?.all.setups ?? [])?.find((x) => String((x as Record<string, unknown>)[column]).toLowerCase() === value.toLowerCase());
+    const reuse = async (id: string, disabled?: boolean) => {
+      if (disabled) {
+        const { error } = await supabase.from(table).update({ disabled: false } as never).eq("id", id);
+        if (error) { toast.error(`Could not bring back "${value}": ${error.message}`); return null; }
+      }
+      await refreshLookups();
+      return id;
+    };
+    if (existing) return reuse(existing.id, (existing as { disabled?: boolean }).disabled);
+    const row = table === "instruments" ? { symbol: value, asset_class: assetClassFor(value, journal.markets), journal_id: journal.id } : { name: value, journal_id: journal.id };
     const { data, error } = await supabase.from(table).insert(row as never).select("id").single();
-    if (error) { toast.error(error.message); return null; }
+    if (error) {
+      if (error.code === "23505") {
+        // Created a moment ago in another tab or by a retry: find it and use it.
+        const { data: found } = await supabase.from(table).select("id,disabled").eq("journal_id", journal.id).ilike(column, value.replace(/[\\%_]/g, "\\$&")).limit(1).maybeSingle();
+        if (found) return reuse(found.id, (found as { disabled?: boolean }).disabled);
+      }
+      toast.error(`Could not add "${value}": ${error.message}`);
+      return null;
+    }
     await refreshLookups();
     return (data as { id: string }).id;
   }

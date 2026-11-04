@@ -8,7 +8,7 @@ import { ArrowDown, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react"
 import { fetchAllRows, fetchTrades, useJournal } from "@/lib/journal/journal-context";
 import { countOption } from "@/lib/journal/fetch-all";
 import { supabase } from "@/integrations/supabase/client";
-import { bucketPerformance, computeStats, fmtNum, fmtPct, groupPerformance, MONTHS, WEEKDAYS, type Trade } from "@/lib/pnl/metrics";
+import { bucketPerformance, computeStats, fmtNum, fmtPct, groupPerformance, isOpen, MONTHS, WEEKDAYS, type Trade } from "@/lib/pnl/metrics";
 import { EquityChart, Panel, PnlBars, Stat } from "@/components/kit";
 import { KpiCards } from "@/components/analytics/KpiCards";
 import { ProfitCalendar } from "@/components/analytics/ProfitCalendar";
@@ -41,7 +41,7 @@ function Portfolio() {
   });
   // Portfolio works in % of each journal's own balance before the trade (deposits included), so different currencies and
   // sizes compare fairly. A journal with no balance has no meaningful % and contributes 0 instead of a made-up 1.
-  const trades = useMemo(() => allTrades.filter((t) => !off.has(t.journal_id)).map((t) => ({ ...t, pct: t.accountSize > 0 ? t.retPct : 0 })), [allTrades, off]);
+  const trades = useMemo(() => allTrades.filter((t) => !off.has(t.journal_id) && !isOpen(t)).map((t) => ({ ...t, pct: t.accountSize > 0 ? t.retPct : 0 })), [allTrades, off]);
   const pctTrades: Trade[] = useMemo(() => trades.map((t) => ({ ...t, net_pnl: unit === "pct" ? +t.pct.toFixed(4) : t.r ?? 0 })), [trades, unit]);
   const per = useMemo(() => active.map((j) => ({ j, s: computeStats(trades.filter((t) => t.journal_id === j.id), Number(j.starting_balance), allFlows.filter((f) => f.journal_id === j.id).map((f) => ({ occurred_on: f.occurred_on, amount: Number(f.amount) }))), ts: trades.filter((t) => t.journal_id === j.id) })), [active, trades, allFlows]);
   // pctTrades already carry returns in % (or R), so there is no money cashflow to apply on this combined view.
@@ -55,7 +55,9 @@ function Portfolio() {
   const extremes = best.length > 10 ? [...best.slice(0, 5), ...best.slice(-5)] : best; // the 5 best and the 5 worst
   const totals = per.reduce((a, { s: x }) => ({ roi: a.roi + x.roi, r: a.r + x.totalR, n: a.n + x.count }), { roi: 0, r: 0, n: 0 });
   const avgPct = trades.length ? trades.reduce((a, t) => a + t.pct, 0) / trades.length : 0;
-  const avgR = trades.length ? trades.reduce((a, t) => a + (t.r ?? 0), 0) / trades.length : 0;
+  // Same rule as every other page: R is averaged over the trades that have one, and open trades are not results yet.
+  const rTrades = trades.filter((t) => t.r != null);
+  const avgR = rTrades.length ? rTrades.reduce((a, t) => a + (t.r ?? 0), 0) / rTrades.length : 0;
   const days = new Set(trades.map((t) => localDay(t.entry_at))).size || 1;
   const followed = trades.filter((t) => t.followedPlan).length;
 
