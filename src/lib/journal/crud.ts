@@ -40,9 +40,12 @@ export function useJournalTable<T extends TableName>(table: T, journalId: string
       if (!fail(error)) done();
       return data as unknown as Row<T> | null;
     },
-    update: async (id: string, values: Partial<Row<T>>) => {
+    /** Returns whether it worked, so a sheet can stay open (keeping what was typed) when it did not. */
+    update: async (id: string, values: Partial<Row<T>>): Promise<boolean> => {
       const { error } = await (supabase as any).from(table).update(values as never).eq("id", id);
-      if (!fail(error)) done();
+      if (fail(error)) return false;
+      done();
+      return true;
     },
     /** Move a row up/down and rewrite every row's position so order is stable. */
      move: async (id: string, dir: -1 | 1, group?: { field: string; value: string }) => {

@@ -179,6 +179,9 @@ export function useLookups(journalId?: string) {
         supabase.from("custom_stat_options").select("*").eq("journal_id", journalId!).order("position").order("created_at"),
         supabase.from("trading_rules").select("*").eq("journal_id", journalId!).order("position").order("created_at"),
       ]);
+      // A failed fetch must not look like an empty list of pickers: let the query report the error.
+      const failed = [i, s, c, p, sc, so, ru].find((r) => r.error)?.error;
+      if (failed) throw failed;
       // Disabled ("retired") items stay on the trades that use them but are hidden from every picker.
       const on = <T extends { disabled?: boolean }>(rows: T[] | null) => (rows ?? []).filter((r) => !r.disabled);
       const comments = (c.data ?? []) as { id: string; phase: string; label: string; sentiment: Sentiment; journal_id: string; disabled?: boolean }[];

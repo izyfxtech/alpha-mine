@@ -112,7 +112,7 @@ function Sessions() {
       </div>
       {edit && <SessionSheet key={edit === "new" ? "new" : edit.id} session={edit === "new" ? null : edit} trades={trades} start={start} currency={journal?.currency} categories={journal?.session_categories ?? []}
         onClose={() => setEdit(null)}
-        onSave={async (v) => { if (edit === "new") await t.insert(v); else await t.update(edit.id, v); setEdit(null); }} />}
+        onSave={async (v) => { const ok = edit === "new" ? !!(await t.insert(v)) : await t.update(edit.id, v); if (ok) setEdit(null); }} />}
     </div>
   );
 }

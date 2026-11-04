@@ -108,13 +108,17 @@ function Alternatives() {
         results={results} onClose={() => setEdit(null)}
         onSave={async (v, rows) => {
           let id = edit === "new" ? null : edit.id;
-          if (id) await t.update(id, v); else id = (await t.insert(v))?.id ?? null;
+          if (id) { if (!(await t.update(id, v))) return; } else id = (await t.insert(v))?.id ?? null;
           if (!id || !journal) return;
-          await supabase.from("alt_strategy_results").delete().eq("strategy_id", id);
+          // Upsert first, then remove results for trades no longer listed: a failure never wipes the earlier results.
           if (rows.length) {
-            const { error } = await supabase.from("alt_strategy_results").insert(rows.map((x) => ({ ...x, strategy_id: id!, journal_id: journal.id })));
+            const { error } = await supabase.from("alt_strategy_results").upsert(rows.map((x) => ({ ...x, strategy_id: id!, journal_id: journal.id })), { onConflict: "strategy_id,trade_id" });
             if (error) { toast.error(error.message); return; }
           }
+          const keep = rows.map((x) => x.trade_id);
+          const del = supabase.from("alt_strategy_results").delete().eq("strategy_id", id);
+          const { error: delError } = keep.length ? await del.not("trade_id", "in", `(${keep.join(",")})`) : await del;
+          if (delError) { toast.error(delError.message); return; }
           qc.invalidateQueries({ queryKey: ["alt_strategy_results"] });
           setEdit(null);
         }} />}

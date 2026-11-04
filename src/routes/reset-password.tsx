@@ -17,7 +17,7 @@ function Reset() {
   async function save(e: React.FormEvent) {
     e.preventDefault();
     const n: typeof err = {};
-    if (pw.length < 6) n.pw = "Use at least 6 characters.";
+    if (pw.length < 8) n.pw = "Use at least 8 characters.";
     if (again !== pw) n.again = "The two passwords do not match.";
     setErr(n);
     if (n.pw || n.again) return;
