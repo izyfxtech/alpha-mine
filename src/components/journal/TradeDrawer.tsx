@@ -1,3 +1,4 @@
+import { syncLinks } from "@/lib/journal/sync-links";
 import { storageJson, storageSet } from "@/lib/safe-storage";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { fmtPrice } from "@/lib/pnl/format-price";
@@ -301,23 +302,20 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
         : await supabase.from("trades").insert(full).select("id").single();
       if (res.error) throw res.error;
       const id = res.data.id;
-      const [d1, d2, d3] = await Promise.all([
-        supabase.from("trade_comments").delete().eq("trade_id", id),
-        supabase.from("trade_custom_stats").delete().eq("trade_id", id),
-        supabase.from("trade_rule_checks").delete().eq("trade_id", id),
+      // Add what is missing first, then remove what is no longer wanted, so a failure part-way never wipes a trade's tags and ratings.
+      const [e1, e2] = await Promise.all([
+        syncLinks("trade_comments", "trade_id", id, journal.id, comments, "comment_definition_id"),
+        syncLinks("trade_custom_stats", "trade_id", id, journal.id, stats),
       ]);
-      if (d1.error || d2.error || d3.error) throw d1.error ?? d2.error ?? d3.error;
+      if (e1 || e2) throw new Error((e1 ?? e2)!);
       const checks = Object.entries(ruleSt).map(([rule_id, status]) => ({ trade_id: id, rule_id, status, journal_id: journal.id }));
       if (checks.length) {
-        const { error } = await supabase.from("trade_rule_checks").insert(checks);
+        const { error } = await supabase.from("trade_rule_checks").upsert(checks, { onConflict: "trade_id,rule_id" });
         if (error) throw error;
       }
-      if (comments.length) {
-        const { error } = await supabase.from("trade_comments").insert(comments.map((c) => ({ trade_id: id, comment_definition_id: c, journal_id: journal.id })));
-        if (error) throw error;
-      }
-      if (stats.length) {
-        const { error } = await supabase.from("trade_custom_stats").insert(stats.map((o) => ({ trade_id: id, option_id: o, journal_id: journal.id })));
+      {
+        const del = supabase.from("trade_rule_checks").delete().eq("trade_id", id);
+        const { error } = checks.length ? await del.not("rule_id", "in", `(${checks.map((c) => c.rule_id).join(",")})`) : await del;
         if (error) throw error;
       }
       const altRows = myAlts.filter((a) => alts[a.id]).map((a) => ({ strategy_id: a.id, trade_id: id, journal_id: journal.id, alt_profit: Number(alts[a.id]!.p) || 0, alt_r: Number(alts[a.id]!.r) || 0 }));

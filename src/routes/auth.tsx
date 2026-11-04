@@ -44,7 +44,7 @@ function AuthPage() {
     e.preventDefault();
     const next: typeof errs = {};
     if (!EMAIL_RE.test(email)) next.email = "Enter a valid email address, like name@example.com.";
-    if (mode !== "forgot" && password.length < 6) next.password = "Use at least 6 characters.";
+    if (mode !== "forgot" && password.length < 8) next.password = "Use at least 8 characters.";
     setErrs(next);
     if (next.email || next.password) return;
     setBusy(true);

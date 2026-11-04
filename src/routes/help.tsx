@@ -5,7 +5,7 @@ import { CtaBand, PageHero, SiteLayout } from "@/components/marketing/site";
 const DESC = "Answers about getting started, importing trades, sharing, and the tools inside AlphaMine.";
 const groups = [
   { id: "start", title: "Getting started", items: [
-    ["How do I create an account?", "Open the sign in page and choose Create account. Sign up with your email and a password of at least 6 characters, or continue with Google. We email you a link to confirm your address."],
+    ["How do I create an account?", "Open the sign in page and choose Create account. Sign up with your email and a password of at least 8 characters, or continue with Google. We email you a link to confirm your address."],
     ["What is a journal?", "A journal is a separate set of trades with its own broker, currency and starting balance. You can keep more than one, and every report follows the journal you have selected."],
     ["How do I add my first trade?", "Open Journal and add a trade with its instrument, setup and result, or import a report to bring in your history at once."],
   ] },

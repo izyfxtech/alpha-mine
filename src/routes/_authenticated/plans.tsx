@@ -1,3 +1,4 @@
+import { syncLinks } from "@/lib/journal/sync-links";
 import { createFileRoute } from "@tanstack/react-router";
 import { fmtPrice } from "@/lib/pnl/format-price";
 import { fromInputValue, localDateTime, toInputValue } from "@/lib/time/local-time";
@@ -141,11 +142,10 @@ function PlansPage() {
           onClose={() => setEdit(null)}
           selectedStats={edit === "new" ? [] : statLinks.filter((l) => l.planned_trade_id === edit.id).map((l) => l.option_id)}
           onSave={async (v, ids) => {
-            const saved = edit === "new" ? await t.insert(v) : (await t.update(edit.id, v), edit);
+            const saved = edit === "new" ? await t.insert(v) : (await t.update(edit.id, v)) ? edit : null;
             if (!saved || !journal) return;
-            const { error: delError } = await supabase.from("planned_trade_custom_stats").delete().eq("planned_trade_id", saved.id);
-            if (delError) { toast.error(delError.message); return; }
-            if (ids.length) { const { error } = await supabase.from("planned_trade_custom_stats").insert(ids.map((option_id) => ({ planned_trade_id: saved.id, option_id, journal_id: journal.id }))); if (error) { toast.error(error.message); return; } }
+            const err = await syncLinks("planned_trade_custom_stats", "planned_trade_id", saved.id, journal.id, ids);
+            if (err) { const { toast } = await import("sonner"); toast.error(err); return; }
             qc.invalidateQueries({ queryKey: ["planned_trade_custom_stats", journal.id] });
             setEdit(null);
           }} />}
@@ -161,7 +161,10 @@ function PlansPage() {
             if (error) { const { toast } = await import("sonner"); toast.error(error.message); return; }
             if (ids.length && data) {
               const { error: statError } = await supabase.from("missed_trade_custom_stats").insert(ids.map((option_id) => ({ missed_trade_id: data.id, option_id, journal_id: journal!.id })));
-              if (statError) { const { toast } = await import("sonner"); toast.error(statError.message); return; }
+              if (statError) {
+                await supabase.from("missed_trades").delete().eq("id", data.id); // roll back, so a retry does not create a second copy
+                const { toast } = await import("sonner"); toast.error(statError.message); return;
+              }
             }
             await t.remove(toMissed.id);
             qc.invalidateQueries({ queryKey: ["missed_trades"] });

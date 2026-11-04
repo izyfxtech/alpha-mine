@@ -96,7 +96,7 @@ function Backtester() {
         </table>
       </div>
       {edit && <BacktestSheet key={edit === "new" ? "new" : edit.id} row={edit === "new" ? null : edit} onClose={() => setEdit(null)}
-        onSave={async (v) => { if (edit === "new") await t.insert(v); else await t.update(edit.id, v); setEdit(null); }} />}
+        onSave={async (v) => { const ok = edit === "new" ? !!(await t.insert(v)) : await t.update(edit.id, v); if (ok) setEdit(null); }} />}
     </div>
   );
 }
