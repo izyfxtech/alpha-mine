@@ -134,7 +134,7 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
     setComments(t?.comments.map((c) => c.id) ?? []);
     setStats(t?.customStats ?? []);
     setRuleSt(Object.fromEntries((t?.ruleChecks ?? []).map((c) => [c.rule_id, c.status])));
-    setPending([]); setRemoved([]); setNewCat(null);
+    setPending((x) => { x.forEach((p) => p.file && URL.revokeObjectURL(p.preview)); return []; }); setRemoved([]); setNewCat(null);
     setOpen(true);
   };
   // Previous / Next trade inside the editor (Alt+Left / Alt+Right), asking before discarding unsaved edits
@@ -562,7 +562,7 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
             {tab === "shots" && (
               <ScreenshotSlots existing={trade ? visibleShots : []} pending={pending}
                 onAdd={(p) => setPending((x) => [...x, ...p])}
-                onRemovePending={(k) => setPending((x) => x.filter((p) => p.key !== k))}
+                onRemovePending={(k) => setPending((x) => { x.find((p) => p.key === k && p.file)?.preview && URL.revokeObjectURL(x.find((p) => p.key === k)!.preview); return x.filter((p) => p.key !== k); })}
                 onRemoveExisting={(s) => setRemoved((r) => [...r, s])} />
             )}
           </div>

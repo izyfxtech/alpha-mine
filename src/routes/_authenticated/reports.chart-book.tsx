@@ -67,7 +67,7 @@ function ChartBook() {
       if (up.error) { toast.error(up.error.message); continue; }
       const link = active.kind === "trades" ? { trade_id: active.id } : active.kind === "missed" ? { missed_trade_id: active.id } : { planned_trade_id: active.id };
       const { error } = await supabase.from("trade_screenshots").insert({ journal_id: journal.id, ...link, path });
-      if (error) toast.error(error.message);
+      if (error) { toast.error(error.message); await supabase.storage.from("screenshots").remove([path]); } // do not leave an orphaned file
     }
     qc.invalidateQueries({ queryKey: ["screenshots"] });
     qc.invalidateQueries({ queryKey: ["screenshot-ids"] });
