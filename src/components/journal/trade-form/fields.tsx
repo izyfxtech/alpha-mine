@@ -31,7 +31,7 @@ export function FloatInput({ label, value, onChange, type = "number", right, dis
   return (
     <FloatBox label={label} filled={filled} disabled={disabled} right={right && <div onClick={pick} className="cursor-pointer">{right}</div>}>
       <input
-        type={type} step="any" value={value} disabled={disabled} placeholder={focus ? placeholder : undefined}
+        type={type} step="any" aria-label={label} value={value} disabled={disabled} placeholder={focus ? placeholder : undefined}
         onFocus={() => setFocus(true)} onBlur={() => setFocus(false)}
         onChange={(e) => onChange?.(e.target.value)}
         className={cn("tf-input", align === "right" && type === "number" ? "text-right" : "text-left", !filled && "opacity-0")}
@@ -79,7 +79,7 @@ export function FloatSelect({ label, options, value, onChange, multi = false, on
   return (
     <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setQ(""); }}>
       <PopoverTrigger asChild>
-        <button type="button" className="w-full text-left">
+        <button type="button" className="w-full text-left" aria-label={label} aria-haspopup="listbox">
           <FloatBox label={label} filled={!!selected} right={<ChevronDown className="h-3.5 w-3.5 fill-current" />}>
             <span className="tf-input truncate">{selected}</span>
           </FloatBox>

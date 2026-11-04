@@ -4,6 +4,8 @@ Newest first. Dates are the day the work landed on `main`.
 
 ## 2026-11-04 (failed saves)
 
+- **M29**: contact address set (privacy and terms pages show it). **L29**: trade-form fields and selects have accessible names; the filter clear button is a focusable button. **L43**: images pasted into a text field stay there; screenshot links must be https; skipped non-image files are reported. **L38**: Chart Book delete asks first and is reachable by keyboard. **L37**: Exit Analysis says when it shows only the last 30 trades; its dots follow the theme.
+
 - Reset password (L42): shows an invalid/expired-link message when there is no recovery session. Marketing copy says seventeen charts (L40). L35 (empty Entry Date) was already validated.
 
 - Notebook (L26): an edit is kept until the save succeeds, with a Saved / Saving / Not saved indicator; saves on tab hide and close (with a leave warning if unsaved); renaming a folder moves notes first so no ghost folder remains, and asks before merging into an existing name.
