@@ -11,7 +11,6 @@ import { useEdgeInsights } from "@/lib/pnl/use-edge-insights";
 import { useTrades } from "@/lib/journal/journal-context";
 import { bucketPerformance, computeStats, fmtHold, fmtMoney, fmtNum, fmtPct, groupPerformance } from "@/lib/pnl/metrics";
 import { KpiCards } from "@/components/analytics/KpiCards";
-import { Social } from "@/components/Social";
 import { Empty, EquityChart, Panel, PnlBars, Stat, cumulative } from "@/components/kit";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -127,7 +126,6 @@ function Home() {
       <div className="grid grid-cols-3 gap-[30px]">
         <Panel title="Performance by Hour"><PnlBars data={byHour} x="key" fmt={barFmt} height={230} /></Panel>
         <Panel title="Performance by Setup"><PnlBars data={bySetup} x="key" fmt={barFmt} height={230} /></Panel>
-        <Social />
       </div>
     </div>
   );

@@ -1,3 +1,4 @@
+import { rewardRisk } from "@/lib/pnl/calc";
 import { createFileRoute } from "@tanstack/react-router";
 import { countOption, fetchAllRows } from "@/lib/journal/fetch-all";
 import { useMemo, useState } from "react";
@@ -39,7 +40,8 @@ function block(items: Item[], start: number) {
 
 function Analysis() {
   const { journal } = useJournal();
-  const { trades } = useTrades();
+  // Missed trades ignore the top-bar filters, so the real trades must too or "Missed vs Real" compares different populations.
+  const { trades } = useTrades({ unfiltered: true });
   const missed = useJournalTable("missed_trades", journal?.id, "occurred_at", true);
   const categories = useJournalTable("custom_stat_categories", journal?.id, "position", true);
   const options = useJournalTable("custom_stat_options", journal?.id, "position", true);
@@ -52,7 +54,7 @@ function Analysis() {
   const mItems: Item[] = useMemo(() => missed.rows.map((m) => { const x = missedMetrics(m); return { pnl: Number(m.net_pnl) || 0, r: x.rMultiple, rPlanned: x.rPlanned, at: m.occurred_at }; }), [missed.rows]);
   const rItems: Item[] = useMemo(() => trades.map((t) => ({
     pnl: t.net_pnl, r: t.r, at: t.entry_at,
-    rPlanned: t.stop_loss != null && t.take_profit != null && t.entry_price !== t.stop_loss ? Math.abs(t.take_profit - t.entry_price) / Math.abs(t.entry_price - t.stop_loss) : null,
+    rPlanned: rewardRisk(t),
   })), [trades]);
   const M = block(mItems, start), R = block(rItems, start), C = block([...mItems, ...rItems], start);
   const conv = (pnl: number, r: number | null) => (unit === "r" ? r ?? 0 : unit === "pct" ? (start ? (pnl / start) * 100 : 0) : pnl);
