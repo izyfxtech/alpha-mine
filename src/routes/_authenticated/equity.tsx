@@ -129,7 +129,7 @@ function Equity() {
         <AccentStat label="Winrate (%)" value={fmtNum(s.winRate)} />
         <AccentStat label="Avg. P&L" value={fmtMoney(s.avgPnl, cur)} tone={s.avgPnl < 0 ? "neg" : "pos"} />
         <AccentStat label="Profit Factor" value={fmtNum(s.profitFactor)} />
-        <AccentStat label="Return (%)" value={Math.round(s.roi)} tone={s.roi < 0 ? "neg" : "pos"} />
+        <AccentStat label="Return (%)" value={s.roi.toFixed(2)} tone={s.roi < 0 ? "neg" : "pos"} />
         <AccentStat label="Biggest Winner" value={fmtMoney(s.biggestWin, cur)} />
         <AccentStat label="Biggest Loser" value={fmtMoney(s.biggestLoss, cur)} />
         <AccentStat label="Profit/Loss" value={fmtMoney(s.net, cur)} tone={s.net < 0 ? "neg" : "pos"} />

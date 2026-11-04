@@ -2,6 +2,10 @@
 
 Newest first. Dates are the day the work landed on `main`.
 
+## 2026-11-04 (audit Lows)
+
+- L31: one `safe-storage` helper replaces nine unguarded `localStorage` uses (private windows no longer throw). L28: rich-text notes are sanitised on load (allow-list; no scripts, handlers or `javascript:` URLs) and the Link/Image prompts accept only http, https and mailto. L24: decoded image bitmaps are closed after compression. L23: ten quadratic grouping sites use `pushTo`. L36/L39: "By Name" sorts naturally (Week 3 before Week 12) and weekdays/months sort in calendar order. L22: the AM score no longer rewards ten wins with no drawdown, and the Equity page shows Return (%) to two decimals instead of rounding to a whole number.
+
 ## 2026-11-04
 
 - **Portfolio now agrees with Home** for the same journal: open trades are no longer counted as results, and average R is taken over trades that have an R (it was divided by every trade). Portfolio still ignores the top-bar filters, because it compares journals.

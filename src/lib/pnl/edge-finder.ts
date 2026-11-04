@@ -1,3 +1,4 @@
+import { pushTo } from "@/lib/group";
 import { safeCurrency } from "@/lib/currencies";
 import { computeStats, equityCurve, potentialR, type Cashflow, type Trade } from "@/lib/pnl/metrics";
 import { complianceReport } from "@/lib/pnl/compliance";
@@ -126,7 +127,7 @@ function build(all: Trade[], balance: number, flows: Cashflow[], cur: string, op
     const rating: Rating = pos > neg ? "good" : pos === neg ? "ok" : "poor";
     const text = rating === "good" ? "Your positive outliers outnumber the negative ones. This is a good sign that your edge is present and that certain trades generate well above-average returns." : rating === "ok" ? "Your biggest winners and losers balance out. Look at what made the outliers different." : "Your negative outliers outnumber the positive ones. A few large losses are dragging your results.";
     const g = new Map<string, number[]>();
-    ts.forEach((t) => t.customStats.forEach((id) => g.set(id, [...(g.get(id) ?? []), t.net_pnl])));
+    ts.forEach((t) => t.customStats.forEach((id) => pushTo(g, id, t.net_pnl)));
     const tags = [...g.entries()].filter(([id, v]) => v.length >= 2 && optionNames.has(id)).map(([id, v]) => ({ id, avg: sum(v) / v.length, ...optionNames.get(id)! }));
     const prof = tags.filter((x) => x.avg > 0).sort((a, b) => b.avg - a.avg).slice(0, 8), lose = tags.filter((x) => x.avg < 0).sort((a, b) => a.avg - b.avg).slice(0, 8);
     cards.push({ id: "outlier", title: "Performance Outlier", text, rating, score: SCORE[rating], headline: pos - neg, ready: true, sections: [
@@ -145,7 +146,7 @@ function build(all: Trade[], balance: number, flows: Cashflow[], cur: string, op
       const rating: Rating = effect > 0.5 ? "good" : effect >= -0.5 ? "ok" : "poor";
       const text = rating === "good" ? "Your trade management has a positive effect on performance. You consistently improve outcomes beyond the original plan, which reflects good decision making after entry." : rating === "ok" ? "Your trade management has little effect either way. Your results are close to what leaving trades alone would give." : "Managing your trades is costing you R compared with leaving them alone. Review early exits and stop moves.";
       const exits = new Map<string, number[]>();
-      ts.forEach((t) => t.comments.filter((c) => c.phase === "exit" && c.sentiment === "negative").forEach((c) => exits.set(c.label, [...(exits.get(c.label) ?? []), t.net_pnl])));
+      ts.forEach((t) => t.comments.filter((c) => c.phase === "exit" && c.sentiment === "negative").forEach((c) => pushTo(exits, c.label, t.net_pnl)));
       const worst = [...exits.entries()].filter(([, v]) => v.length >= 2).map(([label, v]) => ({ label, total: sum(v) })).sort((a, b) => a.total - b.total)[0];
       cards.push({ id: "management", title: "Trade Management", text, rating, score: SCORE[rating], headline: effect, ready: true, sections: [
         { kind: "metric", id: "effect", title: "Trade Management", rating, value: `${effect.toFixed(2)}R`, text, note: `Based on ${rows.length} trades with a stop loss and take profit` },

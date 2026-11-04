@@ -1,3 +1,5 @@
+import { pushTo } from "@/lib/group";
+import { storageGet, storageSet } from "@/lib/safe-storage";
 import { rBlankReason } from "@/lib/pnl/calc";
 import { createFileRoute } from "@tanstack/react-router";
 import { fmtPrice } from "@/lib/pnl/format-price";
@@ -118,13 +120,13 @@ function JournalPage() {
   const { data: allShots = [], isLoading: shotsLoading } = useScreenshots(view === "table" ? undefined : journal?.id);
   const shotsByTrade = useMemo(() => {
     const m = new Map<string, Shot[]>();
-    for (const sh of allShots) if (sh.trade_id) m.set(sh.trade_id, [...(m.get(sh.trade_id) ?? []), sh]);
+    for (const sh of allShots) if (sh.trade_id) pushTo(m, sh.trade_id, sh);
     return m;
   }, [allShots]);
 
   useEffect(() => {
     if (!journal?.id) return;
-    const raw = localStorage.getItem(`am.journal-table.${journal.id}`);
+    const raw = storageGet(`am.journal-table.${journal.id}`);
     try {
       setLayout(normalizeJournalTableLayout(raw ? JSON.parse(raw) as Partial<JournalTableLayout> : null, keys));
     } catch {
@@ -135,7 +137,7 @@ function JournalPage() {
 
   useEffect(() => {
     if (!journal?.id || !layoutReady) return;
-    localStorage.setItem(`am.journal-table.${journal.id}`, JSON.stringify(layout));
+    storageSet(`am.journal-table.${journal.id}`, JSON.stringify(layout));
   }, [journal?.id, layout, layoutReady]);
 
   async function del() {

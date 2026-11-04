@@ -1,4 +1,5 @@
 // Shared metrics engine: every page computes stats from here so numbers always match.
+import { pushTo } from "@/lib/group";
 import { safeCurrency } from "@/lib/currencies";
 import { localDay } from "@/lib/time/local-time";
 import type { RuleCheck } from "@/lib/pnl/compliance";
@@ -116,7 +117,7 @@ export function riskOf(t: Pick<TradeRow, "risk_amount">) {
  */
 export function withEstimatedR<T extends Trade>(trades: T[]): T[] {
   const byJournal = new Map<string, number[]>();
-  for (const t of trades) if (t.r != null && t.risk_amount != null && Number(t.risk_amount) > 0) byJournal.set(t.journal_id, [...(byJournal.get(t.journal_id) ?? []), Number(t.risk_amount)]);
+  for (const t of trades) if (t.r != null && t.risk_amount != null && Number(t.risk_amount) > 0) pushTo(byJournal, t.journal_id, Number(t.risk_amount));
   const typical = new Map<string, number>();
   for (const [j, v] of byJournal) {
     if (v.length < 3) continue;
@@ -267,9 +268,10 @@ export function computeStats(trades: Trade[], startingBalance: number, cashflows
   }
   const invested = startingBalance + cashflow;
   const roi = invested ? (net / invested) * 100 : 0;
-  const returnDD = maxDD ? roi / maxDD : roi;
   const sampleFactor = Math.min(1, trades.length / 100);
-  const pfScore = Math.min(isFinite(profitFactor) ? profitFactor : 3, 3) / 3;
+  // No drawdown yet is not an infinite ratio: with few trades it proves little, so it earns only what the sample supports.
+  const returnDD = maxDD ? roi / maxDD : roi > 0 ? 5 * sampleFactor : 0;
+  const pfScore = Math.min(isFinite(profitFactor) ? profitFactor : trades.length >= 20 ? 3 : 1.5, 3) / 3;
   const score = trades.length ? Math.max(0, Math.min(100, (Math.min(Math.max(returnDD, 0), 5) / 5) * 40 + pfScore * 40 + sampleFactor * 20)) : 0;
 
   const streak: ("W" | "L" | "B")[] = sorted.slice(-5).map((t) => (isWin(t) ? "W" : isLoss(t) ? "L" : "B"));
@@ -327,7 +329,7 @@ export function groupBy<K extends string | number>(trades: Trade[], key: (t: Tra
   const m = new Map<K, Trade[]>();
   trades.forEach((t) => {
     const k = key(t);
-    m.set(k, [...(m.get(k) ?? []), t]);
+    pushTo(m, k, t);
   });
   return m;
 }

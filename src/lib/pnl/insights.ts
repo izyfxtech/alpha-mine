@@ -1,3 +1,4 @@
+import { pushTo } from "@/lib/group";
 import { localMonth, localWeekStart } from "@/lib/time/local-time";
 import { WEEKDAYS, groupPerformance, type Trade } from "@/lib/pnl/metrics";
 
@@ -43,7 +44,7 @@ export function computeInsights(all: Trade[], now: number = Date.now(), maxAgeDa
   // Weekly and monthly digests: best setup, weekday and hour of each completed period.
   const digest = (key: (t: Trade) => string, label: string) => {
     const periods = new Map<string, Trade[]>();
-    ts.forEach((t) => periods.set(key(t), [...(periods.get(key(t)) ?? []), t]));
+    ts.forEach((t) => pushTo(periods, key(t), t));
     [...periods.entries()].slice(0, -1).forEach(([k, pts]) => {
       if (pts.length < 3) return;
       const top = (f: (t: Trade) => string) => groupPerformance(pts, f).sort((a, b) => b.pnl - a.pnl)[0];
