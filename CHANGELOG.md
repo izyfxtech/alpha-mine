@@ -2,6 +2,12 @@
 
 Newest first. Dates are the day the work landed on `main`.
 
+## 2026-11-04
+
+- **Portfolio now agrees with Home** for the same journal: open trades are no longer counted as results, and average R is taken over trades that have an R (it was divided by every trade). Portfolio still ignores the top-bar filters, because it compares journals.
+- **Adding an instrument or setup from the trade form** no longer fails when the name already exists in another case or was retired (hidden from the picker): the existing one is reused (and brought back). Errors now say which name could not be added.
+- Open Trades removed from the sidebar (the page is still reachable at `/open-trades`).
+
 ## 2026-11-03
 
 - **Audit Mediums.** H09: the Alternative Strategies sheet no longer crashes for a setup with trades (`val` used before it was defined). M26: the calendar's padding week uses `addDays`, so a DST change cannot make a 48-day grid. M31: writing to any journal table refetches only what it can change; a notebook autosave no longer reloads the whole trade history. M25: one currency list (47 codes, incl. KES, GHS, BRL, MXN, SGD, AED) and a `safeCurrency` formatter that never throws on a bad code. M28: the public share RPC returns totals over every trade but at most the 2,000 most recent rows (migration `20261104110000_share_cap.sql`); the share page tells a load error from a missing link. M27: Holding Time chart leaves out trades with no R.
