@@ -24,8 +24,8 @@ export const FEATURES: Feature[] = [
       { t: "A score for each day", d: "Tags roll up into a tilt score per day, so you can see exactly when your process slipped." },
       { t: "Plans you can follow", d: "Write a trading plan, then track how often you followed it." },
     ] },
-  { slug: "chart-lab", name: "Chart Lab", icon: ChartLineUp, visual: "bars", short: "Sixteen reports, from drawdown to SQN by setup.",
-    headline: "Sixteen reports that show how you really trade", lead: "From drawdown to exit analysis, Chart Lab turns your journal into charts you can act on.",
+  { slug: "chart-lab", name: "Chart Lab", icon: ChartLineUp, visual: "bars", short: "Seventeen reports, from drawdown to SQN by setup.",
+    headline: "Seventeen reports that show how you really trade", lead: "From drawdown to exit analysis, Chart Lab turns your journal into charts you can act on.",
     points: [
       { t: "Reports that matter", d: "Drawdown, efficiency, exit analysis, holding time, trade management and SQN by setup are among them." },
       { t: "Click through to the trades", d: "Select part of a chart to open the trades behind it, so every pattern can be checked." },
