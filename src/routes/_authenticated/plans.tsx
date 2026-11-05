@@ -212,7 +212,7 @@ function PlanSheet({ row, journalId, onClose, onSave, selectedStats = [] }: { ro
            {row?.id && journalId && <RecordScreenshots journalId={journalId} recordId={row.id} kind="planned_trade_id" />}
         </div>
         <div className="flex gap-2 border-t px-5 py-4">
-          <Button variant="ink" size="sm" disabled={!f.instrument} onClick={() => onSave({
+          <Button variant="ink" size="sm" disabled={!f.instrument || !f.entry_at || Number.isNaN(new Date(f.entry_at).getTime())} title={!f.entry_at ? "Entry date is required" : undefined} onClick={() => onSave({
             entry_at: fromInputValue(f.entry_at, row?.entry_at), instrument: f.instrument, setup: f.setup || null, direction: f.direction, trade_type: f.trade_type,
             entry_price: n(f.entry_price), quantity: n(f.quantity) ?? 1, take_profit: n(f.take_profit), stop_loss: n(f.stop_loss), notes: f.notes || null,
             option_type: f.trade_type === "Options" ? f.option_type || null : null, expiry_date: f.trade_type === "Options" ? f.expiry_date || null : null, multiplier: n(f.multiplier) ?? 1,
