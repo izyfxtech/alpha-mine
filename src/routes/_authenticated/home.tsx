@@ -59,7 +59,7 @@ function Home() {
   // Evaluation rows follow the selected display unit (currency, Return %, R multiple)
   const pcts = trades.map((t) => t.retPct);
   const rs = trades.map((t) => t.r).filter((x): x is number => x != null);
-  const sumPct = pcts.reduce((a, b) => a + b, 0), sumR = rs.reduce((a, b) => a + b, 0);
+  const sumR = rs.reduce((a, b) => a + b, 0);
   const tradingDays = new Set(trades.map((t) => localDay(t.entry_at))).size || 1;
   const ev = (money: number, pct: number, r: number) => (unit === "cur" ? fmtMoney(money, cur) : unit === "pct" ? fmtPct(pct) : `${fmtNum(r)}R`);
 
@@ -99,7 +99,7 @@ function Home() {
         <Panel title="Evaluation" className="flex flex-col">
           <div className="mt-2" />
           <Stat label="Total Number of Trades" value={s.count} />
-          <Stat label="Avg. Profit per Trading Day" value={ev(s.avgPerDay, sumPct / tradingDays, sumR / tradingDays)} />
+          <Stat label="Avg. Profit per Trading Day" value={ev(s.avgPerDay, s.roi / tradingDays, sumR / tradingDays)} />
           <Stat label="Biggest Winner" value={ev(s.biggestWin, pcts.length ? Math.max(...pcts) : 0, rs.length ? Math.max(...rs) : 0)} />
           <Stat label="Biggest Loser" value={ev(s.biggestLoss, pcts.length ? Math.min(...pcts) : 0, rs.length ? Math.min(...rs) : 0)} />
           <Stat label="Followed Trade Plan" value={fmtPct(s.followedPlanPct)} />

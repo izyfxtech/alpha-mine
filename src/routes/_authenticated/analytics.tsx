@@ -51,7 +51,8 @@ const DEFAULT_VISIBLE = COLS.map((c) => c.k);
 
 const mean = (a: number[]) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : null);
 
-function rowStats(ts: Trade[]) {
+/** `base` is the journal's invested capital (start + deposits), so Return (%) is the same ROI every other page shows. */
+function rowStats(ts: Trade[], base: number) {
   const n = ts.length;
   const sum = ts.reduce((a, t) => a + t.net_pnl, 0);
   const gw = ts.filter(isWin).reduce((a, t) => a + t.net_pnl, 0);
@@ -70,7 +71,7 @@ function rowStats(ts: Trade[]) {
     planR: f(mean(ts.map(plannedRRR).filter((x): x is number => x != null))), mw: String(mw), ml: String(ml),
     dd: f(mean(ex.map((x) => x.dn).filter((x): x is number => x != null))), up: f(mean(ex.map((x) => x.up).filter((x): x is number => x != null))),
     mae: f(mean(ex.map((x) => x.mae))), mfe: f(mean(ex.map((x) => x.mfe))),
-    fees: f(ts.reduce((a, t) => a + t.fees, 0)), ret: f(ts.reduce((a, t) => a + t.retPct, 0)), avgRet: f(mean(ts.map((t) => t.retPct))),
+    fees: f(ts.reduce((a, t) => a + t.fees, 0)), ret: f(base ? (sum / base) * 100 : 0), avgRet: f(mean(ts.map((t) => t.retPct))),
   };
   return { sum, cells };
 }
@@ -82,7 +83,8 @@ function group(ts: Trade[], c: Crit) {
 }
 
 function Analytics() {
-  const { trades, journal } = useTrades();
+  const { trades, journal, flows } = useTrades();
+  const invested = (journal?.starting_balance ?? 0) + flows.reduce((a, f) => a + Number(f.amount), 0);
   const { data: lookups } = useLookups(journal?.id);
   const [order, setOrder] = useState<string[]>(["setup"]);
   const [open, setOpen] = useState<Set<string>>(new Set(["Overall"]));
@@ -162,7 +164,7 @@ function Analytics() {
             </thead>
             <tbody>
               {rows.map((r) => {
-                const st = rowStats(r.ts);
+                const st = rowStats(r.ts, invested);
                 const tone = st.sum > 0 ? "text-profit" : st.sum < 0 ? "text-loss" : "";
                 const bg = st.sum > 0 ? "bg-row-win" : st.sum < 0 ? "bg-row-loss" : "bg-background";
                 return (
