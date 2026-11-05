@@ -1,3 +1,4 @@
+import { useProfile } from "@/lib/profile-settings";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { localDay } from "@/lib/time/local-time";
 import { useMemo } from "react";
@@ -18,6 +19,7 @@ export const Route = createFileRoute("/_authenticated/reports/annual")({
 });
 
 function Annual() {
+  const sow = useProfile().settings.weekStartsOn;
   const { trades, all, journal, flows } = useTrades();
   const search = Route.useSearch();
   const navigate = useNavigate();
@@ -48,7 +50,7 @@ function Annual() {
          <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {Array.from({ length: 12 }, (_, mi) => {
             const month = new Date(year, mi, 1);
-            const days = eachDayOfInterval({ start: startOfWeek(startOfMonth(month), { weekStartsOn: 1 }), end: endOfWeek(endOfMonth(month), { weekStartsOn: 1 }) });
+            const days = eachDayOfInterval({ start: startOfWeek(startOfMonth(month), { weekStartsOn: sow }), end: endOfWeek(endOfMonth(month), { weekStartsOn: sow }) });
             const mNet = [...daily.entries()].filter(([k]) => k.startsWith(format(month, "yyyy-MM"))).reduce((a, [, v]) => a + v, 0);
             return (
                <Button variant="ghost" key={mi} onClick={() => navigate({ to: "/reports/calendar", search: { m: format(month, "yyyy-MM") } })} className="h-auto min-w-0 flex-col items-stretch rounded-md p-2 text-left transition hover:bg-muted/60" aria-label={`Open ${format(month, "MMMM yyyy")}`}>
@@ -57,7 +59,7 @@ function Annual() {
                   {mNet !== 0 && <span className={cn("text-xs font-semibold tabular", mNet > 0 ? "text-profit" : "text-loss")}>{fmtMoney(mNet, cur)}</span>}
                 </div>
                 <div className="grid grid-cols-7 gap-0.5 text-center text-xs text-muted-foreground">
-                  {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => <span key={i}>{d}</span>)}
+                  {(sow === 0 ? ["S", "M", "T", "W", "T", "F", "S"] : ["M", "T", "W", "T", "F", "S", "S"]).map((d, i) => <span key={i}>{d}</span>)}
                   {days.map((d) => {
                     const v = daily.get(format(d, "yyyy-MM-dd"));
                     const inM = isSameMonth(d, month);

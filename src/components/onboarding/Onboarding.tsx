@@ -40,11 +40,13 @@ export function Onboarding() {
   const [f, setF] = useState({ name: "", currency: "USD", amount: "10000", trade_type: "Spot", markets: [] as string[] });
   const [seeded, setSeeded] = useState(false);
 
-  const { data: tradeCount = 0 } = useQuery({
+  // undefined while loading and on error: the guide must not open until the count is really known to be 0.
+  const { data: tradeCount } = useQuery({
     queryKey: ["onboarding-trade-count", journal?.id],
     enabled: !!journal?.id,
     queryFn: async () => {
-      const { count } = await supabase.from("trades").select("id", { count: "exact", head: true }).eq("journal_id", journal!.id);
+      const { count, error } = await supabase.from("trades").select("id", { count: "exact", head: true }).eq("journal_id", journal!.id);
+      if (error) throw error;
       return count ?? 0;
     },
   });
@@ -147,13 +149,13 @@ export function Onboarding() {
             <>
               <DialogHeader>
                 <DialogTitle className="text-xl">Bring in your trades</DialogTitle>
-                <DialogDescription>{tradeCount > 0 ? `You have ${tradeCount} trade${tradeCount === 1 ? "" : "s"} in this journal.` : "Pick whichever is easiest. You can always do the others later."}</DialogDescription>
+                <DialogDescription>{(tradeCount ?? 0) > 0 ? `You have ${tradeCount} trade${tradeCount === 1 ? "" : "s"} in this journal.` : "Pick whichever is easiest. You can always do the others later."}</DialogDescription>
               </DialogHeader>
               <div className="grid gap-3">
                 <Choice icon={<FileDown className="h-5 w-5" />} title="Import a file" body="MetaTrader 4 or 5 report, or a CSV or Excel export from your broker." onClick={() => setImporting(true)} />
                 <Choice icon={<PencilLine className="h-5 w-5" />} title="Log a trade by hand" body="Add one trade with its setup, notes and screenshots." onClick={() => { setDismissed(true); drawer.open(); }} />
               </div>
-              <div className="flex justify-between gap-2"><Button variant="outline" onClick={() => setStep(1)}>Back</Button><Button variant={tradeCount > 0 ? "default" : "ghost"} onClick={() => setStep(3)}>{tradeCount > 0 ? "Continue" : "I'll do this later"}</Button></div>
+              <div className="flex justify-between gap-2"><Button variant="outline" onClick={() => setStep(1)}>Back</Button><Button variant={(tradeCount ?? 0) > 0 ? "default" : "ghost"} onClick={() => setStep(3)}>{(tradeCount ?? 0) > 0 ? "Continue" : "I'll do this later"}</Button></div>
             </>
           )}
 

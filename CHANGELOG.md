@@ -4,6 +4,10 @@ Newest first. Dates are the day the work landed on `main`.
 
 ## 2026-11-04 (failed saves)
 
+- **L32**: the onboarding guide waits for the trade count and no longer opens when the count is loading or fails to load, so it cannot flash for existing users or stay open after a query error. **L41**: the error-capture module and generated Supabase client are platform scaffolding, left unchanged.
+
+- **L27**: Monthly week grouping and the Annual grid follow the first-day-of-week setting. **L33**: the placeholder Home newsfeed (dated 2025, dead links, an author not on the About page) is removed. **L34**: Missed Trades Analysis compares missed trades with all real trades (top-bar filters no longer skew Missed vs Real) and uses the shared planned-RRR calc.
+
 - **M29**: contact address set (privacy and terms pages show it). **L29**: trade-form fields and selects have accessible names; the filter clear button is a focusable button. **L43**: images pasted into a text field stay there; screenshot links must be https; skipped non-image files are reported. **L38**: Chart Book delete asks first and is reachable by keyboard. **L37**: Exit Analysis says when it shows only the last 30 trades; its dots follow the theme.
 
 - Reset password (L42): shows an invalid/expired-link message when there is no recovery session. Marketing copy says seventeen charts (L40). L35 (empty Entry Date) was already validated.

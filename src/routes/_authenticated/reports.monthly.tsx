@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { localMonth } from "@/lib/time/local-time";
 import { Fragment, useState } from "react";
 import { format, startOfWeek } from "date-fns";
+import { useProfile } from "@/lib/profile-settings";
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useJournalFlows, useTrades } from "@/lib/journal/journal-context";
@@ -23,29 +24,36 @@ function isoWeekKey(d: Date) {
   return `${th.getFullYear()}-${String(wk).padStart(2, "0")}`;
 }
 /** The key of the calendar week before the one `iso` falls in (setDate keeps it DST-safe). */
-function previousWeekKey(iso: string) {
+function previousWeekKey(iso: string, sow: 0 | 1) {
   const d = new Date(iso);
   d.setDate(d.getDate() - 7);
-  return isoWeekKey(d);
+  return weekKey(d, sow);
+}
+/** Week key honouring the first-day-of-week setting: a Sunday-start week is the ISO week of the day after, so Sun..Sat share one key. */
+function weekKey(d: Date, sow: 0 | 1) {
+  const x = new Date(d);
+  if (sow === 0) x.setDate(x.getDate() + 1);
+  return isoWeekKey(x);
 }
 
 function Monthly() {
   const { trades, journal } = useTrades();
+  const sow = useProfile().settings.weekStartsOn;
   const [expanded, setExpanded] = useState<string[]>([]);
   const months = [...groupBy(trades, (t) => localMonth(t.entry_at)).entries()].sort(([a], [b]) => b.localeCompare(a));
   // Every week of the journal, so a week is always compared with the real previous calendar week (even across a month
   // boundary or after a gap), never with whichever earlier week happens to be next in the list.
-  const byWeek = groupBy(trades, (t) => isoWeekKey(new Date(t.entry_at)));
+  const byWeek = groupBy(trades, (t) => weekKey(new Date(t.entry_at), sow));
   const toggle = (key: string) => setExpanded((v) => v.includes(key) ? v.filter((x) => x !== key) : [...v, key]);
   return <div className="min-h-[calc(100vh-7rem)] overflow-x-auto rounded-lg bg-card pb-6 shadow-[0_1px_5px_rgba(60,40,90,0.07)]">
     <table className="w-full min-w-[1250px] text-xs tabular">
       <thead className="sticky top-0 bg-card text-left"><tr className="h-[38px]">{["Month", "Week", "Trades", "Tiltmeter", "Return ($)", "Return (%)", "Winrate (%)", "Avg. P&L ($)", "Profit Factor", "Avg. R Multiple", "Sum. R Multiple", "Biggest Win ($)", "Week Start", "Biggest Loss ($)", "Efficiency (%)", "W", "L"].map((x) => <th key={x} className="whitespace-nowrap px-2 font-semibold first:pl-4">{x}</th>)}</tr></thead>
       <tbody>{months.map(([month, ts]) => {
         const label = new Date(`${month}-02T12:00:00`).toLocaleString("en-US", { month: "long", year: "numeric" });
-        const weeks = [...groupBy(ts, (t) => isoWeekKey(new Date(t.entry_at))).entries()].sort(([a], [b]) => b.localeCompare(a));
+        const weeks = [...groupBy(ts, (t) => weekKey(new Date(t.entry_at), sow)).entries()].sort(([a], [b]) => b.localeCompare(a));
         return <Fragment key={month}>
           <ReportRow label={`${label} (${weeks.length})`} trades={ts} from={`${month}-01`} currency={journal?.currency} expanded={expanded.includes(month)} onToggle={() => toggle(month)} />
-           {expanded.includes(month) && weeks.map(([week, wt]) => <ReportRow key={`${month}-${week}`} label="" week={week} trades={wt} previous={byWeek.get(previousWeekKey(wt[0]!.entry_at))} currency={journal?.currency} />)}
+           {expanded.includes(month) && weeks.map(([week, wt]) => <ReportRow key={`${month}-${week}`} label="" week={week} trades={wt} previous={byWeek.get(previousWeekKey(wt[0]!.entry_at, sow))} currency={journal?.currency} />)}
         </Fragment>;
       })}</tbody>
     </table>
@@ -78,7 +86,8 @@ function ReportRow({ label, week, trades, previous, from, currency, expanded, on
   const fmts = [(v: number) => num(v), num, num, num, num, num, num, num, null, num, num, (v: number) => String(v), (v: number) => String(v)];
   const now = metricList(s, trades);
   const before = previous ? metricList(stats(previous), previous) : null;
-  const start = week && trades.length ? format(startOfWeek(new Date(trades.map((t) => t.entry_at).sort()[0]!), { weekStartsOn: 1 }), "yyyy-MM-dd") : "";
+  const rowSow = useProfile().settings.weekStartsOn;
+  const start = week && trades.length ? format(startOfWeek(new Date(trades.map((t) => t.entry_at).sort()[0]!), { weekStartsOn: rowSow }), "yyyy-MM-dd") : "";
   return <tr className={cn("h-[31px] hover:brightness-[0.98]", s.net > 0 ? "bg-row-win" : s.net < 0 ? "bg-row-loss" : "")}>
     <td className="whitespace-nowrap px-2 first:pl-4">{onToggle && <button className="mr-1 inline-flex h-5 w-5 items-center justify-center" aria-label={`${expanded ? "Collapse" : "Expand"} ${label}`} onClick={onToggle}>{expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}</button>}<span className={tone}>{label}</span></td>
     <td className={cn("px-2", tone)}>{week ?? ""}</td><td className={cn("px-2", tone)}>{s.count}</td>
