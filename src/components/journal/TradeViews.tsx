@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { localDateTime } from "@/lib/time/local-time";
 import { ImageIcon, Star } from "lucide-react";
 import type { Trade } from "@/lib/pnl/metrics";
-import { fmtNum } from "@/lib/pnl/metrics";
+import { fmtNum, isLoss, isWin } from "@/lib/pnl/metrics";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Lightbox, type LightboxItem } from "@/components/journal/Lightbox";
@@ -62,7 +62,7 @@ export function ScreenshotGallery({ trades, shotsByTrade, onOpen, loading }: { t
   const [result, setResult] = useState<Result>("all");
   const [index, setIndex] = useState<number | null>(null);
   const tiles = useMemo(() => trades
-    .filter((t) => result === "all" || (result === "win" ? t.net_pnl > 0 : t.net_pnl < 0))
+    .filter((t) => result === "all" || (result === "win" ? isWin(t) : isLoss(t)))
     .flatMap((t) => (shotsByTrade.get(t.id) ?? []).filter((s) => s.url).map((s) => ({ shot: s, trade: t }))), [trades, shotsByTrade, result]);
   const items: LightboxItem[] = tiles.map(({ shot, trade }) => ({ url: shot.url, title: title(trade), subtitle: subtitle(trade), action: { label: "Open trade", run: () => { setIndex(null); onOpen(trade); } } }));
 

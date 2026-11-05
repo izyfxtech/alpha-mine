@@ -33,7 +33,7 @@ export function DateRangeButton({ value, onChange, className }: { value: { a: st
             const k = format(d, "yyyy-MM-dd");
             const end = value.b || value.a;
             const inRange = value.a && k >= value.a && k <= end, edge = k === value.a || k === value.b;
-            return <button key={k} type="button" onClick={() => pick(k)} className={cn("h-8 rounded-md", !isSameMonth(d, month) && "text-t4", inRange && "bg-muted", edge && "bg-ink font-semibold text-ink-foreground", !inRange && "hover:bg-muted")}>{format(d, "d")}</button>;
+            return <button key={k} type="button" aria-label={format(d, "EEEE d MMMM yyyy")} aria-pressed={!!(inRange || edge)} onClick={() => pick(k)} className={cn("h-8 rounded-md", !isSameMonth(d, month) && "text-t4", inRange && "bg-muted", edge && "bg-ink font-semibold text-ink-foreground", !inRange && "hover:bg-muted")}>{format(d, "d")}</button>;
           })}
         </div>
         <div className="mt-2 flex justify-end"><button type="button" className="text-xs text-t3 underline" onClick={() => onChange({ a: "", b: "" })}>Clear</button></div>

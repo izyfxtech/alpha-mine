@@ -426,8 +426,12 @@ function SessionCategories() {
   /** Sessions store category names as text, so a rename has to be applied to them too. */
   const rename = async (from: string, to: string) => {
     if (!journal || [...active, ...disabled].some((c) => c.toLowerCase() === to.toLowerCase())) { toast.error(`"${to}" already exists`); return; }
-    const { data: sessions } = await supabase.from("diary_sessions").select("id,categories").eq("journal_id", journal.id).contains("categories", [from]);
-    await Promise.all((sessions ?? []).map((s) => supabase.from("diary_sessions").update({ categories: s.categories.map((c: string) => (c === from ? to : c)) }).eq("id", s.id)));
+    const { data: sessions, error: readErr } = await supabase.from("diary_sessions").select("id,categories").eq("journal_id", journal.id).contains("categories", [from]);
+    if (readErr) { toast.error(readErr.message); return; }
+    const results = await Promise.all((sessions ?? []).map((s) => supabase.from("diary_sessions").update({ categories: s.categories.map((c: string) => (c === from ? to : c)) }).eq("id", s.id)));
+    // Rename the list only once every session moved, so a failure never leaves sessions under a category that no longer exists.
+    const failed = results.find((r) => r.error);
+    if (failed?.error) { toast.error(failed.error.message); return; }
     await save({ session_categories: active.map((c) => (c === from ? to : c)) });
   };
   const add = async () => {

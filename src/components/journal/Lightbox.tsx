@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, ExternalLink, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,10 +14,26 @@ export interface LightboxItem {
 /** Full-screen image viewer: arrow keys / buttons to move, Esc or backdrop click to close. */
 export function Lightbox({ items, index, onIndex, onClose }: { items: LightboxItem[]; index: number; onIndex: (i: number) => void; onClose: () => void }) {
   const item = items[index];
+  const box = useRef<HTMLDivElement>(null);
   const go = useCallback((d: number) => onIndex((index + d + items.length) % items.length), [index, items.length, onIndex]);
+
+  // Move focus into the dialog, keep Tab inside it, and give focus back to whatever opened it.
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    box.current?.focus();
+    return () => opener?.focus?.();
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Tab" && box.current) {
+        const f = Array.from(box.current.querySelectorAll<HTMLElement>("a[href], button:not([disabled])"));
+        if (!f.length) { e.preventDefault(); return; }
+        const first = f[0]!, last = f[f.length - 1]!;
+        if (e.shiftKey && (document.activeElement === first || document.activeElement === box.current)) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+        return;
+      }
       if (e.key === "Escape") onClose();
       else if (e.key === "ArrowRight") go(1);
       else if (e.key === "ArrowLeft") go(-1);
@@ -30,7 +46,7 @@ export function Lightbox({ items, index, onIndex, onClose }: { items: LightboxIt
 
   if (!item || typeof document === "undefined") return null;
   return createPortal(
-    <div role="dialog" aria-modal="true" aria-label={item.title} className="fixed inset-0 z-[100] flex flex-col bg-black/90 text-white" onClick={onClose}>
+    <div ref={box} tabIndex={-1} role="dialog" aria-modal="true" aria-label={item.title} className="fixed inset-0 z-[100] flex flex-col bg-black/90 text-white outline-none" onClick={onClose}>
       <div className="flex items-center gap-3 px-5 py-3" onClick={(e) => e.stopPropagation()}>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{item.title}</p>
