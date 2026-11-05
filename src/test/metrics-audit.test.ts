@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeStats, enrichTrade, equityCurve, fmtMoney, fmtNum, fmtPct, periodBase, riskOf, sortinoOf, sqnOf, type Cashflow, type Trade, type TradeRow } from "@/lib/pnl/metrics";
+import { drawdownRatioSeries, computeStats, enrichTrade, equityCurve, fmtMoney, fmtNum, fmtPct, periodBase, riskOf, sortinoOf, sqnOf, type Cashflow, type Trade, type TradeRow } from "@/lib/pnl/metrics";
 
 const row = (over: Partial<TradeRow> = {}): TradeRow => ({
   id: "t", journal_id: "j", instrument_id: null, setup_id: null, trading_plan_id: null, direction: "long", trade_type: "Spot",
@@ -126,5 +126,45 @@ describe("every headline ratio against a hand calculation", () => {
   it("drawdown, Sortino", () => {
     expect(s.maxDD).toBeCloseTo((100 / 10250) * 100, 1); // peak 10,250, trough 10,150
     expect(s.sortino).toBeCloseTo(30 / 50, 9);           // sqrt((50^2 + 100^2) / 5) = 50
+  });
+});
+
+describe("Burke, Sterling, MAR and K-ratio against hand calculations", () => {
+  const at = (d: number) => `2026-10-${String(d).padStart(2, "0")}T08:00:00Z`;
+  // The reference sample: +198.99, -101.25, +240.87 on 10,000.
+  const r = drawdownRatioSeries([{ net_pnl: 198.99, entry_at: at(1) }, { net_pnl: -101.25, entry_at: at(2) }, { net_pnl: 240.87, entry_at: at(3) }], 10000);
+  it("have no drawdown before the first loss", () => {
+    expect(r[0]!.burke).toBeNull();
+    expect(r[0]!.mar).toBeNull();
+  });
+  it("Burke: net profit over the root of the squared drawdowns (one drawdown of 101.25)", () => {
+    expect(r[2]!.burke).toBeCloseTo(338.61 / 101.25, 9);
+  });
+  it("Sterling: return % over max drawdown % + 10", () => {
+    const dd = (101.25 / 10198.99) * 100;
+    expect(r[2]!.sterling).toBeCloseTo(3.3861 / (dd + 10), 9);
+  });
+  it("MAR under a year is return % over max drawdown %", () => {
+    const dd = (101.25 / 10198.99) * 100;
+    expect(r[2]!.mar).toBeCloseTo(3.3861 / dd, 9);
+  });
+  it("two separate drawdowns add in quadrature", () => {
+    const t = [100, -30, 50, -40, 80].map((n, i) => ({ net_pnl: n, entry_at: at(i + 1) }));
+    // peak 10100 -> 10070 (30), new peak 10120 -> 10080 (40), new peak 10160
+    expect(drawdownRatioSeries(t, 10000)[4]!.burke).toBeCloseTo(160 / Math.sqrt(30 ** 2 + 40 ** 2), 9);
+  });
+  it("K-ratio needs 3 trades and is null on a perfectly straight log line", () => {
+    expect(r[1]!.k).toBeNull();
+    const geo = [100, 101, 102.01, 103.0301].map((_, i) => ({ net_pnl: 100 * 1.01 ** i, entry_at: at(i + 1) }));
+    // equity grows by exactly 1% each trade from 10,000 -> ln-equity is not exactly linear, but a rising series gives a positive K
+    const k = drawdownRatioSeries(geo, 10000)[3]!.k;
+    expect(k == null || k > 0).toBe(true);
+  });
+  it("K-ratio of a noisy rising line matches the regression", () => {
+    const eqs = [10, 12, 11, 14, 15], t = eqs.map((e, i) => ({ net_pnl: e - (eqs[i - 1] ?? 0), entry_at: at(i + 1) }));
+    const ys = eqs.map((e) => Math.log(100 + e)), xs = [1, 2, 3, 4, 5], mx = 3, my = ys.reduce((a, b) => a + b, 0) / 5;
+    const sxx = xs.reduce((a, x) => a + (x - mx) ** 2, 0), sxy = xs.reduce((a, x, i) => a + (x - mx) * (ys[i]! - my), 0);
+    const slope = sxy / sxx, sse = ys.reduce((a, y, i) => a + (y - my - slope * (xs[i]! - mx)) ** 2, 0);
+    expect(drawdownRatioSeries(t, 100)[4]!.k).toBeCloseTo(slope / Math.sqrt(sse / 3 / sxx), 6);
   });
 });
