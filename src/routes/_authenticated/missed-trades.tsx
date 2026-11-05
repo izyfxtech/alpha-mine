@@ -185,7 +185,7 @@ export function MissedSheet({ row, journalId, onClose, onSave, title, selectedSt
            {row?.id && journalId && <RecordScreenshots journalId={journalId} recordId={row.id} kind="missed_trade_id" />}
         </div>
         <div className="flex gap-2 border-t px-5 py-4">
-          <Button variant="ink" size="sm" disabled={!f.instrument} onClick={() => {
+          <Button variant="ink" size="sm" disabled={!f.instrument || !f.occurred_at || Number.isNaN(new Date(f.occurred_at).getTime())} title={!f.occurred_at ? "Entry date is required" : undefined} onClick={() => {
             const pnl = f.net_pnl === "" ? auto() : Number(f.net_pnl);
             onSave({
               occurred_at: fromInputValue(f.occurred_at, row?.occurred_at), exit_at: f.exit_at ? fromInputValue(f.exit_at, row?.exit_at) : null,
