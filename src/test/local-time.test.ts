@@ -52,3 +52,13 @@ describe("form round trips never move a stored time (AM-M01, AM-Y02)", () => {
     inZone("Africa/Lagos", () => expect(fromInputValue("2026-10-20T08:00:00", "2026-10-20T06:15:42Z")).toBe("2026-10-20T07:00:00.000Z"));
   });
 });
+
+describe("a trade that crosses a local midnight", () => {
+  // 23:30 local on 31 March, built from local parts so it is the same wall time in every test zone.
+  const iso = new Date(2026, 2, 31, 23, 30).toISOString();
+  it("has one day and one month everywhere", () => {
+    expect(localDay(iso)).toBe("2026-03-31");
+    expect(localMonth(iso)).toBe("2026-03");
+    expect(localDateTime(iso)).toBe("2026-03-31 23:30");
+  });
+});
