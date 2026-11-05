@@ -34,6 +34,7 @@ export function KpiCards({ trades, s, fmt, avgWinLabel, avgLossLabel }: {
   const curve = cumulative(trades);
   const sumPct = trades.reduce((a, t) => a + t.retPct, 0);
   const avgPct = trades.length ? sumPct / trades.length : 0;
+  // The headline return is the ROI (net over starting balance plus deposits), the same figure on every page; the per-trade average stays an average of each trade's own %.
   const avgLossAbs = Math.abs(s.avgLoss);
   const payoff = avgLossAbs > 0 ? s.avgWin / avgLossAbs : 0;
   const winShare = s.avgWin + avgLossAbs > 0 ? (s.avgWin / (s.avgWin + avgLossAbs)) * 100 : 50;
@@ -43,7 +44,7 @@ export function KpiCards({ trades, s, fmt, avgWinLabel, avgLossLabel }: {
   const arc = 126;
   return (
     <div className="slim-scroll flex gap-[30px] overflow-x-auto pb-1">
-      <Widget label="Net Return" value={fmt(s.net, s.rCount ? s.totalR : null, sumPct)}><Spark data={curve.map((c) => c.v)} width={56} height={36} /></Widget>
+      <Widget label="Net Return" value={fmt(s.net, s.rCount ? s.totalR : null, s.roi)}><Spark data={curve.map((c) => c.v)} width={56} height={36} /></Widget>
       <Widget label="Winrate" value={fmtPct(s.winRate)}>
         <div className="relative w-[84px] text-center">
           <svg viewBox="0 0 100 56" className="h-[40px] w-[84px]">

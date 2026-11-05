@@ -8,7 +8,7 @@ import { ArrowDown, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react"
 import { fetchAllRows, fetchTrades, useJournal } from "@/lib/journal/journal-context";
 import { countOption } from "@/lib/journal/fetch-all";
 import { supabase } from "@/integrations/supabase/client";
-import { bucketPerformance, computeStats, fmtNum, fmtPct, groupPerformance, isOpen, MONTHS, WEEKDAYS, type Trade } from "@/lib/pnl/metrics";
+import { bucketPerformance, computeStats, fmtMoney, fmtNum, fmtPct, groupPerformance, isOpen, MONTHS, WEEKDAYS, type Trade } from "@/lib/pnl/metrics";
 import { EquityChart, Panel, PnlBars, Stat } from "@/components/kit";
 import { KpiCards } from "@/components/analytics/KpiCards";
 import { ProfitCalendar } from "@/components/analytics/ProfitCalendar";
@@ -42,10 +42,16 @@ function Portfolio() {
   // Portfolio works in % of each journal's own balance before the trade (deposits included), so different currencies and
   // sizes compare fairly. A journal with no balance has no meaningful % and contributes 0 instead of a made-up 1.
   const trades = useMemo(() => allTrades.filter((t) => !off.has(t.journal_id) && !isOpen(t)).map((t) => ({ ...t, pct: t.accountSize > 0 ? t.retPct : 0 })), [allTrades, off]);
-  const pctTrades: Trade[] = useMemo(() => trades.map((t) => ({ ...t, net_pnl: unit === "pct" ? +t.pct.toFixed(4) : t.r ?? 0 })), [trades, unit]);
+  // A trade with no R (or no balance to take a % of) has no value in that unit. It is left out of the series, never counted as 0.
+  const pctTrades: Trade[] = useMemo(() => trades.filter((t) => (unit === "pct" ? t.accountSize > 0 : t.r != null)).map((t) => ({ ...t, net_pnl: unit === "pct" ? +t.pct.toFixed(4) : (t.r as number) })), [trades, unit]);
+  const skipped = trades.length - pctTrades.length;
   const per = useMemo(() => active.map((j) => ({ j, s: computeStats(trades.filter((t) => t.journal_id === j.id), Number(j.starting_balance), allFlows.filter((f) => f.journal_id === j.id).map((f) => ({ occurred_on: f.occurred_on, amount: Number(f.amount) }))), ts: trades.filter((t) => t.journal_id === j.id) })), [active, trades, allFlows]);
   // pctTrades already carry returns in % (or R), so there is no money cashflow to apply on this combined view.
-  const s = computeStats(pctTrades, 100, []);
+  const combined = computeStats(pctTrades, 100, []);
+  // One journal: the headline cards ARE that journal's own statistics (money, deposits applied), exactly what Home shows.
+  // Several journals can only be compared in % or R, so those are computed on the % / R series.
+  const single = per.length === 1 ? per[0]! : null;
+  const s = single ? single.s : combined;
   const fmtU = (v: number) => (unit === "pct" ? `${fmtNum(v)}%` : `${fmtNum(v)}R`);
   let c = 0;
   const curve = [...pctTrades].sort((a, b) => a.entry_at.localeCompare(b.entry_at)).map((t, i) => { c += t.net_pnl; return { x: i + 1, v: +c.toFixed(2), label: localDay(t.entry_at) }; });
@@ -79,7 +85,15 @@ function Portfolio() {
         </Popover>
       </div>
 
-      <KpiCards trades={pctTrades} s={s} fmt={(v) => fmtU(v)} avgWinLabel={fmtU(s.avgWin)} avgLossLabel={fmtU(s.avgLoss)} />
+      {single ? (
+        <KpiCards trades={single.ts} s={s} fmt={(v, r, pct) => (unit === "pct" ? fmtPct(pct ?? 0) : `${fmtNum(r ?? 0)}R`)} avgWinLabel={fmtMoney(s.avgWin, single.j.currency)} avgLossLabel={fmtMoney(s.avgLoss, single.j.currency)} />
+      ) : (
+        <KpiCards trades={pctTrades} s={s} fmt={(v) => fmtU(v)} avgWinLabel={fmtU(s.avgWin)} avgLossLabel={fmtU(s.avgLoss)} />
+      )}
+      <p className="-mt-5 text-xs text-t4">
+        Uses every closed trade: top-bar filters apply to Home and the analysis pages, not here.
+        {!single && skipped > 0 ? ` ${skipped} trade${skipped === 1 ? " has" : "s have"} no ${unit === "pct" ? "balance to take a % of" : "R"} and ${skipped === 1 ? "is" : "are"} left out of the cards and curve.` : ""}
+      </p>
 
       <Panel title="Journals">
         <table className="w-full text-xs tabular">

@@ -103,3 +103,28 @@ describe("trade form P&L ownership (AM-H03)", () => {
     expect(resolveGross({ ...base, breakEven: true })).toEqual({ gross: 0, manual: false });
   });
 });
+
+describe("every headline ratio against a hand calculation", () => {
+  // +100, -50, +200, -100 and a break-even, on a 10,000 account.
+  const ts = [["a", "2026-10-01", 100], ["b", "2026-10-02", -50], ["c", "2026-10-03", 200], ["d", "2026-10-04", -100], ["e", "2026-10-05", 0]]
+    .map(([id, d, n]) => trade(id as string, `${d}T08:00:00Z`, n as number));
+  const s = computeStats(ts, 10000, []);
+  it("counts and rates", () => {
+    expect([s.wins, s.losses, s.be, s.count]).toEqual([2, 2, 1, 5]);
+    expect(s.winRate).toBeCloseTo(40, 9);       // 2 of 5, break-even counted
+    expect(s.winRateNoBE).toBeCloseTo(50, 9);   // 2 of 4 decided trades
+  });
+  it("money ratios", () => {
+    expect(s.net).toBe(150);
+    expect(s.profitFactor).toBeCloseTo(2, 9);   // 300 won / 150 lost
+    expect(s.avgWin).toBeCloseTo(150, 9);
+    expect(s.avgLoss).toBeCloseTo(-75, 9);
+    expect(s.expectancy).toBeCloseTo(30, 9);    // 150 / 5
+    expect(s.roi).toBeCloseTo(1.5, 9);          // 150 / 10,000
+    expect(s.balance).toBeCloseTo(10150, 9);
+  });
+  it("drawdown, Sortino", () => {
+    expect(s.maxDD).toBeCloseTo((100 / 10250) * 100, 1); // peak 10,250, trough 10,150
+    expect(s.sortino).toBeCloseTo(30 / 50, 9);           // sqrt((50^2 + 100^2) / 5) = 50
+  });
+});
