@@ -74,7 +74,7 @@ function Landing() {
             <Bento span="lg:col-span-2" icon={MagnifyingGlass} title="Edge Finder" body="Surfaces the setups, sessions and instruments where your results separate from luck.">
               <div className="space-y-3" aria-hidden>{[["Session", 78], ["Setup", 55], ["Instrument", 34]].map(([k, v]) => <Meter key={k} label={String(k)} value={Number(v)} />)}</div>
             </Bento>
-            <Bento span="lg:col-span-2" icon={Flask} title="Strategy Lab" body="Test what if exits and run Monte Carlo simulations on your own trade history.">
+            <Bento span="lg:col-span-2" icon={Flask} title="Strategy Lab" body="Test what if exits and run Monte Carlo simulations from your win rate and average win and loss.">
               <svg viewBox="0 0 200 80" preserveAspectRatio="none" className="h-20 w-full" aria-hidden fill="none" strokeWidth="2" strokeLinecap="round">
                 {[["M0 60 L50 52 L100 40 L150 28 L200 8", 1], ["M0 60 L50 56 L100 50 L150 46 L200 40", 0.5], ["M0 60 L50 58 L100 56 L150 62 L200 58", 0.35], ["M0 60 L50 64 L100 62 L150 70 L200 74", 0.35]].map(([d, o], i) => <path key={i} d={String(d)} stroke="var(--mk-acc)" vectorEffect="non-scaling-stroke" opacity={Number(o)} />)}
               </svg>

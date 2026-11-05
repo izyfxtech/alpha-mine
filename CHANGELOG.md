@@ -4,6 +4,8 @@ Newest first. Dates are the day the work landed on `main`.
 
 ## 2026-11-04 (failed saves)
 
+- Audit remainder: Lightbox now takes focus, traps Tab and restores focus (L29); date-range day cells have labels (L29); the gallery Win/Loss filter excludes break-even like every other page (L37); renaming a session category stops if any session update fails instead of leaving a ghost category (L30); the Strategy Lab copy no longer claims the simulator runs on your trade history (L40).
+
 ## 2026-11-05 (metrics review)
 
 - **Portfolio vs Home**: with one journal the Portfolio headline cards are now that journal's own statistics, identical to Home's (before, they were recomputed on a per-trade % or R series, so profit factor, average win/loss, drawdown, score and, in R mode, win rate all differed). With several journals the cards use the % or R series, which now leaves out trades that have no R or no balance instead of counting them as 0 (a missing R made a win look like break-even). A note on the page says it ignores the top-bar filters, which Home applies.
