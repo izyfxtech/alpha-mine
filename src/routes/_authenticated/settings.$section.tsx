@@ -1,6 +1,6 @@
 import { CURRENCIES, safeCurrency } from "@/lib/currencies";
 import { createFileRoute, notFound } from "@tanstack/react-router";
-import { localToday } from "@/lib/time/local-time";
+import { localDay, localToday } from "@/lib/time/local-time";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -235,7 +235,7 @@ function Cashflows() {
   const money = (n: number) => `${n < 0 ? "-" : ""}${Math.abs(n).toLocaleString("en-US", { style: "currency", currency: safeCurrency(journal?.currency) })}`;
   const rows = useMemo(() => {
     const start = Number(journal?.starting_balance ?? 0);
-    const list = [...(start ? [{ id: "start", occurred_on: (journal?.deposit_date ?? journal?.created_at ?? "").slice(0, 10), amount: start, note: "Starting balance", locked: true }] : []), ...t.rows.map((r) => ({ id: r.id, occurred_on: r.occurred_on, amount: Number(r.amount), note: r.note, locked: false }))]
+    const list = [...(start ? [{ id: "start", occurred_on: (journal?.deposit_date ?? (journal?.created_at ? localDay(journal.created_at) : "")), amount: start, note: "Starting balance", locked: true }] : []), ...t.rows.map((r) => ({ id: r.id, occurred_on: r.occurred_on, amount: Number(r.amount), note: r.note, locked: false }))]
       .sort((a, b) => a.occurred_on.localeCompare(b.occurred_on) || (a.locked ? -1 : 1));
     let bal = 0;
     return list.map((r) => ({ ...r, balance: (bal += r.amount) })).reverse();

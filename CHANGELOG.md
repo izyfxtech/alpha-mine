@@ -4,6 +4,8 @@ Newest first. Dates are the day the work landed on `main`.
 
 ## 2026-11-04 (failed saves)
 
+- **M03**: re-checked. Every user-visible day, week and month already goes through the local-time helpers (earlier batches); the last UTC slices (Portfolio curve labels, the Settings deposit-date fallback) now use `localDay`. Added a midnight-crossing test; the suite passes in UTC, Lagos, New York and Auckland.
+
 - **L24**: screenshot preview object URLs are released when a pending screenshot is removed or the drawer resets. **L38**: a Chart Book upload whose database insert fails removes the stored file instead of orphaning it.
 
 - **L32**: the onboarding guide waits for the trade count and no longer opens when the count is loading or fails to load, so it cannot flash for existing users or stay open after a query error. **L41**: the error-capture module and generated Supabase client are platform scaffolding, left unchanged.
