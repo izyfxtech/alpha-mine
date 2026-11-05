@@ -86,3 +86,22 @@ The `trades_compute_pnl` trigger only: fills gross P&L for spot **stock** trades
 ## Tests
 
 `src/test/calc.test.ts`, `metrics-audit.test.ts`, `rules-open.test.ts`.
+
+## Ratios (Chart Lab, Ratios)
+
+Per-trade, running, in account currency. None is annualised except MAR over a year of history.
+
+| Ratio | Formula |
+|---|---|
+| Sharpe | mean P&L / sample standard deviation (n - 1) of P&L, risk-free rate 0 |
+| Sortino | mean P&L / root mean square of the losses over all trades (target 0) |
+| Gain to Pain | net profit / total losses |
+| Calmar | net profit / max drawdown (both in money) |
+| MAR | annualised compound return % / max drawdown %; under a year it is return % / max drawdown % |
+| Sterling | return % / (max drawdown % + 10) |
+| Burke | net profit / square root of the sum of squared depths of every drawdown (peak to next peak) |
+| K-ratio | slope of ln(equity) against trade number / standard error of that slope (Kestner 1996) |
+| Profit factor | gross wins / gross losses |
+| SQN | mean R / sample standard deviation of R x sqrt(min(n, 100)) |
+
+Treynor and Information ratio need a market benchmark and are not offered.

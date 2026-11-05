@@ -4,6 +4,8 @@ Newest first. Dates are the day the work landed on `main`.
 
 ## 2026-11-04 (failed saves)
 
+- Chart Lab, Ratios: added MAR, Sterling, Burke and K-ratio (running per trade), each pinned to a hand calculation in tests; formulas listed in docs/CALCULATIONS.md. Treynor and Information ratio need a market benchmark and are not offered.
+
 ## 2026-11-05 (metrics review)
 
 - **Portfolio vs Home**: with one journal the Portfolio headline cards are now that journal's own statistics, identical to Home's (before, they were recomputed on a per-trade % or R series, so profit factor, average win/loss, drawdown, score and, in R mode, win rate all differed). With several journals the cards use the % or R series, which now leaves out trades that have no R or no balance instead of counting them as 0 (a missing R made a win look like break-even). A note on the page says it ignores the top-bar filters, which Home applies.
