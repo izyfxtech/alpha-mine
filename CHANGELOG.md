@@ -4,6 +4,8 @@ Newest first. Dates are the day the work landed on `main`.
 
 ## 2026-11-04 (failed saves)
 
+- **L35**: Missed and Plans forms disable Save while the Entry Date is empty or invalid (it used to throw silently). **I13**: stray Windows `desktop.ini` removed. L36 and the CI time-zone matrix (I10) were already in place.
+
 - **M03**: re-checked. Every user-visible day, week and month already goes through the local-time helpers (earlier batches); the last UTC slices (Portfolio curve labels, the Settings deposit-date fallback) now use `localDay`. Added a midnight-crossing test; the suite passes in UTC, Lagos, New York and Auckland.
 
 - **L24**: screenshot preview object URLs are released when a pending screenshot is removed or the drawer resets. **L38**: a Chart Book upload whose database insert fails removes the stored file instead of orphaning it.
