@@ -238,6 +238,54 @@ export function sortinoOf(pnls: number[]) {
   return dd ? avg(pnls) / dd : 0;
 }
 
+export interface DrawdownRatios { burke: number | null; sterling: number | null; mar: number | null; k: number | null }
+
+/**
+ * Running drawdown-based ratios, one entry per trade (trades in time order), from the equity of `start` plus the P&L so far.
+ *  - Burke   = net profit / sqrt(sum of the squared depths of every drawdown so far). A drawdown runs from a peak to the next
+ *              peak; the one still open counts at its current depth.
+ *  - Sterling = return % / (max drawdown % + 10), the usual 10-point buffer.
+ *  - MAR     = annualised compound return % / max drawdown %. Under a year of history it is not annualised (extrapolating
+ *              a few weeks to a year would invent a number), so it equals return % / max drawdown %.
+ *  - K-ratio = slope of ln(equity) against trade number divided by the standard error of that slope (Kestner, 1996).
+ * Each is null when it is undefined (no drawdown yet, no starting balance, too few trades, a perfectly straight line).
+ */
+export function drawdownRatioSeries(trades: { net_pnl: number; entry_at: string }[], start: number): DrawdownRatios[] {
+  const out: DrawdownRatios[] = [];
+  let eq = 0, peak = start, depth = 0, sumSq = 0, maxDDPct = 0;
+  let n = 0, sx = 0, sy = 0, sxx = 0, sxy = 0, syy = 0, positive = true;
+  const t0 = trades.length ? new Date(trades[0]!.entry_at).getTime() : 0;
+  for (const t of trades) {
+    eq += t.net_pnl;
+    const equity = start + eq;
+    if (equity >= peak) { sumSq += depth * depth; depth = 0; peak = equity; }
+    else depth = Math.max(depth, peak - equity);
+    if (peak > 0) maxDDPct = Math.max(maxDDPct, ((peak - equity) / peak) * 100);
+    const retPct = start > 0 ? (eq / start) * 100 : null;
+    const denom = Math.sqrt(sumSq + depth * depth);
+    const years = (new Date(t.entry_at).getTime() - t0) / (365.25 * 864e5);
+    const annual = retPct == null ? null : years >= 1 && equity > 0 ? (Math.pow(equity / start, 1 / years) - 1) * 100 : retPct;
+
+    n++;
+    if (equity > 0) { const x = n, y = Math.log(equity); sx += x; sy += y; sxx += x * x; sxy += x * y; syy += y * y; } else positive = false;
+    let k: number | null = null;
+    if (positive && n >= 3) {
+      const cxx = sxx - (sx * sx) / n, cxy = sxy - (sx * sy) / n, cyy = syy - (sy * sy) / n;
+      const slope = cxx ? cxy / cxx : 0;
+      const sse = Math.max(0, cyy - slope * cxy);
+      const se = cxx > 0 ? Math.sqrt(sse / (n - 2) / cxx) : 0;
+      k = se > 1e-12 ? slope / se : null;
+    }
+    out.push({
+      burke: denom > 0 ? eq / denom : null,
+      sterling: retPct == null ? null : retPct / (maxDDPct + 10),
+      mar: annual == null || maxDDPct <= 0 ? null : annual / maxDDPct,
+      k,
+    });
+  }
+  return out;
+}
+
 /**
  * `cashflows` are the journal's dated deposits (+) and withdrawals (-); it is required so every page that shows a
  * balance, ROI or drawdown applies them. ROI is net P&L over starting balance plus net cashflows.

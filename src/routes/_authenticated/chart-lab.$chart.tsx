@@ -9,7 +9,7 @@ import { ChevronDown } from "lucide-react";
 import { useJournalFlows, useLookups, useTrades } from "@/lib/journal/journal-context";
 import { useTradeDrawer } from "@/components/journal/TradeDrawer";
 import { CHARTS } from "@/lib/nav";
-import { computeStats, fmtMoney, fmtNum, groupBy, isLoss, isWin, potentialR, sortinoOf, sqnOf, stdev, type Trade } from "@/lib/pnl/metrics";
+import { computeStats, drawdownRatioSeries, fmtMoney, fmtNum, groupBy, isLoss, isWin, potentialR, sortinoOf, sqnOf, stdev, type Trade } from "@/lib/pnl/metrics";
 import { AccentStat, Empty, StatGrid, axis, niceTicks, pctScale, seriesValues, tradeAxis, yScale } from "@/components/kit";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
@@ -377,14 +377,15 @@ function HoldingTime({ trades, cur, start }: { trades: Trade[]; cur: string; sta
   );
 }
 
-const RATIOS = ["Sharpe Ratio", "Sortino Ratio", "Gain To Pain", "Calmar", "Profit Factor", "SQN"] as const;
+const RATIOS = ["Sharpe Ratio", "Sortino Ratio", "Gain To Pain", "Calmar", "MAR", "Sterling", "Burke", "K-Ratio", "Profit Factor", "SQN"] as const;
 type Ratio = (typeof RATIOS)[number];
-const RATIO_COLORS: Record<Ratio, string> = { "Sharpe Ratio": "var(--color-chart-5)", "Sortino Ratio": "var(--color-chart-4)", "Gain To Pain": "var(--color-chart-1)", Calmar: "var(--color-chart-3)", "Profit Factor": "var(--color-chart-2)", SQN: "var(--color-foreground)" };
+const RATIO_COLORS: Record<Ratio, string> = { "Sharpe Ratio": "var(--color-chart-5)", "Sortino Ratio": "var(--color-chart-4)", "Gain To Pain": "var(--color-chart-1)", Calmar: "var(--color-chart-3)", MAR: "var(--color-profit)", Sterling: "var(--color-loss)", Burke: "var(--color-muted-foreground)", "K-Ratio": "var(--color-primary)", "Profit Factor": "var(--color-chart-2)", SQN: "var(--color-foreground)" };
 
 function Ratios({ trades, start }: { trades: Trade[]; start: number }) {
   const [sel, setSel] = useState<Set<Ratio>>(new Set(["Sharpe Ratio"]));
   const data = useMemo(() => {
     const s = sorted(trades);
+    const dd = drawdownRatioSeries(s, start);
     let eq = 0, peak = 0, maxDD = 0;
     return s.map((t, i) => {
       const w = s.slice(0, i + 1).map((x) => x.net_pnl);
@@ -399,6 +400,8 @@ function Ratios({ trades, start }: { trades: Trade[]; start: number }) {
         "Sharpe Ratio": r(sd ? m / sd : 0), "Sortino Ratio": r(sortinoOf(w)), "Gain To Pain": r(gl ? (gw - gl) / gl : 0),
         Calmar: r(maxDD && start ? (eq / start) / (maxDD / start) : 0), "Profit Factor": r(gl ? gw / gl : 0),
         SQN: r(sqnOf(rs)),
+        MAR: dd[i]!.mar == null ? null : r(dd[i]!.mar!), Sterling: dd[i]!.sterling == null ? null : r(dd[i]!.sterling!),
+        Burke: dd[i]!.burke == null ? null : r(dd[i]!.burke!), "K-Ratio": dd[i]!.k == null ? null : r(dd[i]!.k!),
       };
     });
   }, [trades, start]);

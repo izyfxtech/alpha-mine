@@ -5,6 +5,7 @@ Newest first. Dates are the day the work landed on `main`.
 ## 2026-11-04 (failed saves)
 
 - Audit remainder: Lightbox now takes focus, traps Tab and restores focus (L29); date-range day cells have labels (L29); the gallery Win/Loss filter excludes break-even like every other page (L37); renaming a session category stops if any session update fails instead of leaving a ghost category (L30); the Strategy Lab copy no longer claims the simulator runs on your trade history (L40).
+- Chart Lab, Ratios: added MAR, Sterling, Burke and K-ratio (running per trade), each pinned to a hand calculation in tests; formulas listed in docs/CALCULATIONS.md. Treynor and Information ratio need a market benchmark and are not offered.
 
 ## 2026-11-05 (metrics review)
 
