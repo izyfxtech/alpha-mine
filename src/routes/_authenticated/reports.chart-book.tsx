@@ -4,11 +4,12 @@ import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, ImagePlus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { compressImage } from "@/lib/media/compress-image";
+import { thumbPath } from "@/lib/media/compress-image";
+import { MAX_SHOTS } from "@/lib/media/limits";
 import { supabase } from "@/integrations/supabase/client";
 import { useJournalTable } from "@/lib/journal/crud";
 import { Button } from "@/components/ui/button";
-import { deleteShot, useScreenshots } from "@/components/journal/Screenshots";
+import { deleteShot, fallbackToFull, storeImage, useScreenshots } from "@/components/journal/Screenshots";
 import { useTradeDrawer } from "@/components/journal/TradeDrawer";
 import { useTrades } from "@/lib/journal/journal-context";
 import { cn } from "@/lib/utils";
@@ -57,17 +58,16 @@ function ChartBook() {
   }
   async function upload(files: FileList | null) {
     if (!files?.length || !active || !journal) return;
-    const available = 6 - images.length;
-    if (files.length > available) toast.error("A record can have at most 6 screenshots");
+    const available = MAX_SHOTS - images.length;
+    if (files.length > available) toast.error(`A record can have at most ${MAX_SHOTS} screenshots`);
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) return;
     for (const file of Array.from(files).slice(0, available)) {
-      const path = `${u.user.id}/${active.id}/${crypto.randomUUID()}-${file.name.replace(/[^\w.-]/g, "_")}`;
-      const up = await supabase.storage.from("screenshots").upload(path, await compressImage(file));
-      if (up.error) { toast.error(up.error.message); continue; }
+      let path: string;
+      try { path = await storeImage(u.user.id, active.id, file); } catch (e) { toast.error((e as Error).message); continue; }
       const link = active.kind === "trades" ? { trade_id: active.id } : active.kind === "missed" ? { missed_trade_id: active.id } : { planned_trade_id: active.id };
       const { error } = await supabase.from("trade_screenshots").insert({ journal_id: journal.id, ...link, path });
-      if (error) { toast.error(error.message); await supabase.storage.from("screenshots").remove([path]); } // do not leave an orphaned file
+      if (error) { toast.error(error.message); await supabase.storage.from("screenshots").remove([path, thumbPath(path)]); } // do not leave an orphaned file
     }
     qc.invalidateQueries({ queryKey: ["screenshots"] });
     qc.invalidateQueries({ queryKey: ["screenshot-ids"] });
@@ -110,7 +110,7 @@ function ChartBook() {
           </div>
         </div>
         {images.map((x) => <div key={x.id} className="group relative mb-8 border-b pb-6">
-          <a href={x.url} target="_blank" rel="noreferrer"><img src={x.url} alt={`${(activeRow as unknown as Record<string, unknown>)["instrument"] ?? ""} trade chart`} className="w-full object-contain" /></a>
+          <a href={x.url} target="_blank" rel="noreferrer"><img src={x.thumb} loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={fallbackToFull(x)} alt={`${(activeRow as unknown as Record<string, unknown>)["instrument"] ?? ""} trade chart`} className="w-full object-contain" /></a>
           <Button size="icon" variant="destructive" aria-label="Delete screenshot" className="absolute right-2 top-2 h-7 w-7 opacity-0 focus-visible:opacity-100 group-hover:opacity-100" onClick={async () => { if (!(await confirm({ title: "Delete this screenshot?", message: "This cannot be undone.", destructive: true }))) return; try { await deleteShot(x); } catch (e) { return void toast.error((e as Error).message); } qc.invalidateQueries({ queryKey: ["screenshots"] }); }}><Trash2 className="h-3.5 w-3.5" /></Button>
           {editing === x.id
             ? <input autoFocus defaultValue={x.caption ?? ""} placeholder="Screenshot description" className="mt-4 w-full rounded-md border bg-background px-3 py-2 text-center text-[12px] outline-none focus:ring-1 focus:ring-ring" onBlur={(e) => void saveCaption(x.id, e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); if (e.key === "Escape") setEditing(null); }} />
