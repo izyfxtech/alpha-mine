@@ -14,7 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { useJournal, useLookups } from "@/lib/journal/journal-context";
+import { useJournal, useJournalFlows, useLookups } from "@/lib/journal/journal-context";
 import { useJournalTable, type Row } from "@/lib/journal/crud";
 import { supabase } from "@/integrations/supabase/client";
 import { RecordScreenshots } from "@/components/journal/Screenshots";
@@ -55,7 +55,9 @@ function MissedTrades() {
   const t = useJournalTable("missed_trades", journal?.id, "occurred_at");
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [edit, setEdit] = useState<Missed | "new" | null>(null);
-  const start = journal?.starting_balance || 1;
+  // Same base as the Return on Home: starting balance plus deposits less withdrawals.
+  const deposited = useJournalFlows().reduce((a, c) => a + Number(c.amount), 0);
+  const start = (journal?.starting_balance ?? 0) + deposited || 1;
 
   const dup = async () => {
     for (const r of t.rows.filter((x) => sel.has(x.id))) {

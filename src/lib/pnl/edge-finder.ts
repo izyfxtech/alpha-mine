@@ -1,6 +1,6 @@
 import { pushTo } from "@/lib/group";
 import { safeCurrency } from "@/lib/currencies";
-import { computeStats, equityCurve, potentialR, type Cashflow, type Trade } from "@/lib/pnl/metrics";
+import { computeStats, equityCurve, followedPlanPct, potentialR, type Cashflow, type Trade } from "@/lib/pnl/metrics";
 import { complianceReport } from "@/lib/pnl/compliance";
 
 export type Rating = "good" | "ok" | "poor";
@@ -106,15 +106,17 @@ function build(all: Trade[], balance: number, flows: Cashflow[], cur: string, op
 
   /* 3. Trading Process: efficiency + best / worst hours */
   {
-    const eff = (ts.filter((t) => !hasNeg(t)).length / n) * 100;
-    const rating: Rating = eff >= 70 ? "good" : eff >= 40 ? "ok" : "poor";
-    const text = net > 0 ? (rating === "good" ? "Your process is disciplined and it shows in the results. Keep following your rules." : "Your trading shows a positive return despite low efficiency. Mistakes or inconsistencies may be limiting your full potential, and improving discipline could strengthen your edge further.") : "Mistakes and inconsistency are costing you. Work on following your plan before changing the strategy.";
+    // Only trades that carry at least one comment can be judged: an uncommented trade is unknown, not clean.
+    const judged = ts.filter((t) => t.comments.length);
+    const eff = followedPlanPct(ts);
+    const rating: Rating = !judged.length ? "ok" : eff >= 70 ? "good" : eff >= 40 ? "ok" : "poor";
+    const text = !judged.length ? "Tag your trades with comments (what went right or wrong) to see how disciplined your process is." : net > 0 ? (rating === "good" ? "Your process is disciplined and it shows in the results. Keep following your rules." : "Your trading shows a positive return despite low efficiency. Mistakes or inconsistencies may be limiting your full potential, and improving discipline could strengthen your edge further.") : "Mistakes and inconsistency are costing you. Work on following your plan before changing the strategy.";
     const byHour = new Map<number, number>();
     ts.forEach((t) => { const h = new Date(t.entry_at).getHours(); byHour.set(h, (byHour.get(h) ?? 0) + t.net_pnl); });
     const hours = [...byHour.entries()].map(([h, v]) => ({ h: `${String(h).padStart(2, "0")}:00`, v }));
     const best = hours.filter((x) => x.v > 0).sort((a, b) => b.v - a.v).slice(0, 4), worst = hours.filter((x) => x.v < 0).sort((a, b) => a.v - b.v).slice(0, 4);
     cards.push({ id: "process", title: "Trading Process", text, rating, score: SCORE[rating], headline: eff, ready: true, sections: [
-      { kind: "metric", id: "eff", title: "Trading Process", rating, value: `${eff.toFixed(0)}%`, text, note: "Efficiency: share of trades without a negative comment" },
+      { kind: "metric", id: "eff", title: "Trading Process", rating, value: judged.length ? `${eff.toFixed(0)}%` : "n/a", text, note: "Efficiency: share of commented trades with no negative comment" },
       ...(best.length ? [{ kind: "table", id: "best-hours", title: "Best Trading Hours", rating: "good", text: "You perform best during these hours. That could reflect better market conditions, a closer fit with your strategy, or simply times when you are more focused.", columns: ["Time", "Total Profit"], rows: best.map((x) => ({ cells: [x.h, money(x.v, cur)], tone: "pos" as Tone })) } as TableSection] : []),
       ...(worst.length ? [{ kind: "table", id: "worst-hours", title: "Worst Trading Hours", rating: "poor", text: "Your results are much weaker in these hours. They may not suit your approach, or focus and execution tend to drop then.", columns: ["Time", "Total Loss"], rows: worst.map((x) => ({ cells: [x.h, money(x.v, cur)], tone: "neg" as Tone })) } as TableSection] : []),
     ] });

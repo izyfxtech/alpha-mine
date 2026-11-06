@@ -8,7 +8,7 @@ import { ArrowDown, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react"
 import { fetchAllRows, fetchTrades, useJournal } from "@/lib/journal/journal-context";
 import { countOption } from "@/lib/journal/fetch-all";
 import { supabase } from "@/integrations/supabase/client";
-import { bucketPerformance, computeStats, fmtMoney, fmtNum, fmtPct, groupPerformance, isOpen, MONTHS, WEEKDAYS, type Trade } from "@/lib/pnl/metrics";
+import { bucketPerformance, computeStats, fmtMoney, fmtNum, fmtPct, followedPlanPct, groupPerformance, isOpen, MONTHS, WEEKDAYS, type Trade } from "@/lib/pnl/metrics";
 import { EquityChart, Panel, PnlBars, Stat } from "@/components/kit";
 import { KpiCards } from "@/components/analytics/KpiCards";
 import { ProfitCalendar } from "@/components/analytics/ProfitCalendar";
@@ -65,7 +65,6 @@ function Portfolio() {
   const rTrades = trades.filter((t) => t.r != null);
   const avgR = rTrades.length ? rTrades.reduce((a, t) => a + (t.r ?? 0), 0) / rTrades.length : 0;
   const days = new Set(trades.map((t) => localDay(t.entry_at))).size || 1;
-  const followed = trades.filter((t) => t.followedPlan).length;
 
   return (
     <div className="mx-auto max-w-[1374px] space-y-[30px]">
@@ -159,7 +158,7 @@ function Portfolio() {
           <Stat label="Biggest loss" value={fmtPct(best[best.length - 1]?.pct ?? 0)} />
           <Stat label="Avg. Profit / day" value={fmtPct(trades.reduce((a, t) => a + t.pct, 0) / days)} />
           <Stat label="Trades per day / week" value={`${fmtNum(s.perDay)} / ${fmtNum(s.perWeek)}`} />
-          <Stat label="Followed trade plan %" value={fmtPct(trades.length ? (followed / trades.length) * 100 : 0)} />
+          <Stat label="Followed trade plan %" value={fmtPct(followedPlanPct(trades))} />
         </Panel>
       </div>
 

@@ -58,8 +58,14 @@ function PlansPage() {
   const dup = async () => {
     for (const r of t.rows.filter((x) => sel.has(x.id))) {
       const { id: _i, created_at: _c, ...rest } = r;
-      await t.insert(rest);
+      const copy = await t.insert(rest);
+      if (!copy || !journal) continue;
+      // The copy keeps the original's custom-statistic tags.
+      const tags = statLinks.filter((l) => l.planned_trade_id === r.id).map((l) => l.option_id);
+      const err = tags.length ? await syncLinks("planned_trade_custom_stats", "planned_trade_id", copy.id, journal.id, tags) : null;
+      if (err) { const { toast } = await import("sonner"); toast.error(err); }
     }
+    qc.invalidateQueries({ queryKey: ["planned_trade_custom_stats", journal?.id] });
     setSel(new Set());
   };
   const del = async () => {
@@ -76,6 +82,7 @@ function PlansPage() {
         entry_at: p.entry_at, instrument_id: inst?.id ?? null, setup_id: setup?.id ?? null,
         direction: p.direction as "long" | "short", entry_price: n(p.entry_price) ?? undefined, quantity: Number(p.quantity),
         stop_loss: n(p.stop_loss), take_profit: n(p.take_profit), notes: p.notes,
+        customStats: statLinks.filter((l) => l.planned_trade_id === p.id).map((l) => l.option_id),
       } as never,
       onSaved: async () => { await t.remove(p.id); qc.invalidateQueries({ queryKey: ["planned_trades"] }); },
     });
