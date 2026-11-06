@@ -28,6 +28,8 @@ const FULL_DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Frid
 const CURRENCY_NAMES: Record<string, string> = { USD: "United States Dollar", EUR: "Euro", GBP: "British Pound", JPY: "Japanese Yen", AUD: "Australian Dollar", CAD: "Canadian Dollar", CHF: "Swiss Franc", NGN: "Nigerian Naira" };
 const currencyName = (c: string) => CURRENCY_NAMES[c] ?? (() => { try { return new Intl.DisplayNames(["en"], { type: "currency" }).of(c) ?? c; } catch { return c; } })();
 
+import { GettingStarted } from "@/components/onboarding/GettingStarted";
+
 function Home() {
   const { trades, journal, isLoading, flows } = useTrades();
   const qc = useQueryClient();
@@ -43,11 +45,14 @@ function Home() {
 
   if (!isLoading && journal && trades.length === 0)
     return (
+      <div className="space-y-6">
+      <GettingStarted />
       <Empty>
         <p className="text-base font-semibold text-foreground">No trades in this journal yet</p>
         <p className="mt-1">Add your first trade from the sidebar, import a CSV, to get started.</p>
         {import.meta.env.DEV && <Button className="mt-4" onClick={async () => { await seedDemoTrades(journal.id); qc.invalidateQueries(); }}>Load sample trades (dev only)</Button>}
       </Empty>
+      </div>
     );
 
   const byInst = groupPerformance(trades, (t) => t.instrument).sort((a, b) => b.pnl - a.pnl);
@@ -65,6 +70,7 @@ function Home() {
 
   return (
     <div className="mx-auto max-w-[1374px] space-y-[30px]">
+      <GettingStarted />
       <div className="flex flex-wrap items-center justify-between gap-3">
       <h1 className="w-full text-xl font-semibold">{firstName ? `Welcome back, ${firstName}` : "Welcome back"}</h1>
       <div className="inline-flex h-[24px] overflow-hidden rounded-md border bg-card text-xs font-semibold">

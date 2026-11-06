@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { BarChart3, BookOpen, CheckCircle2, FileDown, PencilLine, Sparkles } from "lucide-react";
+import { BarChart3, BookOpen, CheckCircle2, FileDown, FlaskConical, LineChart, PencilLine, ShieldCheck, Sparkles } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,17 @@ import { JOURNAL_MARKETS as MARKETS } from "@/lib/pnl/instrument-catalogue";
 import { cn } from "@/lib/utils";
 
 export const OPEN_ONBOARDING_EVENT = "am:open-onboarding";
-const STEPS = ["Welcome", "Your journal", "Your trades", "All set"] as const;
+const STEPS = ["Welcome", "Your journal", "Your trades", "Quick tour"] as const;
+type Dest = "/journal" | "/analytics" | "/plans" | "/rules" | "/diary/sessions" | "/reports/calendar" | "/strategy-lab/alternatives";
+/** What the app can do, one card each, with a shortcut to the page. */
+const TOUR: { icon: React.ReactNode; title: string; body: string; to: Dest; cta: string }[] = [
+  { icon: <BookOpen className="h-6 w-6" />, title: "Journal", body: "Every trade as a table, cards or a screenshot gallery. Tag setups, add comments and statistics, attach up to 10 screenshots and merge partial fills.", to: "/journal", cta: "Open the journal" },
+  { icon: <BarChart3 className="h-6 w-6" />, title: "Analytics and Chart Lab", body: "Win rate, expectancy, drawdown and ratios such as Sharpe and Sortino, grouped any way you like. Chart Lab has 25+ charts, including Compare Charts to put two groups side by side.", to: "/analytics", cta: "Open analytics" },
+  { icon: <ShieldCheck className="h-6 w-6" />, title: "Rules and Plans", body: "Write your rules, score every trade against them, and see what breaking them costs. Plan trades before you take them and move a plan into the journal when it fills.", to: "/rules", cta: "Open rule compliance" },
+  { icon: <PencilLine className="h-6 w-6" />, title: "Diary", body: "Sessions record how each day went and how you felt. The notebook keeps longer notes. Both sit next to your numbers so you can see what your mood did to your results.", to: "/diary/sessions", cta: "Open the diary" },
+  { icon: <LineChart className="h-6 w-6" />, title: "Reports", body: "A calendar of your days, monthly and annual reports, and a Chartbook of your best screenshots.", to: "/reports/calendar", cta: "Open the calendar" },
+  { icon: <FlaskConical className="h-6 w-6" />, title: "Strategy Lab", body: "Test what-ifs on your own trades with Alternative Strategies, backtest an idea, or practise in the simulator. Your Edge Finder reads all of it for patterns.", to: "/strategy-lab/alternatives", cta: "Open the lab" },
+];
 const sel = "h-10 w-full rounded-md border bg-background px-2 text-sm";
 
 /**
@@ -39,6 +49,8 @@ export function Onboarding() {
   const [name, setName] = useState("");
   const [f, setF] = useState({ name: "", currency: "USD", amount: "10000", trade_type: "Spot", markets: [] as string[] });
   const [seeded, setSeeded] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [tour, setTour] = useState(0);
 
   // undefined while loading and on error: the guide must not open until the count is really known to be 0.
   const { data: tradeCount } = useQuery({
@@ -52,7 +64,7 @@ export function Onboarding() {
   });
 
   useEffect(() => {
-    const open = () => { setForced(true); setDismissed(false); setStep(0); };
+    const open = () => { setForced(true); setDismissed(false); setStep(0); setTour(0); setEditing(false); };
     window.addEventListener(OPEN_ONBOARDING_EVENT, open);
     return () => window.removeEventListener(OPEN_ONBOARDING_EVENT, open);
   }, []);
@@ -65,6 +77,9 @@ export function Onboarding() {
     setSeeded(true);
   }, [profile, journal, seeded]);
 
+  // A journal you already named, funded or gave markets to is not asked for again: it is shown for confirmation instead.
+  const untouched = !!journal && journal.name === "Trading Journal" && journal.currency === "USD" && Number(journal.starting_balance) === 10000 && !(journal.markets ?? []).length;
+  const showForm = editing || untouched;
   const due = !!profile && !!journal && !settings.onboarded && tradeCount === 0;
   const open = (due || forced) && !dismissed && !importing;
   if (!journal) return null;
@@ -91,7 +106,7 @@ export function Onboarding() {
     } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
   }
 
-  const go = (to: "/journal" | "/analytics" | "/plans" | "/diary/sessions") => { void finish(true); navigate({ to }); };
+  const go = (to: Dest) => { void finish(true); navigate({ to }); };
 
   return (
     <>
@@ -121,8 +136,20 @@ export function Onboarding() {
             <>
               <DialogHeader>
                 <DialogTitle className="text-xl">Set up your journal</DialogTitle>
-                <DialogDescription>A journal is one trading account. You can add more later and change all of this in settings.</DialogDescription>
+                <DialogDescription>{showForm ? "A journal is one trading account. You can add more later and change all of this in settings." : "This is the journal you created. Check it looks right; nothing here needs retyping."}</DialogDescription>
               </DialogHeader>
+              {!showForm ? (
+                <div className="space-y-4">
+                  <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-lg border p-4 text-sm">
+                    <dt className="text-muted-foreground">Journal</dt><dd className="font-medium">{f.name}</dd>
+                    <dt className="text-muted-foreground">Currency</dt><dd className="font-medium">{f.currency}</dd>
+                    <dt className="text-muted-foreground">Starting balance</dt><dd className="font-medium">{Number(f.amount).toLocaleString()}</dd>
+                    <dt className="text-muted-foreground">Markets</dt><dd className="font-medium">{f.markets.length ? f.markets.join(", ") : "None chosen"}</dd>
+                  </dl>
+                  <div className="space-y-1.5"><Label htmlFor="ob-type">What do you trade?</Label><select id="ob-type" className={sel} value={f.trade_type} onChange={(e) => setF({ ...f, trade_type: e.target.value })}>{["Spot", "Options", "Futures"].map((c) => <option key={c}>{c}</option>)}</select></div>
+                  <button type="button" className="text-sm underline underline-offset-2" onClick={() => setEditing(true)}>Change journal details</button>
+                </div>
+              ) : (
               <div className="space-y-4">
                 <div className="space-y-1.5"><Label htmlFor="ob-jname">Journal name</Label><Input id="ob-jname" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></div>
                 <div className="grid grid-cols-2 gap-3">
@@ -139,9 +166,10 @@ export function Onboarding() {
                     })}
                   </div>
                 </div>
-                <p className="text-sm text-muted-foreground">Importing from MetaTrader? Use the currency shown in the report: a different currency is refused so your numbers stay correct.</p>
               </div>
-              <div className="flex justify-between gap-2"><Button variant="outline" onClick={() => setStep(0)}>Back</Button><Button disabled={busy} onClick={saveProfileAndJournal}>Save and continue</Button></div>
+              )}
+              <p className="text-sm text-muted-foreground">Importing from MetaTrader? Use the currency shown in the report: a different currency is refused so your numbers stay correct.</p>
+              <div className="flex justify-between gap-2"><Button variant="outline" onClick={() => setStep(0)}>Back</Button><Button disabled={busy} onClick={saveProfileAndJournal}>{showForm ? "Save and continue" : "Looks right"}</Button></div>
             </>
           )}
 
@@ -155,25 +183,30 @@ export function Onboarding() {
                 <Choice icon={<FileDown className="h-5 w-5" />} title="Import a file" body="MetaTrader 4 or 5 report, or a CSV or Excel export from your broker." onClick={() => setImporting(true)} />
                 <Choice icon={<PencilLine className="h-5 w-5" />} title="Log a trade by hand" body="Add one trade with its setup, notes and screenshots." onClick={() => { setDismissed(true); drawer.open(); }} />
               </div>
-              <div className="flex justify-between gap-2"><Button variant="outline" onClick={() => setStep(1)}>Back</Button><Button variant={(tradeCount ?? 0) > 0 ? "default" : "ghost"} onClick={() => setStep(3)}>{(tradeCount ?? 0) > 0 ? "Continue" : "I'll do this later"}</Button></div>
+              <div className="flex justify-between gap-2"><Button variant="outline" onClick={() => setStep(1)}>Back</Button><Button variant={(tradeCount ?? 0) > 0 ? "default" : "ghost"} onClick={() => { setTour(0); setStep(3); }}>{(tradeCount ?? 0) > 0 ? "Continue" : "I'll do this later"}</Button></div>
             </>
           )}
 
-          {step === 3 && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2 text-xl"><CheckCircle2 className="h-6 w-6 text-profit" />You're all set</DialogTitle>
-                <DialogDescription>Here is where to go from here.</DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Choice icon={<BookOpen className="h-5 w-5" />} title="Journal" body="Every trade as a table, cards or a screenshot gallery." onClick={() => go("/journal")} />
-                <Choice icon={<BarChart3 className="h-5 w-5" />} title="Analytics" body="Win rate, expectancy, drawdown and more." onClick={() => go("/analytics")} />
-                <Choice icon={<Sparkles className="h-5 w-5" />} title="Plans" body="Write down your rules and score yourself against them." onClick={() => go("/plans")} />
-                <Choice icon={<PencilLine className="h-5 w-5" />} title="Diary" body="Record how each session went and how you felt." onClick={() => go("/diary/sessions")} />
-              </div>
-              <div className="flex justify-between gap-2"><Button variant="outline" onClick={() => setStep(2)}>Back</Button><Button onClick={() => finish()}>Finish</Button></div>
-            </>
-          )}
+          {step === 3 && (() => {
+            const t = TOUR[tour]!;
+            const last = tour === TOUR.length - 1;
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 text-xl">{last ? <CheckCircle2 className="h-6 w-6 text-profit" /> : null}Quick tour <span className="text-sm font-normal text-muted-foreground">{tour + 1} of {TOUR.length}</span></DialogTitle>
+                  <DialogDescription>You can reopen this any time from Setup guide in your account menu.</DialogDescription>
+                </DialogHeader>
+                <div className="flex items-start gap-4 rounded-lg border p-5">
+                  <span className="rounded-md bg-muted p-3">{t.icon}</span>
+                  <div className="space-y-3"><div><p className="text-base font-semibold">{t.title}</p><p className="text-sm text-muted-foreground">{t.body}</p></div><Button size="sm" variant="outline" onClick={() => go(t.to)}>{t.cta}</Button></div>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <Button variant="outline" onClick={() => (tour === 0 ? setStep(2) : setTour(tour - 1))}>Back</Button>
+                  {last ? <Button onClick={() => finish()}>Finish</Button> : <Button onClick={() => setTour(tour + 1)}>Next</Button>}
+                </div>
+              </>
+            );
+          })()}
         </DialogContent>
       </Dialog>
       <ImportDialog open={importing} onOpenChange={(o) => { setImporting(o); if (!o) void qc.invalidateQueries({ queryKey: ["onboarding-trade-count"] }); }} />

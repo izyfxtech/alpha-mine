@@ -10,13 +10,15 @@ export interface ProfileSettings {
   weekStartsOn: 0 | 1;
   /** Set once the first-run setup guide was finished or skipped. */
   onboarded: boolean;
+  /** Set when the Getting started checklist on Home was dismissed. */
+  hideChecklist: boolean;
 }
-export const DEFAULT_PROFILE_SETTINGS: ProfileSettings = { showWeeklyTotals: false, showCalendarWinrate: false, showBalance: true, allowSharing: true, weekStartsOn: 1, onboarded: false };
+export const DEFAULT_PROFILE_SETTINGS: ProfileSettings = { showWeeklyTotals: false, showCalendarWinrate: false, showBalance: true, allowSharing: true, weekStartsOn: 1, onboarded: false, hideChecklist: false };
 
 export function readSettings(raw: unknown): ProfileSettings {
   const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   const b = (k: "showWeeklyTotals" | "showCalendarWinrate" | "showBalance" | "allowSharing") => (typeof o[k] === "boolean" ? (o[k] as boolean) : DEFAULT_PROFILE_SETTINGS[k]);
-  return { showWeeklyTotals: b("showWeeklyTotals"), showCalendarWinrate: b("showCalendarWinrate"), showBalance: b("showBalance"), allowSharing: b("allowSharing"), onboarded: o.onboarded === true, weekStartsOn: o.weekStartsOn === 0 ? 0 : 1 };
+  return { showWeeklyTotals: b("showWeeklyTotals"), showCalendarWinrate: b("showCalendarWinrate"), showBalance: b("showBalance"), allowSharing: b("allowSharing"), onboarded: o.onboarded === true, hideChecklist: o.hideChecklist === true, weekStartsOn: o.weekStartsOn === 0 ? 0 : 1 };
 }
 
 /** Signed-in user's profile row plus parsed account toggles. */
