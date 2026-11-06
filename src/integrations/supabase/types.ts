@@ -1268,6 +1268,7 @@ export type Database = {
       create_journal: { Args: { _journal: Json; _comments?: Json; _stats?: Json; _setups?: Json; _only_if_none?: boolean }; Returns: Database["public"]["Tables"]["journals"]["Row"] }
       import_mt_report: { Args: { _journal_id: string; _payload: Json; _repair?: boolean; _force?: boolean }; Returns: Json }
       merge_trades: { Args: { _ids: string[] }; Returns: string }
+      delete_my_account: { Args: Record<PropertyKey, never>; Returns: undefined }
       owns_journal: { Args: { _j: string }; Returns: boolean }
       shared_journal: { Args: { _token: string }; Returns: Json }
     }

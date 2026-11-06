@@ -2,6 +2,10 @@
 
 Newest first. Dates are the day the work landed on `main`.
 
+## 2026-11-06 (your data)
+
+- Settings, Account: **Download all data (JSON)** (every table you own, one file), **Download trades (CSV)**, and **Delete my account**, which asks you to type "delete my account", removes your screenshot files, journals and sign-in, and cannot be undone. New migration `20261106100000_delete_my_account.sql` (run `pnpm db:push`); covered by a pgTAP test and a guard test that fails if a new table is not in the export.
+
 ## 2026-11-04 (failed saves)
 
 - Audit remainder: Lightbox now takes focus, traps Tab and restores focus (L29); date-range day cells have labels (L29); the gallery Win/Loss filter excludes break-even like every other page (L37); renaming a session category stops if any session update fails instead of leaving a ghost category (L30); the Strategy Lab copy no longer claims the simulator runs on your trade history (L40).
