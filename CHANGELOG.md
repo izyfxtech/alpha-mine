@@ -2,6 +2,12 @@
 
 Newest first. Dates are the day the work landed on `main`.
 
+## 2026-11-06 (onboarding)
+
+- **Setup guide**: the journal step no longer asks again for what you entered when you created the journal. It shows the journal for confirmation ("Looks right"), asks only what creation does not (what you trade), and keeps "Change journal details" for edits. The untouched default journal still shows the form.
+- **Quick tour**: the last step is now a six-card tour (Journal, Analytics and Chart Lab, Rules and Plans, Diary, Reports, Strategy Lab), each with a shortcut to the page.
+- **Getting started checklist** on Home: add trades, write rules, plan a trade, record a session. Steps tick themselves from your real data, and the checklist can be hidden. No migration.
+
 ## 2026-11-06 (compare charts, audit rest)
 
 - **Compare Charts**: the two sides now default to Long vs Short (not All vs Long, which looked like one line); a pick that disappears after a filter or journal change falls back to a group that has trades instead of drawing an empty line; both lines start from 0 and use straight segments (the smoothing made curves overshoot); an empty group shows a message; identical groups show a note; the legend colour matches the line; group statistics no longer include account deposits and withdrawals.
