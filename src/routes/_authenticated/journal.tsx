@@ -22,6 +22,7 @@ import { COMPLIANCE_LABEL, complianceOf } from "@/lib/pnl/compliance";
 import { Input } from "@/components/ui/input";
 import { useTradeDrawer } from "@/components/journal/TradeDrawer";
 import { ImportDialog } from "@/components/journal/ImportDialog";
+import { MergeTradesDialog } from "@/components/journal/MergeTradesDialog";
 import { useScreenshots, type Shot } from "@/components/journal/Screenshots";
 import { ScreenshotGallery, TradeCards } from "@/components/journal/TradeViews";
 import { Empty, TiltMeter } from "@/components/kit";
@@ -89,6 +90,7 @@ function JournalPage() {
   const [colSearch, setColSearch] = useState("");
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [imp, setImp] = useState(false);
+  const [mergeOpen, setMergeOpen] = useState(false);
 
   const hidden = useMemo(() => new Set(layout.hidden), [layout.hidden]);
   const cols = layout.order.map((key) => COLS.find((c) => c.k === key)).filter((c): c is Col => c !== undefined).filter((c) => !hidden.has(c.k));
@@ -161,14 +163,11 @@ function JournalPage() {
     if (error) return toast.error(error.message);
     setSel(new Set()); qc.invalidateQueries(); toast.success("Duplicated");
   }
-  async function merge() {
-    const ts = [...chosen].sort((a, b) => a.entry_at.localeCompare(b.entry_at));
-    if (new Set(ts.map((t) => t.instrument_id)).size > 1 || new Set(ts.map((t) => t.direction)).size > 1) return toast.error("Merge needs same instrument and direction");
-    // One atomic server-side call: sums money, concatenates notes, moves comments, tags, rules, legs and screenshots to the
-    // surviving trade, and remembers merged-away broker tickets so a re-import does not bring them back.
-    const { error } = await supabase.rpc("merge_trades", { _ids: ts.map((t) => t.id) });
-    if (error) return toast.error(error.message);
-    sweepStorage(); setSel(new Set()); qc.invalidateQueries(); toast.success("Merged");
+  // Merging asks how the trades relate (one position built in parts, or the same trade logged twice): see MergeTradesDialog.
+  function merge() {
+    if (chosen.length < 2) return;
+    if (chosen.some(isOpen)) return toast.error("Close open trades before merging them");
+    setMergeOpen(true);
   }
   async function toggleFav(t: Trade) {
     await supabase.from("trades").update({ is_favorite: !t.is_favorite }).eq("id", t.id);
@@ -215,9 +214,10 @@ function JournalPage() {
     <div className="flex flex-wrap items-center gap-2.5 px-[22px] pb-3 pt-[18px]">
       <Button variant="ink" size="sm" className="h-9 rounded-md px-4 text-sm" onClick={() => drawer.open()}>Add Trade</Button>
       <Button variant="ink" size="sm" className="h-9 rounded-md px-4 text-sm" onClick={() => setImp(true)}>Import Trades</Button>
-      <Button variant="secondary" size="sm" className="h-9 rounded-md px-4 text-sm text-t4" disabled={sel.size < 2} onClick={merge}><Merge className="h-4 w-4" />Merge</Button>
-      <Button variant="secondary" size="sm" className="h-9 rounded-md px-4 text-sm text-t4" disabled={!sel.size} onClick={dup}><Copy className="h-4 w-4" />Duplicate</Button>
-      <Button variant="secondary" size="sm" className="h-9 rounded-md px-4 text-sm text-t4" disabled={!sel.size} onClick={del}><Trash2 className="h-4 w-4" />Delete</Button>
+      <span title={sel.size < 2 ? "Select at least 2 trades to merge" : undefined}><Button variant="outline" size="sm" className="h-9 rounded-md bg-card px-4 text-sm" disabled={sel.size < 2} onClick={merge}><Merge className="h-4 w-4" />Merge</Button></span>
+      <span title={!sel.size ? "Select trades to duplicate" : undefined}><Button variant="outline" size="sm" className="h-9 rounded-md bg-card px-4 text-sm" disabled={!sel.size} onClick={dup}><Copy className="h-4 w-4" />Duplicate</Button></span>
+      <span title={!sel.size ? "Select trades to delete" : undefined}><Button variant="outline" size="sm" className="h-9 rounded-md bg-card px-4 text-sm text-loss hover:bg-loss-soft hover:text-loss" disabled={!sel.size} onClick={del}><Trash2 className="h-4 w-4" />Delete</Button></span>
+      {sel.size > 0 && <span className="text-xs text-muted-foreground">{sel.size} selected</span>}
       {filters.day && <Button variant="ghost" size="sm" onClick={() => setFilters({ ...filters, day: undefined })}>Day: {filters.day} <X className="ml-1 h-3 w-3" /></Button>}
       <div className="relative w-56"><Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" /><Input value={qText} onChange={(e) => setQText(e.target.value)} placeholder="Search trades, notes, rules…" aria-label="Search trades" className="h-9 pl-8" />{qText && <button aria-label="Clear search" className="absolute right-2 top-2.5 text-muted-foreground" onClick={() => { setQText(""); setFilters({ ...filters, q: undefined }); }}><X className="h-4 w-4" /></button>}</div>
       {activeFilterCount(filters) > 0 && <Button variant="ghost" size="sm" className="h-9 text-sm" onClick={() => { setQText(""); setFilters({}); }}>Filters active ({activeFilterCount(filters)}) <X className="ml-1 h-3 w-3" /></Button>}
@@ -307,6 +307,7 @@ function JournalPage() {
         </>
       )}
       <ImportDialog open={imp} onOpenChange={setImp} />
+      <MergeTradesDialog trades={chosen} open={mergeOpen} onOpenChange={setMergeOpen} onMerged={() => setSel(new Set())} />
     </div>
   );
 }
