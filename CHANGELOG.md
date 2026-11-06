@@ -2,6 +2,10 @@
 
 Newest first. Dates are the day the work landed on `main`.
 
+## 2026-11-07 (spotlight tour)
+
+- **Spotlight tour**: the page dims and the real menu items light up one by one (Home, Add trade, Journal, Analytics, Rule Compliance, Plans, Diary, Chart Lab, Reports, Strategy Lab, journals, filters, search, account menu), each with a short explanation. Arrow keys or buttons to move, Esc to stop. Steps that are not on screen are skipped. Start it from "Show me on screen" in the setup guide or "Take the tour" in the account menu.
+
 ## 2026-11-06 (onboarding)
 
 - **Setup guide**: the journal step no longer asks again for what you entered when you created the journal. It shows the journal for confirmation ("Looks right"), asks only what creation does not (what you trade), and keeps "Change journal details" for edits. The untouched default journal still shows the form.

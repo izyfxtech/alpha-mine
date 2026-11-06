@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { START_TOUR_EVENT } from "@/lib/tour";
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -198,7 +199,7 @@ export function Onboarding() {
                 </DialogHeader>
                 <div className="flex items-start gap-4 rounded-lg border p-5">
                   <span className="rounded-md bg-muted p-3">{t.icon}</span>
-                  <div className="space-y-3"><div><p className="text-base font-semibold">{t.title}</p><p className="text-sm text-muted-foreground">{t.body}</p></div><Button size="sm" variant="outline" onClick={() => go(t.to)}>{t.cta}</Button></div>
+                  <div className="space-y-3"><div><p className="text-base font-semibold">{t.title}</p><p className="text-sm text-muted-foreground">{t.body}</p></div><div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => go(t.to)}>{t.cta}</Button>{tour === 0 && <Button size="sm" onClick={() => { finish(); window.setTimeout(() => window.dispatchEvent(new Event(START_TOUR_EVENT)), 300); }}>Show me on screen</Button>}</div></div>
                 </div>
                 <div className="flex justify-between gap-2">
                   <Button variant="outline" onClick={() => (tour === 0 ? setStep(2) : setTour(tour - 1))}>Back</Button>
