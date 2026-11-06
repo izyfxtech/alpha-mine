@@ -8,6 +8,14 @@ Newest first. Dates are the day the work landed on `main`.
 
 ## 2026-11-04 (failed saves)
 
+## 2026-11-06 (merge modes, screenshots)
+
+- **Merge trades** asks whether the trades are parts of one position (sizes and P&L added) or the same trade logged twice (one set of numbers kept, notes, screenshots, comments, tags and rule checks carried over). Also fills a survivor's empty setup, plan, stops and target from the others, repoints earlier merge records so a re-import cannot bring old tickets back, and sets break-even only when every part was. Migration `20261105090000_merge_modes.sql`.
+- **Screenshots: up to 10** per trade, missed trade and plan (was 6; the database now caps missed trades and plans as well). Migration `20261106090000_screenshot_limit.sql`.
+- **Fewer downloads.** Signed URLs are cached and reused for 50 minutes, so a refetch no longer gives every image a new address and the browser keeps its cached copy; the list no longer refetches on window focus; uploads carry a one-year cache header. Galleries, cards, the Chart Book and the trade form load a 640 px preview (about 15 KB) and only the viewer loads the full image; older screenshots without a preview fall back to the full image.
+- **Smaller uploads.** Every upload (trade form, Screenshots tab, missed trades, plans, Chart Book) now goes through one pipeline: longest side 1920 px, WebP at 0.82, kept as-is if already under 300 KB. The Screenshots tab, missed trades and plans used to upload the raw file.
+- **Links.** A pasted image link must load as an image before it is added (no more silent broken thumbnails); TradingView share links (`tradingview.com/x/...`) are turned into their picture; link images are loaded lazily and send no referrer. A deleted screenshot now also queues its preview file for removal.
+
 - Audit remainder: Lightbox now takes focus, traps Tab and restores focus (L29); date-range day cells have labels (L29); the gallery Win/Loss filter excludes break-even like every other page (L37); renaming a session category stops if any session update fails instead of leaving a ghost category (L30); the Strategy Lab copy no longer claims the simulator runs on your trade history (L40).
 - Chart Lab, Ratios: added MAR, Sterling, Burke and K-ratio (running per trade), each pinned to a hand calculation in tests; formulas listed in docs/CALCULATIONS.md. Treynor and Information ratio need a market benchmark and are not offered.
 

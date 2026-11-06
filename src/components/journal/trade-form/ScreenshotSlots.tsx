@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { ArrowUp, X } from "lucide-react";
 import { toast } from "sonner";
 import type { Shot } from "@/components/journal/Screenshots";
+import { MAX_SHOTS } from "@/lib/media/limits";
+import { imageLoads, normalizeImageUrl } from "@/lib/media/image-links";
 
 /** A screenshot waiting to be saved: either a file or an external URL. */
 export type PendingShot = { key: string; file?: File; url?: string; preview: string };
@@ -13,13 +15,13 @@ export function ScreenshotSlots({ existing, pending, onAdd, onRemoveExisting, on
   onAdd: (p: PendingShot[]) => void; onRemoveExisting: (s: Shot) => void; onRemovePending: (key: string) => void;
 }) {
   const filled = [
-    ...existing.map((s) => ({ key: s.id, preview: s.url, remove: () => onRemoveExisting(s) })),
+    ...existing.map((s) => ({ key: s.id, preview: s.thumb || s.url, remove: () => onRemoveExisting(s) })),
     ...pending.map((p) => ({ key: p.key, preview: p.preview, remove: () => onRemovePending(p.key) })),
   ];
-  const empty = Math.min(6 - filled.length, Math.max(MIN_SLOTS - filled.length, 1));
+  const empty = Math.min(MAX_SHOTS - filled.length, Math.max(MIN_SLOTS - filled.length, 1));
   const addLimited = (items: PendingShot[]) => {
-    const available = 6 - filled.length;
-    if (items.length > available) toast.error("A trade can have at most 6 screenshots");
+    const available = MAX_SHOTS - filled.length;
+    if (items.length > available) toast.error(`A trade can have at most ${MAX_SHOTS} screenshots`);
     onAdd(items.slice(0, available));
   };
   // Ctrl/Cmd+V anywhere on this tab drops a copied screenshot into the next free slot
@@ -41,7 +43,7 @@ export function ScreenshotSlots({ existing, pending, onAdd, onRemoveExisting, on
     <div className="space-y-6">
       {filled.map((f) => (
         <div key={f.key} className="tf-drop relative p-2">
-          <img src={f.preview} alt="Trade screenshot" className="max-h-64 w-full rounded-[3px] object-contain" />
+          <img src={f.preview} alt="Trade screenshot" loading="lazy" decoding="async" referrerPolicy="no-referrer" className="max-h-64 w-full rounded-[3px] object-contain" />
           <button type="button" onClick={f.remove} aria-label="Remove screenshot"
             className="absolute right-3 top-3 grid h-6 w-6 place-items-center rounded-full bg-ink text-ink-foreground"><X className="h-3.5 w-3.5" /></button>
         </div>
@@ -61,11 +63,17 @@ function fromFiles(files: FileList | File[]): PendingShot[] {
 function EmptySlot({ onAdd }: { onAdd: (p: PendingShot[]) => void }) {
   const [over, setOver] = useState(false);
   const [url, setUrl] = useState("");
-  const addUrl = () => {
+  const [checking, setChecking] = useState(false);
+  const addUrl = async () => {
     const v = url.trim();
-    if (!v) return;
+    if (!v || checking) return;
     if (!/^https:\/\/\S+$/i.test(v)) { toast.error("Paste a valid image link (https://…)"); return; }
-    onAdd([{ key: crypto.randomUUID(), url: v, preview: v }]);
+    const link = normalizeImageUrl(v); // a TradingView share page becomes its picture
+    setChecking(true);
+    const ok = await imageLoads(link);
+    setChecking(false);
+    if (!ok) { toast.error("That link does not load as an image. Use the direct image address, or upload the file."); return; }
+    onAdd([{ key: crypto.randomUUID(), url: link, preview: link }]);
     setUrl("");
   };
   return (
@@ -78,8 +86,8 @@ function EmptySlot({ onAdd }: { onAdd: (p: PendingShot[]) => void }) {
         Select file
         <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => { if (e.target.files) onAdd(fromFiles(e.target.files)); e.target.value = ""; }} />
       </label>
-      <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Paste URL or Image from Clipboard"
-        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addUrl(); } }} onBlur={addUrl}
+      <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder={checking ? "Checking link…" : "Paste URL or Image from Clipboard"}
+        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void addUrl(); } }} onBlur={() => void addUrl()}
         onPaste={(e) => { const files = Array.from(e.clipboardData.files); if (files.length) { e.preventDefault(); onAdd(fromFiles(files)); } }}
         className="mt-4 h-[34px] w-full rounded-[4px] border border-input bg-card px-3 text-[12.5px] outline-none placeholder:text-foreground focus:border-foreground" />
     </div>

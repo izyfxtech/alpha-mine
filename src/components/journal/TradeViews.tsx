@@ -6,7 +6,7 @@ import { fmtNum, isLoss, isWin } from "@/lib/pnl/metrics";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Lightbox, type LightboxItem } from "@/components/journal/Lightbox";
-import type { Shot } from "@/components/journal/Screenshots";
+import { fallbackToFull, type Shot } from "@/components/journal/Screenshots";
 
 const money = (n: number) => `${n < 0 ? "-" : n > 0 ? "+" : ""}${Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const when = (s: string | null) => localDateTime(s);
@@ -28,7 +28,7 @@ export function TradeCards({ trades, shotsByTrade, onOpen, selected, onToggle }:
             <article key={t.id} className={cn("group flex flex-col overflow-hidden rounded-lg border bg-card shadow-sm transition hover:shadow-md", t.net_pnl > 0 ? "border-l-4 border-l-profit" : t.net_pnl < 0 ? "border-l-4 border-l-loss" : "border-l-4 border-l-border", selected?.has(t.id) && "ring-2 ring-ink")}>
               <div className="relative">
               <button type="button" className="relative block aspect-video w-full bg-muted" aria-label={cover ? `View screenshots for ${t.instrument}` : `No screenshot for ${t.instrument}`} onClick={() => cover ? setBox({ items: shots.map((s) => ({ url: s.url, title: title(t), subtitle: subtitle(t), action: { label: "Open trade", run: () => { setBox(null); onOpen(t); } } })), index: 0 }) : onOpen(t)}>
-                {cover?.url ? <img src={cover.url} alt="" loading="lazy" className="h-full w-full object-cover" /> : <span className="flex h-full flex-col items-center justify-center gap-1 text-sm text-muted-foreground"><ImageIcon className="h-6 w-6" />No screenshot</span>}
+                {cover?.url ? <img src={cover.thumb} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={fallbackToFull(cover)} className="h-full w-full object-cover" /> : <span className="flex h-full flex-col items-center justify-center gap-1 text-sm text-muted-foreground"><ImageIcon className="h-6 w-6" />No screenshot</span>}
                 {shots.length > 1 && <span className="absolute bottom-2 right-2 rounded-full bg-black/70 px-2 py-0.5 text-xs text-white">{shots.length} images</span>}
               </button>
               {onToggle && <span className="absolute left-2 top-2 rounded bg-card/90 p-1 shadow"><Checkbox aria-label={`Select ${t.instrument}`} checked={selected?.has(t.id) ?? false} onCheckedChange={() => onToggle(t.id)} /></span>}
@@ -80,7 +80,7 @@ export function ScreenshotGallery({ trades, shotsByTrade, onOpen, loading }: { t
         <div className="gap-4 [column-width:260px]">
           {tiles.map(({ shot, trade }, i) => (
             <button key={shot.id} type="button" onClick={() => setIndex(i)} className="group relative mb-4 block w-full break-inside-avoid overflow-hidden rounded-lg border bg-muted text-left" aria-label={`Enlarge screenshot for ${trade.instrument}`}>
-              <img src={shot.url} alt={`${trade.instrument} screenshot`} loading="lazy" className="w-full" />
+              <img src={shot.thumb} alt={`${trade.instrument} screenshot`} loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={fallbackToFull(shot)} className="w-full" />
               <span className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-black/80 to-transparent px-3 pb-2 pt-8 text-xs text-white">
                 <span className="truncate font-medium">{trade.instrument}</span>
                 <span className={cn("shrink-0 font-semibold tabular-nums", trade.net_pnl > 0 ? "text-emerald-300" : trade.net_pnl < 0 ? "text-red-300" : "")}>{money(trade.net_pnl)}</span>

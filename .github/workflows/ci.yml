@@ -45,3 +45,14 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec supabase start -x studio,mailpit,imgproxy,logflare,vector,edge-runtime,realtime,postgres-meta,supavisor
       - run: pnpm exec supabase test db
+
+  # An already-pushed migration must never be edited: it would not run on databases that have applied it.
+  migrations:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: scripts/check-migrations-immutable.sh "origin/${{ github.base_ref }}"
