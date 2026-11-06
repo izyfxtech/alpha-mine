@@ -2,7 +2,7 @@ import { compareKeys, pushTo } from "@/lib/group";
 import { createFileRoute } from "@tanstack/react-router";
 import { localMonth } from "@/lib/time/local-time";
 import { Fragment, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, Columns3, GripVertical, Minus, Plus } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Columns3, GripVertical, Minus, Plus } from "lucide-react";
 import { plannedRRR, useLookups, useTrades } from "@/lib/journal/journal-context";
 import { Checkbox } from "@/components/ui/checkbox";
 import { isLoss, isWin, type Trade } from "@/lib/pnl/metrics";
@@ -65,12 +65,14 @@ function rowStats(ts: Trade[], base: number) {
   });
   const ex = ts.map(excursion).filter((x): x is NonNullable<ReturnType<typeof excursion>> => x != null);
   const f = (v: number | null) => (v == null ? "" : v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+  // Quantity and excursion are in each instrument's own units (lots, shares, price points), so an average across instruments means nothing: leave it blank.
+  const mixed = new Set(ts.map((t) => t.instrument)).size > 1;
   const cells: Record<string, string> = {
-    n: String(n), qty: f(ts.reduce((a, t) => a + t.quantity, 0) / (n || 1)), wr: f(n ? (ts.filter(isWin).length / n) * 100 : 0),
+    n: String(n), qty: mixed ? "" : f(ts.reduce((a, t) => a + t.quantity, 0) / (n || 1)), wr: f(n ? (ts.filter(isWin).length / n) * 100 : 0),
     avgPnl: f(sum / (n || 1)), sum: f(sum), pf: gl ? f(gw / gl) : "", avgR: f(mean(rs)), sumR: rs.length ? f(rs.reduce((a, b) => a + b, 0)) : "",
     planR: f(mean(ts.map(plannedRRR).filter((x): x is number => x != null))), mw: String(mw), ml: String(ml),
     dd: f(mean(ex.map((x) => x.dn).filter((x): x is number => x != null))), up: f(mean(ex.map((x) => x.up).filter((x): x is number => x != null))),
-    mae: f(mean(ex.map((x) => x.mae))), mfe: f(mean(ex.map((x) => x.mfe))),
+    mae: mixed ? "" : f(mean(ex.map((x) => x.mae))), mfe: mixed ? "" : f(mean(ex.map((x) => x.mfe))),
     fees: f(ts.reduce((a, t) => a + t.fees, 0)), ret: f(base ? (sum / base) * 100 : 0), avgRet: f(mean(ts.map((t) => t.retPct))),
   };
   return { sum, cells };
@@ -110,6 +112,11 @@ function Analytics() {
     setOpen(new Set(["Overall"]));
   };
 
+  const move = (key: string, by: -1 | 1) => {
+    setOrder((o) => { const i = o.indexOf(key), j = i + by; if (i < 0 || j < 0 || j >= o.length) return o; const n = [...o]; [n[i], n[j]] = [n[j]!, n[i]!]; return n; });
+    setOpen(new Set(["Overall"]));
+  };
+
   const rows = useMemo(() => {
     const out: { path: string; label: string; depth: number; ts: Trade[]; expandable: boolean }[] = [];
     const walk = (ts: Trade[], depth: number, path: string) => {
@@ -137,7 +144,11 @@ function Analytics() {
           {crits.map((c) => (
             <div key={c.key} draggable onDragStart={() => { dragKey.current = c.key; }} onDragOver={(e) => e.preventDefault()} onDrop={() => reorder(c.key)} className={cn(item, "cursor-grab")}>
               <span className="flex items-center gap-1.5"><GripVertical className="h-3.5 w-3.5 text-muted-foreground" />{c.label}</span>
+              <span className="flex items-center gap-1">
+                <button aria-label={`Move ${c.label} up`} disabled={crits[0] === c} onClick={() => move(c.key, -1)} className="disabled:opacity-30"><ArrowUp className="h-3.5 w-3.5" /></button>
+                <button aria-label={`Move ${c.label} down`} disabled={crits[crits.length - 1] === c} onClick={() => move(c.key, 1)} className="disabled:opacity-30"><ArrowDown className="h-3.5 w-3.5" /></button>
               <button aria-label={`Remove ${c.label}`} onClick={() => { setOrder((o) => o.filter((k) => k !== c.key)); setOpen(new Set(["Overall"])); }}><Minus className="h-4 w-4" /></button>
+              </span>
             </div>
           ))}
           {!crits.length && <p className="text-xs text-muted-foreground">Add a criterion below to group trades.</p>}

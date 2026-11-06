@@ -132,7 +132,7 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
     setExtraEntries([]); setExtraExits([]); setGrossTouched(!!t && keepStoredGross(t, grossPnl(t, t.spec, t.account) != null));
     setFav(t?.is_favorite ?? false);
     setComments(t?.comments.map((c) => c.id) ?? []);
-    setStats(t?.customStats ?? []);
+    setStats(t?.customStats ?? opts?.prefill?.customStats ?? []);
     setRuleSt(Object.fromEntries((t?.ruleChecks ?? []).map((c) => [c.rule_id, c.status])));
     setPending((x) => { x.forEach((p) => p.file && URL.revokeObjectURL(p.preview)); return []; }); setRemoved([]); setNewCat(null);
     setOpen(true);

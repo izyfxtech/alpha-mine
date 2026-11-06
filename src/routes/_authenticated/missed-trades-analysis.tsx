@@ -56,8 +56,11 @@ function Analysis() {
     pnl: t.net_pnl, r: t.r, at: t.entry_at,
     rPlanned: rewardRisk(t),
   })), [trades]);
-  const M = block(mItems, start), R = block(rItems, start), C = block([...mItems, ...rItems], start);
-  const conv = (pnl: number, r: number | null) => (unit === "r" ? r ?? 0 : unit === "pct" ? (start ? (pnl / start) * 100 : 0) : pnl);
+  const flows = useJournalFlows();
+  // Percentages use the same base as Home's Return: starting balance plus deposits less withdrawals.
+  const base = start + flows.reduce((a, c) => a + Number(c.amount), 0);
+  const M = block(mItems, base), R = block(rItems, base), C = block([...mItems, ...rItems], base);
+  const conv = (pnl: number, r: number | null) => (unit === "r" ? r ?? 0 : unit === "pct" ? (base ? (pnl / base) * 100 : 0) : pnl);
   const fmt = (v: number) => (unit === "r" ? `${fmtNum(v)}R` : unit === "pct" ? `${fmtNum(v)}%` : fmtMoney(v, cur));
 
   let c = 0;
@@ -69,7 +72,7 @@ function Analysis() {
   vs.push({ k: "Total", v: +(vs[0].v + vs[1].v).toFixed(2) });
   const selectedCategory = category || categories.rows.find((c) => c.name === "Missed Trades")?.id || categories.rows[0]?.id || "";
   const tagData = options.rows.filter((o) => o.category_id === selectedCategory).map((o) => ({ k: o.label, v: (links.data ?? []).filter((l) => l.option_id === o.id && missed.rows.some((m) => m.id === l.missed_trade_id)).length })).sort((a, b) => b.v - a.v);
-  const s = computeStats(trades, start, useJournalFlows());
+  const s = computeStats(trades, start, flows);
 
   const rows: [string, (b: ReturnType<typeof block>) => string][] = [
     ["Avg. RRR Planned", (b) => fmtNum(b.rrr)], ["Avg. R - Multiple", (b) => fmtNum(b.avgR)], ["Sum. R - Multiple", (b) => fmtNum(b.sumR)],

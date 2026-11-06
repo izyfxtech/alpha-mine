@@ -13,6 +13,7 @@ import { computeStats, drawdownRatioSeries, fmtMoney, fmtNum, groupBy, isLoss, i
 import { AccentStat, Empty, StatGrid, axis, niceTicks, pctScale, seriesValues, tradeAxis, yScale } from "@/components/kit";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { COMPARE_ALL, groupValues, resolveValue, runningTotal } from "@/lib/compare";
 import { XModeSelect, pointTitle, tradeTime, useXMode, xAxisLabel, xAxisProps } from "@/components/analytics/x-axis";
 
 export const Route = createFileRoute("/_authenticated/chart-lab/$chart")({
@@ -251,12 +252,13 @@ function Drawdown({ trades, cur, start }: { trades: Trade[]; cur: string; start:
 function Efficiency({ trades }: { trades: Trade[] }) {
   const drawer = useTradeDrawer();
   const [xm, setXm] = useXMode();
-  const s = sorted(trades);
+  // Only commented trades can be judged; the others are unknown and would inflate the line.
+  const s = sorted(trades).filter((t) => t.comments.length > 0);
   const ordered = s;
   const mistake = (t: Trade, phase?: string) => t.comments.some((c) => c.sentiment === "negative" && (!phase || c.phase === phase));
   let clean = 0;
   const data = s.map((t, i) => { if (!mistake(t)) clean++; return { x: i + 1, t: tradeTime(t), v: +((clean / (i + 1)) * 100).toFixed(2) }; });
-  if (!data.length) return <Empty>No trades yet.</Empty>;
+  if (!data.length) return <Empty>Add comments to your trades to see how often you follow your plan.</Empty>;
   const best = Math.max(...data.map((d) => d.v));
   let bestIdx = 0; data.forEach((d, i) => { if (d.v === best) bestIdx = i; });
   const pct = (f: (t: Trade) => boolean, ts = s) => (ts.length ? (ts.filter(f).length / ts.length) * 100 : 0);
@@ -592,29 +594,30 @@ type Dim = (typeof DIMS)[number];
 const dimKey = (d: Dim, t: Trade) => d === "Setup" ? t.setup : d === "Instrument" ? t.instrument : d === "Weekday" ? DAYS[(new Date(t.entry_at).getDay() + 6) % 7] : d === "Direction" ? (t.direction === "short" ? "Short" : "Long") : "All";
 
 function GroupPicker({ label, dim, val, setDim, setVal, trades }: { label: string; dim: Dim; val: string; setDim: (d: Dim) => void; setVal: (v: string) => void; trades: Trade[] }) {
-  const vals = useMemo(() => [...new Set(trades.map((t) => dimKey(dim, t)))].sort(), [trades, dim]);
+  const vals = useMemo(() => groupValues(trades, (t) => dimKey(dim, t)), [trades, dim]);
   return (
     <div className="flex items-center gap-2">
       <span className="text-sm font-medium">{label}</span>
-      <Select label="Group by" value={dim} options={DIMS} onChange={(d) => { setDim(d); setVal(d === "All Trades" ? "All" : [...new Set(trades.map((t) => dimKey(d, t)))].sort()[0] ?? ""); }} width="w-32" />
-      {dim !== "All Trades" && <Select label={dim} value={val} options={vals} onChange={setVal} />}
+      <Select label="Group by" value={dim} options={DIMS} onChange={(d) => { setDim(d); setVal(d === "All Trades" ? COMPARE_ALL : groupValues(trades, (t) => dimKey(d, t))[0] ?? ""); }} width="w-32" />
+      {dim !== "All Trades" && <Select label={dim} value={resolveValue(vals, val)} options={vals} onChange={setVal} />}
     </div>
   );
 }
 
 function Compare({ trades, cur, start }: { trades: Trade[]; cur: string; start: number }) {
-  const [dA, setDA] = useState<Dim>("All Trades"); const [vA, setVA] = useState("All");
-  const [dB, setDB] = useState<Dim>("Direction"); const [vB, setVB] = useState("Long");
+  const [dA, setDA] = useState<Dim>("Direction"); const [pA, setVA] = useState("Long");
+  const [dB, setDB] = useState<Dim>("Direction"); const [pB, setVB] = useState("Short");
+  // A pick can disappear (journal switched, filters changed): fall back to a group that has trades instead of drawing an empty line.
+  const vA = dA === "All Trades" ? COMPARE_ALL : resolveValue(groupValues(trades, (t) => dimKey(dA, t)), pA);
+  const vB = dB === "All Trades" ? COMPARE_ALL : resolveValue(groupValues(trades, (t) => dimKey(dB, t)), pB);
   const gA = useMemo(() => sorted(trades.filter((t) => dimKey(dA, t) === vA)), [trades, dA, vA]);
   const gB = useMemo(() => sorted(trades.filter((t) => dimKey(dB, t) === vB)), [trades, dB, vB]);
   const nameA = dA === "All Trades" ? "All Trades" : vA, nameB = dB === "All Trades" ? "All Trades" : vB;
-  const data = Array.from({ length: Math.max(gA.length, gB.length) }, (_, i) => ({
-    n: i + 1,
-    A: i < gA.length ? +gA.slice(0, i + 1).reduce((s, t) => s + t.net_pnl, 0).toFixed(2) : null,
-    B: i < gB.length ? +gB.slice(0, i + 1).reduce((s, t) => s + t.net_pnl, 0).toFixed(2) : null,
-  }));
-  const flows = useJournalFlows();
-  const sA = computeStats(gA, start, flows), sB = computeStats(gB, start, flows);
+  const same = dA === dB && vA === vB;
+  const tA = runningTotal(gA.map((t) => t.net_pnl)), tB = runningTotal(gB.map((t) => t.net_pnl));
+  const data = Array.from({ length: Math.max(tA.length, tB.length) }, (_, i) => ({ n: i, A: i < tA.length ? tA[i] : null, B: i < tB.length ? tB[i] : null }));
+  // Deposits and withdrawals belong to the whole account, not to a slice of it, so they stay out of a group's own statistics.
+  const sA = computeStats(gA, start, []), sB = computeStats(gB, start, []);
   const rows: [string, (s: typeof sA) => string][] = [
     ["Trades", (s) => String(s.count)], ["Net Return", (s) => fmtMoney(s.net, cur)], ["Winrate", (s) => `${s.winRate.toFixed(2)}%`],
     ["Profit Factor", (s) => (Number.isFinite(s.profitFactor) ? s.profitFactor.toFixed(2) : "∞")], ["Avg. P&L", (s) => fmtMoney(s.avgPnl, cur)],
@@ -625,20 +628,21 @@ function Compare({ trades, cur, start }: { trades: Trade[]; cur: string; start: 
       <ChartCard controls={<div className="flex flex-wrap gap-6">
         <GroupPicker label="A" dim={dA} val={vA} setDim={setDA} setVal={setVA} trades={trades} />
         <GroupPicker label="B" dim={dB} val={vB} setDim={setDB} setVal={setVB} trades={trades} />
-      </div>} legend={<><Dot c="bg-profit">{nameA}</Dot><Dot c="bg-info">{nameB}</Dot></>}>
-        <div className="h-[420px]">
+      </div>} legend={<><Dot c="bg-chart-1">{nameA}</Dot><Dot c="bg-info">{nameB}</Dot></>}>
+        {same && <p className="mb-2 text-xs text-muted-foreground">Both sides are the same group, so the two lines sit on top of each other. Pick a different group for B.</p>}
+        {!gA.length || !gB.length ? <Empty>{!gA.length ? nameA : nameB} has no trades with the current filters.</Empty> : <div className="h-[420px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid vertical={false} stroke="var(--color-grid)" />
-              <XAxis dataKey="n" tick={axis} tickLine={false} axisLine={false} {...tradeAxis(data.length)} label={{ value: "Trades", position: "insideBottom", offset: -2, style: axis }} />
+              <XAxis dataKey="n" tick={axis} tickLine={false} axisLine={false} {...tradeAxis(data.length - 1)} label={{ value: "Trades", position: "insideBottom", offset: -2, style: axis }} />
               <YAxis tick={axis} tickLine={false} axisLine={false} width={60} tickFormatter={tickFmt} {...yScale(seriesValues(data as unknown as Record<string, unknown>[], ["A", "B"]))} />
               <ReferenceLine y={0} stroke="var(--color-foreground)" />
-              <Tooltip content={({ active, payload, label }) => active && payload?.length ? <Tip title={`Trade ${label}`} lines={payload.map((p) => [p.dataKey === "A" ? nameA : nameB, fmtMoney(Number(p.value), cur)] as [string, string])} /> : null} />
-              <Line dataKey="A" type="monotone" dot={false} strokeWidth={2} stroke="var(--color-chart-1)" connectNulls={false} />
-              <Line dataKey="B" type="monotone" dot={false} strokeWidth={2} stroke="var(--color-info)" connectNulls={false} />
+              <Tooltip content={({ active, payload, label }) => active && payload?.length ? <Tip title={Number(label) === 0 ? "Start" : `Trade ${label}`} lines={payload.map((p) => [p.dataKey === "A" ? nameA : nameB, fmtMoney(Number(p.value), cur)] as [string, string])} /> : null} />
+              <Line dataKey="A" type="linear" dot={false} strokeWidth={2} stroke="var(--color-chart-1)" connectNulls={false} isAnimationActive={false} />
+              <Line dataKey="B" type="linear" dot={false} strokeWidth={2} stroke="var(--color-info)" connectNulls={false} isAnimationActive={false} />
             </LineChart>
           </ResponsiveContainer>
-        </div>
+        </div>}
       </ChartCard>
       <section className="overflow-hidden rounded-xl border bg-card">
         <table className="w-full text-sm tabular">

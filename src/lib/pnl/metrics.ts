@@ -290,6 +290,12 @@ export function drawdownRatioSeries(trades: { net_pnl: number; entry_at: string 
  * `cashflows` are the journal's dated deposits (+) and withdrawals (-); it is required so every page that shows a
  * balance, ROI or drawdown applies them. ROI is net P&L over starting balance plus net cashflows.
  */
+/** Share of commented trades with no negative comment. A trade with no comment at all is unknown, so it is left out of both sides. */
+export function followedPlanPct(trades: Trade[]): number {
+  const judged = trades.filter((t) => t.comments.length > 0);
+  return judged.length ? (judged.filter((t) => t.followedPlan).length / judged.length) * 100 : 0;
+}
+
 export function computeStats(trades: Trade[], startingBalance: number, cashflows: Cashflow[]) {
   const cashflow = sum(cashflows.map((c) => Number(c.amount)));
   const wins = trades.filter(isWin);
@@ -360,7 +366,7 @@ export function computeStats(trades: Trade[], startingBalance: number, cashflows
     streak,
     sqn,
     sortino,
-    followedPlanPct: trades.length ? (trades.filter((t) => t.followedPlan).length / trades.length) * 100 : 0,
+    followedPlanPct: followedPlanPct(trades),
     balance: invested + net,
     curve,
   };

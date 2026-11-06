@@ -6,7 +6,7 @@ import { useProfile } from "@/lib/profile-settings";
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useJournalFlows, useTrades } from "@/lib/journal/journal-context";
-import { computeStats, dayKey, fmtMoney, fmtNum, fmtPct, groupBy, periodBase, type Trade } from "@/lib/pnl/metrics";
+import { computeStats, dayKey, fmtMoney, fmtNum, fmtPct, followedPlanPct, groupBy, periodBase, type Trade } from "@/lib/pnl/metrics";
 import { cn } from "@/lib/utils";
 import { TiltMeter } from "@/components/kit";
 
@@ -61,8 +61,8 @@ function Monthly() {
   </div>;
 }
 
-/** Share of trades that followed the plan (no negative comment) - the same notion Chart Lab's Efficiency uses. */
-const efficiency = (ts: Trade[]) => (ts.length ? (ts.filter((t) => t.followedPlan).length / ts.length) * 100 : 0);
+/** Share of commented trades with no negative comment - the same notion as Home, Chart Lab and Edge Finder. */
+const efficiency = followedPlanPct;
 
 function metricList(s: ReturnType<typeof computeStats>, ts: Trade[]) {
   return [s.net, s.roi, s.winRate, s.avgPnl, s.profitFactor, s.avgR, s.totalR, s.biggestWin, null, s.biggestLoss, efficiency(ts), s.wins, s.losses];

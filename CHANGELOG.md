@@ -2,6 +2,14 @@
 
 Newest first. Dates are the day the work landed on `main`.
 
+## 2026-11-06 (compare charts, audit rest)
+
+- **Compare Charts**: the two sides now default to Long vs Short (not All vs Long, which looked like one line); a pick that disappears after a filter or journal change falls back to a group that has trades instead of drawing an empty line; both lines start from 0 and use straight segments (the smoothing made curves overshoot); an empty group shows a message; identical groups show a note; the legend colour matches the line; group statistics no longer include account deposits and withdrawals.
+- **Plans**: Duplicate keeps custom-statistic tags, and Move to Journal carries them into the trade form (L35).
+- **Missed trades**: Return (%) uses the same base as Home (starting balance plus deposits less withdrawals).
+- **Analytics**: Avg. Qty, MAE and MFE are blank on rows that mix instruments (different units); the Ordering list has Move up / Move down buttons, usable from the keyboard (L29, L39).
+- **Efficiency / "Followed Trade Plan"**: only commented trades are judged, so uncommented trades no longer count as followed. Applies to Home, Portfolio, Monthly report, Chart Lab and Edge Finder.
+
 ## 2026-11-06 (your data)
 
 - Settings, Account: **Download all data (JSON)** (every table you own, one file), **Download trades (CSV)**, and **Delete my account**, which asks you to type "delete my account", removes your screenshot files, journals and sign-in, and cannot be undone. New migration `20261106100000_delete_my_account.sql` (run `pnpm db:push`); covered by a pgTAP test and a guard test that fails if a new table is not in the export.
