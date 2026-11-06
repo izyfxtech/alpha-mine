@@ -2,6 +2,10 @@
 
 Newest first. Dates are the day the work landed on `main`.
 
+## 2026-11-06 (your data)
+
+- Settings, Account: **Download all data (JSON)** (every table you own, one file), **Download trades (CSV)**, and **Delete my account**, which asks you to type "delete my account", removes your screenshot files, journals and sign-in, and cannot be undone. New migration `20261106100000_delete_my_account.sql` (run `pnpm db:push`); covered by a pgTAP test and a guard test that fails if a new table is not in the export.
+
 ## 2026-11-04 (failed saves)
 
 ## 2026-11-06 (merge modes, screenshots)

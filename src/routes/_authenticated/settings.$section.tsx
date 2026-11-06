@@ -15,6 +15,8 @@ import { Empty, Panel } from "@/components/kit";
 import { DragHandle, EditableText, TypedConfirm, plural, useDragReorder, useUsage } from "@/components/settings-parts";
 import { supabase } from "@/integrations/supabase/client";
 import { sweepStorage } from "@/lib/media/sweep-storage";
+import { buildExport, deleteMyAccount, downloadText, tradesCsv } from "@/lib/account/export-data";
+import { useNavigate } from "@tanstack/react-router";
 import { useJournal, useTrades } from "@/lib/journal/journal-context";
 import { STARTER_RULES } from "@/lib/pnl/compliance";
 import { useProfile } from "@/lib/profile-settings";
@@ -98,6 +100,19 @@ function Account() {
   const [f, setF] = useState({ display_name: "", base_currency: "USD" });
   const [pwOpen, setPwOpen] = useState(false);
   const [pw, setPw] = useState("");
+  const [exporting, setExporting] = useState<string | null>(null);
+  const [delOpen, setDelOpen] = useState(false);
+  const navigate = useNavigate();
+  async function exportData(kind: "json" | "csv") {
+    setExporting("Preparing…");
+    try {
+      const file = await buildExport((l) => setExporting(l));
+      const day = localToday();
+      if (kind === "json") downloadText(`alphamine-data-${day}.json`, JSON.stringify(file, null, 2), "application/json");
+      else downloadText(`alphamine-trades-${day}.csv`, tradesCsv(file), "text/csv");
+      toast.success("Download started");
+    } catch (e) { toast.error((e as Error).message || "Could not export your data"); } finally { setExporting(null); }
+  }
   useEffect(() => { if (data) setF({ display_name: data.display_name, base_currency: data.base_currency }); }, [data]);
   const toggles: ["showWeeklyTotals" | "showCalendarWinrate" | "showBalance" | "allowSharing", string][] = [
     ["showWeeklyTotals", "Show week totals in calendar"],
@@ -133,6 +148,23 @@ function Account() {
           }}>Save profile</Button>
         </div>
       </Panel>
+      <Panel title="Your data">
+        <div className="space-y-3 text-[12px]">
+          <p className="text-t3">Download everything you have stored: every journal with its trades, notes, plans, sessions and settings. Screenshot entries list their storage path; the image files are not included.</p>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" disabled={!!exporting} onClick={() => void exportData("json")}>Download all data (JSON)</Button>
+            <Button variant="outline" size="sm" disabled={!!exporting} onClick={() => void exportData("csv")}>Download trades (CSV)</Button>
+          </div>
+          {exporting && <p className="text-t4" role="status">{exporting}</p>}
+          <div className="border-t pt-3">
+            <p className="text-t3">Deleting your account permanently removes your sign-in, every journal and all of their trades, screenshots, notes and settings. It cannot be undone.</p>
+            <Button variant="outline" size="sm" className="mt-2 text-loss" onClick={() => setDelOpen(true)}><Trash2 className="h-4 w-4" /> Delete my account</Button>
+          </div>
+        </div>
+      </Panel>
+      <TypedConfirm open={delOpen} onOpenChange={setDelOpen} title="Delete your account?" phrase="delete my account" confirmLabel="Delete account"
+        description={<p>This permanently deletes <b className="text-t1">{data?.email ?? "your account"}</b>, all of your journals and everything in them. Download your data first if you want a copy. It cannot be undone.</p>}
+        onConfirm={async () => { await deleteMyAccount(); toast.success("Your account was deleted"); await navigate({ to: "/" }); }} />
       <Dialog open={pwOpen} onOpenChange={(v) => { setPwOpen(v); if (!v) setPw(""); }}>
         <DialogContent className="max-w-sm">
           <DialogTitle>Change password</DialogTitle>
