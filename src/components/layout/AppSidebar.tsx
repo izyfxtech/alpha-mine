@@ -7,6 +7,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Logo } from "@/components/layout/Logo";
 import { NAV, childPath, type NavItem } from "@/lib/nav";
+import { navSlug } from "@/lib/tour";
 import { cn } from "@/lib/utils";
 import { useTrades } from "@/lib/journal/journal-context";
 import { computeStats, fmtMoney } from "@/lib/pnl/metrics";
@@ -34,7 +35,7 @@ function Group({ item, collapsed, path }: { item: NavItem; collapsed: boolean; p
   if (collapsed) {
     return (
       <Popover>
-        <PopoverTrigger className={cn(rowCls, "justify-center", active && "bg-sidebar-accent")} title={item.label}>
+        <PopoverTrigger data-tour={navSlug(item.label)} className={cn(rowCls, "justify-center", active && "bg-sidebar-accent")} title={item.label}>
           <item.icon className="h-[18px] w-[18px]" />
         </PopoverTrigger>
         <PopoverContent side="right" align="start" className="w-60 p-2">
@@ -46,7 +47,7 @@ function Group({ item, collapsed, path }: { item: NavItem; collapsed: boolean; p
   }
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger className={cn(rowCls, active && "text-foreground")}>
+      <CollapsibleTrigger data-tour={navSlug(item.label)} className={cn(rowCls, active && "text-foreground")}>
         <item.icon className="h-[18px] w-[18px]" />
         <span className="flex-1 text-left">{item.label}</span>
         <ChevronRight className={cn("h-4 w-4 transition-transform", open && "rotate-90")} />
@@ -82,7 +83,7 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
           item.children ? (
             <Group key={item.label} item={item} collapsed={collapsed} path={path} />
           ) : (
-            <Link key={item.label} to={item.to!} title={item.label}
+            <Link key={item.label} to={item.to!} title={item.label} data-tour={navSlug(item.label)}
               className={cn(rowCls, collapsed && "justify-center", path === item.to && "bg-sidebar-accent text-foreground")}>
               <item.icon className="h-[18px] w-[18px]" />
               {!collapsed && item.label}
@@ -110,7 +111,7 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
             <p className="text-[12px] text-t2">Account Balance</p>
           </div>
         )}
-        <div className={cn("overflow-hidden rounded-lg bg-ink text-ink-foreground", collapsed ? "flex flex-col" : "flex")}>
+        <div data-tour="add-trade" className={cn("overflow-hidden rounded-lg bg-ink text-ink-foreground", collapsed ? "flex flex-col" : "flex")}>
           <button onClick={() => drawer.open()} className="flex-1 py-3 text-[12px] font-semibold hover:opacity-90" title="Add new trade">{collapsed ? "+" : "Add New Trade"}</button>
           <button onClick={() => setImportOpen(true)} className={cn("px-3 py-2.5 hover:opacity-90", collapsed ? "border-t border-ink-foreground/20" : "border-l border-ink-foreground/20")} title="Import trades" aria-label="Import trades">
             <Upload className="mx-auto h-4 w-4" />

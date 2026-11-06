@@ -8,7 +8,7 @@ import { useProfile } from "@/lib/profile-settings";
 import { JournalPicker } from "@/components/journal/JournalPicker";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { Award, Bell, BookOpen, Compass, FileText, HelpCircle, LogOut, Search, Settings, Share2, UserCircle2 } from "lucide-react";
+import { Award, Bell, BookOpen, Compass, FileText, HelpCircle, LogOut, Search, Settings, Share2, Sparkles, UserCircle2 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTrades } from "@/lib/journal/journal-context";
 import { useTradeDrawer } from "@/components/journal/TradeDrawer";
 import { OPEN_ONBOARDING_EVENT } from "@/components/onboarding/Onboarding";
+import { START_TOUR_EVENT } from "@/lib/tour";
 import { FilterPanel, FilterToggle, type FilterMode } from "@/components/analytics/FilterBar";
 
 export function TopBar() {
@@ -51,15 +52,15 @@ export function TopBar() {
   return (
     <div className="z-20 shrink-0">
     <header className="flex h-16 items-center gap-3 bg-card px-5 shadow-[0_1px_4px_rgba(60,40,90,0.06)]">
-      {!onPortfolio && <FilterToggle mode={fmode} setMode={setFmode} />}
+      {!onPortfolio && <span data-tour="filters" className="inline-flex"><FilterToggle mode={fmode} setMode={setFmode} /></span>}
       {!onPortfolio && <Button variant="ghost" size="icon" aria-label="Journal settings" title="Journal settings" onClick={() => navigate({ to: "/settings/$section", params: { section: "journal" } })}><Settings className="h-5 w-5" /></Button>}
       <div className="flex-1" />
-      <button type="button" onClick={() => setPaletteOpen(true)} aria-label="Search or jump" className="hidden h-9 w-64 items-center gap-2 rounded-md border border-line2 bg-card px-3 text-left text-sm text-t2 hover:bg-muted md:flex">
+      <button type="button" data-tour="search" onClick={() => setPaletteOpen(true)} aria-label="Search or jump" className="hidden h-9 w-64 items-center gap-2 rounded-md border border-line2 bg-card px-3 text-left text-sm text-t2 hover:bg-muted md:flex">
         <Search className="h-4 w-4" /><span className="flex-1">Search or jump</span><kbd className="text-xs text-t4">{isMac ? "⌘K" : "Ctrl+K"}</kbd>
       </button>
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
       <ShareJournalDialog open={shareOpen} onOpenChange={setShareOpen} />
-      <JournalPicker />
+      <span data-tour="journal-picker" className="inline-flex"><JournalPicker /></span>
       <Sheet>
         <SheetTrigger asChild><Button variant="ghost" size="icon" aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`} className="relative"><Bell className="h-5 w-5" />{unread > 0 && <span className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-loss px-1 text-[11px] font-semibold text-primary-foreground tabular">{unread > 99 ? "99+" : unread}</span>}</Button></SheetTrigger>
         <SheetContent side="right" className="flex w-[380px] flex-col gap-0 p-0 sm:max-w-[380px]">
@@ -74,11 +75,12 @@ export function TopBar() {
         </SheetContent>
       </Sheet>
       <DropdownMenu>
-        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="Account menu"><UserCircle2 className="h-5 w-5" /></Button></DropdownMenuTrigger>
+        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="Account menu" data-tour="account"><UserCircle2 className="h-5 w-5" /></Button></DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
           <div className="px-2 py-1.5"><p className="truncate text-sm font-semibold">{profile?.display_name || "Your account"}</p>{profile?.email && <p className="truncate text-xs text-muted-foreground">{profile.email}</p>}</div>
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => window.dispatchEvent(new Event(OPEN_ONBOARDING_EVENT))}><Compass className="h-4 w-4" />Setup guide</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => window.setTimeout(() => window.dispatchEvent(new Event(START_TOUR_EVENT)), 150)}><Sparkles className="h-4 w-4" />Take the tour</DropdownMenuItem>
           <DropdownMenuItem onClick={() => navigate({ to: "/milestones" })}><Award className="h-4 w-4" />Milestones</DropdownMenuItem>
           {allowSharing && <DropdownMenuItem onSelect={() => setShareOpen(true)}><Share2 className="h-4 w-4" />Share journal</DropdownMenuItem>}
           <DropdownMenuItem onClick={() => navigate({ to: "/settings/$section", params: { section: "account" } })}><Settings className="h-4 w-4" />Account settings</DropdownMenuItem>
