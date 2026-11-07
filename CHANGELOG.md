@@ -2,6 +2,10 @@
 
 Newest first. Dates are the day the work landed on `main`.
 
+## 2026-11-08 (refactor 6b: Settings split)
+
+- The 1,505-line Settings route is now a 53-line router plus one file per section in `src/components/settings/` (account, journal, cashflows, instruments/setups/rules list, comments, session categories, custom statistics). Code moved as it was; no behaviour change.
+
 ## 2026-11-08 (refactor 6: Chart Lab split)
 
 - The 2,430-line Chart Lab route is now a 111-line router plus one file per chart in `src/components/chart-lab/` (shared card, selector and group helpers in `chart-kit.tsx`). Code moved as it was; no behaviour change. A new smoke test renders all 16 charts with sample trades, so a broken chart now fails a test.
