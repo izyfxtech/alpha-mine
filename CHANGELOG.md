@@ -2,6 +2,10 @@
 
 Newest first. Dates are the day the work landed on `main`.
 
+## 2026-11-08 (refactor 6: Chart Lab split)
+
+- The 2,430-line Chart Lab route is now a 111-line router plus one file per chart in `src/components/chart-lab/` (shared card, selector and group helpers in `chart-kit.tsx`). Code moved as it was; no behaviour change. A new smoke test renders all 16 charts with sample trades, so a broken chart now fails a test.
+
 ## 2026-11-08 (refactor 8: validating outside data)
 
 - Added `zod`. Three places that trusted data from outside now check it: the public share link (a response of the wrong shape shows the error state instead of garbage), saved filter sets (an old or hand-edited set loses only its bad fields) and prop-challenge rules (a malformed rule is skipped instead of breaking the page).
