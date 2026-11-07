@@ -5,6 +5,7 @@ import { JournalProvider } from "@/lib/journal/journal-context";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { TopBar } from "@/components/layout/TopBar";
 import { Onboarding } from "@/components/onboarding/Onboarding";
+import { SpotlightTour } from "@/components/onboarding/SpotlightTour";
 import { TradeDrawerProvider } from "@/components/journal/TradeDrawer";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -33,6 +34,7 @@ function Layout() {
           </div>
         </div>
         <Onboarding />
+        <SpotlightTour />
       </TradeDrawerProvider>
     </JournalProvider>
   );
