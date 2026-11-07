@@ -5,7 +5,7 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { localDay } from "@/lib/time/local-time";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { complianceOf, type RuleCheck } from "@/lib/pnl/compliance";
+import { complianceOf } from "@/lib/pnl/compliance";
 import { matchesQuery } from "@/lib/journal/search";
 import { rewardRisk } from "@/lib/pnl/calc";
 import { specFor } from "@/lib/pnl/instrument-catalogue";
@@ -18,6 +18,7 @@ import {
   isLoss,
   isBE,
   type Cashflow,
+  type RuleCheck,
   type Trade,
   type TradeRow,
   type Sentiment,

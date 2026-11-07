@@ -1,3 +1,4 @@
+import { numberOrNull } from "@/lib/numbers";
 import { syncLinks } from "@/lib/journal/sync-links";
 import { grossPnl, rMultiple as rMultiple_, rewardRisk } from "@/lib/pnl/calc";
 import { specFor } from "@/lib/pnl/instrument-catalogue";
@@ -46,16 +47,15 @@ export const MISSED_REASONS = [
   "Other",
 ];
 export type Missed = Row<"missed_trades">;
-const n = (v: unknown) => (v == null || v === "" ? null : Number(v));
 
 /** Derived numbers for a missed trade — shared with the analysis page. */
 export function missedMetrics(m: Missed) {
   const t = {
     direction: m.direction,
-    entry_price: n(m.entry_price),
-    stop_loss: n(m.stop_loss),
-    take_profit: n(m.take_profit),
-    exit_price: n(m.exit_price),
+    entry_price: numberOrNull(m.entry_price),
+    stop_loss: numberOrNull(m.stop_loss),
+    take_profit: numberOrNull(m.take_profit),
+    exit_price: numberOrNull(m.exit_price),
   };
   const rPlanned = rewardRisk(t);
   // R is the price ratio (lib/pnl/calc.ts); the typed hypothetical R only fills in when there is no stop to measure from.
@@ -260,13 +260,13 @@ function MissedTrades() {
                   <td className="px-3">
                     <Pill tone={pnl}>{r.direction === "long" ? "BUY" : "SELL"}</Pill>
                   </td>
-                  <td className="px-3 text-right">{fmtPrice(n(r.entry_price))}</td>
+                  <td className="px-3 text-right">{fmtPrice(numberOrNull(r.entry_price))}</td>
                   <td className="px-3 text-right">{f2(Number(r.quantity))}</td>
-                  <td className="px-3 text-right">{fmtPrice(n(r.take_profit))}</td>
-                  <td className="px-3 text-right">{fmtPrice(n(r.stop_loss))}</td>
+                  <td className="px-3 text-right">{fmtPrice(numberOrNull(r.take_profit))}</td>
+                  <td className="px-3 text-right">{fmtPrice(numberOrNull(r.stop_loss))}</td>
                   <td className="px-3 text-right">{f2(m.rPlanned, 5)}</td>
                   <td className="px-3 text-right">{f2(m.rMultiple)}</td>
-                  <td className="px-3 text-right">{fmtPrice(n(r.exit_price))}</td>
+                  <td className="px-3 text-right">{fmtPrice(numberOrNull(r.exit_price))}</td>
                   <td className="px-3 text-right">{f2(pnl)}</td>
                   <td className="px-3">{dt(r.exit_at)}</td>
                   <td className="px-3 text-right">{f2((pnl / start) * 100)}</td>
@@ -380,9 +380,9 @@ export function MissedSheet({
       grossPnl(
         {
           direction: f.direction,
-          entry_price: n(f.entry_price),
-          exit_price: n(f.exit_price),
-          quantity: n(f.quantity) ?? 1,
+          entry_price: numberOrNull(f.entry_price),
+          exit_price: numberOrNull(f.exit_price),
+          quantity: numberOrNull(f.quantity) ?? 1,
         },
         specFor(f.instrument, { markets: journal?.markets }),
         journal?.currency,
@@ -564,21 +564,21 @@ export function MissedSheet({
                   setup: f.setup || null,
                   direction: f.direction,
                   trade_type: f.trade_type,
-                  entry_price: n(f.entry_price),
-                  exit_price: n(f.exit_price),
-                  quantity: n(f.quantity) ?? 1,
-                  take_profit: n(f.take_profit),
-                  stop_loss: n(f.stop_loss),
+                  entry_price: numberOrNull(f.entry_price),
+                  exit_price: numberOrNull(f.exit_price),
+                  quantity: numberOrNull(f.quantity) ?? 1,
+                  take_profit: numberOrNull(f.take_profit),
+                  stop_loss: numberOrNull(f.stop_loss),
                   net_pnl: pnl,
                   reason: f.reason,
                   notes: f.notes || null,
                   option_type: f.trade_type === "Options" ? f.option_type || null : null,
                   expiry_date: f.trade_type === "Options" ? f.expiry_date || null : null,
-                  multiplier: n(f.multiplier) ?? 1,
+                  multiplier: numberOrNull(f.multiplier) ?? 1,
                   hypothetical_r: (() => {
-                    const e = n(f.entry_price),
-                      sl = n(f.stop_loss),
-                      q = n(f.quantity) ?? 1;
+                    const e = numberOrNull(f.entry_price),
+                      sl = numberOrNull(f.stop_loss),
+                      q = numberOrNull(f.quantity) ?? 1;
                     return e != null && sl != null && e !== sl
                       ? +(pnl / (Math.abs(e - sl) * q)).toFixed(2)
                       : 0;

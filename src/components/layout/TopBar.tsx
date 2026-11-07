@@ -1,4 +1,4 @@
-import { storageSet } from "@/lib/safe-storage";
+import { storageSet, storageStrings } from "@/lib/safe-storage";
 import { useEffect, useMemo, useState } from "react";
 import { localDateTime } from "@/lib/time/local-time";
 import { computeInsights } from "@/lib/pnl/insights";
@@ -61,11 +61,7 @@ export function TopBar() {
   }, []);
   const [read, setRead] = useState<string[]>([]);
   useEffect(() => {
-    try {
-      setRead(JSON.parse(localStorage.getItem("am-read-insights") ?? "[]"));
-    } catch {
-      /* ignore */
-    }
+    setRead(storageStrings("am-read-insights"));
   }, []);
   const markRead = (ids: string[]) =>
     setRead((v) => {

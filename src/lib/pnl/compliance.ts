@@ -15,14 +15,9 @@
  *                         average). It needs enough trades on both sides and is withheld otherwise, because a handful
  *                         of trades is noise, not evidence. It is a comparison, not proof of cause.
  */
-import { isWin, type Trade } from "@/lib/pnl/metrics";
+import { isWin, type RuleCheck, type RuleStatus, type Trade } from "@/lib/pnl/metrics";
 
-export type RuleStatus = "followed" | "partial" | "violated";
 export type Compliance = RuleStatus | "unrated";
-export interface RuleCheck {
-  rule_id: string;
-  status: RuleStatus;
-}
 export interface RuleDef {
   id: string;
   name: string;

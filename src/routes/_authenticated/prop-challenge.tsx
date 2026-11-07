@@ -1,3 +1,4 @@
+import { parseRules } from "@/lib/validation/schemas";
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
@@ -223,7 +224,7 @@ function ChallengeCard({
   onDelete: () => void;
 }) {
   const [editing, setEditing] = useState(false);
-  const rules = (Array.isArray(row.rules) ? row.rules : []) as unknown as Rule[];
+  const rules = parseRules(row.rules);
   const [draft, setDraft] = useState<Rule[]>(rules);
   const challenge: Challenge = useMemo(
     () => ({

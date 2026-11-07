@@ -1,3 +1,4 @@
+import { byEntry } from "@/lib/pnl/sort";
 import { createFileRoute } from "@tanstack/react-router";
 import { countOption, fetchAllRows } from "@/lib/journal/fetch-all";
 import { useEffect, useMemo, useState } from "react";
@@ -93,9 +94,7 @@ function Alternatives() {
   const [edit, setEdit] = useState<Strat | "new" | null>(null);
 
   const tradesFor = (setupId: string | null) =>
-    trades
-      .filter((x) => x.setup_id === setupId)
-      .sort((a, b) => a.entry_at.localeCompare(b.entry_at));
+    trades.filter((x) => x.setup_id === setupId).sort(byEntry);
   const del = async () => {
     if (
       !(await confirm({

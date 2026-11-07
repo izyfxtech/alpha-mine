@@ -22,3 +22,18 @@ export function storageJson<T>(key: string, fallback: T): T {
     return fallback;
   }
 }
+
+/** A stored list of strings. Anything else under the key (an older format, hand-edited data) counts as no list. */
+export function storageStrings(key: string): string[] {
+  const value = storageJson<unknown>(key, []);
+  return Array.isArray(value) && value.every((v) => typeof v === "string") ? value : [];
+}
+
+/** A stored object of string values, for the same reason. */
+export function storageStringMap(key: string): Record<string, string> {
+  const value = storageJson<unknown>(key, {});
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value).filter(([, v]) => typeof v === "string"),
+  ) as Record<string, string>;
+}

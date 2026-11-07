@@ -1,3 +1,4 @@
+import { byEntry } from "@/lib/pnl/sort";
 import { pushTo } from "@/lib/group";
 import { localMonth, localWeekStart } from "@/lib/time/local-time";
 import { WEEKDAYS, groupPerformance, type Trade } from "@/lib/pnl/metrics";
@@ -16,9 +17,7 @@ export function computeInsights(
   now: number = Date.now(),
   maxAgeDays = INSIGHT_MAX_AGE_DAYS,
 ): Insight[] {
-  const ts = all
-    .filter((t) => t.exit_price != null || t.net_pnl !== 0)
-    .sort((a, b) => a.entry_at.localeCompare(b.entry_at));
+  const ts = all.filter((t) => t.exit_price != null || t.net_pnl !== 0).sort(byEntry);
   const out: Insight[] = [];
   let run = 0,
     runSum = 0,

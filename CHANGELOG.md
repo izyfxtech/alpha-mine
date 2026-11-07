@@ -2,6 +2,23 @@
 
 Newest first. Dates are the day the work landed on `main`.
 
+## 2026-11-08 (refactor 6b: Settings split)
+
+- The 1,505-line Settings route is now a 53-line router plus one file per section in `src/components/settings/` (account, journal, cashflows, instruments/setups/rules list, comments, session categories, custom statistics). Code moved as it was; no behaviour change.
+
+## 2026-11-08 (refactor 6: Chart Lab split)
+
+- The 2,430-line Chart Lab route is now a 111-line router plus one file per chart in `src/components/chart-lab/` (shared card, selector and group helpers in `chart-kit.tsx`). Code moved as it was; no behaviour change. A new smoke test renders all 16 charts with sample trades, so a broken chart now fails a test.
+
+## 2026-11-08 (refactor 8: validating outside data)
+
+- Added `zod`. Three places that trusted data from outside now check it: the public share link (a response of the wrong shape shows the error state instead of garbage), saved filter sets (an old or hand-edited set loses only its bad fields) and prop-challenge rules (a malformed rule is skipped instead of breaking the page).
+
+## 2026-11-08 (refactor 4: shared helpers)
+
+- One `byEntry`/`sortedByEntry` replaces 11 copies of the same sort, one `numberOrNull` replaces three look-alikes (it also reads a field containing only spaces as empty), and six places that read localStorage by hand now use `safe-storage` (stored lists and maps are checked for the expected shape).
+- Removed the import cycle between `metrics.ts` and `compliance.ts` (`RuleCheck`/`RuleStatus` now live with the trade types). The only remaining cycle is the generated router pair.
+
 ## 2026-11-08 (refactor 3: typed data layer, copy journal)
 
 - Run-time table access goes through one documented helper (`fromTable`) instead of `any` casts scattered over the data code. `any` in source: 29 to 0; `as never`: 46 to 6 (the rest are router link targets); lint warnings 174 to 146.

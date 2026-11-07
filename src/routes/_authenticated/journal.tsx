@@ -305,12 +305,8 @@ function JournalPage() {
   const visible = sorted.slice(pg * pageSize, pg * pageSize + pageSize);
   const shotIds = useScreenshotTradeIds(journal?.id);
   const [view, setView] = useState<"table" | "cards" | "gallery">(() => {
-    try {
-      const v = localStorage.getItem("am.journal-view");
-      return v === "cards" || v === "gallery" ? v : "table";
-    } catch {
-      return "table";
-    }
+    const v = storageGet("am.journal-view");
+    return v === "cards" || v === "gallery" ? v : "table";
   });
   const changeView = (v: "table" | "cards" | "gallery") => {
     setView(v);

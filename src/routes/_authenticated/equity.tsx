@@ -1,3 +1,4 @@
+import { byEntry } from "@/lib/pnl/sort";
 import { createFileRoute } from "@tanstack/react-router";
 import { localDay } from "@/lib/time/local-time";
 import { useMemo, useState } from "react";
@@ -64,7 +65,7 @@ function Equity() {
   const s = useMemo(() => computeStats(trades, start, flows), [trades, start, flows]);
 
   const data = useMemo<EquityPoint[]>(() => {
-    const sorted = [...trades].sort((a, b) => a.entry_at.localeCompare(b.entry_at));
+    const sorted = [...trades].sort(byEntry);
     type Row = {
       pnl: number;
       gross: number;

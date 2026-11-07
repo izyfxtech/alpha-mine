@@ -1,3 +1,4 @@
+import { byEntry } from "@/lib/pnl/sort";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -54,10 +55,7 @@ export function MergeTradesDialog({
   onMerged: () => void;
 }) {
   const qc = useQueryClient();
-  const sorted = useMemo(
-    () => [...trades].sort((a, b) => a.entry_at.localeCompare(b.entry_at)),
-    [trades],
-  );
+  const sorted = useMemo(() => [...trades].sort(byEntry), [trades]);
   const likelyDuplicate = useMemo(() => looksLikeDuplicate(sorted), [sorted]);
   const [mode, setMode] = useState<MergeMode>("combine");
   const [keepId, setKeepId] = useState<string>("");
