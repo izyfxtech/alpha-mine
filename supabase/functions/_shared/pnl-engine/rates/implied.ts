@@ -1,6 +1,6 @@
-import { D, Dec, type DecimalLike } from '../decimal.ts';
-import type { InstrumentSpec, Side } from '../types.ts';
-import type { RateObservation, RateProvider } from './types.ts';
+import { D, Dec, type DecimalLike } from "../decimal.ts";
+import type { InstrumentSpec, Side } from "../types.ts";
+import type { RateObservation, RateProvider } from "./types.ts";
 
 export interface ImpliedRateInput {
   spec: InstrumentSpec;
@@ -32,7 +32,7 @@ export function deriveImpliedRate(i: ImpliedRateInput): RateObservation | null {
   if (i.spec.profitCurrency === i.accountCurrency.toUpperCase()) return null;
   const open = D(i.openPrice);
   const close = D(i.closePrice);
-  const delta = i.side === 'buy' ? close.minus(open) : open.minus(close);
+  const delta = i.side === "buy" ? close.minus(open) : open.minus(close);
   const gross = delta.times(D(i.lots)).times(i.spec.contractSize);
   const profit = D(i.brokerProfit);
   const floor = D(i.minAbsProfit ?? 5);
@@ -45,8 +45,8 @@ export function deriveImpliedRate(i: ImpliedRateInput): RateObservation | null {
     rate,
     observedAtMs: i.closeTimeMs,
     source: i.source,
-    kind: 'implied',
-    side: 'unspecified',
+    kind: "implied",
+    side: "unspecified",
   };
 }
 

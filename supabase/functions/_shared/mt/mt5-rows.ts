@@ -64,12 +64,17 @@ function sectionOf(row: string[]): Section | null {
  * trimmed away), so it is placed by where it sits against the open price: a buy's stop is below it, a sell's above.
  * Only values on the losing side count as a stop and only values on the winning side as a target.
  */
-export function classifyStops(side: string, openPrice: number, cells: string[]): { sl: number | null; tp: number | null } {
+export function classifyStops(
+  side: string,
+  openPrice: number,
+  cells: string[],
+): { sl: number | null; tp: number | null } {
   const buy = side === "buy";
   const loss = (v: number) => (buy ? v < openPrice : v > openPrice);
   const nums = cells.map((x) => parseNumber(x)).filter((v): v is number => v !== null && v > 0);
   const pick = (v: number | undefined) => (v === undefined ? null : v);
-  if (cells.length >= 2 && nums.length === 2 && cells.every((x) => parseNumber(x) !== null)) return { sl: pick(nums[0]), tp: pick(nums[1]) };
+  if (cells.length >= 2 && nums.length === 2 && cells.every((x) => parseNumber(x) !== null))
+    return { sl: pick(nums[0]), tp: pick(nums[1]) };
   const sl = nums.find((v) => loss(v)) ?? null;
   const tp = nums.find((v) => !loss(v) && v !== openPrice) ?? null;
   return { sl, tp };
@@ -162,7 +167,8 @@ function parseBalanceRow(raw: string[]): MtBalanceOp | null {
   // MT5 prints every money amount with two decimals ("10 000.00"); a numeric COMMENT such as "98765" does not look like
   // that. Profit and the running balance are the first two such cells after "balance", and everything after them is the
   // comment, even when it is purely numeric (AM-M12). Currencies shown without decimals fall back to the numeric cells.
-  const isMoney = (x: string) => parseNumber(x) !== null && /[.,]\d{2}$/.test(x.replace(/[\s\u00a0]/g, ""));
+  const isMoney = (x: string) =>
+    parseNumber(x) !== null && /[.,]\d{2}$/.test(x.replace(/[\s\u00a0]/g, ""));
   const money = tail.map((x, i) => ({ x, i })).filter((m) => isMoney(m.x));
   let amountCell: string;
   let commentFrom: number;
@@ -227,7 +233,11 @@ export function parseMt5Rows(rows: string[][]): MtReport {
     } else if (section === "orders") {
       const c = trimCells(row);
       const side = (c[3] ?? "").toLowerCase();
-      if (parseWallTime(c[0] ?? "") !== null && /^\d+$/.test(c[1] ?? "") && (side === "buy" || side === "sell")) {
+      if (
+        parseWallTime(c[0] ?? "") !== null &&
+        /^\d+$/.test(c[1] ?? "") &&
+        (side === "buy" || side === "sell")
+      ) {
         // Cells between the price (index 5) and the second datetime (the order's own time).
         const end = c.findIndex((x, i) => i >= 6 && parseWallTime(x) !== null);
         if (end > 6) orderStops.set(c[1]!, { side, cells: c.slice(6, end) });

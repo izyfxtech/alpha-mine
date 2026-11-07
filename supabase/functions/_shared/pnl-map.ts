@@ -2,11 +2,16 @@
  * Pure mapping from AlphaMine rows to engine inputs. No I/O, so it is unit tested in Vitest and
  * reused unchanged by the Edge Function.
  */
-import { D, type ClosedTrade, inferInstrument, UnsupportedInstrumentError } from './pnl-engine/index.ts';
+import {
+  D,
+  type ClosedTrade,
+  inferInstrument,
+  UnsupportedInstrumentError,
+} from "./pnl-engine/index.ts";
 
 export interface TradeRow {
   id: string;
-  direction: 'long' | 'short';
+  direction: "long" | "short";
   entry_at: string | null;
   exit_at: string | null;
   entry_price: number | string | null;
@@ -33,16 +38,21 @@ export interface InstrumentRow {
   contract_size: number | string | null;
   digits: number | null;
   profit_currency: string | null;
-  kind: 'fx' | 'metal' | 'crypto' | 'index' | 'cfd' | null;
+  kind: "fx" | "metal" | "crypto" | "index" | "cfd" | null;
   /** 'forex' = quantity is lots, 'stock' = quantity is units. Decides the unit per instrument; the journal's unit is the fallback. */
   asset_class?: string | null;
 }
-export interface JournalRow { id: string; currency: string; quantity_unit: 'lots' | 'units' | null }
+export interface JournalRow {
+  id: string;
+  currency: string;
+  quantity_unit: "lots" | "units" | null;
+}
 
 export type Mapped = { trade: ClosedTrade; notes: string[] } | { skip: string };
 
-const has = (v: unknown): v is number | string => v !== null && v !== undefined && v !== '';
-const decimals = (v: number | string | null) => (has(v) ? (String(v).split('.')[1] ?? '').length : 0);
+const has = (v: unknown): v is number | string => v !== null && v !== undefined && v !== "";
+const decimals = (v: number | string | null) =>
+  has(v) ? (String(v).split(".")[1] ?? "").length : 0;
 
 /** Highest price precision seen per instrument, used only when `instruments.digits` is empty. */
 export function guessDigits(rows: TradeRow[]): Map<string, number> {
@@ -55,21 +65,35 @@ export function guessDigits(rows: TradeRow[]): Map<string, number> {
   return out;
 }
 
-export function mapTrade(row: TradeRow, ins: InstrumentRow | undefined, journal: JournalRow, digitsGuess: Map<string, number>): Mapped {
+export function mapTrade(
+  row: TradeRow,
+  ins: InstrumentRow | undefined,
+  journal: JournalRow,
+  digitsGuess: Map<string, number>,
+): Mapped {
   // A P&L typed by hand is still audited: the engine only ever WRITES planned risk, never gross, net or fees, so there is
   // nothing to protect, and skipping these trades is what left every hand-entered forex trade without an R-multiple.
-  if (row.is_break_even) return { skip: 'marked break even' };
-  if (!has(row.entry_price) || !has(row.exit_price) || !row.entry_at || !row.exit_at) return { skip: 'trade is not closed or has no prices' };
-  if (!has(row.quantity) || Number(row.quantity) <= 0) return { skip: 'no quantity' };
+  if (row.is_break_even) return { skip: "marked break even" };
+  if (!has(row.entry_price) || !has(row.exit_price) || !row.entry_at || !row.exit_at)
+    return { skip: "trade is not closed or has no prices" };
+  if (!has(row.quantity) || Number(row.quantity) <= 0) return { skip: "no quantity" };
   // Quantity is read from the instrument's class (forex = lots, stock = units); only an instrument without a class uses the journal's unit.
-  const unit = ins?.asset_class === 'stock' ? 'units' : ins?.asset_class === 'forex' ? 'lots' : journal.quantity_unit;
-  if (!unit) return { skip: 'journal quantity unit (lots or units) is not set' };
+  const unit =
+    ins?.asset_class === "stock"
+      ? "units"
+      : ins?.asset_class === "forex"
+        ? "lots"
+        : journal.quantity_unit;
+  if (!unit) return { skip: "journal quantity unit (lots or units) is not set" };
   const symbol = row.raw_symbol ?? ins?.symbol;
-  if (!symbol) return { skip: 'no instrument symbol' };
+  if (!symbol) return { skip: "no instrument symbol" };
 
   const notes: string[] = [];
   const own = Math.max(decimals(row.entry_price), decimals(row.exit_price));
-  const digits = Math.min(8, Math.max(2, ins?.digits ?? (ins ? digitsGuess.get(ins.id) : undefined) ?? own));
+  const digits = Math.min(
+    8,
+    Math.max(2, ins?.digits ?? (ins ? digitsGuess.get(ins.id) : undefined) ?? own),
+  );
   if (ins?.digits == null) notes.push(`price digits inferred as ${digits}`);
 
   let spec;
@@ -82,29 +106,41 @@ export function mapTrade(row: TradeRow, ins: InstrumentRow | undefined, journal:
     });
   } catch (e) {
     // Any instrument problem (unsupported symbol, bad digits) skips this one trade, never the batch.
-    return { skip: e instanceof UnsupportedInstrumentError ? e.message : `instrument could not be resolved: ${(e as Error).message}` };
+    return {
+      skip:
+        e instanceof UnsupportedInstrumentError
+          ? e.message
+          : `instrument could not be resolved: ${(e as Error).message}`,
+    };
   }
-  if (spec.contractSizeSource === 'default') notes.push(`contract size defaulted to ${spec.contractSize.toString()}`);
+  if (spec.contractSizeSource === "default")
+    notes.push(`contract size defaulted to ${spec.contractSize.toString()}`);
 
   const qty = D(row.quantity);
-  const lots = unit === 'lots' ? qty : qty.div(spec.contractSize);
+  const lots = unit === "lots" ? qty : qty.div(spec.contractSize);
 
   // Costs. MetaTrader style columns win; otherwise AlphaMine `fees` (a positive cost) is used.
-  const broker: NonNullable<ClosedTrade['broker']> = {};
-  const imported = (row.source ?? 'manual') !== 'manual';
+  const broker: NonNullable<ClosedTrade["broker"]> = {};
+  const imported = (row.source ?? "manual") !== "manual";
   if (imported && has(row.gross_pnl)) broker.profit = D(row.gross_pnl);
   if (has(row.commission)) broker.commission = D(row.commission);
   if (has(row.swap)) broker.swap = D(row.swap);
-  if (!has(row.commission) && !has(row.swap) && has(row.fees) && Number(row.fees) !== 0) broker.fee = D(row.fees).neg();
+  if (!has(row.commission) && !has(row.swap) && has(row.fees) && Number(row.fees) !== 0)
+    broker.fee = D(row.fees).neg();
   // With commission or swap present, any further cost the trader entered (other_fees, a positive cost) is a separate fee.
-  else if ((has(row.commission) || has(row.swap)) && has(row.other_fees) && Number(row.other_fees) !== 0) broker.fee = D(row.other_fees).neg();
+  else if (
+    (has(row.commission) || has(row.swap)) &&
+    has(row.other_fees) &&
+    Number(row.other_fees) !== 0
+  )
+    broker.fee = D(row.other_fees).neg();
 
   return {
     notes,
     trade: {
       id: row.id,
       spec,
-      side: row.direction === 'short' ? 'sell' : 'buy',
+      side: row.direction === "short" ? "sell" : "buy",
       lots,
       openPrice: D(row.entry_price),
       closePrice: D(row.exit_price),
@@ -118,17 +154,25 @@ export function mapTrade(row: TradeRow, ins: InstrumentRow | undefined, journal:
   };
 }
 
-export interface AuditRow { trade_id: string; status: string; planned_risk: number | string | null; applied?: boolean | null }
+export interface AuditRow {
+  trade_id: string;
+  status: string;
+  planned_risk: number | string | null;
+  applied?: boolean | null;
+}
 
 /**
  * Which audited trades may receive a planned risk. Only computed rows with a positive risk qualify, and only once.
  * Gross, net and fees are never part of this: for broker-sourced trades those are the broker's own numbers.
  */
-export function pickRiskApplications(rows: AuditRow[]): { trade_id: string; risk_amount: number }[] {
+export function pickRiskApplications(
+  rows: AuditRow[],
+): { trade_id: string; risk_amount: number }[] {
   const out: { trade_id: string; risk_amount: number }[] = [];
   const seen = new Set<string>();
   for (const r of rows) {
-    if (r.status !== 'computed' || r.applied || seen.has(r.trade_id) || !has(r.planned_risk)) continue;
+    if (r.status !== "computed" || r.applied || seen.has(r.trade_id) || !has(r.planned_risk))
+      continue;
     const risk = Number(r.planned_risk);
     if (!Number.isFinite(risk) || risk <= 0) continue;
     seen.add(r.trade_id);

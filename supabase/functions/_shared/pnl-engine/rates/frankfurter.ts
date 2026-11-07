@@ -1,7 +1,7 @@
-import { D } from '../decimal.ts';
-import { addDaysIso, ecbFixingUtcMs, isoDateUtc, isWeekendIso } from '../time.ts';
-import { DEFAULT_TIMEOUT_MS, defaultFetch, isRetryable, sleep, type FetchLike } from './http.ts';
-import { ProviderError, type RateObservation, type RateProvider } from './types.ts';
+import { D } from "../decimal.ts";
+import { addDaysIso, ecbFixingUtcMs, isoDateUtc, isWeekendIso } from "../time.ts";
+import { DEFAULT_TIMEOUT_MS, defaultFetch, isRetryable, sleep, type FetchLike } from "./http.ts";
+import { ProviderError, type RateObservation, type RateProvider } from "./types.ts";
 
 /**
  * ECB euro foreign exchange reference rates via the Frankfurter API (v2).
@@ -20,7 +20,7 @@ import { ProviderError, type RateObservation, type RateProvider } from './types.
  * Only ~30 currencies are covered; unsupported pairs return null.
  */
 export class FrankfurterProvider implements RateProvider {
-  readonly name = 'ecb-fix';
+  readonly name = "ecb-fix";
   /** Covers a long weekend plus a TARGET holiday. */
   readonly maxStalenessMs = 6 * 24 * 3600 * 1000;
 
@@ -44,9 +44,9 @@ export class FrankfurterProvider implements RateProvider {
       sleep?: (ms: number) => Promise<void>;
     } = {},
   ) {
-    this.baseUrl = (o.baseUrl ?? 'https://api.frankfurter.dev').replace(/\/$/, '');
+    this.baseUrl = (o.baseUrl ?? "https://api.frankfurter.dev").replace(/\/$/, "");
     this.fetchImpl = o.fetchImpl ?? defaultFetch;
-    this.provider = o.provider ?? 'ECB';
+    this.provider = o.provider ?? "ECB";
     this.maxRetries = o.maxRetries ?? 2;
     this.timeoutMs = o.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.sleepFn = o.sleep ?? sleep;
@@ -69,8 +69,8 @@ export class FrankfurterProvider implements RateProvider {
             rate: D(row.rate),
             observedAtMs,
             source: this.name,
-            kind: 'daily-fix',
-            side: 'mid',
+            kind: "daily-fix",
+            side: "mid",
           };
         }
       }
@@ -80,7 +80,11 @@ export class FrankfurterProvider implements RateProvider {
     return null;
   }
 
-  private async fetchDate(base: string, quote: string, date: string): Promise<{ date: string; rate: number } | null> {
+  private async fetchDate(
+    base: string,
+    quote: string,
+    date: string,
+  ): Promise<{ date: string; rate: number } | null> {
     const key = `${base}/${quote}/${date}`;
     if (this.cache.has(key)) return this.cache.get(key)!;
 
@@ -90,13 +94,19 @@ export class FrankfurterProvider implements RateProvider {
       try {
         res = await this.fetchImpl(url, { signal: AbortSignal.timeout(this.timeoutMs) });
       } catch (err) {
-        if (attempt >= this.maxRetries) throw new ProviderError(this.name, `network error for ${url}`, err);
+        if (attempt >= this.maxRetries)
+          throw new ProviderError(this.name, `network error for ${url}`, err);
         await this.sleepFn(250 * 2 ** attempt);
         continue;
       }
       if (res.ok) {
         const body = (await res.json()) as { date?: unknown; rate?: unknown };
-        if (typeof body.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.date) && typeof body.rate === 'number' && body.rate > 0) {
+        if (
+          typeof body.date === "string" &&
+          /^\d{4}-\d{2}-\d{2}$/.test(body.date) &&
+          typeof body.rate === "number" &&
+          body.rate > 0
+        ) {
           const row = { date: body.date, rate: body.rate };
           this.cache.set(key, row);
           return row;

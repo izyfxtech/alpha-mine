@@ -1,17 +1,23 @@
-import { calcSignOk } from './guards.ts';
-import { D, Dec, ZERO } from './decimal.ts';
-import { grossInProfitCurrency, pipValueInProfitCurrency, pipsMoved, priceDelta, unitsOf } from './calc.ts';
-import { deriveImpliedRate, type ImpliedRateProvider } from './rates/implied.ts';
-import type { RateResolver } from './rates/resolver.ts';
-import type { RateObservation } from './rates/types.ts';
+import { calcSignOk } from "./guards.ts";
+import { D, Dec, ZERO } from "./decimal.ts";
+import {
+  grossInProfitCurrency,
+  pipValueInProfitCurrency,
+  pipsMoved,
+  priceDelta,
+  unitsOf,
+} from "./calc.ts";
+import { deriveImpliedRate, type ImpliedRateProvider } from "./rates/implied.ts";
+import type { RateResolver } from "./rates/resolver.ts";
+import type { RateObservation } from "./rates/types.ts";
 import {
   absoluteToleranceFor,
   reconcile,
   relativeToleranceFor,
   type Reconciliation,
   type Tolerance,
-} from './reconcile.ts';
-import type { ClosedTrade, OpenPosition } from './types.ts';
+} from "./reconcile.ts";
+import type { ClosedTrade, OpenPosition } from "./types.ts";
 
 export interface EngineOptions {
   /**
@@ -33,7 +39,7 @@ export interface EngineOptions {
 
 export type BatchItem = { tradeId: string; result: PnlResult } | { tradeId: string; error: string };
 
-export type GrossSource = 'broker' | 'computed' | 'unpriced';
+export type GrossSource = "broker" | "computed" | "unpriced";
 
 export interface PnlResult {
   tradeId: string;
@@ -94,8 +100,8 @@ export class PnlEngine {
     // learned from other broker profits: the check could no longer catch a systematic error.
     if (o.implied && !o.validationRates) {
       throw new Error(
-        'PnlEngine: `implied` requires `validationRates` (an external-only resolver). ' +
-          'Validating broker profit against broker-implied rates is circular.',
+        "PnlEngine: `implied` requires `validationRates` (an external-only resolver). " +
+          "Validating broker profit against broker-implied rates is circular.",
       );
     }
   }
@@ -110,14 +116,18 @@ export class PnlEngine {
     const pips = pipsMoved(t.spec, t.side, t.openPrice, t.closePrice);
     const pipValQ = pipValueInProfitCurrency(t.spec, t.lots);
 
-    if (t.spec.contractSizeSource === 'default') {
-      warnings.push(`Contract size for ${t.spec.symbol} is a default assumption, not broker-confirmed.`);
+    if (t.spec.contractSizeSource === "default") {
+      warnings.push(
+        `Contract size for ${t.spec.symbol} is a default assumption, not broker-confirmed.`,
+      );
     }
 
     // ---- which resolver prices this trade? -----------------------------------
     const brokerProfit = t.broker?.profit;
     const hasBrokerProfit = brokerProfit !== undefined;
-    const pricingResolver = hasBrokerProfit ? (this.o.validationRates ?? this.o.rates) : this.o.rates;
+    const pricingResolver = hasBrokerProfit
+      ? (this.o.validationRates ?? this.o.rates)
+      : this.o.rates;
 
     const conversion = await pricingResolver.resolve(pc, acct, t.closeTimeMs);
     const computedGross = conversion ? grossQ.times(conversion.rate) : null;
@@ -130,14 +140,22 @@ export class PnlEngine {
 
     if (hasBrokerProfit) {
       grossAccount = brokerProfit;
-      grossSource = 'broker';
+      grossSource = "broker";
       const tol = this.o.tolerance
         ? this.o.tolerance(acct, conversion)
         : { absolute: absoluteToleranceFor(acct), relative: relativeToleranceFor(conversion) };
-      reconciliation = reconcile(brokerProfit, computedGross, tol, conversion ? conversion.source : null);
-      if (reconciliation.status === 'MISMATCH') warnings.push('Broker profit disagrees with independent calculation.');
+      reconciliation = reconcile(
+        brokerProfit,
+        computedGross,
+        tol,
+        conversion ? conversion.source : null,
+      );
+      if (reconciliation.status === "MISMATCH")
+        warnings.push("Broker profit disagrees with independent calculation.");
       if (computedGross === null) {
-        warnings.push(`Broker profit stored unverified: no independent ${pc}->${acct} rate was available.`);
+        warnings.push(
+          `Broker profit stored unverified: no independent ${pc}->${acct} rate was available.`,
+        );
       }
 
       impliedRate = deriveImpliedRate({
@@ -154,19 +172,22 @@ export class PnlEngine {
       // Learn only from trades we can trust: those that reconcile (OK), or that cannot be checked at
       // all because no independent rate exists. A WARN or MISMATCH WITH an independent figure means
       // the numbers disagree, and recording it would poison the rate series.
-      const trusted = reconciliation.status === 'OK' || computedGross === null;
+      const trusted = reconciliation.status === "OK" || computedGross === null;
       if (impliedRate && this.o.implied && trusted) this.o.implied.record(impliedRate);
     } else if (computedGross) {
       grossAccount = computedGross;
-      grossSource = 'computed';
-      if (conversion && conversion.kind !== 'implied' && conversion.source !== 'identity') {
+      grossSource = "computed";
+      if (conversion && conversion.kind !== "implied" && conversion.source !== "identity") {
         const worst = describeQuality(conversion);
-        if (worst === 'daily-fix') warnings.push('Converted at a daily reference rate: approximate (can differ by ~1%).');
+        if (worst === "daily-fix")
+          warnings.push("Converted at a daily reference rate: approximate (can differ by ~1%).");
       }
     } else {
       grossAccount = null;
-      grossSource = 'unpriced';
-      warnings.push(`No ${pc}->${acct} rate available at close time: P&L left unpriced rather than guessed.`);
+      grossSource = "unpriced";
+      warnings.push(
+        `No ${pc}->${acct} rate available at close time: P&L left unpriced rather than guessed.`,
+      );
     }
 
     // ---- costs ---------------------------------------------------------------
@@ -174,8 +195,11 @@ export class PnlEngine {
     const commission = t.broker?.commission ?? ZERO;
     const fee = t.broker?.fee ?? ZERO;
     const costsReported =
-      t.broker?.swap !== undefined || t.broker?.commission !== undefined || t.broker?.fee !== undefined;
-    if (!costsReported) warnings.push('No swap/commission/fee supplied: net equals gross and may overstate results.');
+      t.broker?.swap !== undefined ||
+      t.broker?.commission !== undefined ||
+      t.broker?.fee !== undefined;
+    if (!costsReported)
+      warnings.push("No swap/commission/fee supplied: net equals gross and may overstate results.");
     const netAccount = grossAccount ? grossAccount.plus(swap).plus(commission).plus(fee) : null;
 
     // ---- planned risk & R ----------------------------------------------------
@@ -185,14 +209,16 @@ export class PnlEngine {
     if (t.stopLoss) {
       const riskDelta = priceDelta(t.side, t.openPrice, t.stopLoss); // negative when SL is on the loss side
       if (riskDelta.gte(0)) {
-        warnings.push('Stop loss is at/beyond break-even (likely trailed): planned risk unknown, R-multiple skipped.');
+        warnings.push(
+          "Stop loss is at/beyond break-even (likely trailed): planned risk unknown, R-multiple skipped.",
+        );
       } else {
         const openConv = await this.o.rates.resolve(pc, acct, t.openTimeMs);
         if (openConv) {
           openConversion = openConv;
           plannedRisk = riskDelta.abs().times(unitsOf(t.spec, t.lots)).times(openConv.rate);
           if (netAccount && plannedRisk.gt(0)) rMultiple = netAccount.div(plannedRisk);
-        } else warnings.push('No entry-time rate for planned risk.');
+        } else warnings.push("No entry-time rate for planned risk.");
       }
     }
 
@@ -244,16 +270,22 @@ export class PnlEngine {
    * Floating (unrealised) P&L. A long exits at BID, a short exits at ASK:
    * valuing open trades at mid flatters them by half the spread.
    */
-  async markToMarket(p: OpenPosition, quote: { bid: Dec; ask: Dec }, atMs: number): Promise<FloatingResult> {
+  async markToMarket(
+    p: OpenPosition,
+    quote: { bid: Dec; ask: Dec },
+    atMs: number,
+  ): Promise<FloatingResult> {
     const warnings: string[] = [];
-    const exit = p.side === 'buy' ? quote.bid : quote.ask;
+    const exit = p.side === "buy" ? quote.bid : quote.ask;
     const acct = p.accountCurrency.toUpperCase();
     const pc = p.spec.profitCurrency;
     const grossQ = grossInProfitCurrency(p.spec, p.side, p.lots, p.openPrice, exit);
     const conversion = await this.o.rates.resolve(pc, acct, atMs);
     const gross = conversion ? grossQ.times(conversion.rate) : null;
     if (!gross) warnings.push(`No ${pc}->${acct} rate at ${new Date(atMs).toISOString()}.`);
-    const costs = (p.broker?.swap ?? ZERO).plus(p.broker?.commission ?? ZERO).plus(p.broker?.fee ?? ZERO);
+    const costs = (p.broker?.swap ?? ZERO)
+      .plus(p.broker?.commission ?? ZERO)
+      .plus(p.broker?.fee ?? ZERO);
     return {
       positionId: p.id,
       grossAccount: gross,
@@ -266,17 +298,19 @@ export class PnlEngine {
 
   private validate(t: ClosedTrade, warnings: string[]): void {
     if (!t.lots.gt(0)) throw new RangeError(`Trade ${t.id}: lots must be > 0`);
-    if (!t.openPrice.gt(0) || !t.closePrice.gt(0)) throw new RangeError(`Trade ${t.id}: prices must be > 0`);
-    if (t.closeTimeMs < t.openTimeMs) throw new RangeError(`Trade ${t.id}: closeTime precedes openTime`);
+    if (!t.openPrice.gt(0) || !t.closePrice.gt(0))
+      throw new RangeError(`Trade ${t.id}: prices must be > 0`);
+    if (t.closeTimeMs < t.openTimeMs)
+      throw new RangeError(`Trade ${t.id}: closeTime precedes openTime`);
     calcSignOk(t, warnings);
   }
 }
 
 /** Loosest rate kind in a conversion chain. */
-function describeQuality(o: RateObservation): RateObservation['kind'] {
+function describeQuality(o: RateObservation): RateObservation["kind"] {
   if (o.lineage && o.lineage.length > 0) {
     const kinds = o.lineage.map(describeQuality);
-    return kinds.includes('daily-fix') ? 'daily-fix' : kinds[0]!;
+    return kinds.includes("daily-fix") ? "daily-fix" : kinds[0]!;
   }
   return o.kind;
 }

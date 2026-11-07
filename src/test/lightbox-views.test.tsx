@@ -7,8 +7,29 @@ import { readSettings } from "@/lib/profile-settings";
 import type { Trade } from "@/lib/pnl/metrics";
 import type { Shot } from "@/components/journal/Screenshots";
 
-const trade = (id: string, net: number): Trade => ({ id, instrument: id.toUpperCase(), direction: "long", entry_at: "2026-10-20T08:00:00Z", exit_at: "2026-10-20T09:00:00Z", net_pnl: net, setup: "Breakout", notes: null, is_favorite: false, r: null } as unknown as Trade);
-const shot = (id: string, tradeId: string): Shot => ({ id, trade_id: tradeId, missed_trade_id: null, planned_trade_id: null, path: id, caption: null, url: `https://img.test/${id}`, thumb: `https://img.test/${id}` });
+const trade = (id: string, net: number): Trade =>
+  ({
+    id,
+    instrument: id.toUpperCase(),
+    direction: "long",
+    entry_at: "2026-10-20T08:00:00Z",
+    exit_at: "2026-10-20T09:00:00Z",
+    net_pnl: net,
+    setup: "Breakout",
+    notes: null,
+    is_favorite: false,
+    r: null,
+  }) as unknown as Trade;
+const shot = (id: string, tradeId: string): Shot => ({
+  id,
+  trade_id: tradeId,
+  missed_trade_id: null,
+  planned_trade_id: null,
+  path: id,
+  caption: null,
+  url: `https://img.test/${id}`,
+  thumb: `https://img.test/${id}`,
+});
 
 function Harness({ onClose }: { onClose: () => void }) {
   const [i, setI] = useState(0);
@@ -33,7 +54,10 @@ describe("Lightbox", () => {
 
 describe("journal views", () => {
   const trades = [trade("eurusd", 50), trade("gbpusd", -20), trade("usdjpy", 10)];
-  const shots = new Map([["eurusd", [shot("a", "eurusd"), shot("b", "eurusd")]], ["gbpusd", [shot("c", "gbpusd")]]]);
+  const shots = new Map([
+    ["eurusd", [shot("a", "eurusd"), shot("b", "eurusd")]],
+    ["gbpusd", [shot("c", "gbpusd")]],
+  ]);
 
   it("gallery shows every screenshot and filters by result", () => {
     render(<ScreenshotGallery trades={trades} shotsByTrade={shots} onOpen={() => {}} />);

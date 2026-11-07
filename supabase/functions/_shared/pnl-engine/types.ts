@@ -1,8 +1,8 @@
-import type { Dec } from './decimal.ts';
+import type { Dec } from "./decimal.ts";
 
-export type Side = 'buy' | 'sell';
+export type Side = "buy" | "sell";
 
-export type InstrumentKind = 'fx' | 'metal' | 'crypto' | 'index' | 'cfd';
+export type InstrumentKind = "fx" | "metal" | "crypto" | "index" | "cfd";
 
 /**
  * Everything the engine needs to know about a tradable symbol. For MT4/MT5
@@ -21,7 +21,7 @@ export interface InstrumentSpec {
   digits: number;
   /** Units of base per 1.0 lot (100_000 for FX). */
   contractSize: Dec;
-  contractSizeSource: 'broker' | 'default';
+  contractSizeSource: "broker" | "default";
   /** Smallest price step the broker quotes: 10^-digits. */
   pointSize: Dec;
   /** FX pip size. null for instruments where "pip" is not a meaningful unit. */

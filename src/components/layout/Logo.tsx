@@ -1,4 +1,4 @@
-export function LogoMark({ className = "h-7 w-7" }: { className?: string }) {
+function LogoMark({ className = "h-7 w-7" }: { className?: string }) {
   return (
     <svg viewBox="0 0 64 64" className={className} aria-hidden>
       <path d="M26 4 L32 12 L26 20 L20 12 Z" className="fill-profit" />

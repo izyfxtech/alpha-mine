@@ -49,8 +49,14 @@ const iso = (ms: number) => new Date(ms).toISOString();
 function toRow(symbol: string, p: Position): FillTradeRow {
   const cost = p.commission.plus(p.swap).plus(p.fee); // signed, costs negative
   const toLeg = (kind: "entry" | "exit") => (l: Position["entries"][number]) => ({
-    kind, side: l.side, quantity: l.lots.toNumber(), price: l.price.toNumber(), executed_at: iso(l.timeMs),
-    commission: l.commission.toNumber(), swap: l.swap.toNumber(), fee: l.fee.toNumber(),
+    kind,
+    side: l.side,
+    quantity: l.lots.toNumber(),
+    price: l.price.toNumber(),
+    executed_at: iso(l.timeMs),
+    commission: l.commission.toNumber(),
+    swap: l.swap.toNumber(),
+    fee: l.fee.toNumber(),
   });
   return {
     symbol,
@@ -72,11 +78,20 @@ export function fillsToTrades(fills: RawFill[]): FillsResult {
   const errors: string[] = [];
   fills.forEach((r, i) => {
     if (!(r.quantity > 0) || !(r.price > 0) || !Number.isFinite(r.timeMs)) {
-      errors.push(`Fill ${i + 1} (${r.symbol || "no symbol"}) has an unreadable size, price or time and was skipped.`);
+      errors.push(
+        `Fill ${i + 1} (${r.symbol || "no symbol"}) has an unreadable size, price or time and was skipped.`,
+      );
       return;
     }
     const list = bySymbol.get(r.symbol) ?? [];
-    list.push({ id: String(i + 1), side: r.side, lots: D(r.quantity), price: D(r.price), timeMs: r.timeMs, commission: r.cost ? D(r.cost).neg() : undefined });
+    list.push({
+      id: String(i + 1),
+      side: r.side,
+      lots: D(r.quantity),
+      price: D(r.price),
+      timeMs: r.timeMs,
+      commission: r.cost ? D(r.cost).neg() : undefined,
+    });
     bySymbol.set(r.symbol, list);
   });
   const trades: FillTradeRow[] = [];

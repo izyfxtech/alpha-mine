@@ -1,20 +1,88 @@
 import { describe, expect, it } from "vitest";
 import * as XLSX from "xlsx";
-import { parseMt5Report, parseMt5Rows, parseNumber, parseWallTime, Mt5ParseError } from "@/lib/import/mt/parse-report";
+import {
+  parseMt5Report,
+  parseMt5Rows,
+  parseNumber,
+  parseWallTime,
+  Mt5ParseError,
+} from "@/lib/import/mt/parse-report";
 import { D, PnlEngine, RateResolver } from "@engine/index.ts";
 import { mapTrade, type TradeRow } from "@shared/pnl-map.ts";
 import { StaticProvider } from "./pnl-engine/helpers.ts";
-import { balanceOpsToCashflows, checkCompatibility, positionToTrade, reportToTrades, summarize } from "@/lib/import/mt/to-trades";
+import {
+  balanceOpsToCashflows,
+  checkCompatibility,
+  positionToTrade,
+  reportToTrades,
+  summarize,
+} from "@/lib/import/mt/to-trades";
 
 const th = (cells: string[]) => `<tr>${cells.map((c) => `<th>${c}</th>`).join("")}</tr>`;
 const td = (cells: string[]) => `<tr>${cells.map((c) => `<td>${c}</td>`).join("")}</tr>`;
 
-const POS_HEADER = ["Time", "Position", "Symbol", "Type", "Volume", "Price", "S / L", "T / P", "Time", "Price", "Commission", "Swap", "Profit"];
+const POS_HEADER = [
+  "Time",
+  "Position",
+  "Symbol",
+  "Type",
+  "Volume",
+  "Price",
+  "S / L",
+  "T / P",
+  "Time",
+  "Price",
+  "Commission",
+  "Swap",
+  "Profit",
+];
 
 const rows = {
-  eur: ["2026.10.20 08:15:00", "52001", "EURUSD", "buy", "0.10", "1.08500", "1.08000", "1.09500", "2026.10.20 12:40:10", "1.09120", "-0.70", "0.00", "62.00"],
-  jpy: ["2026.10.21 09:00:00", "52002", "USDJPY", "sell", "1.00", "150.250", "", "", "2026.10.22 10:30:00", "149.750", "-7.00", "-1.25", "333.89"],
-  gold: ["2026.10.22 15:00:00", "52003", "XAUUSD", "buy", "0.05", "2 650.40", "2 640.00", "0.00", "2026.10.22 16:00:00", "2 655.90", "-0.35", "0.00", "27.50"],
+  eur: [
+    "2026.10.20 08:15:00",
+    "52001",
+    "EURUSD",
+    "buy",
+    "0.10",
+    "1.08500",
+    "1.08000",
+    "1.09500",
+    "2026.10.20 12:40:10",
+    "1.09120",
+    "-0.70",
+    "0.00",
+    "62.00",
+  ],
+  jpy: [
+    "2026.10.21 09:00:00",
+    "52002",
+    "USDJPY",
+    "sell",
+    "1.00",
+    "150.250",
+    "",
+    "",
+    "2026.10.22 10:30:00",
+    "149.750",
+    "-7.00",
+    "-1.25",
+    "333.89",
+  ],
+  gold: [
+    "2026.10.22 15:00:00",
+    "52003",
+    "XAUUSD",
+    "buy",
+    "0.05",
+    "2 650.40",
+    "2 640.00",
+    "0.00",
+    "2026.10.22 16:00:00",
+    "2 655.90",
+    "-0.35",
+    "0.00",
+    "27.50",
+  ],
 };
 
 function reportHtml(extra = ""): string {
@@ -65,11 +133,33 @@ describe("cell parsing", () => {
 describe("parseMt5Report (HTML)", () => {
   const check = (bytes: Uint8Array) => {
     const r = parseMt5Report(bytes);
-    expect(r.account).toMatchObject({ login: "5012345", currency: "USD", server: "MetaQuotes-Demo", mode: "demo", type: "hedge" });
+    expect(r.account).toMatchObject({
+      login: "5012345",
+      currency: "USD",
+      server: "MetaQuotes-Demo",
+      mode: "demo",
+      type: "hedge",
+    });
     expect(r.positions).toHaveLength(3); // the totals row is ignored
     const [eur, jpy, gold] = r.positions;
-    expect(eur).toMatchObject({ ticket: "52001", symbol: "EURUSD", side: "buy", volume: 0.1, stopLoss: 1.08, takeProfit: 1.095, commission: -0.7, swap: 0, profit: 62 });
-    expect(jpy).toMatchObject({ side: "sell", stopLoss: null, takeProfit: null, profit: 333.89, swap: -1.25 });
+    expect(eur).toMatchObject({
+      ticket: "52001",
+      symbol: "EURUSD",
+      side: "buy",
+      volume: 0.1,
+      stopLoss: 1.08,
+      takeProfit: 1.095,
+      commission: -0.7,
+      swap: 0,
+      profit: 62,
+    });
+    expect(jpy).toMatchObject({
+      side: "sell",
+      stopLoss: null,
+      takeProfit: null,
+      profit: 333.89,
+      swap: -1.25,
+    });
     expect(gold).toMatchObject({ openPrice: 2650.4, closePrice: 2655.9, takeProfit: null }); // "0.00" TP = not set
     expect(r.digitsBySymbol).toMatchObject({ EURUSD: 5, USDJPY: 3, XAUUSD: 2 });
     expect(r.balanceOps).toEqual([
@@ -82,10 +172,26 @@ describe("parseMt5Report (HTML)", () => {
   it("parses plain UTF-8", () => check(utf8(reportHtml())));
 
   it("reports rows it cannot trust instead of importing them", () => {
-    const bad = td(["2026.10.23 10:00:00", "52004", "GBPUSD", "buy", "0.10", "1.30000", "", "", "", "", "0.00", "0.00", "0.00"]);
+    const bad = td([
+      "2026.10.23 10:00:00",
+      "52004",
+      "GBPUSD",
+      "buy",
+      "0.10",
+      "1.30000",
+      "",
+      "",
+      "",
+      "",
+      "0.00",
+      "0.00",
+      "0.00",
+    ]);
     const r = parseMt5Report(utf8(reportHtml(bad)));
     expect(r.positions).toHaveLength(3);
-    expect(r.skipped).toEqual([expect.objectContaining({ reason: expect.stringMatching(/close time/) })]);
+    expect(r.skipped).toEqual([
+      expect.objectContaining({ reason: expect.stringMatching(/close time/) }),
+    ]);
   });
   it("skips duplicate tickets", () => {
     const r = parseMt5Report(utf8(reportHtml(td(rows.eur))));
@@ -93,7 +199,9 @@ describe("parseMt5Report (HTML)", () => {
     expect(r.skipped).toEqual([expect.objectContaining({ reason: "duplicate ticket 52001" })]);
   });
   it("throws a helpful error when there is no Positions section", () => {
-    expect(() => parseMt5Report(utf8("<table><tr><td>hello</td></tr></table>"))).toThrow(Mt5ParseError);
+    expect(() => parseMt5Report(utf8("<table><tr><td>hello</td></tr></table>"))).toThrow(
+      Mt5ParseError,
+    );
     expect(() => parseMt5Rows([["Deals"], ["x"]])).toThrow(/Positions/);
   });
 });
@@ -109,7 +217,10 @@ describe("parseMt5Report (Excel)", () => {
       ["", ...rows.jpy],
     ];
     const ws = XLSX.utils.aoa_to_sheet(aoa);
-    const buf = XLSX.write({ SheetNames: ["Sheet1"], Sheets: { Sheet1: ws } }, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
+    const buf = XLSX.write(
+      { SheetNames: ["Sheet1"], Sheets: { Sheet1: ws } },
+      { type: "array", bookType: "xlsx" },
+    ) as ArrayBuffer;
     const r = parseMt5Report(new Uint8Array(buf));
     expect(r.account?.login).toBe("5012345");
     expect(r.positions.map((p) => p.ticket)).toEqual(["52001", "52002"]);
@@ -124,15 +235,36 @@ describe("to-trades", () => {
   it("maps costs so net = profit + commission + swap, and marks the P&L as broker-supplied", () => {
     const [t] = reportToTrades(report, "j1", ids, { kind: "fixed", offsetMinutes: 0 });
     expect(t).toMatchObject({
-      instrument_id: "i-eur", direction: "long", gross_pnl: 62, commission: -0.7, swap: 0, fees: 0.7, net_pnl: 61.3,
-      pnl_manual: true, source: "mt5", external_id: "52001", raw_symbol: "EURUSD", quantity: 0.1,
+      instrument_id: "i-eur",
+      direction: "long",
+      gross_pnl: 62,
+      commission: -0.7,
+      swap: 0,
+      fees: 0.7,
+      net_pnl: 61.3,
+      pnl_manual: true,
+      source: "mt5",
+      external_id: "52001",
+      raw_symbol: "EURUSD",
+      quantity: 0.1,
     });
-    const jpy = positionToTrade(report.positions[1]!, "j1", null, { kind: "fixed", offsetMinutes: 0 });
-    expect(jpy).toMatchObject({ direction: "short", fees: 8.25, net_pnl: 325.64, instrument_id: null });
+    const jpy = positionToTrade(report.positions[1]!, "j1", null, {
+      kind: "fixed",
+      offsetMinutes: 0,
+    });
+    expect(jpy).toMatchObject({
+      direction: "short",
+      fees: 8.25,
+      net_pnl: 325.64,
+      instrument_id: null,
+    });
   });
 
   it("converts server time to UTC (GMT+3 summer server)", () => {
-    const t = positionToTrade(report.positions[0]!, "j1", null, { kind: "fixed", offsetMinutes: 180 });
+    const t = positionToTrade(report.positions[0]!, "j1", null, {
+      kind: "fixed",
+      offsetMinutes: 180,
+    });
     expect(t.entry_at).toBe("2026-10-20T05:15:00.000Z");
   });
   it("applies New York close DST: Oct 20 is GMT+3", () => {
@@ -142,8 +274,20 @@ describe("to-trades", () => {
 
   it("maps deposits and withdrawals to idempotent cashflows", () => {
     expect(balanceOpsToCashflows(report, "j1", { kind: "fixed", offsetMinutes: 0 })).toEqual([
-      { journal_id: "j1", occurred_on: "2026-10-01", amount: 10000, note: "MT5: Deposit", external_id: "mt5-deal:1" },
-      { journal_id: "j1", occurred_on: "2026-10-25", amount: -500, note: "MT5: Withdrawal", external_id: "mt5-deal:9" },
+      {
+        journal_id: "j1",
+        occurred_on: "2026-10-01",
+        amount: 10000,
+        note: "MT5: Deposit",
+        external_id: "mt5-deal:1",
+      },
+      {
+        journal_id: "j1",
+        occurred_on: "2026-10-25",
+        amount: -500,
+        note: "MT5: Withdrawal",
+        external_id: "mt5-deal:9",
+      },
     ]);
   });
 
@@ -152,9 +296,14 @@ describe("to-trades", () => {
   });
 
   it("refuses another account or currency, warns on server mismatch", () => {
-    expect(checkCompatibility(report, { currency: "USD", mt_login: "999" })).toMatchObject({ ok: false });
+    expect(checkCompatibility(report, { currency: "USD", mt_login: "999" })).toMatchObject({
+      ok: false,
+    });
     expect(checkCompatibility(report, { currency: "EUR" })).toMatchObject({ ok: false });
-    expect(checkCompatibility(report, { currency: "usd", mt_login: "5012345" })).toEqual({ ok: true, warnings: [] });
+    expect(checkCompatibility(report, { currency: "usd", mt_login: "5012345" })).toEqual({
+      ok: true,
+      warnings: [],
+    });
     const w = checkCompatibility(report, { currency: "USD", mt_server: "Other-Live" });
     expect(w).toMatchObject({ ok: true });
     expect(w.ok && w.warnings).toHaveLength(1);
@@ -166,12 +315,20 @@ describe("import -> P&L engine round trip", () => {
     const report = parseMt5Report(utf8(reportHtml()));
     const trades = reportToTrades(report, "j1", new Map(), { kind: "fixed", offsetMinutes: 0 });
     const engine = new PnlEngine({
-      rates: new RateResolver({ providers: [new StaticProvider("test", { JPYUSD: String(1 / 149.75) })] }),
+      rates: new RateResolver({
+        providers: [new StaticProvider("test", { JPYUSD: String(1 / 149.75) })],
+      }),
     });
     const journal = { id: "j1", currency: "USD", quantity_unit: "lots" as const };
     const out: Record<string, string | undefined> = {};
     for (const [i, t] of trades.entries()) {
-      const row = { ...t, id: `t${i}`, is_break_even: false, risk_amount: null, instrument_id: null } as unknown as TradeRow;
+      const row = {
+        ...t,
+        id: `t${i}`,
+        is_break_even: false,
+        risk_amount: null,
+        instrument_id: null,
+      } as unknown as TradeRow;
       const m = mapTrade(row, undefined, journal, new Map());
       if (!("trade" in m)) throw new Error(`${t.raw_symbol}: ${m.skip}`);
       // USDJPY and XAUUSD profit in JPY / USD; only JPY needs the rate table.
@@ -185,25 +342,80 @@ describe("import -> P&L engine round trip", () => {
 });
 
 describe("balance rows with a numeric comment (AM-M12)", () => {
-  it.each(["98765", "123456", "Deposit", ""])("reads a 5,000 deposit with comment %j as 5,000, never as the 30,000 balance", (comment) => {
-    const ops = parseMt5Rows(
-      [[ "Positions" ], POS_HEADER, rows.eur,
-       [ "Deals" ], ["Time", "Deal", "Symbol", "Type", "Direction", "Volume", "Price", "Order", "Commission", "Fee", "Swap", "Profit", "Balance", "Comment"],
-       ["2026.10.25 00:00:00", "9", "", "balance", "", "", "", "", "", "", "", "5 000.00", "30 000.00", comment]]).balanceOps;
-    expect(ops).toHaveLength(1);
-    expect(ops[0]!.amount).toBe(5000);
-    expect(ops[0]!.comment).toBe(comment);
-  });
+  it.each(["98765", "123456", "Deposit", ""])(
+    "reads a 5,000 deposit with comment %j as 5,000, never as the 30,000 balance",
+    (comment) => {
+      const ops = parseMt5Rows([
+        ["Positions"],
+        POS_HEADER,
+        rows.eur,
+        ["Deals"],
+        [
+          "Time",
+          "Deal",
+          "Symbol",
+          "Type",
+          "Direction",
+          "Volume",
+          "Price",
+          "Order",
+          "Commission",
+          "Fee",
+          "Swap",
+          "Profit",
+          "Balance",
+          "Comment",
+        ],
+        [
+          "2026.10.25 00:00:00",
+          "9",
+          "",
+          "balance",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "5 000.00",
+          "30 000.00",
+          comment,
+        ],
+      ]).balanceOps;
+      expect(ops).toHaveLength(1);
+      expect(ops[0]!.amount).toBe(5000);
+      expect(ops[0]!.comment).toBe(comment);
+    },
+  );
   it("a zero-decimal currency still reads its two numbers", () => {
-    const ops = parseMt5Rows([["Positions"], POS_HEADER, rows.eur, ["Deals"], ["Time", "Deal", "Type", "Profit", "Balance", "Comment"],
-      ["2026.10.25 00:00:00", "9", "", "balance", "", "", "500000", "3000000", "Deposit"]]).balanceOps;
+    const ops = parseMt5Rows([
+      ["Positions"],
+      POS_HEADER,
+      rows.eur,
+      ["Deals"],
+      ["Time", "Deal", "Type", "Profit", "Balance", "Comment"],
+      ["2026.10.25 00:00:00", "9", "", "balance", "", "", "500000", "3000000", "Deposit"],
+    ]).balanceOps;
     expect(ops[0]!.amount).toBe(500000);
     expect(ops[0]!.comment).toBe("Deposit");
   });
 });
 
 describe("initial stop from the Orders table", () => {
-  const ORD = ["Open Time", "Order", "Symbol", "Type", "Volume", "Price", "S / L", "T / P", "Time", "State", "Comment"];
+  const ORD = [
+    "Open Time",
+    "Order",
+    "Symbol",
+    "Type",
+    "Volume",
+    "Price",
+    "S / L",
+    "T / P",
+    "Time",
+    "State",
+    "Comment",
+  ];
   const html = `<html><body><table>
     ${th(["Trade History Report"])}${td(["Account:", "61596838 (USD, Pepperstone-Demo, demo, Hedge)"])}
     ${th(["Positions"])}${th(POS_HEADER)}
@@ -224,12 +436,25 @@ describe("initial stop from the Orders table", () => {
 describe("importing into a journal that does not match", () => {
   const report = parseMt5Report(utf8(reportHtml()));
   it("is a warning with plain-words risks, not a block", async () => {
-    const { mismatchRisks, isMismatchError, toImportPayload } = await import("@/lib/import/mt/to-trades");
+    const { mismatchRisks, isMismatchError, toImportPayload } =
+      await import("@/lib/import/mt/to-trades");
     const c = checkCompatibility(report, { currency: "EUR" });
     expect(c.ok).toBe(false);
-    expect(mismatchRisks("This report is in USD, but the journal currency is EUR.").join(" ")).toMatch(/different currency/);
-    expect(mismatchRisks("This report is for account 1, but this journal is linked to account 2.").join(" ")).toMatch(/Ticket numbers/);
-    for (const m of ["This MetaTrader account is already linked to another journal.", "This report is for account 1, but this journal is linked to account 2.", "This is an MT5 report, but this journal is linked to an MT4 account.", "This report is in USD, but the journal currency is EUR."]) expect(isMismatchError(m)).toBe(true);
+    expect(
+      mismatchRisks("This report is in USD, but the journal currency is EUR.").join(" "),
+    ).toMatch(/different currency/);
+    expect(
+      mismatchRisks("This report is for account 1, but this journal is linked to account 2.").join(
+        " ",
+      ),
+    ).toMatch(/Ticket numbers/);
+    for (const m of [
+      "This MetaTrader account is already linked to another journal.",
+      "This report is for account 1, but this journal is linked to account 2.",
+      "This is an MT5 report, but this journal is linked to an MT4 account.",
+      "This report is in USD, but the journal currency is EUR.",
+    ])
+      expect(isMismatchError(m)).toBe(true);
     expect(isMismatchError("Too many trades in one import")).toBe(false);
     const tz = { kind: "fixed", offsetMinutes: 0 } as const;
     const plain = toImportPayload(report, tz, { withCashflows: true });

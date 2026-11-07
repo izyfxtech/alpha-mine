@@ -2,6 +2,14 @@
 
 Newest first. Dates are the day the work landed on `main`.
 
+## 2026-11-07 (refactor 2: dead code)
+
+- Removed code nothing used (`UsageBadge`, `TradeScreenshots`, `tiltFill`, `milestoneLevel`, `listInstruments`, `costOf`, milestone tables), unused imports, and props that were accepted but ignored (`tone` on stats, `n` on marketing sections). Helpers only used inside their own file are no longer exported. No behaviour change; lint warnings 196 to 174.
+
+## 2026-11-07 (refactor 1: formatting)
+
+- All source files are formatted with Prettier (width 100) and CI now runs `pnpm format:check`, so style no longer drifts. Formatting only: no behaviour change (typecheck, lint, 379 tests in two time zones and the build were identical before and after).
+
 ## 2026-11-07 (spotlight tour)
 
 - **Spotlight tour**: the page dims and the real menu items light up one by one (Home, Add trade, Journal, Analytics, Rule Compliance, Plans, Diary, Chart Lab, Reports, Strategy Lab, journals, filters, search, account menu), each with a short explanation. Arrow keys or buttons to move, Esc to stop. Steps that are not on screen are skipped. Start it from "Show me on screen" in the setup guide or "Take the tour" in the account menu.

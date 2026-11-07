@@ -1,4 +1,4 @@
-import { D, type RateKind, type RateObservation, type RateProvider } from '@engine/index.ts';
+import { D, type RateKind, type RateObservation, type RateProvider } from "@engine/index.ts";
 
 /** Deterministic provider for tests: fixed pair table, controllable freshness. */
 export class StaticProvider implements RateProvider {
@@ -21,17 +21,17 @@ export class StaticProvider implements RateProvider {
       rate: D(r),
       observedAtMs: atMs - (this.opts.lagMs ?? 0),
       source: this.name,
-      kind: this.opts.kind ?? 'minute',
-      side: 'mid',
+      kind: this.opts.kind ?? "minute",
+      side: "mid",
     };
   }
 }
 
 export class ThrowingProvider implements RateProvider {
-  readonly name = 'boom';
+  readonly name = "boom";
   readonly maxStalenessMs = 1000;
   async get(): Promise<RateObservation | null> {
-    throw new Error('provider down');
+    throw new Error("provider down");
   }
 }
 

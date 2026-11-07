@@ -7,7 +7,7 @@
  * intermediates are effectively exact. We only round at the *presentation*
  * boundary (see roundMoney in currency.ts), never between steps.
  */
-import { Decimal } from 'decimal.js';
+import { Decimal } from "decimal.js";
 
 export const Dec = Decimal.clone({
   precision: 40,
@@ -20,8 +20,8 @@ export type DecimalLike = string | number | bigint | Dec;
 
 /** Parse any numeric input into a Dec. Rejects NaN/Infinity loudly. */
 export function D(v: DecimalLike): Dec {
-  if (typeof v === 'bigint') return new Dec(v.toString());
-  if (typeof v === 'number' && !Number.isFinite(v)) {
+  if (typeof v === "bigint") return new Dec(v.toString());
+  if (typeof v === "number" && !Number.isFinite(v)) {
     throw new RangeError(`D(): non-finite number ${String(v)}`);
   }
   return new Dec(v);

@@ -10,7 +10,16 @@ import { cn } from "@/lib/utils";
 import { useDialogs } from "@/components/ui/confirm";
 
 export const Route = createFileRoute("/_authenticated/diary/notebook")({
-  head: () => ({ meta: [{ title: "Notebook — AlphaMine" }, { name: "description", content: "Your trading notebook, organised in folders." }, { property: "og:title", content: "Notebook — AlphaMine" }, { property: "og:description", content: "Your trading notebook, organised in folders." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
+  head: () => ({
+    meta: [
+      { title: "Notebook — AlphaMine" },
+      { name: "description", content: "Your trading notebook, organised in folders." },
+      { property: "og:title", content: "Notebook — AlphaMine" },
+      { property: "og:description", content: "Your trading notebook, organised in folders." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: Notebook,
 });
 
@@ -28,7 +37,10 @@ function Notebook() {
   // Folder names: saved folders plus any folder referenced by an existing note.
   const names = useMemo(() => {
     const saved = folders.rows.map((f) => f.name);
-    return [...saved, ...[...new Set(pages.rows.map((p) => p.folder))].filter((n) => !saved.includes(n))];
+    return [
+      ...saved,
+      ...[...new Set(pages.rows.map((p) => p.folder))].filter((n) => !saved.includes(n)),
+    ];
   }, [folders.rows, pages.rows]);
   const list = folder === ALL ? pages.rows : pages.rows.filter((p) => p.folder === folder);
   // Reference behaviour: the first note of the current list is open by default.
@@ -44,7 +56,11 @@ function Notebook() {
     const p = pending.current;
     if (!p) return;
     setSaveState("saving");
-    const ok = await pages.update(p.id, { title: p.title, content: p.content, updated_at: new Date().toISOString() });
+    const ok = await pages.update(p.id, {
+      title: p.title,
+      content: p.content,
+      updated_at: new Date().toISOString(),
+    });
     if (ok) {
       // Only clear if nothing newer was typed while the request was in flight.
       if (pending.current === p) pending.current = null;
@@ -55,7 +71,11 @@ function Notebook() {
       setSaveState("failed");
     }
   };
-  useEffect(() => { void flush(); setTitle(page?.title ?? ""); setContent(page?.content ?? ""); }, [page?.id]);
+  useEffect(() => {
+    void flush();
+    setTitle(page?.title ?? "");
+    setContent(page?.content ?? "");
+  }, [page?.id]);
   useEffect(() => {
     if (!page || (title === page.title && content === (page.content ?? ""))) return;
     pending.current = { id: page.id, title, content };
@@ -65,34 +85,64 @@ function Notebook() {
   }, [title, content]);
   useEffect(() => {
     // Save when leaving the page, hiding the tab or closing it; warn if an edit is still unsaved.
-    const hide = () => { if (document.visibilityState === "hidden") void flush(); };
-    const warn = (e: BeforeUnloadEvent) => { if (pending.current) { void flush(); e.preventDefault(); e.returnValue = ""; } };
+    const hide = () => {
+      if (document.visibilityState === "hidden") void flush();
+    };
+    const warn = (e: BeforeUnloadEvent) => {
+      if (pending.current) {
+        void flush();
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
     document.addEventListener("visibilitychange", hide);
     const leave = () => void flush();
     window.addEventListener("pagehide", leave);
     window.addEventListener("beforeunload", warn);
-    return () => { document.removeEventListener("visibilitychange", hide); window.removeEventListener("beforeunload", warn); window.removeEventListener("pagehide", leave); void flush(); };
+    return () => {
+      document.removeEventListener("visibilitychange", hide);
+      window.removeEventListener("beforeunload", warn);
+      window.removeEventListener("pagehide", leave);
+      void flush();
+    };
   }, []);
 
   const addNote = async () => {
-    const target = folder === ALL ? names[0] ?? "Diary" : folder;
+    const target = folder === ALL ? (names[0] ?? "Diary") : folder;
     if (!names.includes(target)) await folders.insert({ name: target, position: 0 });
     const today = localToday();
     const r = await pages.insert({ folder: target, title: today, content: "" });
     if (r) setSel(r.id);
   };
   const newFolder = async () => {
-    const n = (await prompt({ title: "New folder", label: "Folder name", confirmLabel: "Create" }))?.trim();
+    const n = (
+      await prompt({ title: "New folder", label: "Folder name", confirmLabel: "Create" })
+    )?.trim();
     if (n) await folders.insert({ name: n, position: names.length });
   };
   const renameFolder = async (name: string) => {
-    const n = (await prompt({ title: "Rename folder", label: "Folder name", defaultValue: name, confirmLabel: "Rename" }))?.trim();
+    const n = (
+      await prompt({
+        title: "Rename folder",
+        label: "Folder name",
+        defaultValue: name,
+        confirmLabel: "Rename",
+      })
+    )?.trim();
     if (!n || n === name) return;
     if (names.some((x) => x.toLowerCase() === n.toLowerCase() && x !== name)) {
-      if (!(await confirm({ title: `Merge into "${n}"?`, message: `A folder called "${n}" already exists. The notes from "${name}" will be moved into it.` }))) return;
+      if (
+        !(await confirm({
+          title: `Merge into "${n}"?`,
+          message: `A folder called "${n}" already exists. The notes from "${name}" will be moved into it.`,
+        }))
+      )
+        return;
     }
     // Move the notes first; the folder row is renamed only once every note moved, so a failure never leaves a ghost folder.
-    const moved = await Promise.all(pages.rows.filter((p) => p.folder === name).map((p) => pages.update(p.id, { folder: n })));
+    const moved = await Promise.all(
+      pages.rows.filter((p) => p.folder === name).map((p) => pages.update(p.id, { folder: n })),
+    );
     if (moved.some((ok) => !ok)) return;
     const f = folders.rows.find((x) => x.name === name);
     const target = folders.rows.find((x) => x.name === n);
@@ -102,7 +152,14 @@ function Notebook() {
     if (folder === name) setFolder(n);
   };
   const deleteFolder = async (name: string) => {
-    if (!(await confirm({ title: `Delete folder "${name}"?`, message: "Every note in it is deleted too. This cannot be undone.", destructive: true }))) return;
+    if (
+      !(await confirm({
+        title: `Delete folder "${name}"?`,
+        message: "Every note in it is deleted too. This cannot be undone.",
+        destructive: true,
+      }))
+    )
+      return;
     await Promise.all(pages.rows.filter((p) => p.folder === name).map((p) => pages.remove(p.id)));
     const f = folders.rows.find((x) => x.name === name);
     if (f) await folders.remove(f.id);
@@ -111,21 +168,47 @@ function Notebook() {
 
   return (
     <div className="flex h-[calc(100vh-7rem)] flex-col gap-[18px]">
-      <div><Button variant="ink" size="sm" className="h-[30px] rounded-md px-4 text-[12px]" onClick={addNote}><Plus className="h-3.5 w-3.5" /> Add Note</Button></div>
+      <div>
+        <Button
+          variant="ink"
+          size="sm"
+          className="h-[30px] rounded-md px-4 text-[12px]"
+          onClick={addNote}
+        >
+          <Plus className="h-3.5 w-3.5" /> Add Note
+        </Button>
+      </div>
       <div className="grid min-h-0 flex-1 grid-cols-[210px_250px_1fr] gap-[18px] rounded-lg bg-card p-[22px] shadow-[0_1px_5px_rgba(60,40,90,0.07)]">
         <aside className="space-y-0.5 text-[12px]">
           <FolderRow label="All Notes" active={folder === ALL} onClick={() => setFolder(ALL)} />
           {names.map((n) => (
-            <FolderRow key={n} label={`(${pages.rows.filter((p) => p.folder === n).length}) ${n}`} active={folder === n}
-              onClick={() => { setFolder(n); setSel(null); }} onEdit={() => renameFolder(n)} onDelete={() => deleteFolder(n)} />
+            <FolderRow
+              key={n}
+              label={`(${pages.rows.filter((p) => p.folder === n).length}) ${n}`}
+              active={folder === n}
+              onClick={() => {
+                setFolder(n);
+                setSel(null);
+              }}
+              onEdit={() => renameFolder(n)}
+              onDelete={() => deleteFolder(n)}
+            />
           ))}
-          <button onClick={newFolder} className="px-2 pt-2 text-sm text-info hover:underline">+ New Folder</button>
+          <button onClick={newFolder} className="px-2 pt-2 text-sm text-info hover:underline">
+            + New Folder
+          </button>
         </aside>
 
         <div className="min-h-0 overflow-y-auto rounded-lg bg-background p-2">
           {list.map((p) => (
-            <button key={p.id} onClick={() => setSel(p.id)}
-              className={cn("mb-1 block w-full rounded-md px-3 py-3 text-left", page?.id === p.id ? "bg-card shadow-sm" : "hover:bg-card/60")}>
+            <button
+              key={p.id}
+              onClick={() => setSel(p.id)}
+              className={cn(
+                "mb-1 block w-full rounded-md px-3 py-3 text-left",
+                page?.id === p.id ? "bg-card shadow-sm" : "hover:bg-card/60",
+              )}
+            >
               <p className="truncate text-[12px] font-semibold">{p.title || "Untitled"}</p>
               <p className="truncate text-xs text-t4">{stripHtml(p.content) || "Empty note"}</p>
               <p className="text-xs text-t4">{fmtStamp(p.updated_at)}</p>
@@ -135,13 +218,45 @@ function Notebook() {
 
         <div className="flex min-h-0 flex-col">
           {!page ? (
-            <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">{list.length ? "Select a note." : "There are no notes."}</div>
+            <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+              {list.length ? "Select a note." : "There are no notes."}
+            </div>
           ) : (
             <>
               <div className="mb-3 flex items-center gap-2">
-                <input value={title} onChange={(e) => setTitle(e.target.value)} className="flex-1 bg-transparent text-[16px] font-bold outline-none" />
-                <span className={cn("text-xs", saveState === "failed" ? "text-destructive" : "text-t4")} role="status">{saveState === "saving" ? "Saving…" : saveState === "failed" ? "Not saved — retrying on your next edit" : "Saved"}</span>
-                <Button variant="ghost" size="icon" onClick={async () => { if (!(await confirm({ title: `Delete "${page.title || "Untitled"}"?`, message: "This cannot be undone.", destructive: true }))) return; if (await pages.remove(page.id)) setSel(null); }} title="Delete note"><Trash2 className="h-4 w-4" /></Button>
+                <input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="flex-1 bg-transparent text-[16px] font-bold outline-none"
+                />
+                <span
+                  className={cn("text-xs", saveState === "failed" ? "text-destructive" : "text-t4")}
+                  role="status"
+                >
+                  {saveState === "saving"
+                    ? "Saving…"
+                    : saveState === "failed"
+                      ? "Not saved — retrying on your next edit"
+                      : "Saved"}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={async () => {
+                    if (
+                      !(await confirm({
+                        title: `Delete "${page.title || "Untitled"}"?`,
+                        message: "This cannot be undone.",
+                        destructive: true,
+                      }))
+                    )
+                      return;
+                    if (await pages.remove(page.id)) setSel(null);
+                  }}
+                  title="Delete note"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
               <RichEditor value={content} onChange={setContent} className="min-h-0 flex-1" />
             </>
@@ -152,13 +267,41 @@ function Notebook() {
   );
 }
 
-function FolderRow({ label, active, onClick, onEdit, onDelete }: { label: string; active: boolean; onClick: () => void; onEdit?: () => void; onDelete?: () => void }) {
+function FolderRow({
+  label,
+  active,
+  onClick,
+  onEdit,
+  onDelete,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
+}) {
   const I = active ? FolderOpen : Folder;
   return (
-    <div className={cn("group flex items-center gap-2 rounded-md px-2 py-1.5", active ? "bg-muted font-semibold" : "hover:bg-muted/60")}>
-      <button onClick={onClick} className="flex min-w-0 flex-1 items-center gap-2 text-left"><I className="h-4 w-4 shrink-0" /><span className="truncate">{label}</span></button>
-      {onEdit && <button onClick={onEdit} className="opacity-0 group-hover:opacity-100" title="Rename"><Pencil className="h-3.5 w-3.5" /></button>}
-      {onDelete && <button onClick={onDelete} className="opacity-0 group-hover:opacity-100" title="Delete"><Trash2 className="h-3.5 w-3.5" /></button>}
+    <div
+      className={cn(
+        "group flex items-center gap-2 rounded-md px-2 py-1.5",
+        active ? "bg-muted font-semibold" : "hover:bg-muted/60",
+      )}
+    >
+      <button onClick={onClick} className="flex min-w-0 flex-1 items-center gap-2 text-left">
+        <I className="h-4 w-4 shrink-0" />
+        <span className="truncate">{label}</span>
+      </button>
+      {onEdit && (
+        <button onClick={onEdit} className="opacity-0 group-hover:opacity-100" title="Rename">
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
+      )}
+      {onDelete && (
+        <button onClick={onDelete} className="opacity-0 group-hover:opacity-100" title="Delete">
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      )}
     </div>
   );
 }

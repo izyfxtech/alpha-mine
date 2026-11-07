@@ -75,7 +75,11 @@ export function enrichTrade(
   const tilt = pos - neg;
   const net = Number(t.net_pnl);
   // R is a ratio of prices (lib/pnl/calc.ts). Money at risk is only for display.
-  const priced = { ...t, entry_price: Number(t.entry_price), exit_price: t.exit_price == null ? null : Number(t.exit_price) };
+  const priced = {
+    ...t,
+    entry_price: Number(t.entry_price),
+    exit_price: t.exit_price == null ? null : Number(t.exit_price),
+  };
   const r = isOpen(t) ? null : rMultiple(priced);
   const ctx = moneyCtx?.(t);
   const risk = ctx ? riskMoney(priced, ctx.spec, ctx.account) : null;
@@ -100,7 +104,9 @@ export function enrichTrade(
     r,
     spec: ctx?.spec ?? null,
     account: ctx?.account ?? null,
-    holdMinutes: t.exit_at ? (new Date(t.exit_at).getTime() - new Date(t.entry_at).getTime()) / 60000 : null,
+    holdMinutes: t.exit_at
+      ? (new Date(t.exit_at).getTime() - new Date(t.entry_at).getTime()) / 60000
+      : null,
   };
 }
 
@@ -117,11 +123,14 @@ export function riskOf(t: Pick<TradeRow, "risk_amount">) {
  */
 export function withEstimatedR<T extends Trade>(trades: T[]): T[] {
   const byJournal = new Map<string, number[]>();
-  for (const t of trades) if (t.r != null && t.risk_amount != null && Number(t.risk_amount) > 0) pushTo(byJournal, t.journal_id, Number(t.risk_amount));
+  for (const t of trades)
+    if (t.r != null && t.risk_amount != null && Number(t.risk_amount) > 0)
+      pushTo(byJournal, t.journal_id, Number(t.risk_amount));
   const typical = new Map<string, number>();
   for (const [j, v] of byJournal) {
     if (v.length < 3) continue;
-    const a = [...v].sort((x, y) => x - y), m = a.length >> 1;
+    const a = [...v].sort((x, y) => x - y),
+      m = a.length >> 1;
     typical.set(j, a.length % 2 ? a[m]! : (a[m - 1]! + a[m]!) / 2);
   }
   return trades.map((t) => {
@@ -131,20 +140,20 @@ export function withEstimatedR<T extends Trade>(trades: T[]): T[] {
 }
 
 /** A trade without an exit is still open: it has no result yet and must stay out of every statistic. */
-export const isOpen = (t: Pick<TradeRow, "exit_at" | "exit_price">) => t.exit_at == null || t.exit_price == null;
+export const isOpen = (t: Pick<TradeRow, "exit_at" | "exit_price">) =>
+  t.exit_at == null || t.exit_price == null;
 
-export const isWin = (t: Pick<Trade, "net_pnl" | "is_break_even">) => !t.is_break_even && t.net_pnl > 0;
-export const isLoss = (t: Pick<Trade, "net_pnl" | "is_break_even">) => !t.is_break_even && t.net_pnl < 0;
-export const isBE = (t: Pick<Trade, "net_pnl" | "is_break_even">) => !!t.is_break_even || t.net_pnl === 0;
+export const isWin = (t: Pick<Trade, "net_pnl" | "is_break_even">) =>
+  !t.is_break_even && t.net_pnl > 0;
+export const isLoss = (t: Pick<Trade, "net_pnl" | "is_break_even">) =>
+  !t.is_break_even && t.net_pnl < 0;
+export const isBE = (t: Pick<Trade, "net_pnl" | "is_break_even">) =>
+  !!t.is_break_even || t.net_pnl === 0;
 
 const sum = (a: number[]) => a.reduce((s, x) => s + x, 0);
 const avg = (a: number[]) => (a.length ? sum(a) / a.length : 0);
 /** The trade's day in the local zone (see lib/time/local-time): the one day key every page uses. */
 export const dayKey = (iso: string) => localDay(iso);
-
-/** Tilt meter fill (0..1) for a points value; 3 points fills the bar. */
-export const TILT_CAP = 3;
-export const tiltFill = (points: number) => Math.min(1, Math.abs(points) / TILT_CAP);
 
 export type Cashflow = { occurred_on: string; amount: number };
 
@@ -152,7 +161,11 @@ export type Cashflow = { occurred_on: string; amount: number };
  * Sets accountSize (balance before the trade) and retPct on every trade.
  * Balance = starting balance + deposits/withdrawals dated on or before the trade day + prior net P&L.
  */
-export function annotateAccount<T extends Trade>(trades: T[], start: number, cashflows: Cashflow[] = []): T[] {
+export function annotateAccount<T extends Trade>(
+  trades: T[],
+  start: number,
+  cashflows: Cashflow[] = [],
+): T[] {
   const flows = [...cashflows].sort((a, b) => a.occurred_on.localeCompare(b.occurred_on));
   const sorted = [...trades].sort((a, b) => a.entry_at.localeCompare(b.entry_at));
   let bal = start;
@@ -201,28 +214,25 @@ export function equityCurve(trades: Trade[], start: number, cashflows: Cashflow[
   });
 }
 
-/** Seven milestone tiers; each tier needs this share of the milestone goal. */
-export const MILESTONE_LEVELS = ["Rookie", "Bronze", "Silver", "Gold", "Platinum", "Diamond", "Legend"] as const;
-const LEVEL_SHARE = [0, 0.05, 0.15, 0.3, 0.5, 0.75, 1];
-export function milestoneLevel(current: number, goal: number) {
-  let level = 0;
-  for (let i = 0; i < LEVEL_SHARE.length; i++) if (current >= LEVEL_SHARE[i] * goal) level = i;
-  if (level === LEVEL_SHARE.length - 1) return { level: level + 1, name: MILESTONE_LEVELS[level], progress: 100 };
-  const lo = LEVEL_SHARE[level] * goal;
-  const hi = LEVEL_SHARE[level + 1] * goal;
-  return { level: level + 1, name: MILESTONE_LEVELS[level], progress: Math.floor(((current - lo) / (hi - lo)) * 100) };
-}
-
 /**
  * The base a period report must use for its own return: the balance just before `from` (a yyyy-mm-dd day) is the
  * starting balance, plus deposits and withdrawals dated before it, plus the net P&L of every earlier trade. Only the
  * cashflows dated inside [from, to] are returned for the period itself, so a 2025 return never divides by money that
  * was deposited in 2026. Pass the journal's unfiltered trades as `all`.
  */
-export function periodBase(all: Trade[], start: number, flows: Cashflow[], from: string, to: string) {
+export function periodBase(
+  all: Trade[],
+  start: number,
+  flows: Cashflow[],
+  from: string,
+  to: string,
+) {
   const earlierFlows = sum(flows.filter((f) => f.occurred_on < from).map((f) => Number(f.amount)));
   const earlierNet = sum(all.filter((t) => dayKey(t.entry_at) < from).map((t) => t.net_pnl));
-  return { base: start + earlierFlows + earlierNet, flows: flows.filter((f) => f.occurred_on >= from && f.occurred_on <= to) };
+  return {
+    base: start + earlierFlows + earlierNet,
+    flows: flows.filter((f) => f.occurred_on >= from && f.occurred_on <= to),
+  };
 }
 
 /** Mean over deviation of the R values that exist, scaled by sqrt(n) (n capped at 100). Needs two or more R values. */
@@ -238,7 +248,12 @@ export function sortinoOf(pnls: number[]) {
   return dd ? avg(pnls) / dd : 0;
 }
 
-export interface DrawdownRatios { burke: number | null; sterling: number | null; mar: number | null; k: number | null }
+export interface DrawdownRatios {
+  burke: number | null;
+  sterling: number | null;
+  mar: number | null;
+  k: number | null;
+}
 
 /**
  * Running drawdown-based ratios, one entry per trade (trades in time order), from the equity of `start` plus the P&L so far.
@@ -250,27 +265,58 @@ export interface DrawdownRatios { burke: number | null; sterling: number | null;
  *  - K-ratio = slope of ln(equity) against trade number divided by the standard error of that slope (Kestner, 1996).
  * Each is null when it is undefined (no drawdown yet, no starting balance, too few trades, a perfectly straight line).
  */
-export function drawdownRatioSeries(trades: { net_pnl: number; entry_at: string }[], start: number): DrawdownRatios[] {
+export function drawdownRatioSeries(
+  trades: { net_pnl: number; entry_at: string }[],
+  start: number,
+): DrawdownRatios[] {
   const out: DrawdownRatios[] = [];
-  let eq = 0, peak = start, depth = 0, sumSq = 0, maxDDPct = 0;
-  let n = 0, sx = 0, sy = 0, sxx = 0, sxy = 0, syy = 0, positive = true;
+  let eq = 0,
+    peak = start,
+    depth = 0,
+    sumSq = 0,
+    maxDDPct = 0;
+  let n = 0,
+    sx = 0,
+    sy = 0,
+    sxx = 0,
+    sxy = 0,
+    syy = 0,
+    positive = true;
   const t0 = trades.length ? new Date(trades[0]!.entry_at).getTime() : 0;
   for (const t of trades) {
     eq += t.net_pnl;
     const equity = start + eq;
-    if (equity >= peak) { sumSq += depth * depth; depth = 0; peak = equity; }
-    else depth = Math.max(depth, peak - equity);
+    if (equity >= peak) {
+      sumSq += depth * depth;
+      depth = 0;
+      peak = equity;
+    } else depth = Math.max(depth, peak - equity);
     if (peak > 0) maxDDPct = Math.max(maxDDPct, ((peak - equity) / peak) * 100);
     const retPct = start > 0 ? (eq / start) * 100 : null;
     const denom = Math.sqrt(sumSq + depth * depth);
     const years = (new Date(t.entry_at).getTime() - t0) / (365.25 * 864e5);
-    const annual = retPct == null ? null : years >= 1 && equity > 0 ? (Math.pow(equity / start, 1 / years) - 1) * 100 : retPct;
+    const annual =
+      retPct == null
+        ? null
+        : years >= 1 && equity > 0
+          ? (Math.pow(equity / start, 1 / years) - 1) * 100
+          : retPct;
 
     n++;
-    if (equity > 0) { const x = n, y = Math.log(equity); sx += x; sy += y; sxx += x * x; sxy += x * y; syy += y * y; } else positive = false;
+    if (equity > 0) {
+      const x = n,
+        y = Math.log(equity);
+      sx += x;
+      sy += y;
+      sxx += x * x;
+      sxy += x * y;
+      syy += y * y;
+    } else positive = false;
     let k: number | null = null;
     if (positive && n >= 3) {
-      const cxx = sxx - (sx * sx) / n, cxy = sxy - (sx * sy) / n, cyy = syy - (sy * sy) / n;
+      const cxx = sxx - (sx * sx) / n,
+        cxy = sxy - (sx * sy) / n,
+        cyy = syy - (sy * sy) / n;
       const slope = cxx ? cxy / cxx : 0;
       const sse = Math.max(0, cyy - slope * cxy);
       const se = cxx > 0 ? Math.sqrt(sse / (n - 2) / cxx) : 0;
@@ -309,7 +355,9 @@ export function computeStats(trades: Trade[], startingBalance: number, cashflows
   const maxDD = curve.length ? Math.abs(Math.min(0, ...curve.map((c) => c.drawdown))) : 0;
 
   const days = new Map<string, number>();
-  trades.forEach((t) => days.set(dayKey(t.entry_at), (days.get(dayKey(t.entry_at)) ?? 0) + t.net_pnl));
+  trades.forEach((t) =>
+    days.set(dayKey(t.entry_at), (days.get(dayKey(t.entry_at)) ?? 0) + t.net_pnl),
+  );
   const dayVals = [...days.values()];
   const holds = trades.map((t) => t.holdMinutes).filter((x): x is number => x != null);
   const rs = trades.map((t) => t.r).filter((x): x is number => x != null);
@@ -317,7 +365,9 @@ export function computeStats(trades: Trade[], startingBalance: number, cashflows
   const sorted = [...trades].sort((a, b) => a.entry_at.localeCompare(b.entry_at));
   let weeks = 1;
   if (sorted.length > 1) {
-    const span = new Date(sorted[sorted.length - 1].entry_at).getTime() - new Date(sorted[0].entry_at).getTime();
+    const span =
+      new Date(sorted[sorted.length - 1].entry_at).getTime() -
+      new Date(sorted[0].entry_at).getTime();
     weeks = Math.max(1, span / (7 * 864e5));
   }
   const invested = startingBalance + cashflow;
@@ -325,10 +375,21 @@ export function computeStats(trades: Trade[], startingBalance: number, cashflows
   const sampleFactor = Math.min(1, trades.length / 100);
   // No drawdown yet is not an infinite ratio: with few trades it proves little, so it earns only what the sample supports.
   const returnDD = maxDD ? roi / maxDD : roi > 0 ? 5 * sampleFactor : 0;
-  const pfScore = Math.min(isFinite(profitFactor) ? profitFactor : trades.length >= 20 ? 3 : 1.5, 3) / 3;
-  const score = trades.length ? Math.max(0, Math.min(100, (Math.min(Math.max(returnDD, 0), 5) / 5) * 40 + pfScore * 40 + sampleFactor * 20)) : 0;
+  const pfScore =
+    Math.min(isFinite(profitFactor) ? profitFactor : trades.length >= 20 ? 3 : 1.5, 3) / 3;
+  const score = trades.length
+    ? Math.max(
+        0,
+        Math.min(
+          100,
+          (Math.min(Math.max(returnDD, 0), 5) / 5) * 40 + pfScore * 40 + sampleFactor * 20,
+        ),
+      )
+    : 0;
 
-  const streak: ("W" | "L" | "B")[] = sorted.slice(-5).map((t) => (isWin(t) ? "W" : isLoss(t) ? "L" : "B"));
+  const streak: ("W" | "L" | "B")[] = sorted
+    .slice(-5)
+    .map((t) => (isWin(t) ? "W" : isLoss(t) ? "L" : "B"));
 
   const sqn = sqnOf(rs);
   const sortino = sortinoOf(trades.map((t) => t.net_pnl));
@@ -340,7 +401,8 @@ export function computeStats(trades: Trade[], startingBalance: number, cashflows
     losses: losses.length,
     be: be.length,
     winRate: trades.length ? (wins.length / trades.length) * 100 : 0,
-    winRateNoBE: wins.length + losses.length ? (wins.length / (wins.length + losses.length)) * 100 : 0,
+    winRateNoBE:
+      wins.length + losses.length ? (wins.length / (wins.length + losses.length)) * 100 : 0,
     avgPnl: avg(trades.map((t) => t.net_pnl)),
     avgWin: avg(wins.map((t) => t.net_pnl)),
     avgLoss: avg(losses.map((t) => t.net_pnl)),
@@ -428,24 +490,42 @@ export function consecutive(trades: Trade[]) {
     }
   });
   flush();
-  const max = Math.max(1, ...Object.keys(winRuns).map(Number), ...Object.keys(lossRuns).map(Number));
-  return Array.from({ length: max }, (_, i) => ({ run: i + 1, winners: winRuns[i + 1] ?? 0, losers: lossRuns[i + 1] ?? 0 }));
+  const max = Math.max(
+    1,
+    ...Object.keys(winRuns).map(Number),
+    ...Object.keys(lossRuns).map(Number),
+  );
+  return Array.from({ length: max }, (_, i) => ({
+    run: i + 1,
+    winners: winRuns[i + 1] ?? 0,
+    losers: lossRuns[i + 1] ?? 0,
+  }));
 }
 
 export function fmtMoney(v: number, currency = "USD") {
   if (Number.isNaN(v)) return "–";
   if (!isFinite(v)) return "∞";
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: safeCurrency(currency), maximumFractionDigits: 2 }).format(v);
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: safeCurrency(currency),
+    maximumFractionDigits: 2,
+  }).format(v);
 }
-export const fmtPct = (v: number) => (Number.isNaN(v) ? "–" : `${isFinite(v) ? v.toFixed(2) : "∞"}%`);
-export const fmtNum = (v: number, d = 2) => (Number.isNaN(v) ? "–" : isFinite(v) ? v.toFixed(d) : "∞");
+export const fmtPct = (v: number) =>
+  Number.isNaN(v) ? "–" : `${isFinite(v) ? v.toFixed(2) : "∞"}%`;
+export const fmtNum = (v: number, d = 2) =>
+  Number.isNaN(v) ? "–" : isFinite(v) ? v.toFixed(d) : "∞";
 export function fmtHold(min: number) {
   return `${(min / 60).toFixed(1)}h / ${(min / 1440).toFixed(1)}d / ${Math.round(min).toLocaleString()}m`;
 }
 export const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 /** Fixed-order buckets (weekday, hour, month…) with P&L and win/loss/BE counts; empty buckets included. */
-export function bucketPerformance<K extends string | number>(trades: Trade[], key: (t: Trade) => K, keys: { k: K; label: string }[]) {
+export function bucketPerformance<K extends string | number>(
+  trades: Trade[],
+  key: (t: Trade) => K,
+  keys: { k: K; label: string }[],
+) {
   return keys.map(({ k, label }) => {
     const ts = trades.filter((t) => key(t) === k);
     return {
@@ -458,7 +538,20 @@ export function bucketPerformance<K extends string | number>(trades: Trade[], ke
     };
   });
 }
-export const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+export const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
 
 /** R the trade would have made if left alone (set-and-forget): TP, SL or unknown. Used by Chart Lab and Edge Finder. */
 export function potentialR(t: Trade): number | null {
@@ -468,8 +561,12 @@ export function potentialR(t: Trade): number | null {
   if (t.otp_hit === true) return tpR;
   if (t.otp_hit === false) return -1;
   if (t.high_price != null && t.low_price != null) {
-    const hitTp = long ? Number(t.high_price) >= Number(t.take_profit) : Number(t.low_price) <= Number(t.take_profit);
-    const hitSl = long ? Number(t.low_price) <= Number(t.stop_loss) : Number(t.high_price) >= Number(t.stop_loss);
+    const hitTp = long
+      ? Number(t.high_price) >= Number(t.take_profit)
+      : Number(t.low_price) <= Number(t.take_profit);
+    const hitSl = long
+      ? Number(t.low_price) <= Number(t.stop_loss)
+      : Number(t.high_price) >= Number(t.stop_loss);
     if (hitTp && !hitSl) return tpR;
     if (hitSl && !hitTp) return -1;
   }

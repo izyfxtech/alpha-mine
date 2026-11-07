@@ -10,11 +10,11 @@
  *   pipValue(Q) = pipSize x units                            (in QUOTE currency per pip)
  *   gross(A)    = gross(Q) x rate(Q -> A)                    (A = account currency)
  */
-import type { Dec } from './decimal.ts';
-import type { InstrumentSpec, Side } from './types.ts';
+import type { Dec } from "./decimal.ts";
+import type { InstrumentSpec, Side } from "./types.ts";
 
 export function priceDelta(side: Side, open: Dec, close: Dec): Dec {
-  return side === 'buy' ? close.minus(open) : open.minus(close);
+  return side === "buy" ? close.minus(open) : open.minus(close);
 }
 
 export function unitsOf(spec: InstrumentSpec, lots: Dec): Dec {
@@ -22,7 +22,13 @@ export function unitsOf(spec: InstrumentSpec, lots: Dec): Dec {
 }
 
 /** Raw result in the instrument's profit currency (quote currency for FX). */
-export function grossInProfitCurrency(spec: InstrumentSpec, side: Side, lots: Dec, open: Dec, close: Dec): Dec {
+export function grossInProfitCurrency(
+  spec: InstrumentSpec,
+  side: Side,
+  lots: Dec,
+  open: Dec,
+  close: Dec,
+): Dec {
   return priceDelta(side, open, close).times(unitsOf(spec, lots));
 }
 

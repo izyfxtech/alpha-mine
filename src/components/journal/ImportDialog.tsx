@@ -3,21 +3,52 @@ import { assetClassFor as inferAssetClass } from "@/lib/pnl/instrument-catalogue
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useJournal } from "@/lib/journal/journal-context";
 import { seedDemoTrades } from "@/lib/journal/demo";
 import { fillsToTrades, type RawFill } from "@/lib/import/fills-import";
-import { FIELDS, detectHeaderRow, looksLikeFills, parseCsv, suggestMapping } from "@/lib/import/csv-mapping";
-import { buildCsvTrades, detectDateOrder, detectDecimal, parseDateTime, parseNumber, type CsvZone, type DateOrder, type Decimal } from "@/lib/import/csv-rows";
+import {
+  FIELDS,
+  detectHeaderRow,
+  looksLikeFills,
+  parseCsv,
+  suggestMapping,
+} from "@/lib/import/csv-mapping";
+import {
+  buildCsvTrades,
+  detectDateOrder,
+  detectDecimal,
+  parseDateTime,
+  parseNumber,
+  type CsvZone,
+  type DateOrder,
+  type Decimal,
+} from "@/lib/import/csv-rows";
 import { parseMtReport, type MtReport } from "@/lib/import/mt/parse-report";
-import { checkCompatibility, isMismatchError, mismatchRisks, summarize, toImportPayload } from "@/lib/import/mt/to-trades";
+import {
+  checkCompatibility,
+  isMismatchError,
+  mismatchRisks,
+  summarize,
+  toImportPayload,
+} from "@/lib/import/mt/to-trades";
 import type { Json } from "@/integrations/supabase/types";
 import type { ServerTz } from "@engine/time.ts";
 
 const TZ_OPTIONS: { value: string; label: string; tz: ServerTz }[] = [
-  { value: "ny-close", label: "GMT+2 / GMT+3 (New York close, most brokers)", tz: { kind: "ny-close" } },
+  {
+    value: "ny-close",
+    label: "GMT+2 / GMT+3 (New York close, most brokers)",
+    tz: { kind: "ny-close" },
+  },
   { value: "utc", label: "UTC", tz: { kind: "fixed", offsetMinutes: 0 } },
   { value: "eu", label: "Europe/Athens (EET/EEST)", tz: { kind: "iana", zone: "Europe/Athens" } },
   { value: "p2", label: "Fixed GMT+2 (no DST)", tz: { kind: "fixed", offsetMinutes: 120 } },
@@ -31,10 +62,22 @@ async function sheetRows(bytes: Uint8Array): Promise<string[][]> {
   const wb = XLSX.read(bytes, { type: "array", cellDates: false });
   const ws = wb.Sheets[wb.SheetNames[0] ?? ""];
   if (!ws) return [];
-  return (XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, raw: false, blankrows: false }) as unknown[][]).map((r) => r.map((c) => (c == null ? "" : String(c))));
+  return (
+    XLSX.utils.sheet_to_json<unknown[]>(ws, {
+      header: 1,
+      raw: false,
+      blankrows: false,
+    }) as unknown[][]
+  ).map((r) => r.map((c) => (c == null ? "" : String(c))));
 }
 
-export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+export function ImportDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+}) {
   const { journal } = useJournal();
   const { confirm } = useDialogs();
   const qc = useQueryClient();
@@ -71,10 +114,13 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
         setMt(null);
         // A spreadsheet that is not a MetaTrader report may still be a plain trade log: read its first sheet like a CSV.
         const sheet = /\.xlsx$/i.test(file.name) ? await sheetRows(bytes).catch(() => null) : null;
-        const mapped = sheet && sheet.length ? suggestMapping(sheet[detectHeaderRow(sheet)] ?? []) : null;
+        const mapped =
+          sheet && sheet.length ? suggestMapping(sheet[detectHeaderRow(sheet)] ?? []) : null;
         if (sheet && mapped?.entry_at && mapped.entry_price) {
           loadTable(sheet);
-          toast.info("Read as a spreadsheet trade log, not a MetaTrader report. Check the column mapping below.");
+          toast.info(
+            "Read as a spreadsheet trade log, not a MetaTrader report. Check the column mapping below.",
+          );
         } else {
           toast.error((e as Error).message);
         }
@@ -89,9 +135,23 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   function formats() {
     if (!csv) return { order: null, decimal: null };
     const col = (r: string[], f: string) => (map[f] ? r[csv.header.indexOf(map[f])] : undefined);
-    const detected = detectDateOrder(csv.rows.flatMap((r) => [col(r, "entry_at"), col(r, "exit_at")]).filter((v): v is string => !!v));
-    const order = dateOrder !== "auto" ? dateOrder : detected === "ambiguous" ? null : (detected ?? "dmy");
-    const numeric = ["entry_price", "exit_price", "quantity", "gross_pnl", "net_pnl", "fees", "stop_loss", "take_profit"];
+    const detected = detectDateOrder(
+      csv.rows
+        .flatMap((r) => [col(r, "entry_at"), col(r, "exit_at")])
+        .filter((v): v is string => !!v),
+    );
+    const order =
+      dateOrder !== "auto" ? dateOrder : detected === "ambiguous" ? null : (detected ?? "dmy");
+    const numeric = [
+      "entry_price",
+      "exit_price",
+      "quantity",
+      "gross_pnl",
+      "net_pnl",
+      "fees",
+      "stop_loss",
+      "take_profit",
+    ];
     const found = detectDecimal(csv.rows.flatMap((r) => numeric.map((f) => col(r, f))));
     const decimal = decimalChoice !== "auto" ? decimalChoice : found === "ambiguous" ? null : found;
     return { order, decimal };
@@ -101,7 +161,14 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
     if (!csv || asFills || mt) return null;
     const { order, decimal } = formats();
     if (!order || !decimal) return null;
-    return buildCsvTrades(csv.rows.slice(0, 3), csv.header, map, { journalId: journal?.id ?? "", order, zone: csvZone, decimal, instrumentId: () => null, setupId: () => null });
+    return buildCsvTrades(csv.rows.slice(0, 3), csv.header, map, {
+      journalId: journal?.id ?? "",
+      order,
+      zone: csvZone,
+      decimal,
+      instrumentId: () => null,
+      setupId: () => null,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [csv, map, dateOrder, csvZone, decimalChoice, asFills, mt, journal?.id]);
 
@@ -109,38 +176,105 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
     if (!csv || !journal) return;
     const col = (r: string[], f: string) => (map[f] ? r[csv.header.indexOf(map[f])] : undefined);
     const { order, decimal } = formats();
-    if (!order) return toast.error("These dates could be day/month or month/day. Choose the date format below.");
-    if (!decimal) return toast.error("Numbers like 1,234 could be one thousand or 1.234. Choose the number format below.");
+    if (!order)
+      return toast.error(
+        "These dates could be day/month or month/day. Choose the date format below.",
+      );
+    if (!decimal)
+      return toast.error(
+        "Numbers like 1,234 could be one thousand or 1.234. Choose the number format below.",
+      );
     setBusy(true);
     try {
-      const ensure = async (table: "instruments" | "setups", column: "symbol" | "name", names: (string | undefined)[]) => {
-        const { data: have, error } = await supabase.from(table).select(`id,${column}`).eq("journal_id", journal.id);
+      const ensure = async (
+        table: "instruments" | "setups",
+        column: "symbol" | "name",
+        names: (string | undefined)[],
+      ) => {
+        const { data: have, error } = await supabase
+          .from(table)
+          .select(`id,${column}`)
+          .eq("journal_id", journal.id);
         if (error) throw error;
         const named = (x: unknown) => x as Record<string, string>;
-        const ids = new Map<string, string>((have ?? []).map((x) => [named(x)[column]!, named(x).id!]));
+        const ids = new Map<string, string>(
+          (have ?? []).map((x) => [named(x)[column]!, named(x).id!]),
+        );
         const fresh = [...new Set(names.filter((n): n is string => !!n && !ids.has(n)))];
         if (fresh.length) {
-          const { data, error: e2 } = await supabase.from(table).insert(fresh.map((n) => ({ [column]: n, ...(table === "instruments" ? { asset_class: inferAssetClass(n, journal.markets) } : {}), journal_id: journal.id })) as never).select(`id,${column}`);
+          const { data, error: e2 } = await supabase
+            .from(table)
+            .insert(
+              fresh.map((n) => ({
+                [column]: n,
+                ...(table === "instruments"
+                  ? { asset_class: inferAssetClass(n, journal.markets) }
+                  : {}),
+                journal_id: journal.id,
+              })) as never,
+            )
+            .select(`id,${column}`);
           if (e2) throw e2;
           data?.forEach((x) => ids.set(named(x)[column]!, named(x).id!));
         }
         return ids;
       };
-      const im = await ensure("instruments", "symbol", csv.rows.map((r) => col(r, "instrument")));
-      const sm = map.setup ? await ensure("setups", "name", csv.rows.map((r) => col(r, "setup"))) : new Map<string, string>();
-      const { trades, skipped, warnings } = buildCsvTrades(csv.rows, csv.header, map, { journalId: journal.id, order, zone: csvZone, decimal, instrumentId: (s) => im.get(s) ?? null, setupId: (s) => sm.get(s) ?? null });
-      if (!trades.length) throw new Error(skipped.length ? `Nothing could be imported. Row ${skipped[0]!.row}: ${skipped[0]!.reason}` : "The file has no rows to import.");
+      const im = await ensure(
+        "instruments",
+        "symbol",
+        csv.rows.map((r) => col(r, "instrument")),
+      );
+      const sm = map.setup
+        ? await ensure(
+            "setups",
+            "name",
+            csv.rows.map((r) => col(r, "setup")),
+          )
+        : new Map<string, string>();
+      const { trades, skipped, warnings } = buildCsvTrades(csv.rows, csv.header, map, {
+        journalId: journal.id,
+        order,
+        zone: csvZone,
+        decimal,
+        instrumentId: (s) => im.get(s) ?? null,
+        setupId: (s) => sm.get(s) ?? null,
+      });
+      if (!trades.length)
+        throw new Error(
+          skipped.length
+            ? `Nothing could be imported. Row ${skipped[0]!.row}: ${skipped[0]!.reason}`
+            : "The file has no rows to import.",
+        );
       // Re-importing the same file skips what is already there (external_id is derived from the row's content).
       let inserted = 0;
       for (let i = 0; i < trades.length; i += 500) {
-        const { data, error } = await supabase.from("trades").upsert(trades.slice(i, i + 500), { onConflict: "journal_id,external_id", ignoreDuplicates: true }).select("id");
+        const { data, error } = await supabase
+          .from("trades")
+          .upsert(trades.slice(i, i + 500), {
+            onConflict: "journal_id,external_id",
+            ignoreDuplicates: true,
+          })
+          .select("id");
         if (error) throw error;
         inserted += data?.length ?? 0;
       }
       const dupes = trades.length - inserted;
       toast.success(`Imported ${inserted} trades${dupes ? `, ${dupes} already imported` : ""}`);
-      if (warnings.length) toast.warning(`${warnings.length} rows need a look`, { description: warnings.slice(0, 3).map((w) => `Row ${w.row}: ${w.reason}`).join("\n") });
-      if (skipped.length) toast.warning(`${skipped.length} rows skipped`, { description: skipped.slice(0, 5).map((s) => `Row ${s.row}: ${s.reason}`).join("\n") + (skipped.length > 5 ? `\n…and ${skipped.length - 5} more` : "") });
+      if (warnings.length)
+        toast.warning(`${warnings.length} rows need a look`, {
+          description: warnings
+            .slice(0, 3)
+            .map((w) => `Row ${w.row}: ${w.reason}`)
+            .join("\n"),
+        });
+      if (skipped.length)
+        toast.warning(`${skipped.length} rows skipped`, {
+          description:
+            skipped
+              .slice(0, 5)
+              .map((s) => `Row ${s.row}: ${s.reason}`)
+              .join("\n") + (skipped.length > 5 ? `\n…and ${skipped.length - 5} more` : ""),
+        });
       qc.invalidateQueries();
       setCsv(null);
       onOpenChange(false);
@@ -156,40 +290,93 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
     if (!csv || !journal) return;
     const need = ["entry_at", "direction", "quantity", "entry_price", "instrument"] as const;
     const missing = need.filter((f) => !map[f]);
-    if (missing.length) return void toast.error(`Map these columns first: ${missing.map((m) => m.replace(/_/g, " ")).join(", ")}.`);
+    if (missing.length)
+      return void toast.error(
+        `Map these columns first: ${missing.map((m) => m.replace(/_/g, " ")).join(", ")}.`,
+      );
     setBusy(true);
     try {
       const col = (r: string[], f: string) => (map[f] ? r[csv.header.indexOf(map[f])] : undefined);
       // The same date, time-zone and number rules as the trade CSV path; anything unreadable becomes NaN, which the
       // fills builder reports as a skipped fill instead of importing a wrong number.
       const { order, decimal } = formats();
-      if (!order) return void toast.error("These dates could be day/month or month/day. Choose the date format first.");
-      if (!decimal) return void toast.error("Numbers like 1,234 could be one thousand or 1.234. Choose the number format first.");
-      const num = (v?: string) => { try { const n = parseNumber(v, decimal); return n == null ? 0 : Math.abs(n); } catch { return Number.NaN; } };
-      const time = (v?: string) => { try { return Date.parse(parseDateTime(v ?? "", order, csvZone)); } catch { return Number.NaN; } };
-      const fills: RawFill[] = csv.rows.map((r) => ({
-        symbol: (col(r, "instrument") ?? "").trim(),
-        side: ((col(r, "direction") ?? "").trim().toLowerCase().startsWith("s") ? "sell" : "buy") as RawFill["side"],
-        quantity: num(col(r, "quantity")),
-        price: num(col(r, "entry_price")),
-        timeMs: time(col(r, "entry_at")),
-        cost: num(col(r, "fees")),
-      })).filter((f) => f.symbol);
+      if (!order)
+        return void toast.error(
+          "These dates could be day/month or month/day. Choose the date format first.",
+        );
+      if (!decimal)
+        return void toast.error(
+          "Numbers like 1,234 could be one thousand or 1.234. Choose the number format first.",
+        );
+      const num = (v?: string) => {
+        try {
+          const n = parseNumber(v, decimal);
+          return n == null ? 0 : Math.abs(n);
+        } catch {
+          return Number.NaN;
+        }
+      };
+      const time = (v?: string) => {
+        try {
+          return Date.parse(parseDateTime(v ?? "", order, csvZone));
+        } catch {
+          return Number.NaN;
+        }
+      };
+      const fills: RawFill[] = csv.rows
+        .map((r) => ({
+          symbol: (col(r, "instrument") ?? "").trim(),
+          side: ((col(r, "direction") ?? "").trim().toLowerCase().startsWith("s")
+            ? "sell"
+            : "buy") as RawFill["side"],
+          quantity: num(col(r, "quantity")),
+          price: num(col(r, "entry_price")),
+          timeMs: time(col(r, "entry_at")),
+          cost: num(col(r, "fees")),
+        }))
+        .filter((f) => f.symbol);
       const res = fillsToTrades(fills);
-      if (!res.trades.length) return void toast.error(res.open.length ? "No position was fully closed in this file, so nothing was imported." : "No trades could be built from this file.");
+      if (!res.trades.length)
+        return void toast.error(
+          res.open.length
+            ? "No position was fully closed in this file, so nothing was imported."
+            : "No trades could be built from this file.",
+        );
 
-      const { data: ins } = await supabase.from("instruments").select("id,symbol").eq("journal_id", journal.id);
+      const { data: ins } = await supabase
+        .from("instruments")
+        .select("id,symbol")
+        .eq("journal_id", journal.id);
       const im = new Map((ins ?? []).map((i) => [i.symbol, i.id]));
       const newSyms = [...new Set(res.trades.map((t) => t.symbol))].filter((x) => !im.has(x));
       if (newSyms.length) {
-        const { data, error } = await supabase.from("instruments").insert(newSyms.map((symbol) => ({ symbol, asset_class: inferAssetClass(symbol, journal.markets), journal_id: journal.id }))).select("id,symbol");
+        const { data, error } = await supabase
+          .from("instruments")
+          .insert(
+            newSyms.map((symbol) => ({
+              symbol,
+              asset_class: inferAssetClass(symbol, journal.markets),
+              journal_id: journal.id,
+            })),
+          )
+          .select("id,symbol");
         if (error) throw error;
         data?.forEach((i) => im.set(i.symbol, i.id));
       }
-      const rows = res.trades.map(({ legs: _legs, symbol, ...t }) => ({ ...t, journal_id: journal.id, instrument_id: im.get(symbol) ?? null }));
+      const rows = res.trades.map(({ legs: _legs, symbol, ...t }) => ({
+        ...t,
+        journal_id: journal.id,
+        instrument_id: im.get(symbol) ?? null,
+      }));
       const idByExternal = new Map<string, string>();
       for (let k = 0; k < rows.length; k += CHUNK) {
-        const { data, error } = await supabase.from("trades").upsert(rows.slice(k, k + CHUNK), { onConflict: "journal_id,external_id", ignoreDuplicates: true }).select("id,external_id");
+        const { data, error } = await supabase
+          .from("trades")
+          .upsert(rows.slice(k, k + CHUNK), {
+            onConflict: "journal_id,external_id",
+            ignoreDuplicates: true,
+          })
+          .select("id,external_id");
         if (error) throw error;
         data?.forEach((d) => d.external_id && idByExternal.set(d.external_id, d.id));
       }
@@ -197,26 +384,52 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
       // duplicate above but may have no legs; looking them up here lets a retry repair it (AM-M16). Trades that already
       // have legs are left exactly as they are.
       const added = idByExternal.size;
-      const missing = res.trades.filter((t) => !idByExternal.has(t.external_id)).map((t) => t.external_id);
+      const missing = res.trades
+        .filter((t) => !idByExternal.has(t.external_id))
+        .map((t) => t.external_id);
       for (let k = 0; k < missing.length; k += 200) {
-        const { data, error } = await supabase.from("trades").select("id,external_id").eq("journal_id", journal.id).in("external_id", missing.slice(k, k + 200));
+        const { data, error } = await supabase
+          .from("trades")
+          .select("id,external_id")
+          .eq("journal_id", journal.id)
+          .in("external_id", missing.slice(k, k + 200));
         if (error) throw error;
         data?.forEach((d) => d.external_id && idByExternal.set(d.external_id, d.id));
       }
       const ids = [...idByExternal.values()];
       const hasLegs = new Set<string>();
       for (let k = 0; k < ids.length; k += 200) {
-        const { data, error } = await supabase.from("trade_executions").select("trade_id").in("trade_id", ids.slice(k, k + 200));
+        const { data, error } = await supabase
+          .from("trade_executions")
+          .select("trade_id")
+          .in("trade_id", ids.slice(k, k + 200));
         if (error) throw error;
         data?.forEach((d) => hasLegs.add(d.trade_id));
       }
-      const legs = res.trades.flatMap((t) => { const id = idByExternal.get(t.external_id); return id && !hasLegs.has(id) ? t.legs.map((l) => ({ ...l, trade_id: id, journal_id: journal.id })) : []; });
+      const legs = res.trades.flatMap((t) => {
+        const id = idByExternal.get(t.external_id);
+        return id && !hasLegs.has(id)
+          ? t.legs.map((l) => ({ ...l, trade_id: id, journal_id: journal.id }))
+          : [];
+      });
       for (let k = 0; k < legs.length; k += CHUNK) {
         const { error } = await supabase.from("trade_executions").insert(legs.slice(k, k + CHUNK));
         if (error) throw error;
       }
-      const extra = [res.open.length ? `${res.open.length} position${res.open.length === 1 ? "" : "s"} still open (not imported)` : "", res.errors.length ? `${res.errors.length} unreadable row${res.errors.length === 1 ? "" : "s"} skipped` : "", rows.length - added ? `${rows.length - added} already imported` : ""].filter(Boolean).join(", ");
-      toast.success(`Imported ${added} trade${added === 1 ? "" : "s"} from ${fills.length} fills${extra ? ` · ${extra}` : ""}`);
+      const extra = [
+        res.open.length
+          ? `${res.open.length} position${res.open.length === 1 ? "" : "s"} still open (not imported)`
+          : "",
+        res.errors.length
+          ? `${res.errors.length} unreadable row${res.errors.length === 1 ? "" : "s"} skipped`
+          : "",
+        rows.length - added ? `${rows.length - added} already imported` : "",
+      ]
+        .filter(Boolean)
+        .join(", ");
+      toast.success(
+        `Imported ${added} trade${added === 1 ? "" : "s"} from ${fills.length} fills${extra ? ` · ${extra}` : ""}`,
+      );
       qc.invalidateQueries();
       setCsv(null);
       onOpenChange(false);
@@ -232,18 +445,24 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
     const tz = TZ_OPTIONS.find((o) => o.value === tzKey)!.tz;
     // A report that does not match this journal is a warning, not a wall: the person decides.
     const compat = checkCompatibility(mt, journal);
-    const askFirst = async (reason: string) => confirm({
-      title: "This report does not match this journal",
-      message: (
-        <div className="space-y-2 text-left">
-          <p>{reason}</p>
-          <p className="font-medium text-foreground">If you import it anyway:</p>
-          <ul className="list-disc space-y-1 pl-5">{mismatchRisks(reason).map((r) => <li key={r}>{r}</li>)}</ul>
-          <p>Importing into a separate journal for this account keeps the numbers clean.</p>
-        </div>
-      ),
-      confirmLabel: "Import anyway", destructive: true,
-    });
+    const askFirst = async (reason: string) =>
+      confirm({
+        title: "This report does not match this journal",
+        message: (
+          <div className="space-y-2 text-left">
+            <p>{reason}</p>
+            <p className="font-medium text-foreground">If you import it anyway:</p>
+            <ul className="list-disc space-y-1 pl-5">
+              {mismatchRisks(reason).map((r) => (
+                <li key={r}>{r}</li>
+              ))}
+            </ul>
+            <p>Importing into a separate journal for this account keeps the numbers clean.</p>
+          </div>
+        ),
+        confirmLabel: "Import anyway",
+        destructive: true,
+      });
     let force = false;
     if (!compat.ok) {
       if (!(await askFirst(compat.error))) return;
@@ -253,19 +472,40 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
     try {
       // One database call = one transaction: instruments, account link, trades and deposits land together or not at all.
       // Re-importing is safe: unchanged trades are left alone, late commission/swap is updated, your notes never are.
-      const otherAccount = !!mt.account?.login && !!journal.mt_login && journal.mt_login !== mt.account.login;
-      const namespace = force && (otherAccount || (!!journal.mt_platform && journal.mt_platform !== mt.platform)) ? `${mt.platform}-${mt.account?.login ?? "acct"}` : undefined;
-      const call = (f: boolean, ns?: string) => supabase.rpc("import_mt_report", { _journal_id: journal.id, _payload: toImportPayload(mt, tz, { withCashflows: withCash, namespace: ns }) as unknown as Json, _repair: repair, _force: f });
+      const otherAccount =
+        !!mt.account?.login && !!journal.mt_login && journal.mt_login !== mt.account.login;
+      const namespace =
+        force && (otherAccount || (!!journal.mt_platform && journal.mt_platform !== mt.platform))
+          ? `${mt.platform}-${mt.account?.login ?? "acct"}`
+          : undefined;
+      const call = (f: boolean, ns?: string) =>
+        supabase.rpc("import_mt_report", {
+          _journal_id: journal.id,
+          _payload: toImportPayload(mt, tz, {
+            withCashflows: withCash,
+            namespace: ns,
+          }) as unknown as Json,
+          _repair: repair,
+          _force: f,
+        });
       let res = await call(force, namespace);
       // The database knows things the file does not (this account is linked to another of your journals).
       if (res.error && !force && isMismatchError(res.error.message)) {
-        if (!(await askFirst(res.error.message))) { setBusy(false); return; }
+        if (!(await askFirst(res.error.message))) {
+          setBusy(false);
+          return;
+        }
         res = await call(true, undefined);
       }
       const { data, error } = res;
       if (error) throw error;
       const r = data as { inserted: number; updated: number; unchanged: number; cashflows: number };
-      const parts = [`${r.inserted} new`, r.updated ? `${r.updated} updated` : null, r.unchanged ? `${r.unchanged} already up to date` : null, withCash ? `${r.cashflows} deposits/withdrawals` : null].filter(Boolean);
+      const parts = [
+        `${r.inserted} new`,
+        r.updated ? `${r.updated} updated` : null,
+        r.unchanged ? `${r.unchanged} already up to date` : null,
+        withCash ? `${r.cashflows} deposits/withdrawals` : null,
+      ].filter(Boolean);
       toast.success(`Imported: ${parts.join(", ")}`);
 
       qc.invalidateQueries();
@@ -298,16 +538,44 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Import trades</DialogTitle>
-          <DialogDescription>Upload a MetaTrader 4 statement or MetaTrader 5 report (HTML or Excel), or a CSV export and match its columns.</DialogDescription>
+          <DialogDescription>
+            Upload a MetaTrader 4 statement or MetaTrader 5 report (HTML or Excel), or a CSV export
+            and match its columns.
+          </DialogDescription>
         </DialogHeader>
-        <input type="file" accept=".csv,.html,.htm,.xlsx" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} className="text-sm" />
-        {mt && <MtPreview report={mt} journalCurrency={journal?.currency} tzKey={tzKey} onTz={setTzKey} withCash={withCash} onCash={setWithCash} repair={repair} onRepair={setRepair} />}
+        <input
+          type="file"
+          accept=".csv,.html,.htm,.xlsx"
+          onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])}
+          className="text-sm"
+        />
+        {mt && (
+          <MtPreview
+            report={mt}
+            journalCurrency={journal?.currency}
+            tzKey={tzKey}
+            onTz={setTzKey}
+            withCash={withCash}
+            onCash={setWithCash}
+            repair={repair}
+            onRepair={setRepair}
+          />
+        )}
         {csv && (
           <label className="flex items-start gap-2 text-sm">
-            <input type="checkbox" className="mt-1" checked={asFills} onChange={(e) => setAsFills(e.target.checked)} />
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={asFills}
+              onChange={(e) => setAsFills(e.target.checked)}
+            />
             <span>
               Each row is a single fill (execution)
-              <span className="block text-xs text-muted-foreground">Fills are grouped into trades per instrument, including scaling in and partial exits. Map time → entry at, buy/sell → direction, price → entry price, commission → fees. Positions still open are not imported.</span>
+              <span className="block text-xs text-muted-foreground">
+                Fills are grouped into trades per instrument, including scaling in and partial
+                exits. Map time → entry at, buy/sell → direction, price → entry price, commission →
+                fees. Positions still open are not imported.
+              </span>
             </span>
           </label>
         )}
@@ -316,9 +584,15 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
             {FIELDS.map((f) => (
               <label key={f} className="flex flex-col gap-1">
                 <span className="text-xs text-muted-foreground">{f.replace(/_/g, " ")}</span>
-                <select className="h-8 rounded-md border bg-background px-2" value={map[f] ?? ""} onChange={(e) => setMap({ ...map, [f]: e.target.value })}>
+                <select
+                  className="h-8 rounded-md border bg-background px-2"
+                  value={map[f] ?? ""}
+                  onChange={(e) => setMap({ ...map, [f]: e.target.value })}
+                >
                   <option value="">—</option>
-                  {csv.header.map((h) => <option key={h}>{h}</option>)}
+                  {csv.header.map((h) => (
+                    <option key={h}>{h}</option>
+                  ))}
                 </select>
               </label>
             ))}
@@ -328,7 +602,11 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
           <div className="grid grid-cols-2 gap-2 text-sm">
             <label className="flex flex-col gap-1">
               <span className="text-xs text-muted-foreground">number format</span>
-              <select className="h-8 rounded-md border bg-background px-2" value={decimalChoice} onChange={(e) => setDecimalChoice(e.target.value as "auto" | Decimal)}>
+              <select
+                className="h-8 rounded-md border bg-background px-2"
+                value={decimalChoice}
+                onChange={(e) => setDecimalChoice(e.target.value as "auto" | Decimal)}
+              >
                 <option value="auto">Detect from the file</option>
                 <option value=".">1,234.50 (dot is the decimal)</option>
                 <option value=",">1.234,50 (comma is the decimal)</option>
@@ -336,15 +614,25 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
             </label>
             <label className="flex flex-col gap-1">
               <span className="text-xs text-muted-foreground">date format</span>
-              <select className="h-8 rounded-md border bg-background px-2" value={dateOrder} onChange={(e) => setDateOrder(e.target.value as "auto" | DateOrder)}>
+              <select
+                className="h-8 rounded-md border bg-background px-2"
+                value={dateOrder}
+                onChange={(e) => setDateOrder(e.target.value as "auto" | DateOrder)}
+              >
                 <option value="auto">Detect from the file</option>
                 <option value="dmy">Day / month / year</option>
                 <option value="mdy">Month / day / year</option>
               </select>
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-xs text-muted-foreground">times without a time zone are in</span>
-              <select className="h-8 rounded-md border bg-background px-2" value={csvZone} onChange={(e) => setCsvZone(e.target.value as CsvZone)}>
+              <span className="text-xs text-muted-foreground">
+                times without a time zone are in
+              </span>
+              <select
+                className="h-8 rounded-md border bg-background px-2"
+                value={csvZone}
+                onChange={(e) => setCsvZone(e.target.value as CsvZone)}
+              >
                 <option value="utc">UTC</option>
                 <option value="local">This browser's time zone</option>
               </select>
@@ -355,19 +643,46 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
           <div className="rounded-md border p-2 text-xs">
             {preview ? (
               <>
-                <p className="mb-1 text-muted-foreground">First rows as they will be saved (check the dates and prices):</p>
-                {preview.trades.map((t, i) => <p key={i} className="tabular">{t.entry_at.replace("T", " ").slice(0, 16)} UTC · {t.direction} · {t.entry_price}{t.exit_price != null ? ` to ${t.exit_price}` : ""} · qty {t.quantity} · P/L {t.gross_pnl} · fees {t.fees}</p>)}
-                {preview.skipped.slice(0, 2).map((x) => <p key={x.row} className="text-loss">Row {x.row}: {x.reason}</p>)}
+                <p className="mb-1 text-muted-foreground">
+                  First rows as they will be saved (check the dates and prices):
+                </p>
+                {preview.trades.map((t, i) => (
+                  <p key={i} className="tabular">
+                    {t.entry_at.replace("T", " ").slice(0, 16)} UTC · {t.direction} ·{" "}
+                    {t.entry_price}
+                    {t.exit_price != null ? ` to ${t.exit_price}` : ""} · qty {t.quantity} · P/L{" "}
+                    {t.gross_pnl} · fees {t.fees}
+                  </p>
+                ))}
+                {preview.skipped.slice(0, 2).map((x) => (
+                  <p key={x.row} className="text-loss">
+                    Row {x.row}: {x.reason}
+                  </p>
+                ))}
               </>
-            ) : <p className="text-muted-foreground">Choose the date and number format above to see how the first rows will be read.</p>}
+            ) : (
+              <p className="text-muted-foreground">
+                Choose the date and number format above to see how the first rows will be read.
+              </p>
+            )}
           </div>
         )}
         <div className="flex justify-between gap-2">
-          {import.meta.env.DEV ? <Button variant="ghost" onClick={demo} disabled={busy}>Add sample trades (dev only)</Button> : <span />}
-          {mt ? (
-            <Button onClick={runMt} disabled={busy || mt.positions.length === 0}>Import {mt.positions.length} trades</Button>
+          {import.meta.env.DEV ? (
+            <Button variant="ghost" onClick={demo} disabled={busy}>
+              Add sample trades (dev only)
+            </Button>
           ) : (
-            <Button onClick={asFills ? runFills : run} disabled={!csv || busy}>Import {csv ? `${csv.rows.length} rows` : ""}</Button>
+            <span />
+          )}
+          {mt ? (
+            <Button onClick={runMt} disabled={busy || mt.positions.length === 0}>
+              Import {mt.positions.length} trades
+            </Button>
+          ) : (
+            <Button onClick={asFills ? runFills : run} disabled={!csv || busy}>
+              Import {csv ? `${csv.rows.length} rows` : ""}
+            </Button>
           )}
         </div>
       </DialogContent>
@@ -375,44 +690,101 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   );
 }
 
-function MtPreview({ report, journalCurrency, tzKey, onTz, withCash, onCash, repair, onRepair }: { report: MtReport; journalCurrency?: string | undefined; tzKey: string; onTz: (k: string) => void; withCash: boolean; onCash: (v: boolean) => void; repair: boolean; onRepair: (v: boolean) => void }) {
+function MtPreview({
+  report,
+  journalCurrency,
+  tzKey,
+  onTz,
+  withCash,
+  onCash,
+  repair,
+  onRepair,
+}: {
+  report: MtReport;
+  journalCurrency?: string | undefined;
+  tzKey: string;
+  onTz: (k: string) => void;
+  withCash: boolean;
+  onCash: (v: boolean) => void;
+  repair: boolean;
+  onRepair: (v: boolean) => void;
+}) {
   const sum = summarize(report);
   const a = report.account;
-  const money = (n: number) => `${n < 0 ? "-" : ""}${Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${a?.currency || journalCurrency || ""}`;
+  const money = (n: number) =>
+    `${n < 0 ? "-" : ""}${Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${a?.currency || journalCurrency || ""}`;
   return (
     <div className="space-y-3 text-sm">
       <div className="rounded-md border p-3">
-        <div className="font-medium">MetaTrader {report.platform === "mt4" ? "4" : "5"} · {sum.trades} closed positions · {sum.symbols} symbols</div>
+        <div className="font-medium">
+          MetaTrader {report.platform === "mt4" ? "4" : "5"} · {sum.trades} closed positions ·{" "}
+          {sum.symbols} symbols
+        </div>
         <div className="text-muted-foreground">
-          {a ? `Account ${a.login}${a.server ? ` · ${a.server}` : ""}${a.type ? ` · ${a.type}` : ""} · ` : ""}Net {money(sum.net)} after commission and swap
+          {a
+            ? `Account ${a.login}${a.server ? ` · ${a.server}` : ""}${a.type ? ` · ${a.type}` : ""} · `
+            : ""}
+          Net {money(sum.net)} after commission and swap
         </div>
       </div>
       <label className="flex items-start gap-2">
-        <input type="checkbox" className="mt-1" checked={repair} onChange={(e) => onRepair(e.target.checked)} />
+        <input
+          type="checkbox"
+          className="mt-1"
+          checked={repair}
+          onChange={(e) => onRepair(e.target.checked)}
+        />
         <span>
           Repair trades I imported before
-          <span className="block text-xs text-muted-foreground">Use this after choosing the right server time zone: it corrects the times, size and prices of trades already in the journal. Your notes, setups, tags and screenshots are kept.</span>
+          <span className="block text-xs text-muted-foreground">
+            Use this after choosing the right server time zone: it corrects the times, size and
+            prices of trades already in the journal. Your notes, setups, tags and screenshots are
+            kept.
+          </span>
         </span>
       </label>
       {report.balanceOps.length > 0 && (
         <label className="flex items-start gap-2">
-          <input type="checkbox" className="mt-1" checked={withCash} onChange={(e) => onCash(e.target.checked)} />
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={withCash}
+            onChange={(e) => onCash(e.target.checked)}
+          />
           <span>
             Also import {report.balanceOps.length} deposits/withdrawals
-            <span className="block text-xs text-muted-foreground">Leave off if your journal's starting balance already includes the first deposit, or it will be counted twice.</span>
+            <span className="block text-xs text-muted-foreground">
+              Leave off if your journal's starting balance already includes the first deposit, or it
+              will be counted twice.
+            </span>
           </span>
         </label>
       )}
       <label className="flex flex-col gap-1">
-        <span className="text-xs text-muted-foreground">Broker server time zone (MetaTrader reports use server time, not UTC)</span>
-        <select className="h-8 rounded-md border bg-background px-2" value={tzKey} onChange={(e) => onTz(e.target.value)}>
-          {TZ_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        <span className="text-xs text-muted-foreground">
+          Broker server time zone (MetaTrader reports use server time, not UTC)
+        </span>
+        <select
+          className="h-8 rounded-md border bg-background px-2"
+          value={tzKey}
+          onChange={(e) => onTz(e.target.value)}
+        >
+          {TZ_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
         </select>
       </label>
-      {report.warnings.map((w) => <p key={w} className="text-xs text-amber-600">{w}</p>)}
+      {report.warnings.map((w) => (
+        <p key={w} className="text-xs text-amber-600">
+          {w}
+        </p>
+      ))}
       {report.skipped.length > 0 && (
         <p className="text-xs text-amber-600">
-          {report.skipped.length} row{report.skipped.length === 1 ? "" : "s"} skipped: {[...new Set(report.skipped.map((x) => x.reason))].slice(0, 3).join("; ")}
+          {report.skipped.length} row{report.skipped.length === 1 ? "" : "s"} skipped:{" "}
+          {[...new Set(report.skipped.map((x) => x.reason))].slice(0, 3).join("; ")}
         </p>
       )}
     </div>

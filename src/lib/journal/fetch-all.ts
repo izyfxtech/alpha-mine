@@ -9,14 +9,20 @@
  * for any Max Rows value, and costs a single request for a small table.
  */
 const PAGE = 1000;
-type Page<T> = PromiseLike<{ data: T[] | null; count?: number | null; error: { message: string } | null }>;
+type Page<T> = PromiseLike<{
+  data: T[] | null;
+  count?: number | null;
+  error: { message: string } | null;
+}>;
 
 export const countOption = (first: boolean) => (first ? ({ count: "exact" } as const) : undefined);
 
-export async function fetchAllRows<T>(page: (from: number, to: number, first: boolean) => Page<T>): Promise<T[]> {
+export async function fetchAllRows<T>(
+  page: (from: number, to: number, first: boolean) => Page<T>,
+): Promise<T[]> {
   const out: T[] = [];
   let total: number | null = null;
-  for (let from = 0; ; ) {
+  for (let from = 0; ;) {
     const { data, count, error } = await page(from, from + PAGE - 1, from === 0);
     if (error) throw error;
     const rows = data ?? [];

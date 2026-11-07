@@ -1,17 +1,17 @@
-import { CRYPTO_CODES, FIAT_CODES, METAL_CODES } from './currency.ts';
-import { D, Dec, pow10, type DecimalLike } from './decimal.ts';
-import type { InstrumentKind, InstrumentSpec } from './types.ts';
+import { CRYPTO_CODES, FIAT_CODES, METAL_CODES } from "./currency.ts";
+import { D, Dec, pow10, type DecimalLike } from "./decimal.ts";
+import type { InstrumentKind, InstrumentSpec } from "./types.ts";
 
 export class UnsupportedInstrumentError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'UnsupportedInstrumentError';
+    this.name = "UnsupportedInstrumentError";
   }
 }
 
 /** Strip broker decorations: "EURUSD.a", "EURUSDm", "EURUSD#", "eurusd_i" -> upper-case alphanumerics. */
 export function normalizeSymbol(raw: string): string {
-  return raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
 /**
@@ -49,7 +49,8 @@ export function splitKnownPair(s: string): { base: string; quote: string } | nul
     for (const ql of [5, 4, 3]) {
       const b = s.slice(0, bl);
       const q = s.slice(bl, bl + ql);
-      if (b.length === bl && q.length === ql && isKnownCode(b) && isKnownCode(q)) return { base: b, quote: q };
+      if (b.length === bl && q.length === ql && isKnownCode(b) && isKnownCode(q))
+        return { base: b, quote: q };
     }
   }
   return null;
@@ -81,10 +82,11 @@ export function inferInstrument(rawSymbol: string, o: InferOptions): InstrumentS
 
   let kind = o.kind;
   if (!kind) {
-    if (FIAT_CODES.has(base) && FIAT_CODES.has(quote)) kind = 'fx';
-    else if (METAL_CODES.has(base) && FIAT_CODES.has(quote)) kind = 'metal';
-    else if (CRYPTO_CODES.has(base) && (FIAT_CODES.has(quote) || CRYPTO_CODES.has(quote))) kind = 'crypto';
-    else if (o.profitCurrency) kind = 'cfd';
+    if (FIAT_CODES.has(base) && FIAT_CODES.has(quote)) kind = "fx";
+    else if (METAL_CODES.has(base) && FIAT_CODES.has(quote)) kind = "metal";
+    else if (CRYPTO_CODES.has(base) && (FIAT_CODES.has(quote) || CRYPTO_CODES.has(quote)))
+      kind = "crypto";
+    else if (o.profitCurrency) kind = "cfd";
     else {
       throw new UnsupportedInstrumentError(
         `Cannot classify "${rawSymbol}". Pass profitCurrency (and kind) explicitly.`,
@@ -92,11 +94,13 @@ export function inferInstrument(rawSymbol: string, o: InferOptions): InstrumentS
     }
   }
 
-  if ((kind === 'cfd' || kind === 'index') && !o.profitCurrency) {
-    throw new UnsupportedInstrumentError(`${rawSymbol}: pass profitCurrency for ${kind} instruments.`);
+  if ((kind === "cfd" || kind === "index") && !o.profitCurrency) {
+    throw new UnsupportedInstrumentError(
+      `${rawSymbol}: pass profitCurrency for ${kind} instruments.`,
+    );
   }
   // A CFD or index symbol (US500, GER40) is not a currency pair: never slice currency codes out of it.
-  if (kind === 'cfd' || kind === 'index') {
+  if (kind === "cfd" || kind === "index") {
     if (o.base === undefined) base = s;
     if (o.quote === undefined) quote = o.profitCurrency!.toUpperCase();
   }
@@ -104,23 +108,28 @@ export function inferInstrument(rawSymbol: string, o: InferOptions): InstrumentS
   const profitCurrency = (o.profitCurrency ?? quote).toUpperCase();
 
   let contractSize: Dec;
-  let source: 'broker' | 'default';
+  let source: "broker" | "default";
   if (o.contractSize !== undefined) {
     contractSize = D(o.contractSize);
-    source = 'broker';
+    source = "broker";
   } else {
-    const fallback = kind === 'fx' ? DEFAULT_CONTRACT_SIZE['fx'] : DEFAULT_CONTRACT_SIZE[base] ?? DEFAULT_CONTRACT_SIZE[kind];
+    const fallback =
+      kind === "fx"
+        ? DEFAULT_CONTRACT_SIZE["fx"]
+        : (DEFAULT_CONTRACT_SIZE[base] ?? DEFAULT_CONTRACT_SIZE[kind]);
     if (fallback === undefined) {
-      throw new UnsupportedInstrumentError(`No default contract size for ${rawSymbol}; pass contractSize.`);
+      throw new UnsupportedInstrumentError(
+        `No default contract size for ${rawSymbol}; pass contractSize.`,
+      );
     }
     contractSize = D(fallback);
-    source = 'default';
+    source = "default";
   }
-  if (contractSize.lte(0)) throw new UnsupportedInstrumentError('contractSize must be > 0');
+  if (contractSize.lte(0)) throw new UnsupportedInstrumentError("contractSize must be > 0");
 
   let pipSize: Dec | null;
   if (o.pipSize !== undefined) pipSize = o.pipSize === null ? null : D(o.pipSize);
-  else pipSize = kind === 'fx' ? deriveFxPipSize(o.digits) : null;
+  else pipSize = kind === "fx" ? deriveFxPipSize(o.digits) : null;
 
   return {
     symbol: rawSymbol,

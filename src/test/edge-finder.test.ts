@@ -8,21 +8,62 @@ const DAY = 864e5;
 const trade = (i: number, pnl: number, sentiments: S[] = [], extra: Partial<Trade> = {}): Trade => {
   const entry = new Date(Date.UTC(2025, 0, 1) + i * DAY + 10 * 3600e3);
   return {
-    id: `t${i}`, journal_id: "j", instrument_id: null, setup_id: null, trading_plan_id: null, direction: "long", trade_type: "Spot",
-    entry_at: entry.toISOString(), exit_at: new Date(entry.getTime() + 3600e3).toISOString(), entry_price: 100, exit_price: 100 + pnl / 10, quantity: 10,
-    stop_loss: null, take_profit: null, high_price: null, low_price: null, otp_hit: null, gross_pnl: pnl, fees: 0, net_pnl: pnl, risk_amount: null,
-    is_favorite: false, notes: null, created_at: entry.toISOString(), is_break_even: false, trade_no: i, pnl_manual: false,
-    instrument: "EURUSD", setup: "Retest", customStats: [], tilt: 0, followedPlan: !sentiments.includes("negative"), accountSize: 10_000, retPct: pnl / 100, r: pnl / 50, holdMinutes: 60,
+    id: `t${i}`,
+    journal_id: "j",
+    instrument_id: null,
+    setup_id: null,
+    trading_plan_id: null,
+    direction: "long",
+    trade_type: "Spot",
+    entry_at: entry.toISOString(),
+    exit_at: new Date(entry.getTime() + 3600e3).toISOString(),
+    entry_price: 100,
+    exit_price: 100 + pnl / 10,
+    quantity: 10,
+    stop_loss: null,
+    take_profit: null,
+    high_price: null,
+    low_price: null,
+    otp_hit: null,
+    gross_pnl: pnl,
+    fees: 0,
+    net_pnl: pnl,
+    risk_amount: null,
+    is_favorite: false,
+    notes: null,
+    created_at: entry.toISOString(),
+    is_break_even: false,
+    trade_no: i,
+    pnl_manual: false,
+    instrument: "EURUSD",
+    setup: "Retest",
+    customStats: [],
+    tilt: 0,
+    followedPlan: !sentiments.includes("negative"),
+    accountSize: 10_000,
+    retPct: pnl / 100,
+    r: pnl / 50,
+    holdMinutes: 60,
     ruleChecks: [],
-    comments: sentiments.map((sentiment, k) => ({ id: `c${i}${k}`, label: sentiment === "negative" ? "Revenge trade" : "Perfect entry", phase: "entry", sentiment })),
+    comments: sentiments.map((sentiment, k) => ({
+      id: `c${i}${k}`,
+      label: sentiment === "negative" ? "Revenge trade" : "Perfect entry",
+      phase: "entry",
+      sentiment,
+    })),
     ...extra,
   } as unknown as Trade;
 };
-const byId = (cards: ReturnType<typeof computeEdgeFinder>, id: string) => cards.find((c) => c.id === id)!;
+const byId = (cards: ReturnType<typeof computeEdgeFinder>, id: string) =>
+  cards.find((c) => c.id === id)!;
 
 describe("Edge Finder", () => {
   it("returns seven cards that are not ready until there are 10 trades", () => {
-    const cards = computeEdgeFinder(Array.from({ length: 9 }, (_, i) => trade(i, 10)), 10_000, []);
+    const cards = computeEdgeFinder(
+      Array.from({ length: 9 }, (_, i) => trade(i, 10)),
+      10_000,
+      [],
+    );
     expect(cards).toHaveLength(7);
     expect(cards.every((c) => !c.ready)).toBe(true);
   });

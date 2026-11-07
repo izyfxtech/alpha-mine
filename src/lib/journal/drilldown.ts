@@ -5,5 +5,8 @@ import { useJournal, type Filters } from "@/lib/journal/journal-context";
 export function useDrillDown() {
   const { filters, setFilters } = useJournal();
   const navigate = useNavigate();
-  return (patch: Filters) => { setFilters({ ...filters, ...patch }); void navigate({ to: "/journal" }); };
+  return (patch: Filters) => {
+    setFilters({ ...filters, ...patch });
+    void navigate({ to: "/journal" });
+  };
 }

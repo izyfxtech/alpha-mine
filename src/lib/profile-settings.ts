@@ -13,12 +13,29 @@ export interface ProfileSettings {
   /** Set when the Getting started checklist on Home was dismissed. */
   hideChecklist: boolean;
 }
-export const DEFAULT_PROFILE_SETTINGS: ProfileSettings = { showWeeklyTotals: false, showCalendarWinrate: false, showBalance: true, allowSharing: true, weekStartsOn: 1, onboarded: false, hideChecklist: false };
+const DEFAULT_PROFILE_SETTINGS: ProfileSettings = {
+  showWeeklyTotals: false,
+  showCalendarWinrate: false,
+  showBalance: true,
+  allowSharing: true,
+  weekStartsOn: 1,
+  onboarded: false,
+  hideChecklist: false,
+};
 
 export function readSettings(raw: unknown): ProfileSettings {
   const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
-  const b = (k: "showWeeklyTotals" | "showCalendarWinrate" | "showBalance" | "allowSharing") => (typeof o[k] === "boolean" ? (o[k] as boolean) : DEFAULT_PROFILE_SETTINGS[k]);
-  return { showWeeklyTotals: b("showWeeklyTotals"), showCalendarWinrate: b("showCalendarWinrate"), showBalance: b("showBalance"), allowSharing: b("allowSharing"), onboarded: o.onboarded === true, hideChecklist: o.hideChecklist === true, weekStartsOn: o.weekStartsOn === 0 ? 0 : 1 };
+  const b = (k: "showWeeklyTotals" | "showCalendarWinrate" | "showBalance" | "allowSharing") =>
+    typeof o[k] === "boolean" ? (o[k] as boolean) : DEFAULT_PROFILE_SETTINGS[k];
+  return {
+    showWeeklyTotals: b("showWeeklyTotals"),
+    showCalendarWinrate: b("showCalendarWinrate"),
+    showBalance: b("showBalance"),
+    allowSharing: b("allowSharing"),
+    onboarded: o.onboarded === true,
+    hideChecklist: o.hideChecklist === true,
+    weekStartsOn: o.weekStartsOn === 0 ? 0 : 1,
+  };
 }
 
 /** Signed-in user's profile row plus parsed account toggles. */
@@ -30,7 +47,13 @@ export function useProfile() {
       const { data: u } = await supabase.auth.getUser();
       const id = u.user!.id;
       const { data: p } = await supabase.from("profiles").select("*").eq("id", id).maybeSingle();
-      return { id, email: u.user?.email ?? "", display_name: p?.display_name ?? "", base_currency: p?.base_currency ?? "USD", settings: readSettings(p?.settings) };
+      return {
+        id,
+        email: u.user?.email ?? "",
+        display_name: p?.display_name ?? "",
+        base_currency: p?.base_currency ?? "USD",
+        settings: readSettings(p?.settings),
+      };
     },
     staleTime: 60_000,
   });
@@ -38,7 +61,9 @@ export function useProfile() {
   async function saveSettings(patch: Partial<ProfileSettings>) {
     if (!q.data) return;
     const next = { ...settings, ...patch };
-    const { error } = await supabase.from("profiles").upsert({ id: q.data.id, settings: next as never });
+    const { error } = await supabase
+      .from("profiles")
+      .upsert({ id: q.data.id, settings: next as never });
     if (error) throw error;
     await qc.invalidateQueries({ queryKey: ["profile"] });
   }

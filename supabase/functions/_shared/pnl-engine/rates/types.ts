@@ -1,4 +1,4 @@
-import type { Dec } from '../decimal.ts';
+import type { Dec } from "../decimal.ts";
 
 /**
  * Where an observation sits on the accuracy ladder (best first):
@@ -8,8 +8,8 @@ import type { Dec } from '../decimal.ts';
  *  daily-fix - once-a-day central-bank reference rate
  *  derived   - inverted or triangulated from the above
  */
-export type RateKind = 'implied' | 'tick' | 'minute' | 'daily-fix' | 'derived';
-export type RateSide = 'mid' | 'bid' | 'ask' | 'unspecified';
+export type RateKind = "implied" | "tick" | "minute" | "daily-fix" | "derived";
+export type RateSide = "mid" | "bid" | "ask" | "unspecified";
 
 /**
  * A rate observation: 1 unit of `base` is worth `rate` units of `quote`,
@@ -52,6 +52,6 @@ export class ProviderError extends Error {
     public override readonly cause?: unknown,
   ) {
     super(`[${provider}] ${message}`);
-    this.name = 'ProviderError';
+    this.name = "ProviderError";
   }
 }

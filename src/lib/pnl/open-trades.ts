@@ -20,15 +20,18 @@ export interface OpenRow {
 
 /** Same formulas as a closed trade (lib/pnl/calc.ts), so what-if numbers match what closing the trade would record. */
 export function openRow(t: Trade, price: number | null, now = Date.now()): OpenRow {
-  const spec = t.spec ?? null, account = t.account ?? null;
+  const spec = t.spec ?? null,
+    account = t.account ?? null;
   const at = (p: unknown) => (p == null ? null : grossPnl(t, spec, account, p));
   const hasPrice = price != null && Number.isFinite(price);
   const size = spec && spec.contractSize > 0 ? spec.contractSize : 1;
   return {
-    trade: t, dir: dirOf(t.direction),
+    trade: t,
+    dir: dirOf(t.direction),
     risk: riskMoney(t, spec, account),
     exposure: Math.abs(Number(t.entry_price) * Number(t.quantity) * size),
-    atTarget: at(t.take_profit), atStop: at(t.stop_loss),
+    atTarget: at(t.take_profit),
+    atStop: at(t.stop_loss),
     plannedRR: rewardRisk(t),
     unrealized: hasPrice ? at(price) : null,
     unrealizedR: hasPrice ? rMultiple({ ...t, is_break_even: false }, price) : null,

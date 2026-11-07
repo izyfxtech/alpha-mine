@@ -15,7 +15,11 @@ export function imageLoads(url: string, ms = 8000): Promise<boolean> {
   if (typeof Image === "undefined") return Promise.resolve(true);
   return new Promise((resolve) => {
     const img = new Image();
-    const done = (ok: boolean) => { clearTimeout(timer); img.onload = img.onerror = null; resolve(ok); };
+    const done = (ok: boolean) => {
+      clearTimeout(timer);
+      img.onload = img.onerror = null;
+      resolve(ok);
+    };
     const timer = setTimeout(() => done(false), ms);
     img.referrerPolicy = "no-referrer";
     img.onload = () => done(img.naturalWidth > 0);
