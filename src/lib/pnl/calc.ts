@@ -16,11 +16,10 @@ const num = (v: unknown): number | null =>
 export const dirOf = (direction: string): 1 | -1 => (direction === "short" ? -1 : 1);
 
 /** Price move in the trade's favour (positive = profit). */
-export const priceMove = (direction: string, from: number, to: number) =>
-  (to - from) * dirOf(direction);
+const priceMove = (direction: string, from: number, to: number) => (to - from) * dirOf(direction);
 
 /** Distance from entry to the INITIAL stop. A stop on the profit side (moved past break-even) says nothing about the risk taken, so it gives null. */
-export function riskDistance(direction: string, entry: unknown, stop: unknown): number | null {
+function riskDistance(direction: string, entry: unknown, stop: unknown): number | null {
   const e = num(entry),
     s = num(stop);
   if (e == null || s == null || s <= 0) return null; // a stop of 0 means "none"
@@ -29,7 +28,7 @@ export function riskDistance(direction: string, entry: unknown, stop: unknown): 
 }
 
 /** The stop the trade was opened with: the saved initial stop, else the current one. Later trailing never changes R. */
-export const stopOf = (t: { initial_stop?: unknown; stop_loss?: unknown }) =>
+const stopOf = (t: { initial_stop?: unknown; stop_loss?: unknown }) =>
   num(t.initial_stop) != null && (num(t.initial_stop) ?? 0) > 0 ? t.initial_stop : t.stop_loss;
 
 export interface PricedTrade {
@@ -77,7 +76,7 @@ const stable = (c: string) => {
  * account currency = the pair's base is divided by `refPrice`; anything else (EURGBP on a USD account) needs a rate we do not
  * have, so it is null rather than a guess. Stocks have no quote currency: they are in the account's own.
  */
-export function moneyValue(
+function moneyValue(
   move: number,
   quantity: unknown,
   refPrice: unknown,
@@ -125,7 +124,3 @@ export function riskMoney(
   const v = moneyValue(d, t.quantity, t.entry_price, spec, account);
   return v == null ? null : +v.toFixed(2);
 }
-
-/** Commission + swap + other fees, each a cost (positive) or a credit (negative). */
-export const costOf = (c: { commission?: unknown; swap?: unknown; other_fees?: unknown }) =>
-  (num(c.commission) ?? 0) + (num(c.swap) ?? 0) + (num(c.other_fees) ?? 0);

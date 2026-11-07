@@ -11,7 +11,7 @@ export interface SavedFilter {
 }
 
 /** Keep only what is worth saving: drop empty values so a saved set reads cleanly and old keys can't linger. */
-export function cleanFilters(f: Filters): Filters {
+function cleanFilters(f: Filters): Filters {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(f)) {
     if (v == null || v === "") continue;

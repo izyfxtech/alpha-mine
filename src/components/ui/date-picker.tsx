@@ -99,7 +99,7 @@ export function MonthYearNav({ month, onChange }: { month: Date; onChange: (m: D
 }
 
 /** Seven-column day grid for one month, weeks starting on the profile's first day of the week. */
-export function DayGrid({
+function DayGrid({
   month,
   selected,
   onPick,

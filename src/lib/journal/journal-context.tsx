@@ -393,7 +393,7 @@ export async function fetchTrades(journalIds: string[]): Promise<Trade[]> {
 }
 
 /** Deposits (+) and withdrawals (-) for a journal. */
-export function useCashflows(journalId?: string) {
+function useCashflows(journalId?: string) {
   const q = useQuery({
     queryKey: ["journal_cashflows", journalId],
     enabled: !!journalId,
@@ -422,7 +422,7 @@ export function useJournalFlows(): Cashflow[] {
   return useCashflows(journal?.id).flows;
 }
 
-export function applyFilters(trades: Trade[], f: Filters, ruleNames?: ReadonlyMap<string, string>) {
+function applyFilters(trades: Trade[], f: Filters, ruleNames?: ReadonlyMap<string, string>) {
   const has = <T,>(a: T[] | undefined, v: T) => !a?.length || a.includes(v);
   const inR = (r: Range | undefined, v: number | null) =>
     !r ||

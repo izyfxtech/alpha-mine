@@ -4,14 +4,10 @@ import { Fragment, useState } from "react";
 import { format, startOfWeek } from "date-fns";
 import { useProfile } from "@/lib/profile-settings";
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Minus } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { useJournalFlows, useTrades } from "@/lib/journal/journal-context";
 import {
   computeStats,
   dayKey,
-  fmtMoney,
-  fmtNum,
-  fmtPct,
   followedPlanPct,
   groupBy,
   periodBase,
@@ -113,7 +109,6 @@ function Monthly() {
                   label={`${label} (${weeks.length})`}
                   trades={ts}
                   from={`${month}-01`}
-                  currency={journal?.currency}
                   expanded={expanded.includes(month)}
                   onToggle={() => toggle(month)}
                 />
@@ -125,7 +120,6 @@ function Monthly() {
                       week={week}
                       trades={wt}
                       previous={byWeek.get(previousWeekKey(wt[0]!.entry_at, sow))}
-                      currency={journal?.currency}
                     />
                   ))}
               </Fragment>
@@ -183,7 +177,6 @@ function ReportRow({
   trades,
   previous,
   from,
-  currency,
   expanded,
   onToggle,
 }: {
@@ -192,7 +185,6 @@ function ReportRow({
   trades: Trade[];
   previous?: Trade[];
   from?: string;
-  currency?: string;
   expanded?: boolean;
   onToggle?: () => void;
 }) {

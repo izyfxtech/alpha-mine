@@ -155,10 +155,6 @@ const avg = (a: number[]) => (a.length ? sum(a) / a.length : 0);
 /** The trade's day in the local zone (see lib/time/local-time): the one day key every page uses. */
 export const dayKey = (iso: string) => localDay(iso);
 
-/** Tilt meter fill (0..1) for a points value; 3 points fills the bar. */
-export const TILT_CAP = 3;
-export const tiltFill = (points: number) => Math.min(1, Math.abs(points) / TILT_CAP);
-
 export type Cashflow = { occurred_on: string; amount: number };
 
 /**
@@ -216,31 +212,6 @@ export function equityCurve(trades: Trade[], start: number, cashflows: Cashflow[
       tilt, // running sum of discipline points
     };
   });
-}
-
-/** Seven milestone tiers; each tier needs this share of the milestone goal. */
-export const MILESTONE_LEVELS = [
-  "Rookie",
-  "Bronze",
-  "Silver",
-  "Gold",
-  "Platinum",
-  "Diamond",
-  "Legend",
-] as const;
-const LEVEL_SHARE = [0, 0.05, 0.15, 0.3, 0.5, 0.75, 1];
-export function milestoneLevel(current: number, goal: number) {
-  let level = 0;
-  for (let i = 0; i < LEVEL_SHARE.length; i++) if (current >= LEVEL_SHARE[i] * goal) level = i;
-  if (level === LEVEL_SHARE.length - 1)
-    return { level: level + 1, name: MILESTONE_LEVELS[level], progress: 100 };
-  const lo = LEVEL_SHARE[level] * goal;
-  const hi = LEVEL_SHARE[level + 1] * goal;
-  return {
-    level: level + 1,
-    name: MILESTONE_LEVELS[level],
-    progress: Math.floor(((current - lo) / (hi - lo)) * 100),
-  };
 }
 
 /**

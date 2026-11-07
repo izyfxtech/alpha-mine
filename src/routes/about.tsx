@@ -45,7 +45,7 @@ export const Route = createFileRoute("/about")({
           Start journaling free <ArrowRight size={18} weight="bold" />
         </Link>
       </PageHero>
-      <Section n="01" label="Why we exist" title="A journal made by people who trade" split>
+      <Section label="Why we exist" title="A journal made by people who trade" split>
         <div className="space-y-6 text-lg text-[var(--mk-mute)]">
           <p>
             Most trading tools are built to look at the market. AlphaMine looks at you: your setups,
@@ -61,7 +61,7 @@ export const Route = createFileRoute("/about")({
           </p>
         </div>
       </Section>
-      <Section n="02" label="What we believe" title="Three ideas behind every feature">
+      <Section label="What we believe" title="Three ideas behind every feature">
         <div className="grid gap-10 md:grid-cols-3 md:gap-8">
           {beliefs.map((b, i) => (
             <Rv key={b.t} delay={i * 100}>

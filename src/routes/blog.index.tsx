@@ -59,7 +59,7 @@ export const Route = createFileRoute("/blog/")({
             </Link>
           </Rv>
         </section>
-        <Section n="01" label="More to read" title="Fresh from the journal">
+        <Section label="More to read" title="Fresh from the journal">
           <div className="grid gap-4 md:grid-cols-3">
             {rest.map((p, i) => (
               <Rv key={p.slug} delay={i * 80}>

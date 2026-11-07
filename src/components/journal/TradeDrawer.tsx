@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useJournal, useLookups } from "@/lib/journal/journal-context";
 import { COMPLIANCE_LABEL, type RuleStatus } from "@/lib/pnl/compliance";
-import { isOpen, type Trade } from "@/lib/pnl/metrics";
+import { type Trade } from "@/lib/pnl/metrics";
 import { cn } from "@/lib/utils";
 import { keepStoredGross, resolveGross } from "@/lib/pnl/trade-form";
 import { grossPnl } from "@/lib/pnl/calc";
@@ -231,7 +231,6 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
   const spec = specOf(f.instrument_id);
   const unit = spec.unit;
   const avgExit = stillOpen ? null : avgExitLegs;
-  const sign = f.direction === "short" ? -1 : 1;
   // Price move x quantity x the instrument's contract size (lib/pnl/calc.ts). Null when that needs an exchange rate or a size we
   // do not have: the P&L is then typed, and kept as typed.
   const autoGross = f.direction

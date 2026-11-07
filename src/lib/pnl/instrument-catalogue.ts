@@ -210,13 +210,8 @@ const FUTURE_ROOT_RE = new RegExp(
   `^(${[...FUTURE_ROOTS.keys()].sort((a, b) => b.length - a.length).join("|")})(?:[FGHJKMNQUVXZ]\\d{1,2}|\\d*!)$`,
 );
 
-/** Every instrument the catalogue knows by name (futures listed by root). */
-export function listInstruments(): InstrumentSpec[] {
-  return [...BY_SYMBOL.values(), ...FUTURES];
-}
-
 // ---------- Resolution ----------
-export function normaliseSymbol(raw: string): string {
+function normaliseSymbol(raw: string): string {
   return raw
     .trim()
     .toUpperCase()
@@ -283,7 +278,7 @@ export function resolveInstrument(
 }
 
 /** Spec for a symbol the user has told us is a stock (or anything with contract 1). */
-export function stockSpec(symbol: string, quoteCurrency: string): InstrumentSpec {
+function stockSpec(symbol: string, quoteCurrency: string): InstrumentSpec {
   return spec(normaliseSymbol(symbol), "stock", 1, quoteCurrency.toUpperCase());
 }
 
@@ -291,20 +286,10 @@ export function stockSpec(symbol: string, quoteCurrency: string): InstrumentSpec
 
 export type QuantityUnit = "lots" | "units";
 /** Forex, metals, indices, energies and futures are traded in lots / contracts; crypto and stocks in units. */
-export const unitOfClass = (c: AssetClass): QuantityUnit =>
+const unitOfClass = (c: AssetClass): QuantityUnit =>
   c === "crypto" || c === "stock" ? "units" : "lots";
 export const quantityLabel = (u: QuantityUnit | null) =>
   u === "lots" ? "Lots / contracts" : u === "units" ? "Shares / units" : "Quantity";
-export const CLASS_LABEL: Record<AssetClass, string> = {
-  forex: "Forex",
-  metal: "Metals",
-  crypto: "Crypto",
-  index: "Indices",
-  energy: "Energies",
-  stock: "Stocks",
-  future: "Futures",
-};
-
 export interface Spec extends InstrumentSpec {
   unit: QuantityUnit;
   /** false = the symbol is not in the catalogue and its class is a default; contractSize is then null for lot-sized guesses. */

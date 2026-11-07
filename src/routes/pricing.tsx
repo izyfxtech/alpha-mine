@@ -98,7 +98,7 @@ export const Route = createFileRoute("/pricing")({
           </Rv>
         </div>
       </section>
-      <Section n="01" label="Pricing FAQ" title="Questions about cost" split>
+      <Section label="Pricing FAQ" title="Questions about cost" split>
         <div className="divide-y divide-[var(--mk-line)] border-y border-[var(--mk-line)]">
           {faqs.map((f) => (
             <details key={f.q} className="py-5">

@@ -131,16 +131,6 @@ export function useUsage() {
 
 export const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
 
-/** Small "12 trades" badge shown next to list entries so you can see what a rename or delete affects. */
-export const UsageBadge = ({ n }: { n: number }) => (
-  <span
-    className="shrink-0 rounded-full bg-chip px-2 py-0.5 text-xs tabular text-t3"
-    title="Trades using this"
-  >
-    {plural(n, "trade")}
-  </span>
-);
-
 /** Asks the user to type a name before an irreversible deletion. */
 export function TypedConfirm({
   open,

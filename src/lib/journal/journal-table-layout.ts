@@ -1,4 +1,4 @@
-export const DEFAULT_HIDDEN_COLUMNS = ["id", "gross_pnl", "r", "risk_amount", "notes"];
+const DEFAULT_HIDDEN_COLUMNS = ["id", "gross_pnl", "r", "risk_amount", "notes"];
 
 export type JournalTableLayout = {
   order: string[];

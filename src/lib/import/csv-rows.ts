@@ -185,7 +185,7 @@ export function parseDateTime(raw: string, order: DateOrder, zone: CsvZone): str
 }
 
 /** Small stable hash (cyrb53), 53 bits: enough to key a trade within one journal. */
-export function hash53(str: string): string {
+function hash53(str: string): string {
   let h1 = 0xdeadbeef,
     h2 = 0x41c6ce57;
   for (let i = 0; i < str.length; i++) {

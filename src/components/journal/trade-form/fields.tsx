@@ -6,7 +6,7 @@ import { CalendarPanel } from "@/components/ui/date-picker";
 import { cn } from "@/lib/utils";
 
 /** Outlined field whose label sits inside when empty and floats onto the border when filled. */
-export function FloatBox({
+function FloatBox({
   label,
   filled,
   children,

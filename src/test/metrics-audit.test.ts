@@ -8,7 +8,6 @@ import {
   fmtNum,
   fmtPct,
   periodBase,
-  riskOf,
   sortinoOf,
   sqnOf,
   type Cashflow,

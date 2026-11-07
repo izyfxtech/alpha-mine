@@ -154,7 +154,7 @@ export function yScale(
   return { ticks: t, domain: [lo, hi] as [number, number], interval: 0 as const };
 }
 /** Round scale marks for values that should NOT be forced to include zero (e.g. account balances). */
-export function yFree(values: number[], count = 8) {
+function yFree(values: number[], count = 8) {
   const v = values.filter((x) => Number.isFinite(x));
   if (!v.length) return { ticks: [0, 1], domain: [0, 1] as [number, number], interval: 0 as const };
   const min = Math.min(...v),
@@ -202,7 +202,7 @@ export const seriesValues = (data: Record<string, unknown>[], keys: string[]) =>
   data.flatMap((d) => keys.map((k) => d[k] as number));
 
 /** Axis tick: whole thousands up to 100k, then 123k. en-US like every other figure in the app. */
-export const axisNum = (n: number) =>
+const axisNum = (n: number) =>
   Math.abs(n) >= 100000
     ? `${(n / 1000).toFixed(0)}k`
     : n.toLocaleString("en-US", { maximumFractionDigits: 2 });
@@ -747,13 +747,11 @@ export function StatGrid({ children, className }: { children: ReactNode; classNa
 export function AccentStat({
   label,
   value,
-  tone,
   className,
   info,
 }: {
   label: string;
   value: ReactNode;
-  tone?: "pos" | "neg";
   className?: string;
   info?: string;
 }) {

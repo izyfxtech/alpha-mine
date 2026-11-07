@@ -63,7 +63,7 @@ export const Route = createFileRoute("/import")({
           Start journaling free <ArrowRight size={18} weight="bold" />
         </Link>
       </PageHero>
-      <Section n="01" label="Ways to import" title="Pick the route that matches your platform">
+      <Section label="Ways to import" title="Pick the route that matches your platform">
         <div className="grid gap-4 md:grid-cols-3">
           {methods.map((m, i) => (
             <Rv key={m.t} delay={i * 80}>
@@ -76,7 +76,7 @@ export const Route = createFileRoute("/import")({
           ))}
         </div>
       </Section>
-      <Section n="02" label="How it works" title="From a platform export to a tagged journal">
+      <Section label="How it works" title="From a platform export to a tagged journal">
         <ol className="relative grid gap-10 md:grid-cols-3 md:gap-8">
           <div
             className="absolute left-0 right-0 top-5 hidden h-px bg-[var(--mk-line)] md:block"

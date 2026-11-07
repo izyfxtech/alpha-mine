@@ -13,7 +13,7 @@ export interface ProfileSettings {
   /** Set when the Getting started checklist on Home was dismissed. */
   hideChecklist: boolean;
 }
-export const DEFAULT_PROFILE_SETTINGS: ProfileSettings = {
+const DEFAULT_PROFILE_SETTINGS: ProfileSettings = {
   showWeeklyTotals: false,
   showCalendarWinrate: false,
   showBalance: true,

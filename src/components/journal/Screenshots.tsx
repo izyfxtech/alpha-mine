@@ -3,9 +3,7 @@ import { signPaths } from "@/lib/media/signed-urls";
 import { MAX_SHOTS } from "@/lib/media/limits";
 import { countOption, fetchAllRows } from "@/lib/journal/fetch-all";
 import { sweepStorage } from "@/lib/media/sweep-storage";
-import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Lightbox } from "@/components/journal/Lightbox";
 import { ImagePlus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -107,102 +105,6 @@ export async function deleteShot(s: Pick<Shot, "id" | "path">) {
   const { error } = await supabase.from("trade_screenshots").delete().eq("id", s.id);
   if (error) throw error;
   if (!isExternal(s.path)) sweepStorage();
-}
-
-export function TradeScreenshots({ journalId, tradeId }: { journalId: string; tradeId?: string }) {
-  const qc = useQueryClient();
-  const { data: shots = [] } = useScreenshots(journalId, tradeId);
-  const [open, setOpen] = useState<number | null>(null);
-  if (!tradeId)
-    return (
-      <p className="text-sm text-muted-foreground">Save the trade first, then add screenshots.</p>
-    );
-
-  async function upload(files: FileList | null) {
-    if (!files?.length) return;
-    const available = MAX_SHOTS - shots.length;
-    if (files.length > available) toast.error(`A trade can have at most ${MAX_SHOTS} screenshots`);
-    const { data: u } = await supabase.auth.getUser();
-    if (!u.user) return;
-    for (const file of Array.from(files).slice(0, available)) {
-      try {
-        const path = await storeImage(u.user.id, tradeId!, file);
-        const { error } = await supabase
-          .from("trade_screenshots")
-          .insert({ trade_id: tradeId!, journal_id: journalId, path });
-        if (error) throw error;
-      } catch (e) {
-        toast.error((e as Error).message);
-      }
-    }
-    qc.invalidateQueries({ queryKey: ["screenshots"] });
-  }
-  async function remove(s: Shot) {
-    try {
-      await deleteShot(s);
-    } catch (e) {
-      return void toast.error((e as Error).message);
-    }
-    qc.invalidateQueries({ queryKey: ["screenshots"] });
-  }
-
-  return (
-    <div className="space-y-4">
-      {shots.length < MAX_SHOTS && (
-        <label className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border border-dashed p-8 text-sm text-muted-foreground hover:bg-muted/50">
-          <ImagePlus className="h-6 w-6" /> Click to upload chart screenshots
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={(e) => upload(e.target.files)}
-          />
-        </label>
-      )}
-      <div className="grid grid-cols-2 gap-3">
-        {shots.map((s) => (
-          <div key={s.id} className="group relative overflow-hidden rounded-lg border">
-            <button
-              type="button"
-              className="block w-full"
-              aria-label="Enlarge screenshot"
-              onClick={() => setOpen(shots.indexOf(s))}
-            >
-              <img
-                src={s.thumb}
-                alt="Trade screenshot"
-                loading="lazy"
-                decoding="async"
-                referrerPolicy="no-referrer"
-                onError={fallbackToFull(s)}
-                className="aspect-video w-full object-cover"
-              />
-            </button>
-            <Button
-              size="icon"
-              variant="destructive"
-              className="absolute right-2 top-2 h-7 w-7 opacity-0 group-hover:opacity-100"
-              onClick={() => remove(s)}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        ))}
-      </div>
-      {open !== null && (
-        <Lightbox
-          items={shots.map((x, i) => ({
-            url: x.url,
-            title: `Screenshot ${i + 1} of ${shots.length}`,
-          }))}
-          index={open}
-          onIndex={setOpen}
-          onClose={() => setOpen(null)}
-        />
-      )}
-    </div>
-  );
 }
 
 /** Upload and view screenshots attached to a missed or planned trade. */

@@ -2,7 +2,7 @@ import { DateRangeButton } from "@/components/analytics/DateRangeButton";
 import { localToday } from "@/lib/time/local-time";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { ArrowUp, CalendarDays, ChevronDown, Plus, Star, Trash2, X } from "lucide-react";
+import { ArrowUp, ChevronDown, Plus, Star, Trash2, X } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, YAxis } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -20,7 +20,7 @@ import { useJournalTable, type Row } from "@/lib/journal/crud";
 import { computeStats, dayKey, fmtMoney, fmtNum, type Trade } from "@/lib/pnl/metrics";
 import { cn } from "@/lib/utils";
 import { useDialogs } from "@/components/ui/confirm";
-import { DatePicker, DateTimePicker } from "@/components/ui/date-picker";
+import { DatePicker } from "@/components/ui/date-picker";
 
 export const Route = createFileRoute("/_authenticated/diary/sessions")({
   head: () => ({

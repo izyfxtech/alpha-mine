@@ -3,7 +3,7 @@ import { localDay } from "@/lib/time/local-time";
 import { complianceOf, COMPLIANCE_LABEL } from "@/lib/pnl/compliance";
 
 /** Lower-cased text a trade can be found by. */
-export function searchText(t: Trade, ruleNames?: ReadonlyMap<string, string>): string {
+function searchText(t: Trade, ruleNames?: ReadonlyMap<string, string>): string {
   return [
     t.instrument,
     t.raw_symbol,

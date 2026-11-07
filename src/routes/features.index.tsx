@@ -33,7 +33,7 @@ export const Route = createFileRoute("/features/")({
           Start journaling free <ArrowRight size={18} weight="bold" />
         </Link>
       </PageHero>
-      <Section n="01" label="The core tools" title="Six tools that work from the same trade data">
+      <Section label="The core tools" title="Six tools that work from the same trade data">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f, i) => (
             <Rv key={f.slug} delay={(i % 3) * 80}>
@@ -58,7 +58,7 @@ export const Route = createFileRoute("/features/")({
           ))}
         </div>
       </Section>
-      <Section n="02" label="And more" title="Everything around the trade, too" split>
+      <Section label="And more" title="Everything around the trade, too" split>
         <dl className="divide-y divide-[var(--mk-line)] border-y border-[var(--mk-line)]">
           {MORE.map(([t, d]) => (
             <div key={t} className="grid gap-1 py-5 sm:grid-cols-[200px_1fr] sm:gap-6">

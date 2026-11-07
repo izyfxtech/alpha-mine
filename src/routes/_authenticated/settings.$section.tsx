@@ -31,7 +31,7 @@ import { useJournalTable } from "@/lib/journal/crud";
 import { SETTINGS } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 import { useDialogs } from "@/components/ui/confirm";
-import { DatePicker, DateTimePicker } from "@/components/ui/date-picker";
+import { DatePicker } from "@/components/ui/date-picker";
 
 export const Route = createFileRoute("/_authenticated/settings/$section")({
   head: ({ params }) => {

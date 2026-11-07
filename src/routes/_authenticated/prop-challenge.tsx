@@ -17,7 +17,7 @@ import {
   type RuleProgress,
 } from "@/lib/pnl/prop-challenge";
 import { useDialogs } from "@/components/ui/confirm";
-import { DatePicker, DateTimePicker } from "@/components/ui/date-picker";
+import { DatePicker } from "@/components/ui/date-picker";
 
 export const Route = createFileRoute("/_authenticated/prop-challenge")({
   head: () => ({

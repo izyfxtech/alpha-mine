@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
  * stretch the chart) or the real date (gaps between trades show). The choice is remembered in this browser.
  */
 export type XMode = "trade" | "date";
-export const X_MODE_LABEL: Record<XMode, string> = { trade: "Trade No.", date: "Date" };
+const X_MODE_LABEL: Record<XMode, string> = { trade: "Trade No.", date: "Date" };
 const KEY = "am.chart.xmode";
 
 const read = (): XMode => {
@@ -69,7 +69,7 @@ export function XModeSelect({ value, onChange }: { value: XMode; onChange: (m: X
   );
 }
 
-export const dateTick = (ms: number) => format(new Date(ms), "d MMM yy");
+const dateTick = (ms: number) => format(new Date(ms), "d MMM yy");
 const ms = (iso: string) => new Date(iso).getTime();
 /** The timestamp a chart point is plotted at in date mode. */
 export const tradeTime = (t: { entry_at: string }) => ms(t.entry_at);

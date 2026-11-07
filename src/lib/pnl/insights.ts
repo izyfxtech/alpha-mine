@@ -4,7 +4,7 @@ import { WEEKDAYS, groupPerformance, type Trade } from "@/lib/pnl/metrics";
 
 export type Insight = { id: string; title: string; body: string; at: string; tradeId: string };
 
-export const INSIGHT_MAX_AGE_DAYS = 14;
+const INSIGHT_MAX_AGE_DAYS = 14;
 
 /**
  * Coaching notifications derived from the closed-trade history (newest first). The whole history is walked so streaks

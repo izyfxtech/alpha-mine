@@ -86,7 +86,7 @@ function FeaturePage() {
           </div>
         </Rv>
       </section>
-      <Section n="01" label="What you get" title={`How ${f.name} helps`}>
+      <Section label="What you get" title={`How ${f.name} helps`}>
         <div className="grid gap-10 md:grid-cols-3 md:gap-8">
           {f.points.map((p, i) => (
             <Rv key={p.t} delay={i * 100}>
@@ -98,7 +98,7 @@ function FeaturePage() {
           ))}
         </div>
       </Section>
-      <Section n="02" label="Keep exploring" title="Works best alongside">
+      <Section label="Keep exploring" title="Works best alongside">
         <div className="grid gap-4 md:grid-cols-3">
           {related.map((r) => (
             <Link

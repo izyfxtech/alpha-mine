@@ -28,7 +28,7 @@ import {
   type Range,
 } from "@/lib/journal/journal-context";
 import { cn } from "@/lib/utils";
-import { DatePicker, DateTimePicker } from "@/components/ui/date-picker";
+import { DatePicker } from "@/components/ui/date-picker";
 
 const MONTHS = [
   "January",

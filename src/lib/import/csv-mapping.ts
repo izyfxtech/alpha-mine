@@ -93,7 +93,7 @@ const ALIASES: Record<Field, string[]> = {
   net_pnl: ["netpnl", "netprofit", "netpl"],
 };
 
-export const normalizeHeader = (h: string) => h.toLowerCase().replace(/[^a-z0-9]/g, "");
+const normalizeHeader = (h: string) => h.toLowerCase().replace(/[^a-z0-9]/g, "");
 const KNOWN = new Set(Object.values(ALIASES).flat());
 
 /**

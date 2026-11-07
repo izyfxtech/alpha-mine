@@ -161,8 +161,8 @@ function Annual() {
         <AccentStat label="Winning Days" value={s.winDays} />
         <AccentStat label="Losing Days" value={s.lossDays} />
         <AccentStat label="Winrate" value={`${Math.round(s.winRate)}%`} />
-        <AccentStat label="Net P&L" value={fmtMoney(s.net, cur)} tone={s.net < 0 ? "neg" : "pos"} />
-        <AccentStat label="ROI" value={fmtPct(s.roi)} tone={s.roi < 0 ? "neg" : "pos"} />
+        <AccentStat label="Net P&L" value={fmtMoney(s.net, cur)} />
+        <AccentStat label="ROI" value={fmtPct(s.roi)} />
       </div>
     </div>
   );

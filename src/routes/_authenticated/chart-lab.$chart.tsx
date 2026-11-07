@@ -480,7 +480,6 @@ function GroupChart({
           info={showTable ? undefined : `${noun} with the lowest total return`}
           label={`Worst ${noun} Sum`}
           value={fmtMoney(worst.sum, cur)}
-          tone={worst.sum < 0 ? "neg" : undefined}
         />
         <AccentStat
           info={showTable ? undefined : `${noun} with the highest average return`}
@@ -491,7 +490,6 @@ function GroupChart({
           info={showTable ? undefined : `${noun} with the lowest average return`}
           label={`Worst ${noun} Avg`}
           value={fmtMoney(worstA.avg, cur)}
-          tone={worstA.avg < 0 ? "neg" : undefined}
         />
         {showTable && <AccentStat label={`Number of ${noun}s`} value={groups.length} />}
       </Stats>
@@ -1026,7 +1024,7 @@ function ExitAnalysis({ trades }: { trades: Trade[] }) {
   );
 }
 
-function HoldingTime({ trades, cur, start }: { trades: Trade[]; cur: string; start: number }) {
+function HoldingTime({ trades, cur }: { trades: Trade[]; cur: string }) {
   const drawer = useTradeDrawer();
   const [display, setDisplay] = useState<"Return ($)" | "Return (%)" | "R Multiple (R)">(
     "Return ($)",
@@ -1430,7 +1428,6 @@ function RiskDistribution({ trades, start }: { trades: Trade[]; start: number })
         <AccentStat
           label={`Avg ${display} Loser`}
           value={`${fmtNum(avg(vals.filter((v) => v < 0)))}${suf}`}
-          tone="neg"
         />
       </Stats>
     </div>
@@ -1659,7 +1656,6 @@ function WinRate({ trades }: { trades: Trade[] }) {
         <AccentStat
           label="Worst Rolling"
           value={`${fmtNum(Math.min(100, ...d.map((x) => x.rolling)))}%`}
-          tone="neg"
         />
       </Stats>
     </div>
@@ -1738,7 +1734,7 @@ function ChartPage() {
     case "exit-analysis":
       return <ExitAnalysis trades={trades} />;
     case "holding-time":
-      return <HoldingTime trades={trades} cur={cur} start={start} />;
+      return <HoldingTime trades={trades} cur={cur} />;
     case "instrument":
       return (
         <GroupChart
@@ -2234,11 +2230,7 @@ function PerformanceByDay({ trades, cur }: { trades: Trade[]; cur: string }) {
         <AccentStat label="Winning Days" value={win.length} />
         <AccentStat label="Losing Days" value={loss.length} />
         <AccentStat label="Avg. Winning Day" value={fmtMoney(avg(win.map((d) => d.pnl)), cur)} />
-        <AccentStat
-          label="Avg. Losing Day"
-          value={fmtMoney(avg(loss.map((d) => d.pnl)), cur)}
-          tone={loss.length ? "neg" : undefined}
-        />
+        <AccentStat label="Avg. Losing Day" value={fmtMoney(avg(loss.map((d) => d.pnl)), cur)} />
         <AccentStat label="Avg. Trades per Day" value={fmtNum(avg(all.map((d) => d.n)))} />
       </Stats>
     </div>
@@ -2422,11 +2414,7 @@ function TradeManagement({ trades }: { trades: Trade[] }) {
       <Stats>
         <AccentStat label="Actual R" value={`${fmtNum(last.actual)}R`} />
         <AccentStat label="Potential R" value={`${fmtNum(last.potential)}R`} />
-        <AccentStat
-          label="R gained by managing"
-          value={`${fmtNum(last.effect)}R`}
-          tone={last.effect < 0 ? "neg" : undefined}
-        />
+        <AccentStat label="R gained by managing" value={`${fmtNum(last.effect)}R`} />
         <AccentStat
           label="Managed correctly"
           value={`${fmtNum(managed.length ? (good / managed.length) * 100 : 0)}%`}
@@ -2434,7 +2422,6 @@ function TradeManagement({ trades }: { trades: Trade[] }) {
         <AccentStat
           label="Managed incorrectly"
           value={`${fmtNum(managed.length ? ((managed.length - good) / managed.length) * 100 : 0)}%`}
-          tone={managed.length - good ? "neg" : undefined}
         />
       </Stats>
     </div>

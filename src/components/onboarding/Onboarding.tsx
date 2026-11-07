@@ -12,7 +12,6 @@ import {
   LineChart,
   PencilLine,
   ShieldCheck,
-  Sparkles,
 } from "lucide-react";
 import {
   Dialog,

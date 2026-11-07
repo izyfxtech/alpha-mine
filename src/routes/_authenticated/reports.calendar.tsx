@@ -132,18 +132,10 @@ function CalendarReport() {
         <AccentStat label="Winners" value={s.wins} />
         <AccentStat label="Losers" value={s.losses} />
         <AccentStat label="Winrate" value={`${Math.round(s.winRate)}%`} />
-        <AccentStat
-          label="Avg. Daily P&L"
-          value={fmtMoney(s.avgPerDay, cur)}
-          tone={s.avgPerDay < 0 ? "neg" : "pos"}
-        />
-        <AccentStat
-          label="Total Monthly P&L"
-          value={fmtMoney(s.net, cur)}
-          tone={s.net < 0 ? "neg" : "pos"}
-        />
+        <AccentStat label="Avg. Daily P&L" value={fmtMoney(s.avgPerDay, cur)} />
+        <AccentStat label="Total Monthly P&L" value={fmtMoney(s.net, cur)} />
         <AccentStat label="Avg. Winner" value={fmtMoney(s.avgWin, cur)} />
-        <AccentStat label="Avg. Loser" value={fmtMoney(s.avgLoss, cur)} tone="neg" />
+        <AccentStat label="Avg. Loser" value={fmtMoney(s.avgLoss, cur)} />
       </StatGrid>
     </div>
   );

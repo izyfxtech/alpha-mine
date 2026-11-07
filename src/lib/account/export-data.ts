@@ -126,7 +126,7 @@ export function downloadText(name: string, text: string, type: string) {
 }
 
 /** Removes the signed-in user's stored screenshot files (and previews) now, while their session is still valid. Then the account can be deleted. */
-export async function removeMyFiles(): Promise<void> {
+async function removeMyFiles(): Promise<void> {
   const { data: u } = await supabase.auth.getUser();
   if (!u.user) throw new Error("Not signed in");
   const { data: journals } = await supabase.from("journals").select("id").eq("owner_id", u.user.id);

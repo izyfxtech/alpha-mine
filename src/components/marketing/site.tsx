@@ -227,14 +227,12 @@ export function SiteLayout({ children }: { children: ReactNode }) {
 /** One section template: ruled top edge, optional numbered eyebrow and left aligned title. `split` puts the title beside the content. */
 export function Section({
   id,
-  n,
   label,
   title,
   split,
   children,
 }: {
   id?: string;
-  n?: string;
   label?: string;
   title?: string;
   split?: boolean;

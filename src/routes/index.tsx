@@ -130,7 +130,6 @@ function Landing() {
         {/* Features, bento */}
         <Section
           id="features"
-          n="01"
           label="Features"
           title="Everything you need to review a trade, a week or a whole strategy"
         >
@@ -251,7 +250,6 @@ function Landing() {
         {/* How it works, connected steps */}
         <Section
           id="how"
-          n="02"
           label="How it works"
           title="From a raw report to a clear read in three steps"
         >
@@ -275,7 +273,7 @@ function Landing() {
         </Section>
 
         {/* FAQ, two columns */}
-        <Section id="faq" n="03" label="FAQ" title="Questions traders ask first" split>
+        <Section id="faq" label="FAQ" title="Questions traders ask first" split>
           <div className="divide-y divide-[var(--mk-line)] border-y border-[var(--mk-line)]">
             {faqs.map((f) => (
               <details key={f.q} className="py-5">
