@@ -1,3 +1,4 @@
+import { storageStrings } from "@/lib/safe-storage";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLookups, useTrades } from "@/lib/journal/journal-context";
 import { computeEdgeFinder, type EdgeCard } from "@/lib/pnl/edge-finder";
@@ -13,11 +14,7 @@ export function useEdgeCards() {
   const [ignored, setIgnored] = useState<string[]>([]);
   useEffect(() => {
     if (!storageKey) return;
-    try {
-      setIgnored(JSON.parse(localStorage.getItem(storageKey) ?? "[]") as string[]);
-    } catch {
-      setIgnored([]);
-    }
+    setIgnored(storageStrings(storageKey));
   }, [storageKey]);
   const persist = useCallback(
     (next: string[]) => {

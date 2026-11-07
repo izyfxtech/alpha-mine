@@ -1,8 +1,8 @@
 // Shared metrics engine: every page computes stats from here so numbers always match.
+import { sortedByEntry } from "@/lib/pnl/sort";
 import { pushTo } from "@/lib/group";
 import { safeCurrency } from "@/lib/currencies";
 import { localDay } from "@/lib/time/local-time";
-import type { RuleCheck } from "@/lib/pnl/compliance";
 import { rewardRisk, riskMoney, rMultiple } from "@/lib/pnl/calc";
 import type { Spec } from "@/lib/pnl/instrument-catalogue";
 
@@ -43,6 +43,12 @@ export interface TradeRow {
   commission?: number | null; // broker-signed (negative = a cost), set by the MetaTrader import or the trade form
   swap?: number | null; // broker-signed (negative = a cost)
   other_fees?: number; // any other cost, positive = a cost. fees (the total cost) = -(commission + swap) + other_fees
+}
+
+export type RuleStatus = "followed" | "partial" | "violated";
+export interface RuleCheck {
+  rule_id: string;
+  status: RuleStatus;
 }
 
 export interface Trade extends TradeRow {
@@ -167,7 +173,7 @@ export function annotateAccount<T extends Trade>(
   cashflows: Cashflow[] = [],
 ): T[] {
   const flows = [...cashflows].sort((a, b) => a.occurred_on.localeCompare(b.occurred_on));
-  const sorted = [...trades].sort((a, b) => a.entry_at.localeCompare(b.entry_at));
+  const sorted = sortedByEntry(trades);
   let bal = start;
   let fi = 0;
   const out = new Map<string, { accountSize: number; retPct: number }>();
@@ -186,7 +192,7 @@ export function annotateAccount<T extends Trade>(
  * `cashflows` is required on purpose: leaving it out used to give every page its own balance.
  */
 export function equityCurve(trades: Trade[], start: number, cashflows: Cashflow[]) {
-  const sorted = [...trades].sort((a, b) => a.entry_at.localeCompare(b.entry_at));
+  const sorted = sortedByEntry(trades);
   const flows = [...cashflows].sort((a, b) => a.occurred_on.localeCompare(b.occurred_on));
   let fi = 0;
   let eq = start;
@@ -362,7 +368,7 @@ export function computeStats(trades: Trade[], startingBalance: number, cashflows
   const holds = trades.map((t) => t.holdMinutes).filter((x): x is number => x != null);
   const rs = trades.map((t) => t.r).filter((x): x is number => x != null);
 
-  const sorted = [...trades].sort((a, b) => a.entry_at.localeCompare(b.entry_at));
+  const sorted = sortedByEntry(trades);
   let weeks = 1;
   if (sorted.length > 1) {
     const span =
@@ -470,7 +476,7 @@ export function groupPerformance<K extends string | number>(trades: Trade[], key
 }
 
 export function consecutive(trades: Trade[]) {
-  const sorted = [...trades].sort((a, b) => a.entry_at.localeCompare(b.entry_at));
+  const sorted = sortedByEntry(trades);
   const winRuns: Record<number, number> = {};
   const lossRuns: Record<number, number> = {};
   let cur = 0;

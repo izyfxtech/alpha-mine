@@ -1,3 +1,4 @@
+import { byEntry } from "@/lib/pnl/sort";
 import { compareKeys, pushTo } from "@/lib/group";
 import { createFileRoute } from "@tanstack/react-router";
 import { localMonth } from "@/lib/time/local-time";
@@ -111,22 +112,20 @@ function rowStats(ts: Trade[], base: number) {
     cl = 0,
     mw = 0,
     ml = 0;
-  [...ts]
-    .sort((a, b) => a.entry_at.localeCompare(b.entry_at))
-    .forEach((t) => {
-      if (isWin(t)) {
-        cw++;
-        cl = 0;
-      } else if (isLoss(t)) {
-        cl++;
-        cw = 0;
-      } else {
-        cw = 0;
-        cl = 0;
-      }
-      mw = Math.max(mw, cw);
-      ml = Math.max(ml, cl);
-    });
+  [...ts].sort(byEntry).forEach((t) => {
+    if (isWin(t)) {
+      cw++;
+      cl = 0;
+    } else if (isLoss(t)) {
+      cl++;
+      cw = 0;
+    } else {
+      cw = 0;
+      cl = 0;
+    }
+    mw = Math.max(mw, cw);
+    ml = Math.max(ml, cl);
+  });
   const ex = ts
     .map(excursion)
     .filter((x): x is NonNullable<ReturnType<typeof excursion>> => x != null);

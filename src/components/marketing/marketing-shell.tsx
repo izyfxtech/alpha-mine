@@ -1,3 +1,4 @@
+import { storageGet } from "@/lib/safe-storage";
 import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { Moon, Sun } from "@phosphor-icons/react";
@@ -12,11 +13,7 @@ export function MkShell({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    try {
-      if (localStorage.getItem(KEY) === "light") setTheme("light");
-    } catch {
-      /* storage unavailable */
-    }
+    if (storageGet(KEY) === "light") setTheme("light");
     setReady(true);
   }, []);
 

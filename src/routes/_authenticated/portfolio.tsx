@@ -1,3 +1,4 @@
+import { byEntry } from "@/lib/pnl/sort";
 import { safeCurrency } from "@/lib/currencies";
 import { createFileRoute } from "@tanstack/react-router";
 import { localDateTime, localDay } from "@/lib/time/local-time";
@@ -114,12 +115,10 @@ function Portfolio() {
   const s = single ? single.s : combined;
   const fmtU = (v: number) => (unit === "pct" ? `${fmtNum(v)}%` : `${fmtNum(v)}R`);
   let c = 0;
-  const curve = [...pctTrades]
-    .sort((a, b) => a.entry_at.localeCompare(b.entry_at))
-    .map((t, i) => {
-      c += t.net_pnl;
-      return { x: i + 1, v: +c.toFixed(2), label: localDay(t.entry_at) };
-    });
+  const curve = [...pctTrades].sort(byEntry).map((t, i) => {
+    c += t.net_pnl;
+    return { x: i + 1, v: +c.toFixed(2), label: localDay(t.entry_at) };
+  });
   const max = Math.max(1, ...per.map((p) => Math.abs(p.s.roi)));
   const name = new Map(journals.map((j) => [j.id, j.name]));
   const best = [...trades].sort((a, b) => b.pct - a.pct);

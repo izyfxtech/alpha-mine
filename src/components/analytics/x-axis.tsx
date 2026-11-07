@@ -1,3 +1,4 @@
+import { storageGet } from "@/lib/safe-storage";
 import { useCallback, useState } from "react";
 import { format } from "date-fns";
 import { ChevronDown } from "lucide-react";
@@ -17,13 +18,7 @@ export type XMode = "trade" | "date";
 const X_MODE_LABEL: Record<XMode, string> = { trade: "Trade No.", date: "Date" };
 const KEY = "am.chart.xmode";
 
-const read = (): XMode => {
-  try {
-    return localStorage.getItem(KEY) === "date" ? "date" : "trade";
-  } catch {
-    return "trade";
-  }
-};
+const read = (): XMode => (storageGet(KEY) === "date" ? "date" : "trade");
 
 export function useXMode(): [XMode, (m: XMode) => void] {
   const [mode, setMode] = useState<XMode>(read);

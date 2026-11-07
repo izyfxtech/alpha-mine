@@ -2,6 +2,11 @@
 
 Newest first. Dates are the day the work landed on `main`.
 
+## 2026-11-08 (refactor 4: shared helpers)
+
+- One `byEntry`/`sortedByEntry` replaces 11 copies of the same sort, one `numberOrNull` replaces three look-alikes (it also reads a field containing only spaces as empty), and six places that read localStorage by hand now use `safe-storage` (stored lists and maps are checked for the expected shape).
+- Removed the import cycle between `metrics.ts` and `compliance.ts` (`RuleCheck`/`RuleStatus` now live with the trade types). The only remaining cycle is the generated router pair.
+
 ## 2026-11-08 (refactor 3: typed data layer, copy journal)
 
 - Run-time table access goes through one documented helper (`fromTable`) instead of `any` casts scattered over the data code. `any` in source: 29 to 0; `as never`: 46 to 6 (the rest are router link targets); lint warnings 174 to 146.

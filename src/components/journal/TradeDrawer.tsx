@@ -1,3 +1,4 @@
+import { numberOrNull } from "@/lib/numbers";
 import { fromTable } from "@/lib/journal/untyped-table";
 import { syncLinks } from "@/lib/journal/sync-links";
 import { storageJson, storageSet } from "@/lib/safe-storage";
@@ -12,7 +13,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useJournal, useLookups } from "@/lib/journal/journal-context";
-import { COMPLIANCE_LABEL, type RuleStatus } from "@/lib/pnl/compliance";
+import { COMPLIANCE_LABEL } from "@/lib/pnl/compliance";
+import type { RuleStatus } from "@/lib/pnl/metrics";
 import { type Trade } from "@/lib/pnl/metrics";
 import { cn } from "@/lib/utils";
 import { keepStoredGross, resolveGross } from "@/lib/pnl/trade-form";
@@ -46,7 +48,6 @@ type Leg = { price: string; qty: string };
 const local = toInputValue;
 const instant = fromInputValue;
 const price = (v: number) => +v.toFixed(10);
-const num = (v: string) => (v.trim() === "" ? null : Number(v));
 const signedCost = (v: string) => {
   const n = Number(v) || 0;
   return n === 0 ? 0 : -n;
@@ -404,10 +405,10 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
       // Imported trades: the broker owns times, prices, size and money, so only the trader's own columns are sent.
       const owned = {
         setup_id: f.setup_id || null,
-        stop_loss: num(f.stop_loss),
-        take_profit: num(f.take_profit),
-        high_price: num(f.high_price),
-        low_price: num(f.low_price),
+        stop_loss: numberOrNull(f.stop_loss),
+        take_profit: numberOrNull(f.take_profit),
+        high_price: numberOrNull(f.high_price),
+        low_price: numberOrNull(f.low_price),
         otp_hit: f.otp_hit === "" ? null : f.otp_hit === "yes",
         is_break_even: f.is_break_even,
         is_favorite: fav,

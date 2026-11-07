@@ -1,3 +1,4 @@
+import { sortedByEntry } from "@/lib/pnl/sort";
 import { compareKeys, pushTo } from "@/lib/group";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { localDay } from "@/lib/time/local-time";
@@ -98,7 +99,7 @@ const tickFmt = (n: number) =>
   Math.round(n * 100) / 100 === Math.round(n)
     ? Math.round(n).toLocaleString("en-US")
     : n.toLocaleString("en-US");
-const sorted = (ts: Trade[]) => [...ts].sort((a, b) => a.entry_at.localeCompare(b.entry_at));
+const sorted = sortedByEntry<Trade>;
 
 function Select<T extends string>({
   label,
