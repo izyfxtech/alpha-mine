@@ -1,3 +1,4 @@
+import { parseSharedJournal } from "@/lib/validation/schemas";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { localDay } from "@/lib/time/local-time";
 import { useQuery } from "@tanstack/react-query";
@@ -35,26 +36,6 @@ export const Route = createFileRoute("/share/$token")({
   component: SharedJournal,
 });
 
-type Shared = {
-  name: string;
-  currency: string;
-  starting_balance: number;
-  total?: number;
-  net?: number;
-  wins?: number;
-  losses?: number;
-  gross_win?: number;
-  gross_loss?: number;
-  truncated?: boolean;
-  trades: {
-    entry_at: string;
-    net_pnl: number;
-    direction: string;
-    instrument: string | null;
-    setup: string | null;
-  }[];
-};
-
 function SharedJournal() {
   const { token } = Route.useParams();
   const { data, isLoading, isError, refetch } = useQuery({
@@ -63,7 +44,7 @@ function SharedJournal() {
       if (!/^[0-9a-f-]{36}$/i.test(token)) return null;
       const { data, error } = await supabase.rpc("shared_journal", { _token: token });
       if (error) throw error;
-      return data as unknown as Shared | null;
+      return parseSharedJournal(data);
     },
   });
   if (isLoading) return <div className="p-10 text-center text-muted-foreground">Loading…</div>;

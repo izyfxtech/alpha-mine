@@ -2,6 +2,10 @@
 
 Newest first. Dates are the day the work landed on `main`.
 
+## 2026-11-08 (refactor 8: validating outside data)
+
+- Added `zod`. Three places that trusted data from outside now check it: the public share link (a response of the wrong shape shows the error state instead of garbage), saved filter sets (an old or hand-edited set loses only its bad fields) and prop-challenge rules (a malformed rule is skipped instead of breaking the page).
+
 ## 2026-11-08 (refactor 4: shared helpers)
 
 - One `byEntry`/`sortedByEntry` replaces 11 copies of the same sort, one `numberOrNull` replaces three look-alikes (it also reads a field containing only spaces as empty), and six places that read localStorage by hand now use `safe-storage` (stored lists and maps are checked for the expected shape).
