@@ -9,7 +9,29 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useFillViewport } from "@/lib/use-fill-viewport";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Search, ArrowDown, ArrowUp, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Columns3, Copy, Download, GripVertical, ImageIcon, Images, LayoutGrid, LayoutList, Merge, RefreshCw, Scaling, Star, Trash2, X } from "lucide-react";
+import {
+  Search,
+  ArrowDown,
+  ArrowUp,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  Columns3,
+  Copy,
+  Download,
+  GripVertical,
+  ImageIcon,
+  Images,
+  LayoutGrid,
+  LayoutList,
+  Merge,
+  RefreshCw,
+  Scaling,
+  Star,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -27,44 +49,201 @@ import { useScreenshots, type Shot } from "@/components/journal/Screenshots";
 import { ScreenshotGallery, TradeCards } from "@/components/journal/TradeViews";
 import { Empty, TiltMeter } from "@/components/kit";
 import { cn } from "@/lib/utils";
-import { defaultJournalTableLayout, moveJournalColumn, normalizeJournalTableLayout, suggestedColumnWidth, type JournalTableLayout } from "@/lib/journal/journal-table-layout";
+import {
+  defaultJournalTableLayout,
+  moveJournalColumn,
+  normalizeJournalTableLayout,
+  suggestedColumnWidth,
+  type JournalTableLayout,
+} from "@/lib/journal/journal-table-layout";
 import { useDialogs } from "@/components/ui/confirm";
 
 export const Route = createFileRoute("/_authenticated/journal")({
-  head: () => ({ meta: [{ title: "Journal — AlphaMine" }, { name: "description", content: "All trades in your journal." }, { property: "og:title", content: "Journal — AlphaMine" }, { property: "og:description", content: "All trades in your journal." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
+  head: () => ({
+    meta: [
+      { title: "Journal — AlphaMine" },
+      { name: "description", content: "All trades in your journal." },
+      { property: "og:title", content: "Journal — AlphaMine" },
+      { property: "og:description", content: "All trades in your journal." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: JournalPage,
 });
 
-type Col = { k: string; l: string; get: (t: Trade) => string | number; render?: (t: Trade) => React.ReactNode; width?: number };
-const num = (v: number, d: number) => v.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+type Col = {
+  k: string;
+  l: string;
+  get: (t: Trade) => string | number;
+  render?: (t: Trade) => React.ReactNode;
+  width?: number;
+};
+const num = (v: number, d: number) =>
+  v.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
 const dt = (s: string | null) => localDateTime(s);
-const pill = (t: Trade, txt: string) => <span className={cn("inline-block min-w-[38px] rounded-full px-2.5 py-[3px] text-center text-xs font-medium capitalize leading-none", t.net_pnl > 0 ? "bg-pill-win text-profit" : t.net_pnl < 0 ? "bg-pill-loss text-loss" : "bg-muted text-foreground")}>{txt}</span>;
-const LEFT_COLS = ["rules", "instrument", "setup", "trade_type", "option_type", "direction", "entry_at", "exit_at", "tilt", "id", "notes"];
+const pill = (t: Trade, txt: string) => (
+  <span
+    className={cn(
+      "inline-block min-w-[38px] rounded-full px-2.5 py-[3px] text-center text-xs font-medium capitalize leading-none",
+      t.net_pnl > 0
+        ? "bg-pill-win text-profit"
+        : t.net_pnl < 0
+          ? "bg-pill-loss text-loss"
+          : "bg-muted text-foreground",
+    )}
+  >
+    {txt}
+  </span>
+);
+const LEFT_COLS = [
+  "rules",
+  "instrument",
+  "setup",
+  "trade_type",
+  "option_type",
+  "direction",
+  "entry_at",
+  "exit_at",
+  "tilt",
+  "id",
+  "notes",
+];
 const alignRight = (k: string) => !LEFT_COLS.includes(k);
-const pnlText = (t: Trade) => (t.net_pnl > 0 ? "text-profit" : t.net_pnl < 0 ? "text-loss" : "text-foreground");
+const pnlText = (t: Trade) =>
+  t.net_pnl > 0 ? "text-profit" : t.net_pnl < 0 ? "text-loss" : "text-foreground";
 const COLS: Col[] = [
   { k: "id", l: "Trade ID", get: (t) => t.id.slice(0, 8), width: 105 },
-  { k: "entry_at", l: "Entry Date", get: (t) => t.entry_at, render: (t) => <span className={pnlText(t)}>{dt(t.entry_at)}</span>, width: 132 },
-  { k: "exit_at", l: "Exit Date", get: (t) => t.exit_at ?? "", render: (t) => isOpen(t) ? <span className="rounded-full bg-muted px-2 py-[3px] text-xs font-medium">Open</span> : <span className={pnlText(t)}>{dt(t.exit_at)}</span>, width: 132 },
+  {
+    k: "entry_at",
+    l: "Entry Date",
+    get: (t) => t.entry_at,
+    render: (t) => <span className={pnlText(t)}>{dt(t.entry_at)}</span>,
+    width: 132,
+  },
+  {
+    k: "exit_at",
+    l: "Exit Date",
+    get: (t) => t.exit_at ?? "",
+    render: (t) =>
+      isOpen(t) ? (
+        <span className="rounded-full bg-muted px-2 py-[3px] text-xs font-medium">Open</span>
+      ) : (
+        <span className={pnlText(t)}>{dt(t.exit_at)}</span>
+      ),
+    width: 132,
+  },
   { k: "instrument", l: "Instrument", get: (t) => t.instrument, width: 105 },
-  { k: "trade_type", l: "Trade Type", get: (t) => t.trade_type, render: (t) => pill(t, t.trade_type) },
-  { k: "option_type", l: "Option Type", get: (t) => (t.trade_type === "options" ? "Option" : ""), width: 100 },
+  {
+    k: "trade_type",
+    l: "Trade Type",
+    get: (t) => t.trade_type,
+    render: (t) => pill(t, t.trade_type),
+  },
+  {
+    k: "option_type",
+    l: "Option Type",
+    get: (t) => (t.trade_type === "options" ? "Option" : ""),
+    width: 100,
+  },
   { k: "setup", l: "Setup", get: (t) => t.setup },
   { k: "tilt", l: "Tiltmeter", get: (t) => t.tilt, render: (t) => <TiltMeter value={t.tilt} /> },
-  { k: "rules", l: "Rules", get: (t) => COMPLIANCE_LABEL[complianceOf(t.ruleChecks)], render: (t) => { const c = complianceOf(t.ruleChecks); return c === "unrated" ? <span className="text-t4">—</span> : <span className={cn("text-xs font-medium", c === "followed" ? "text-profit" : c === "violated" ? "text-loss" : "text-amber-600")}>{COMPLIANCE_LABEL[c]}</span>; } },
+  {
+    k: "rules",
+    l: "Rules",
+    get: (t) => COMPLIANCE_LABEL[complianceOf(t.ruleChecks)],
+    render: (t) => {
+      const c = complianceOf(t.ruleChecks);
+      return c === "unrated" ? (
+        <span className="text-t4">—</span>
+      ) : (
+        <span
+          className={cn(
+            "text-xs font-medium",
+            c === "followed" ? "text-profit" : c === "violated" ? "text-loss" : "text-amber-600",
+          )}
+        >
+          {COMPLIANCE_LABEL[c]}
+        </span>
+      );
+    },
+  },
   { k: "direction", l: "Direction", get: (t) => t.direction, render: (t) => pill(t, t.direction) },
   { k: "quantity", l: "Quantity", get: (t) => t.quantity, render: (t) => num(t.quantity, 2) },
-  { k: "entry_price", l: "Entry Price", get: (t) => t.entry_price, render: (t) => fmtPrice(t.entry_price) },
-  { k: "exit_price", l: "Exit Price", get: (t) => t.exit_price ?? "", render: (t) => fmtPrice(t.exit_price) },
-  { k: "take_profit", l: "TP Price", get: (t) => t.take_profit ?? "", render: (t) => fmtPrice(t.take_profit) },
-  { k: "stop_loss", l: "SL Price", get: (t) => t.stop_loss ?? "", render: (t) => fmtPrice(t.stop_loss) },
+  {
+    k: "entry_price",
+    l: "Entry Price",
+    get: (t) => t.entry_price,
+    render: (t) => fmtPrice(t.entry_price),
+  },
+  {
+    k: "exit_price",
+    l: "Exit Price",
+    get: (t) => t.exit_price ?? "",
+    render: (t) => fmtPrice(t.exit_price),
+  },
+  {
+    k: "take_profit",
+    l: "TP Price",
+    get: (t) => t.take_profit ?? "",
+    render: (t) => fmtPrice(t.take_profit),
+  },
+  {
+    k: "stop_loss",
+    l: "SL Price",
+    get: (t) => t.stop_loss ?? "",
+    render: (t) => fmtPrice(t.stop_loss),
+  },
   { k: "fees", l: "Fees ($)", get: (t) => t.fees, render: (t) => num(t.fees, 2) },
   { k: "gross_pnl", l: "Gross P&L", get: (t) => t.gross_pnl, render: (t) => num(t.gross_pnl, 2) },
-  { k: "net_pnl", l: "Return ($)", get: (t) => t.net_pnl, render: (t) => <span className={pnlText(t)}>{num(t.net_pnl, 2)}</span> },
-  { k: "ret_pct", l: "Return (%)", get: (t) => t.retPct, render: (t) => <span className={pnlText(t)}>{num(t.retPct, 2)}</span> },
-  { k: "r", l: "R-Multiple", get: (t) => t.r ?? 0, render: (t) => (t.r != null ? `${fmtNum(t.r)}R` : isOpen(t) ? "" : t.rEst != null ? <span className="italic text-muted-foreground" title={`Estimated from your typical risk. ${rBlankReason(t) ?? ""}`}>~{fmtNum(t.rEst)}R est.</span> : <span className="text-muted-foreground" title={rBlankReason(t) ?? ""}>—</span>) },
-  { k: "risk_amount", l: "Risk Amount", get: (t) => t.risk_amount ?? "", render: (t) => (t.risk_amount == null ? "" : num(Number(t.risk_amount), 2)) },
-  { k: "notes", l: "Notes", get: (t) => t.notes ?? "", render: (t) => <span className="inline-block max-w-48 truncate align-middle">{t.notes ?? ""}</span> },
+  {
+    k: "net_pnl",
+    l: "Return ($)",
+    get: (t) => t.net_pnl,
+    render: (t) => <span className={pnlText(t)}>{num(t.net_pnl, 2)}</span>,
+  },
+  {
+    k: "ret_pct",
+    l: "Return (%)",
+    get: (t) => t.retPct,
+    render: (t) => <span className={pnlText(t)}>{num(t.retPct, 2)}</span>,
+  },
+  {
+    k: "r",
+    l: "R-Multiple",
+    get: (t) => t.r ?? 0,
+    render: (t) =>
+      t.r != null ? (
+        `${fmtNum(t.r)}R`
+      ) : isOpen(t) ? (
+        ""
+      ) : t.rEst != null ? (
+        <span
+          className="italic text-muted-foreground"
+          title={`Estimated from your typical risk. ${rBlankReason(t) ?? ""}`}
+        >
+          ~{fmtNum(t.rEst)}R est.
+        </span>
+      ) : (
+        <span className="text-muted-foreground" title={rBlankReason(t) ?? ""}>
+          —
+        </span>
+      ),
+  },
+  {
+    k: "risk_amount",
+    l: "Risk Amount",
+    get: (t) => t.risk_amount ?? "",
+    render: (t) => (t.risk_amount == null ? "" : num(Number(t.risk_amount), 2)),
+  },
+  {
+    k: "notes",
+    l: "Notes",
+    get: (t) => t.notes ?? "",
+    render: (t) => (
+      <span className="inline-block max-w-48 truncate align-middle">{t.notes ?? ""}</span>
+    ),
+  },
 ];
 
 function JournalPage() {
@@ -72,7 +251,9 @@ function JournalPage() {
   const { trades } = useTrades({ includeOpen: true });
   const { filters, setFilters, journal } = useJournal();
   const [qText, setQText] = useState(filters.q ?? "");
-  useEffect(() => { setQText(filters.q ?? ""); }, [filters.q]);
+  useEffect(() => {
+    setQText(filters.q ?? "");
+  }, [filters.q]);
   useEffect(() => {
     if (qText.trim() === (filters.q ?? "")) return;
     const id = setTimeout(() => setFilters({ ...filters, q: qText.trim() || undefined }), 250);
@@ -93,11 +274,18 @@ function JournalPage() {
   const [mergeOpen, setMergeOpen] = useState(false);
 
   const hidden = useMemo(() => new Set(layout.hidden), [layout.hidden]);
-  const cols = layout.order.map((key) => COLS.find((c) => c.k === key)).filter((c): c is Col => c !== undefined).filter((c) => !hidden.has(c.k));
+  const cols = layout.order
+    .map((key) => COLS.find((c) => c.k === key))
+    .filter((c): c is Col => c !== undefined)
+    .filter((c) => !hidden.has(c.k));
   const sorted = useMemo(() => {
     const c = COLS.find((x) => x.k === sort.k);
     if (!c) return trades;
-    return [...trades].sort((a, b) => { const x = c.get(a), y = c.get(b); return (x < y ? -1 : x > y ? 1 : 0) * (sort.asc ? 1 : -1); });
+    return [...trades].sort((a, b) => {
+      const x = c.get(a),
+        y = c.get(b);
+      return (x < y ? -1 : x > y ? 1 : 0) * (sort.asc ? 1 : -1);
+    });
   }, [trades, sort]);
   const chosen = trades.filter((t) => sel.has(t.id));
   // The selection can only hold trades on the current filtered list: a filter change drops the rest, so Delete,
@@ -116,10 +304,26 @@ function JournalPage() {
   const pg = Math.min(page, pages - 1);
   const visible = sorted.slice(pg * pageSize, pg * pageSize + pageSize);
   const shotIds = useScreenshotTradeIds(journal?.id);
-  const [view, setView] = useState<"table" | "cards" | "gallery">(() => { try { const v = localStorage.getItem("am.journal-view"); return v === "cards" || v === "gallery" ? v : "table"; } catch { return "table"; } });
-  const changeView = (v: "table" | "cards" | "gallery") => { setView(v); try { localStorage.setItem("am.journal-view", v); } catch { /* storage unavailable */ } };
+  const [view, setView] = useState<"table" | "cards" | "gallery">(() => {
+    try {
+      const v = localStorage.getItem("am.journal-view");
+      return v === "cards" || v === "gallery" ? v : "table";
+    } catch {
+      return "table";
+    }
+  });
+  const changeView = (v: "table" | "cards" | "gallery") => {
+    setView(v);
+    try {
+      localStorage.setItem("am.journal-view", v);
+    } catch {
+      /* storage unavailable */
+    }
+  };
   // Signed screenshot URLs are only fetched for the views that show images.
-  const { data: allShots = [], isLoading: shotsLoading } = useScreenshots(view === "table" ? undefined : journal?.id);
+  const { data: allShots = [], isLoading: shotsLoading } = useScreenshots(
+    view === "table" ? undefined : journal?.id,
+  );
   const shotsByTrade = useMemo(() => {
     const m = new Map<string, Shot[]>();
     for (const sh of allShots) if (sh.trade_id) pushTo(m, sh.trade_id, sh);
@@ -130,7 +334,12 @@ function JournalPage() {
     if (!journal?.id) return;
     const raw = storageGet(`am.journal-table.${journal.id}`);
     try {
-      setLayout(normalizeJournalTableLayout(raw ? JSON.parse(raw) as Partial<JournalTableLayout> : null, keys));
+      setLayout(
+        normalizeJournalTableLayout(
+          raw ? (JSON.parse(raw) as Partial<JournalTableLayout>) : null,
+          keys,
+        ),
+      );
     } catch {
       setLayout(defaults);
     }
@@ -145,23 +354,56 @@ function JournalPage() {
   async function del() {
     const ids = chosen.map((t) => t.id);
     if (!ids.length) return;
-    if (!(await confirm({ title: `Delete ${ids.length} trade${ids.length === 1 ? "" : "s"}?`, message: "Their notes, tags and screenshots are deleted too. This cannot be undone.", destructive: true }))) return;
+    if (
+      !(await confirm({
+        title: `Delete ${ids.length} trade${ids.length === 1 ? "" : "s"}?`,
+        message: "Their notes, tags and screenshots are deleted too. This cannot be undone.",
+        destructive: true,
+      }))
+    )
+      return;
     const { error } = await supabase.from("trades").delete().in("id", ids);
     if (error) return toast.error(error.message);
-    sweepStorage(); setSel(new Set()); qc.invalidateQueries(); toast.success("Deleted");
+    sweepStorage();
+    setSel(new Set());
+    qc.invalidateQueries();
+    toast.success("Deleted");
   }
   async function dup() {
     const rows = chosen.map((t) => ({
-      journal_id: t.journal_id, instrument_id: t.instrument_id, setup_id: t.setup_id, direction: t.direction, trade_type: t.trade_type,
-      entry_at: t.entry_at, exit_at: t.exit_at, entry_price: t.entry_price, exit_price: t.exit_price, quantity: t.quantity, stop_loss: t.stop_loss,
-      take_profit: t.take_profit, high_price: t.high_price, low_price: t.low_price, otp_hit: t.otp_hit, is_favorite: t.is_favorite,
-      gross_pnl: t.gross_pnl, fees: t.fees, net_pnl: t.net_pnl, risk_amount: t.risk_amount, notes: t.notes,
+      journal_id: t.journal_id,
+      instrument_id: t.instrument_id,
+      setup_id: t.setup_id,
+      direction: t.direction,
+      trade_type: t.trade_type,
+      entry_at: t.entry_at,
+      exit_at: t.exit_at,
+      entry_price: t.entry_price,
+      exit_price: t.exit_price,
+      quantity: t.quantity,
+      stop_loss: t.stop_loss,
+      take_profit: t.take_profit,
+      high_price: t.high_price,
+      low_price: t.low_price,
+      otp_hit: t.otp_hit,
+      is_favorite: t.is_favorite,
+      gross_pnl: t.gross_pnl,
+      fees: t.fees,
+      net_pnl: t.net_pnl,
+      risk_amount: t.risk_amount,
+      notes: t.notes,
       // keep imported P&L as it is (otherwise the auto-P&L trigger would recompute it from prices) but never copy external_id: it must stay unique
-      pnl_manual: t.pnl_manual, is_break_even: t.is_break_even, commission: t.commission, swap: t.swap, raw_symbol: t.raw_symbol,
+      pnl_manual: t.pnl_manual,
+      is_break_even: t.is_break_even,
+      commission: t.commission,
+      swap: t.swap,
+      raw_symbol: t.raw_symbol,
     }));
     const { error } = await supabase.from("trades").insert(rows);
     if (error) return toast.error(error.message);
-    setSel(new Set()); qc.invalidateQueries(); toast.success("Duplicated");
+    setSel(new Set());
+    qc.invalidateQueries();
+    toast.success("Duplicated");
   }
   // Merging asks how the trades relate (one position built in parts, or the same trade logged twice): see MergeTradesDialog.
   function merge() {
@@ -184,7 +426,17 @@ function JournalPage() {
   }
 
   function autoSizeColumns() {
-    const widths = Object.fromEntries(cols.map((c) => [c.k, suggestedColumnWidth(c.l, visible.map((t) => c.get(t)), 76, 240)]));
+    const widths = Object.fromEntries(
+      cols.map((c) => [
+        c.k,
+        suggestedColumnWidth(
+          c.l,
+          visible.map((t) => c.get(t)),
+          76,
+          240,
+        ),
+      ]),
+    );
     setLayout((current) => ({ ...current, widths: { ...current.widths, ...widths } }));
     toast.success("Columns auto-sized");
   }
@@ -197,8 +449,18 @@ function JournalPage() {
   function resizeColumn(key: string, startX: number) {
     const col = COLS.find((item) => item.k === key);
     const startWidth = layout.widths[key] ?? col?.width ?? 110;
-    const move = (event: PointerEvent) => setLayout((current) => ({ ...current, widths: { ...current.widths, [key]: Math.max(64, Math.min(360, startWidth + event.clientX - startX)) } }));
-    const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+    const move = (event: PointerEvent) =>
+      setLayout((current) => ({
+        ...current,
+        widths: {
+          ...current.widths,
+          [key]: Math.max(64, Math.min(360, startWidth + event.clientX - startX)),
+        },
+      }));
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
   }
@@ -206,108 +468,455 @@ function JournalPage() {
   function dropColumn(target: string) {
     const source = dragKey.current;
     if (!source) return;
-    setLayout((current) => ({ ...current, order: moveJournalColumn(current.order, source, target) }));
+    setLayout((current) => ({
+      ...current,
+      order: moveJournalColumn(current.order, source, target),
+    }));
     dragKey.current = null;
   }
 
   const toolbar = (
     <div className="flex flex-wrap items-center gap-2.5 px-[22px] pb-3 pt-[18px]">
-      <Button variant="ink" size="sm" className="h-9 rounded-md px-4 text-sm" onClick={() => drawer.open()}>Add Trade</Button>
-      <Button variant="ink" size="sm" className="h-9 rounded-md px-4 text-sm" onClick={() => setImp(true)}>Import Trades</Button>
-      <span title={sel.size < 2 ? "Select at least 2 trades to merge" : undefined}><Button variant="outline" size="sm" className="h-9 rounded-md bg-card px-4 text-sm" disabled={sel.size < 2} onClick={merge}><Merge className="h-4 w-4" />Merge</Button></span>
-      <span title={!sel.size ? "Select trades to duplicate" : undefined}><Button variant="outline" size="sm" className="h-9 rounded-md bg-card px-4 text-sm" disabled={!sel.size} onClick={dup}><Copy className="h-4 w-4" />Duplicate</Button></span>
-      <span title={!sel.size ? "Select trades to delete" : undefined}><Button variant="outline" size="sm" className="h-9 rounded-md bg-card px-4 text-sm text-loss hover:bg-loss-soft hover:text-loss" disabled={!sel.size} onClick={del}><Trash2 className="h-4 w-4" />Delete</Button></span>
+      <Button
+        variant="ink"
+        size="sm"
+        className="h-9 rounded-md px-4 text-sm"
+        onClick={() => drawer.open()}
+      >
+        Add Trade
+      </Button>
+      <Button
+        variant="ink"
+        size="sm"
+        className="h-9 rounded-md px-4 text-sm"
+        onClick={() => setImp(true)}
+      >
+        Import Trades
+      </Button>
+      <span title={sel.size < 2 ? "Select at least 2 trades to merge" : undefined}>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-9 rounded-md bg-card px-4 text-sm"
+          disabled={sel.size < 2}
+          onClick={merge}
+        >
+          <Merge className="h-4 w-4" />
+          Merge
+        </Button>
+      </span>
+      <span title={!sel.size ? "Select trades to duplicate" : undefined}>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-9 rounded-md bg-card px-4 text-sm"
+          disabled={!sel.size}
+          onClick={dup}
+        >
+          <Copy className="h-4 w-4" />
+          Duplicate
+        </Button>
+      </span>
+      <span title={!sel.size ? "Select trades to delete" : undefined}>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-9 rounded-md bg-card px-4 text-sm text-loss hover:bg-loss-soft hover:text-loss"
+          disabled={!sel.size}
+          onClick={del}
+        >
+          <Trash2 className="h-4 w-4" />
+          Delete
+        </Button>
+      </span>
       {sel.size > 0 && <span className="text-xs text-muted-foreground">{sel.size} selected</span>}
-      {filters.day && <Button variant="ghost" size="sm" onClick={() => setFilters({ ...filters, day: undefined })}>Day: {filters.day} <X className="ml-1 h-3 w-3" /></Button>}
-      <div className="relative w-56"><Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" /><Input value={qText} onChange={(e) => setQText(e.target.value)} placeholder="Search trades, notes, rules…" aria-label="Search trades" className="h-9 pl-8" />{qText && <button aria-label="Clear search" className="absolute right-2 top-2.5 text-muted-foreground" onClick={() => { setQText(""); setFilters({ ...filters, q: undefined }); }}><X className="h-4 w-4" /></button>}</div>
-      {activeFilterCount(filters) > 0 && <Button variant="ghost" size="sm" className="h-9 text-sm" onClick={() => { setQText(""); setFilters({}); }}>Filters active ({activeFilterCount(filters)}) <X className="ml-1 h-3 w-3" /></Button>}
+      {filters.day && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setFilters({ ...filters, day: undefined })}
+        >
+          Day: {filters.day} <X className="ml-1 h-3 w-3" />
+        </Button>
+      )}
+      <div className="relative w-56">
+        <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Input
+          value={qText}
+          onChange={(e) => setQText(e.target.value)}
+          placeholder="Search trades, notes, rules…"
+          aria-label="Search trades"
+          className="h-9 pl-8"
+        />
+        {qText && (
+          <button
+            aria-label="Clear search"
+            className="absolute right-2 top-2.5 text-muted-foreground"
+            onClick={() => {
+              setQText("");
+              setFilters({ ...filters, q: undefined });
+            }}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+      {activeFilterCount(filters) > 0 && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-9 text-sm"
+          onClick={() => {
+            setQText("");
+            setFilters({});
+          }}
+        >
+          Filters active ({activeFilterCount(filters)}) <X className="ml-1 h-3 w-3" />
+        </Button>
+      )}
       <div className="flex-1" />
-      <div role="group" aria-label="Journal view" className="inline-flex h-9 overflow-hidden rounded-md border">
-        {([["table", LayoutList, "Table"], ["cards", LayoutGrid, "Cards"], ["gallery", Images, "Gallery"]] as const).map(([k, Icon, label], i) => (
-          <button key={k} type="button" aria-pressed={view === k} title={`${label} view`} onClick={() => changeView(k)} className={cn("flex items-center gap-1.5 px-3 text-sm", i > 0 && "border-l", view === k ? "bg-ink text-ink-foreground" : "hover:bg-muted")}><Icon className="h-4 w-4" /><span className="hidden sm:inline">{label}</span></button>
+      <div
+        role="group"
+        aria-label="Journal view"
+        className="inline-flex h-9 overflow-hidden rounded-md border"
+      >
+        {(
+          [
+            ["table", LayoutList, "Table"],
+            ["cards", LayoutGrid, "Cards"],
+            ["gallery", Images, "Gallery"],
+          ] as const
+        ).map(([k, Icon, label], i) => (
+          <button
+            key={k}
+            type="button"
+            aria-pressed={view === k}
+            title={`${label} view`}
+            onClick={() => changeView(k)}
+            className={cn(
+              "flex items-center gap-1.5 px-3 text-sm",
+              i > 0 && "border-l",
+              view === k ? "bg-ink text-ink-foreground" : "hover:bg-muted",
+            )}
+          >
+            <Icon className="h-4 w-4" />
+            <span className="hidden sm:inline">{label}</span>
+          </button>
         ))}
       </div>
-      {view === "table" && <>
-      <Button variant="ghost" size="icon" title="Download to Excel" aria-label="Download to Excel" onClick={exportExcel}><Download className="h-4 w-4" /></Button>
-      <Button variant="ghost" size="icon" title="Auto-size columns" aria-label="Auto-size columns" onClick={autoSizeColumns}><Scaling className="h-4 w-4" /></Button>
-      <Button variant="ghost" size="icon" title="Reset to default" aria-label="Reset to default" onClick={resetColumns}><RefreshCw className="h-4 w-4" /></Button>
-      </>}
+      {view === "table" && (
+        <>
+          <Button
+            variant="ghost"
+            size="icon"
+            title="Download to Excel"
+            aria-label="Download to Excel"
+            onClick={exportExcel}
+          >
+            <Download className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            title="Auto-size columns"
+            aria-label="Auto-size columns"
+            onClick={autoSizeColumns}
+          >
+            <Scaling className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            title="Reset to default"
+            aria-label="Reset to default"
+            onClick={resetColumns}
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        </>
+      )}
     </div>
   );
 
   return (
-    <div ref={fillRef} className="flex min-h-[320px] flex-col overflow-hidden rounded-lg bg-card shadow-[0_1px_5px_rgba(60,40,90,0.07)]">
+    <div
+      ref={fillRef}
+      className="flex min-h-[320px] flex-col overflow-hidden rounded-lg bg-card shadow-[0_1px_5px_rgba(60,40,90,0.07)]"
+    >
       {toolbar}
-      {trades.length === 0 ? <div className="p-6"><Empty>No trades match. Add a trade or clear filters.</Empty></div> : (
-        <>
-        {view === "table" ? (
-        <div className="relative flex min-h-0 flex-1 border-t">
-          <div className="slim-scroll min-h-0 min-w-0 flex-1 overflow-auto">
-          <table className="whitespace-nowrap text-[12px]" style={{ tableLayout: "fixed", width: cols.reduce((sum, c) => sum + (layout.widths[c.k] ?? c.width ?? 110), 96) }}>
-            <colgroup><col style={{ width: 40 }} /><col style={{ width: 28 }} /><col style={{ width: 28 }} />{cols.map((c) => <col key={c.k} style={{ width: layout.widths[c.k] ?? c.width ?? 110 }} />)}</colgroup>
-            <thead className="sticky top-0 z-10 bg-card">
-              <tr className="h-[42px] border-b text-left text-[12px] text-foreground">
-                <th className="w-10 p-3"><Checkbox checked={trades.length > 0 && chosen.length === trades.length ? true : chosen.length > 0 ? "indeterminate" : false} onCheckedChange={(v) => setSel(v ? new Set(trades.map((t) => t.id)) : new Set())} /></th>
-                <th className="w-8" /><th className="w-8" />
-                {cols.map((c) => (
-                  <th key={c.k} draggable onDragStart={() => { dragKey.current = c.k; }} onDragOver={(e) => e.preventDefault()} onDrop={() => dropColumn(c.k)} className={cn("relative cursor-grab select-none overflow-hidden px-3 text-[12px] font-semibold text-foreground", alignRight(c.k) && "text-right")} onClick={() => setSort({ k: c.k, asc: sort.k === c.k ? !sort.asc : false })}>
-                    <span className="inline-flex items-center gap-1">{c.l}{sort.k === c.k && (sort.asc ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}</span>
-                    <span role="separator" aria-label={`Resize ${c.l}`} onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); resizeColumn(c.k, e.clientX); }} className="absolute inset-y-1 right-0 w-1 cursor-col-resize border-r border-transparent hover:border-ring" />
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {visible.map((t) => (
-                <tr key={t.id} onClick={() => drawer.open(t, { list: sorted })}
-                  className={cn("h-[32px] cursor-pointer tabular hover:brightness-[0.97]", t.net_pnl > 0 ? "bg-row-win" : t.net_pnl < 0 ? "bg-row-loss" : "bg-card")}>
-                  <td className="px-3" onClick={(e) => e.stopPropagation()}>
-                    <Checkbox checked={sel.has(t.id)} onCheckedChange={() => setSel((s) => { const n = new Set(s); if (n.has(t.id)) n.delete(t.id); else n.add(t.id); return n; })} />
-                  </td>
-                  <td onClick={(e) => { e.stopPropagation(); toggleFav(t); }}><Star className={cn("h-[17px] w-[17px] text-foreground", t.is_favorite && "fill-foreground")} /></td>
-                  <td className="px-1">{shotIds.has(t.id) && <ImageIcon className="h-[17px] w-[17px] text-foreground" />}</td>
-                  {cols.map((c) => <td key={c.k} className={cn("overflow-hidden text-ellipsis px-3", alignRight(c.k) && "text-right", pnlText(t))}>{c.render ? c.render(t) : c.get(t)}</td>)}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
-          <button type="button" aria-label="Columns" aria-expanded={columnsOpen} onClick={() => setColumnsOpen((open) => !open)} className="flex w-7 shrink-0 items-center justify-center border-l bg-card text-xs font-semibold [writing-mode:vertical-rl] hover:bg-muted"><Columns3 className="mb-1 h-3.5 w-3.5" />Columns</button>
-          {columnsOpen && <aside className="absolute bottom-0 right-7 top-0 z-20 w-60 border-l bg-card p-2 shadow-lg">
-            <input autoFocus value={colSearch} onChange={(e) => setColSearch(e.target.value)} placeholder="Search columns..." className="mb-2 w-full rounded border bg-background px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring" />
-            <div className="h-[calc(100%-40px)] space-y-0.5 overflow-auto">
-              {layout.order.map((key) => COLS.find((c) => c.k === key)).filter((c): c is Col => c !== undefined).filter((c) => c.l.toLowerCase().includes(colSearch.toLowerCase())).map((c) => (
-                <div key={c.k} draggable onDragStart={() => { dragKey.current = c.k; }} onDragOver={(e) => e.preventDefault()} onDrop={() => dropColumn(c.k)} className="flex cursor-grab items-center gap-1 rounded px-1 py-1 text-sm hover:bg-muted">
-                  <GripVertical className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  <Checkbox checked={!hidden.has(c.k)} onCheckedChange={() => setLayout((current) => ({ ...current, hidden: hidden.has(c.k) ? current.hidden.filter((key) => key !== c.k) : [...current.hidden, c.k] }))} />
-                  <span className="truncate">{c.l}</span>
-                </div>
-              ))}
-            </div>
-          </aside>}
+      {trades.length === 0 ? (
+        <div className="p-6">
+          <Empty>No trades match. Add a trade or clear filters.</Empty>
         </div>
-        ) : (
-          <div className="slim-scroll min-h-0 flex-1 overflow-auto border-t">
-            {view === "cards" ? <TradeCards trades={visible} shotsByTrade={shotsByTrade} onOpen={(t) => drawer.open(t, { list: sorted })} selected={sel} onToggle={(id) => setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; })} /> : <ScreenshotGallery trades={sorted} shotsByTrade={shotsByTrade} loading={shotsLoading} onOpen={(t) => drawer.open(t, { list: sorted })} />}
-          </div>
-        )}
-          {view !== "gallery" && <div className="flex shrink-0 items-center justify-end gap-4 border-t px-4 py-2.5 text-xs">
-            <span className="flex items-center gap-1">Page Size:
-              <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(0); }} className="rounded border bg-card px-1 py-0.5">{[25, 50, 100, 250].map((n) => <option key={n}>{n}</option>)}</select>
-            </span>
-            <span>{pg * pageSize + 1} to {Math.min(sorted.length, (pg + 1) * pageSize)} of {sorted.length}</span>
-            <span className="flex items-center gap-1">
-              <button onClick={() => setPage(0)} disabled={pg === 0}><ChevronsLeft className="h-4 w-4" /></button>
-              <button onClick={() => setPage(pg - 1)} disabled={pg === 0}><ChevronLeft className="h-4 w-4" /></button>
-              <span className="px-1">Page {pg + 1} of {pages}</span>
-              <button onClick={() => setPage(pg + 1)} disabled={pg >= pages - 1}><ChevronRight className="h-4 w-4" /></button>
-              <button onClick={() => setPage(pages - 1)} disabled={pg >= pages - 1}><ChevronsRight className="h-4 w-4" /></button>
-            </span>
-          </div>}
+      ) : (
+        <>
+          {view === "table" ? (
+            <div className="relative flex min-h-0 flex-1 border-t">
+              <div className="slim-scroll min-h-0 min-w-0 flex-1 overflow-auto">
+                <table
+                  className="whitespace-nowrap text-[12px]"
+                  style={{
+                    tableLayout: "fixed",
+                    width: cols.reduce(
+                      (sum, c) => sum + (layout.widths[c.k] ?? c.width ?? 110),
+                      96,
+                    ),
+                  }}
+                >
+                  <colgroup>
+                    <col style={{ width: 40 }} />
+                    <col style={{ width: 28 }} />
+                    <col style={{ width: 28 }} />
+                    {cols.map((c) => (
+                      <col key={c.k} style={{ width: layout.widths[c.k] ?? c.width ?? 110 }} />
+                    ))}
+                  </colgroup>
+                  <thead className="sticky top-0 z-10 bg-card">
+                    <tr className="h-[42px] border-b text-left text-[12px] text-foreground">
+                      <th className="w-10 p-3">
+                        <Checkbox
+                          checked={
+                            trades.length > 0 && chosen.length === trades.length
+                              ? true
+                              : chosen.length > 0
+                                ? "indeterminate"
+                                : false
+                          }
+                          onCheckedChange={(v) =>
+                            setSel(v ? new Set(trades.map((t) => t.id)) : new Set())
+                          }
+                        />
+                      </th>
+                      <th className="w-8" />
+                      <th className="w-8" />
+                      {cols.map((c) => (
+                        <th
+                          key={c.k}
+                          draggable
+                          onDragStart={() => {
+                            dragKey.current = c.k;
+                          }}
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={() => dropColumn(c.k)}
+                          className={cn(
+                            "relative cursor-grab select-none overflow-hidden px-3 text-[12px] font-semibold text-foreground",
+                            alignRight(c.k) && "text-right",
+                          )}
+                          onClick={() =>
+                            setSort({ k: c.k, asc: sort.k === c.k ? !sort.asc : false })
+                          }
+                        >
+                          <span className="inline-flex items-center gap-1">
+                            {c.l}
+                            {sort.k === c.k &&
+                              (sort.asc ? (
+                                <ArrowUp className="h-3 w-3" />
+                              ) : (
+                                <ArrowDown className="h-3 w-3" />
+                              ))}
+                          </span>
+                          <span
+                            role="separator"
+                            aria-label={`Resize ${c.l}`}
+                            onPointerDown={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              resizeColumn(c.k, e.clientX);
+                            }}
+                            className="absolute inset-y-1 right-0 w-1 cursor-col-resize border-r border-transparent hover:border-ring"
+                          />
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visible.map((t) => (
+                      <tr
+                        key={t.id}
+                        onClick={() => drawer.open(t, { list: sorted })}
+                        className={cn(
+                          "h-[32px] cursor-pointer tabular hover:brightness-[0.97]",
+                          t.net_pnl > 0 ? "bg-row-win" : t.net_pnl < 0 ? "bg-row-loss" : "bg-card",
+                        )}
+                      >
+                        <td className="px-3" onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            checked={sel.has(t.id)}
+                            onCheckedChange={() =>
+                              setSel((s) => {
+                                const n = new Set(s);
+                                if (n.has(t.id)) n.delete(t.id);
+                                else n.add(t.id);
+                                return n;
+                              })
+                            }
+                          />
+                        </td>
+                        <td
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleFav(t);
+                          }}
+                        >
+                          <Star
+                            className={cn(
+                              "h-[17px] w-[17px] text-foreground",
+                              t.is_favorite && "fill-foreground",
+                            )}
+                          />
+                        </td>
+                        <td className="px-1">
+                          {shotIds.has(t.id) && (
+                            <ImageIcon className="h-[17px] w-[17px] text-foreground" />
+                          )}
+                        </td>
+                        {cols.map((c) => (
+                          <td
+                            key={c.k}
+                            className={cn(
+                              "overflow-hidden text-ellipsis px-3",
+                              alignRight(c.k) && "text-right",
+                              pnlText(t),
+                            )}
+                          >
+                            {c.render ? c.render(t) : c.get(t)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <button
+                type="button"
+                aria-label="Columns"
+                aria-expanded={columnsOpen}
+                onClick={() => setColumnsOpen((open) => !open)}
+                className="flex w-7 shrink-0 items-center justify-center border-l bg-card text-xs font-semibold [writing-mode:vertical-rl] hover:bg-muted"
+              >
+                <Columns3 className="mb-1 h-3.5 w-3.5" />
+                Columns
+              </button>
+              {columnsOpen && (
+                <aside className="absolute bottom-0 right-7 top-0 z-20 w-60 border-l bg-card p-2 shadow-lg">
+                  <input
+                    autoFocus
+                    value={colSearch}
+                    onChange={(e) => setColSearch(e.target.value)}
+                    placeholder="Search columns..."
+                    className="mb-2 w-full rounded border bg-background px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
+                  />
+                  <div className="h-[calc(100%-40px)] space-y-0.5 overflow-auto">
+                    {layout.order
+                      .map((key) => COLS.find((c) => c.k === key))
+                      .filter((c): c is Col => c !== undefined)
+                      .filter((c) => c.l.toLowerCase().includes(colSearch.toLowerCase()))
+                      .map((c) => (
+                        <div
+                          key={c.k}
+                          draggable
+                          onDragStart={() => {
+                            dragKey.current = c.k;
+                          }}
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={() => dropColumn(c.k)}
+                          className="flex cursor-grab items-center gap-1 rounded px-1 py-1 text-sm hover:bg-muted"
+                        >
+                          <GripVertical className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                          <Checkbox
+                            checked={!hidden.has(c.k)}
+                            onCheckedChange={() =>
+                              setLayout((current) => ({
+                                ...current,
+                                hidden: hidden.has(c.k)
+                                  ? current.hidden.filter((key) => key !== c.k)
+                                  : [...current.hidden, c.k],
+                              }))
+                            }
+                          />
+                          <span className="truncate">{c.l}</span>
+                        </div>
+                      ))}
+                  </div>
+                </aside>
+              )}
+            </div>
+          ) : (
+            <div className="slim-scroll min-h-0 flex-1 overflow-auto border-t">
+              {view === "cards" ? (
+                <TradeCards
+                  trades={visible}
+                  shotsByTrade={shotsByTrade}
+                  onOpen={(t) => drawer.open(t, { list: sorted })}
+                  selected={sel}
+                  onToggle={(id) =>
+                    setSel((s) => {
+                      const n = new Set(s);
+                      if (n.has(id)) n.delete(id);
+                      else n.add(id);
+                      return n;
+                    })
+                  }
+                />
+              ) : (
+                <ScreenshotGallery
+                  trades={sorted}
+                  shotsByTrade={shotsByTrade}
+                  loading={shotsLoading}
+                  onOpen={(t) => drawer.open(t, { list: sorted })}
+                />
+              )}
+            </div>
+          )}
+          {view !== "gallery" && (
+            <div className="flex shrink-0 items-center justify-end gap-4 border-t px-4 py-2.5 text-xs">
+              <span className="flex items-center gap-1">
+                Page Size:
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setPage(0);
+                  }}
+                  className="rounded border bg-card px-1 py-0.5"
+                >
+                  {[25, 50, 100, 250].map((n) => (
+                    <option key={n}>{n}</option>
+                  ))}
+                </select>
+              </span>
+              <span>
+                {pg * pageSize + 1} to {Math.min(sorted.length, (pg + 1) * pageSize)} of{" "}
+                {sorted.length}
+              </span>
+              <span className="flex items-center gap-1">
+                <button onClick={() => setPage(0)} disabled={pg === 0}>
+                  <ChevronsLeft className="h-4 w-4" />
+                </button>
+                <button onClick={() => setPage(pg - 1)} disabled={pg === 0}>
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <span className="px-1">
+                  Page {pg + 1} of {pages}
+                </span>
+                <button onClick={() => setPage(pg + 1)} disabled={pg >= pages - 1}>
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+                <button onClick={() => setPage(pages - 1)} disabled={pg >= pages - 1}>
+                  <ChevronsRight className="h-4 w-4" />
+                </button>
+              </span>
+            </div>
+          )}
         </>
       )}
       <ImportDialog open={imp} onOpenChange={setImp} />
-      <MergeTradesDialog trades={chosen} open={mergeOpen} onOpenChange={setMergeOpen} onMerged={() => setSel(new Set())} />
+      <MergeTradesDialog
+        trades={chosen}
+        open={mergeOpen}
+        onOpenChange={setMergeOpen}
+        onMerged={() => setSel(new Set())}
+      />
     </div>
   );
 }
@@ -317,7 +926,15 @@ function useScreenshotTradeIds(journalId?: string) {
     queryKey: ["screenshot-ids", journalId],
     enabled: !!journalId,
     queryFn: async () => {
-      const data = await fetchAllRows<{ id: string; trade_id: string | null }>((from, to, first) => supabase.from("trade_screenshots").select("id,trade_id", countOption(first)).eq("journal_id", journalId!).order("id").range(from, to) as never);
+      const data = await fetchAllRows<{ id: string; trade_id: string | null }>(
+        (from, to, first) =>
+          supabase
+            .from("trade_screenshots")
+            .select("id,trade_id", countOption(first))
+            .eq("journal_id", journalId!)
+            .order("id")
+            .range(from, to) as never,
+      );
       return new Set(data.map((r) => r.trade_id as string));
     },
   });

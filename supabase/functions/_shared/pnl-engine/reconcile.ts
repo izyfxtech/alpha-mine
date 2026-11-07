@@ -1,8 +1,8 @@
-import { D, Dec, pow10 } from './decimal.ts';
-import { minorUnits } from './currency.ts';
-import type { RateObservation } from './rates/types.ts';
+import { D, Dec, pow10 } from "./decimal.ts";
+import { minorUnits } from "./currency.ts";
+import type { RateObservation } from "./rates/types.ts";
 
-export type ReconStatus = 'OK' | 'WARN' | 'MISMATCH';
+export type ReconStatus = "OK" | "WARN" | "MISMATCH";
 
 export interface Tolerance {
   /** Flat allowance in account currency (covers the broker's own rounding). */
@@ -33,20 +33,20 @@ export interface Reconciliation {
  * A chain (inversion/triangulation) is as loose as its loosest leg.
  */
 export function relativeToleranceFor(obs: RateObservation | null): Dec {
-  if (!obs) return D('0.003');
-  if (obs.source === 'identity') return D('0.0001');
+  if (!obs) return D("0.003");
+  if (obs.source === "identity") return D("0.0001");
   if (obs.lineage && obs.lineage.length > 0) {
     return obs.lineage.map(relativeToleranceFor).reduce((a, b) => (a.gt(b) ? a : b));
   }
   switch (obs.kind) {
-    case 'daily-fix':
-      return D('0.015');
-    case 'tick':
-      return D('0.002');
-    case 'minute':
-    case 'implied':
-    case 'derived':
-      return D('0.003');
+    case "daily-fix":
+      return D("0.015");
+    case "tick":
+      return D("0.002");
+    case "minute":
+    case "implied":
+    case "derived":
+      return D("0.003");
   }
 }
 
@@ -55,32 +55,37 @@ export function absoluteToleranceFor(accountCurrency: string): Dec {
   return D(5).times(pow10(-minorUnits(accountCurrency)));
 }
 
-export function reconcile(imported: Dec, computed: Dec | null, tol: Tolerance, rateSource: string | null = null): Reconciliation {
+export function reconcile(
+  imported: Dec,
+  computed: Dec | null,
+  tol: Tolerance,
+  rateSource: string | null = null,
+): Reconciliation {
   const allowed = tol.absolute.plus(tol.relative.times(imported.abs()));
   if (computed === null) {
     return {
-      status: 'WARN',
+      status: "WARN",
       imported,
       computed: null,
       diff: null,
       allowed,
-      diagnosis: ['No independent rate available: broker figure stored unverified.'],
+      diagnosis: ["No independent rate available: broker figure stored unverified."],
       rateSource,
     };
   }
   const diff = imported.minus(computed);
   const absDiff = diff.abs();
   let status: ReconStatus;
-  if (absDiff.lte(allowed)) status = 'OK';
-  else if (absDiff.lte(allowed.times(3))) status = 'WARN';
-  else status = 'MISMATCH';
+  if (absDiff.lte(allowed)) status = "OK";
+  else if (absDiff.lte(allowed.times(3))) status = "WARN";
+  else status = "MISMATCH";
   return {
     status,
     imported,
     computed,
     diff,
     allowed,
-    diagnosis: status === 'OK' ? [] : diagnose(imported, computed),
+    diagnosis: status === "OK" ? [] : diagnose(imported, computed),
     rateSource,
   };
 }
@@ -89,16 +94,20 @@ export function reconcile(imported: Dec, computed: Dec | null, tol: Tolerance, r
 export function diagnose(imported: Dec, computed: Dec): string[] {
   const out: string[] = [];
   if (imported.isZero()) {
-    out.push('Broker profit is zero: this may be an opening deal, a balance operation, or a zero-move trade.');
+    out.push(
+      "Broker profit is zero: this may be an opening deal, a balance operation, or a zero-move trade.",
+    );
     return out;
   }
   if (computed.isZero()) {
-    out.push('Computed result is zero but broker booked a result: check open/close prices and symbol mapping.');
+    out.push(
+      "Computed result is zero but broker booked a result: check open/close prices and symbol mapping.",
+    );
     return out;
   }
   const ratio = imported.div(computed);
   if (ratio.isNegative()) {
-    out.push('Opposite signs: trade side (buy/sell) is probably reversed.');
+    out.push("Opposite signs: trade side (buy/sell) is probably reversed.");
   }
   const abs = ratio.abs();
   const log = Math.log10(abs.toNumber());
@@ -107,12 +116,17 @@ export function diagnose(imported: Dec, computed: Dec): string[] {
     out.push(
       `Ratio is ~10^${nearest}: contract size, lot unit (0.01 vs 1.0) or pip/digit scaling is off by a power of ten.`,
     );
-  } else if (abs.gt('0.85') && abs.lt('1.15')) {
-    out.push('Within ~15% but outside tolerance: conversion rate differs (stale source, wrong timestamp/timezone, or broker markup).');
-  } else if (abs.gt('0.4') && abs.lt('2.5')) {
-    out.push('Off by a factor between 0.4x and 2.5x: check lots, partial-close allocation, and whether the broker row is a full or partial close.');
+  } else if (abs.gt("0.85") && abs.lt("1.15")) {
+    out.push(
+      "Within ~15% but outside tolerance: conversion rate differs (stale source, wrong timestamp/timezone, or broker markup).",
+    );
+  } else if (abs.gt("0.4") && abs.lt("2.5")) {
+    out.push(
+      "Off by a factor between 0.4x and 2.5x: check lots, partial-close allocation, and whether the broker row is a full or partial close.",
+    );
   }
-  if (out.length === 0) out.push('Unexplained: verify symbol mapping, contract size, lot units and timestamps.');
+  if (out.length === 0)
+    out.push("Unexplained: verify symbol mapping, contract size, lot units and timestamps.");
   return out;
 }
 

@@ -13,9 +13,9 @@
  *
  * Costs stay on the leg they were charged on. Swap follows the closing leg, as MT5 books it.
  */
-import { Dec, ZERO } from './decimal.ts';
-import type { Fill } from './matching.ts';
-import type { Side } from './types.ts';
+import { Dec, ZERO } from "./decimal.ts";
+import type { Fill } from "./matching.ts";
+import type { Side } from "./types.ts";
 
 export interface Leg {
   fillId: string;
@@ -93,7 +93,10 @@ function leg(f: Fill, lots: Dec): Leg {
 }
 
 export function buildPositions(fills: Fill[]): PositionResult {
-  const sorted = fills.map((f, i) => ({ f, i })).sort((a, b) => a.f.timeMs - b.f.timeMs || a.i - b.i).map((x) => x.f);
+  const sorted = fills
+    .map((f, i) => ({ f, i }))
+    .sort((a, b) => a.f.timeMs - b.f.timeMs || a.i - b.i)
+    .map((x) => x.f);
   const closed: Position[] = [];
   let cur: { side: Side; entries: Leg[]; exits: Leg[]; net: Dec } | null = null;
 

@@ -17,7 +17,13 @@ export type Amount = { value: number; unit: "absolute" | "percent" };
 
 export type Rule =
   | { id: string; kind: "profit_target"; target: Amount }
-  | { id: string; kind: "max_drawdown"; limit: Amount; mode: "static" | "eod_trailing" | "intraday_trailing"; lockAtStart?: boolean }
+  | {
+      id: string;
+      kind: "max_drawdown";
+      limit: Amount;
+      mode: "static" | "eod_trailing" | "intraday_trailing";
+      lockAtStart?: boolean;
+    }
   | { id: string; kind: "daily_loss"; limit: Amount }
   | { id: string; kind: "min_trading_days"; days: number }
   | { id: string; kind: "min_profitable_days"; days: number; minDailyProfit: number }
@@ -65,9 +71,11 @@ export interface ChallengeProgress {
   notes: string[];
 }
 
-const abs = (a: Amount, start: number) => (a.unit === "percent" ? (start * a.value) / 100 : a.value);
+const abs = (a: Amount, start: number) =>
+  a.unit === "percent" ? (start * a.value) / 100 : a.value;
 const round2 = (n: number) => Math.round(n * 100) / 100;
-const money = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const money = (n: number) =>
+  n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export function dayKey(ms: number, zone = "UTC"): string {
   const shifted = zone === "UTC" ? ms : ms + zoneOffsetMs(zone, ms);
@@ -100,33 +108,83 @@ function evaluateRules(c: Challenge, s: State): RuleProgress[] {
     switch (r.kind) {
       case "profit_target": {
         const target = abs(r.target, c.startBalance);
-        return { id: r.id, kind: r.kind, label: "Profit target", status: profit >= target ? "met" : "pending", detail: `${money(profit)} / ${money(target)}`, pct: target > 0 ? clampPct((profit / target) * 100) : 100 };
+        return {
+          id: r.id,
+          kind: r.kind,
+          label: "Profit target",
+          status: profit >= target ? "met" : "pending",
+          detail: `${money(profit)} / ${money(target)}`,
+          pct: target > 0 ? clampPct((profit / target) * 100) : 100,
+        };
       }
       case "max_drawdown": {
         const limit = abs(r.limit, c.startBalance);
         const floor = floorOf(r, c, s);
         const breached = s.balance <= floor;
-        const used = Math.max(0, (peakOf(r, c, s) - s.balance));
-        return { id: r.id, kind: r.kind, label: `Max drawdown (${r.mode.replace("_", " ")})`, status: breached ? "breached" : "pending", detail: `floor ${money(floor)} · ${money(used)} of ${money(limit)} used`, pct: limit > 0 ? clampPct((used / limit) * 100) : 0 };
+        const used = Math.max(0, peakOf(r, c, s) - s.balance);
+        return {
+          id: r.id,
+          kind: r.kind,
+          label: `Max drawdown (${r.mode.replace("_", " ")})`,
+          status: breached ? "breached" : "pending",
+          detail: `floor ${money(floor)} · ${money(used)} of ${money(limit)} used`,
+          pct: limit > 0 ? clampPct((used / limit) * 100) : 0,
+        };
       }
       case "daily_loss": {
         const limit = abs(r.limit, c.startBalance);
         const worst = Math.min(0, ...dayNets);
         const breached = worst <= -limit;
-        return { id: r.id, kind: r.kind, label: "Daily loss limit", status: breached ? "breached" : "pending", detail: `worst day ${money(worst)} / -${money(limit)}`, pct: limit > 0 ? clampPct((-worst / limit) * 100) : 0 };
+        return {
+          id: r.id,
+          kind: r.kind,
+          label: "Daily loss limit",
+          status: breached ? "breached" : "pending",
+          detail: `worst day ${money(worst)} / -${money(limit)}`,
+          pct: limit > 0 ? clampPct((-worst / limit) * 100) : 0,
+        };
       }
       case "min_trading_days": {
         const n = dayNets.length;
-        return { id: r.id, kind: r.kind, label: "Minimum trading days", status: n >= r.days ? "met" : "pending", detail: `${n} / ${r.days} days`, pct: r.days > 0 ? clampPct((n / r.days) * 100) : 100 };
+        return {
+          id: r.id,
+          kind: r.kind,
+          label: "Minimum trading days",
+          status: n >= r.days ? "met" : "pending",
+          detail: `${n} / ${r.days} days`,
+          pct: r.days > 0 ? clampPct((n / r.days) * 100) : 100,
+        };
       }
       case "min_profitable_days": {
         const n = dayNets.filter((d) => d >= r.minDailyProfit && d > 0).length;
-        return { id: r.id, kind: r.kind, label: `Profitable days (≥ ${money(r.minDailyProfit)})`, status: n >= r.days ? "met" : "pending", detail: `${n} / ${r.days} days`, pct: r.days > 0 ? clampPct((n / r.days) * 100) : 100 };
+        return {
+          id: r.id,
+          kind: r.kind,
+          label: `Profitable days (≥ ${money(r.minDailyProfit)})`,
+          status: n >= r.days ? "met" : "pending",
+          detail: `${n} / ${r.days} days`,
+          pct: r.days > 0 ? clampPct((n / r.days) * 100) : 100,
+        };
       }
       case "consistency": {
-        if (profit <= 0 || !best) return { id: r.id, kind: r.kind, label: `Consistency (best day < ${r.maxBestDayPercent}%)`, status: "pending", detail: "no profit yet", pct: 0 };
+        if (profit <= 0 || !best)
+          return {
+            id: r.id,
+            kind: r.kind,
+            label: `Consistency (best day < ${r.maxBestDayPercent}%)`,
+            status: "pending",
+            detail: "no profit yet",
+            pct: 0,
+          };
         const share = (best.net / profit) * 100;
-        return { id: r.id, kind: r.kind, label: `Consistency (best day < ${r.maxBestDayPercent}%)`, status: share < r.maxBestDayPercent ? "met" : "pending", detail: `best day is ${share.toFixed(1)}% of profit`, pct: clampPct(100 - Math.max(0, share - r.maxBestDayPercent)) };
+        return {
+          id: r.id,
+          kind: r.kind,
+          label: `Consistency (best day < ${r.maxBestDayPercent}%)`,
+          status: share < r.maxBestDayPercent ? "met" : "pending",
+          detail: `best day is ${share.toFixed(1)}% of profit`,
+          pct: clampPct(100 - Math.max(0, share - r.maxBestDayPercent)),
+        };
       }
     }
   });
@@ -151,10 +209,22 @@ export function evaluateChallenge(c: Challenge, input: ChallengeTrade[]): Challe
     .filter((t) => (c.startMs == null || t.exitMs >= c.startMs) && Number.isFinite(t.net))
     .sort((a, b) => a.exitMs - b.exitMs);
 
-  const s: State = { balance: c.startBalance, days: new Map(), eodPeak: c.startBalance, intradayPeak: c.startBalance, lastDay: null };
+  const s: State = {
+    balance: c.startBalance,
+    days: new Map(),
+    eodPeak: c.startBalance,
+    intradayPeak: c.startBalance,
+    lastDay: null,
+  };
   const notes: string[] = [];
-  if (c.rules.some((r) => r.kind === "max_drawdown" && r.mode !== "static")) notes.push("Trailing drawdown is tracked on closed trades only; open-position equity can move the real floor sooner.");
-  if (zone === "UTC") notes.push("Trading days are cut at midnight UTC. Set the firm's time zone if its day ends elsewhere.");
+  if (c.rules.some((r) => r.kind === "max_drawdown" && r.mode !== "static"))
+    notes.push(
+      "Trailing drawdown is tracked on closed trades only; open-position equity can move the real floor sooner.",
+    );
+  if (zone === "UTC")
+    notes.push(
+      "Trading days are cut at midnight UTC. Set the firm's time zone if its day ends elsewhere.",
+    );
 
   let status: ChallengeStatus = "active";
   let endedAtMs: number | null = null;
@@ -174,7 +244,10 @@ export function evaluateChallenge(c: Challenge, input: ChallengeTrade[]): Challe
       break;
     }
     // A challenge needs a profit target to be passable; without one it just keeps running.
-    if (c.rules.some((r) => r.kind === "profit_target") && rules.every((r) => r.status === "met" || r.kind === "max_drawdown" || r.kind === "daily_loss")) {
+    if (
+      c.rules.some((r) => r.kind === "profit_target") &&
+      rules.every((r) => r.status === "met" || r.kind === "max_drawdown" || r.kind === "daily_loss")
+    ) {
       status = "passed";
       endedAtMs = t.exitMs;
       break;
@@ -182,7 +255,9 @@ export function evaluateChallenge(c: Challenge, input: ChallengeTrade[]): Challe
   }
 
   const rules = evaluateRules(c, s);
-  const dd = c.rules.find((r): r is Extract<Rule, { kind: "max_drawdown" }> => r.kind === "max_drawdown");
+  const dd = c.rules.find(
+    (r): r is Extract<Rule, { kind: "max_drawdown" }> => r.kind === "max_drawdown",
+  );
   return {
     status,
     endedAtMs,
@@ -191,7 +266,14 @@ export function evaluateChallenge(c: Challenge, input: ChallengeTrade[]): Challe
     floor: dd ? floorOf(dd, c, s) : null,
     tradingDays: s.days.size,
     bestDay: bestDayOf(s.days),
-    rules: status === "passed" ? rules.map((r) => (r.kind === "max_drawdown" || r.kind === "daily_loss" ? { ...r, status: "met" as const } : r)) : rules,
+    rules:
+      status === "passed"
+        ? rules.map((r) =>
+            r.kind === "max_drawdown" || r.kind === "daily_loss"
+              ? { ...r, status: "met" as const }
+              : r,
+          )
+        : rules,
     notes,
   };
 }
@@ -213,7 +295,13 @@ export const PRESETS: { key: string; label: string; rules: Rule[] }[] = [
     label: "6% target · 4% EOD trailing drawdown · consistency 50%",
     rules: [
       { id: "t", kind: "profit_target", target: { value: 6, unit: "percent" } },
-      { id: "dd", kind: "max_drawdown", limit: { value: 4, unit: "percent" }, mode: "eod_trailing", lockAtStart: true },
+      {
+        id: "dd",
+        kind: "max_drawdown",
+        limit: { value: 4, unit: "percent" },
+        mode: "eod_trailing",
+        lockAtStart: true,
+      },
       { id: "c", kind: "consistency", maxBestDayPercent: 50 },
       { id: "td", kind: "min_trading_days", days: 5 },
     ],

@@ -5,22 +5,41 @@ import { MkShell } from "@/components/marketing/marketing-shell";
 import { AuthFrame, Field } from "@/components/auth-bits";
 
 export const Route = createFileRoute("/reset-password")({
-  head: () => ({ meta: [{ title: "Set a new password for AlphaMine" }, { name: "description", content: "Choose a new password for your AlphaMine account." }, { name: "robots", content: "noindex" }] }),
-  component: () => <MkShell><Reset /></MkShell>,
+  head: () => ({
+    meta: [
+      { title: "Set a new password for AlphaMine" },
+      { name: "description", content: "Choose a new password for your AlphaMine account." },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
+  component: () => (
+    <MkShell>
+      <Reset />
+    </MkShell>
+  ),
 });
 
 function Reset() {
   const navigate = useNavigate();
-  const [pw, setPw] = useState(""); const [again, setAgain] = useState("");
+  const [pw, setPw] = useState("");
+  const [again, setAgain] = useState("");
   // The email link signs the visitor in with a recovery session; without one the form can only fail.
   const [ready, setReady] = useState<boolean | null>(null);
   useEffect(() => {
     let live = true;
-    const { data: sub } = supabase.auth.onAuthStateChange((ev, session) => { if (live && (ev === "PASSWORD_RECOVERY" || session)) setReady(true); });
-    void supabase.auth.getSession().then(({ data }) => { if (live) setReady((r) => r ?? !!data.session); });
-    return () => { live = false; sub.subscription.unsubscribe(); };
+    const { data: sub } = supabase.auth.onAuthStateChange((ev, session) => {
+      if (live && (ev === "PASSWORD_RECOVERY" || session)) setReady(true);
+    });
+    void supabase.auth.getSession().then(({ data }) => {
+      if (live) setReady((r) => r ?? !!data.session);
+    });
+    return () => {
+      live = false;
+      sub.subscription.unsubscribe();
+    };
   }, []);
-  const [err, setErr] = useState<{ pw?: string; again?: string; form?: string }>({}); const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<{ pw?: string; again?: string; form?: string }>({});
+  const [busy, setBusy] = useState(false);
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -32,23 +51,52 @@ function Reset() {
     setBusy(true);
     const { error } = await supabase.auth.updateUser({ password: pw });
     setBusy(false);
-    if (error) return setErr({ form: `${error.message}. Open the reset link from your email again.` });
+    if (error)
+      return setErr({ form: `${error.message}. Open the reset link from your email again.` });
     navigate({ to: "/home" });
   }
 
   return (
     <AuthFrame>
       <h1 className="text-3xl font-semibold">Set a new password</h1>
-      <p className="mt-2 text-base text-[var(--mk-mute)]">Choose something you have not used before.</p>
+      <p className="mt-2 text-base text-[var(--mk-mute)]">
+        Choose something you have not used before.
+      </p>
       {ready === false ? (
-        <p role="alert" className="mt-8 rounded-lg border border-red-500 p-3 text-sm text-red-500">This reset link is invalid or has expired. <a href="/auth" className="underline">Request a new one</a>.</p>
+        <p role="alert" className="mt-8 rounded-lg border border-red-500 p-3 text-sm text-red-500">
+          This reset link is invalid or has expired.{" "}
+          <a href="/auth" className="underline">
+            Request a new one
+          </a>
+          .
+        </p>
       ) : (
-      <form onSubmit={save} noValidate className="mt-8 space-y-4">
-        <Field label="New password" type="password" autoComplete="new-password" value={pw} error={err.pw} onChange={(e) => setPw(e.target.value)} />
-        <Field label="Confirm password" type="password" autoComplete="new-password" value={again} error={err.again} onChange={(e) => setAgain(e.target.value)} />
-        {err.form && <p role="alert" className="rounded-lg border border-red-500 p-3 text-sm text-red-500">{err.form}</p>}
-        <button className="mk-btn mk-btn-pri w-full disabled:opacity-60" disabled={busy}>{busy ? "Updating password" : "Update password"}</button>
-      </form>
+        <form onSubmit={save} noValidate className="mt-8 space-y-4">
+          <Field
+            label="New password"
+            type="password"
+            autoComplete="new-password"
+            value={pw}
+            error={err.pw}
+            onChange={(e) => setPw(e.target.value)}
+          />
+          <Field
+            label="Confirm password"
+            type="password"
+            autoComplete="new-password"
+            value={again}
+            error={err.again}
+            onChange={(e) => setAgain(e.target.value)}
+          />
+          {err.form && (
+            <p role="alert" className="rounded-lg border border-red-500 p-3 text-sm text-red-500">
+              {err.form}
+            </p>
+          )}
+          <button className="mk-btn mk-btn-pri w-full disabled:opacity-60" disabled={busy}>
+            {busy ? "Updating password" : "Update password"}
+          </button>
+        </form>
       )}
     </AuthFrame>
   );

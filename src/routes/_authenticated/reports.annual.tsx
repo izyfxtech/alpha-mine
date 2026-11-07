@@ -2,7 +2,15 @@ import { useProfile } from "@/lib/profile-settings";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { localDay } from "@/lib/time/local-time";
 import { useMemo } from "react";
-import { eachDayOfInterval, endOfMonth, endOfWeek, format, isSameMonth, startOfMonth, startOfWeek } from "date-fns";
+import {
+  eachDayOfInterval,
+  endOfMonth,
+  endOfWeek,
+  format,
+  isSameMonth,
+  startOfMonth,
+  startOfWeek,
+} from "date-fns";
 import { AccentStat } from "@/components/kit";
 import { Button } from "@/components/ui/button";
 import { useTrades } from "@/lib/journal/journal-context";
@@ -10,7 +18,22 @@ import { computeStats, dayKey, fmtMoney, fmtPct, periodBase } from "@/lib/pnl/me
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/reports/annual")({
-  head: () => ({ meta: [{ title: "Annual Overview — AlphaMine" }, { name: "description", content: "Twelve month calendars showing winning and losing days for the year." }, { property: "og:title", content: "Annual Overview — AlphaMine" }, { property: "og:description", content: "Twelve month calendars showing winning and losing days for the year." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
+  head: () => ({
+    meta: [
+      { title: "Annual Overview — AlphaMine" },
+      {
+        name: "description",
+        content: "Twelve month calendars showing winning and losing days for the year.",
+      },
+      { property: "og:title", content: "Annual Overview — AlphaMine" },
+      {
+        property: "og:description",
+        content: "Twelve month calendars showing winning and losing days for the year.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   validateSearch: (s: Record<string, unknown>): { year?: number } => {
     const y = Number(s.year);
     return Number.isInteger(y) && y > 1900 && y < 3000 ? { year: y } : {};
@@ -29,13 +52,24 @@ function Annual() {
     ys.add(new Date().getFullYear());
     return [...ys].sort();
   }, [trades]);
-  const yearTrades = useMemo(() => trades.filter((t) => localDay(t.entry_at).startsWith(String(year))), [trades, year]);
+  const yearTrades = useMemo(
+    () => trades.filter((t) => localDay(t.entry_at).startsWith(String(year))),
+    [trades, year],
+  );
   const daily = useMemo(() => {
     const m = new Map<string, number>();
-    yearTrades.forEach((t) => m.set(dayKey(t.entry_at), (m.get(dayKey(t.entry_at)) ?? 0) + t.net_pnl));
+    yearTrades.forEach((t) =>
+      m.set(dayKey(t.entry_at), (m.get(dayKey(t.entry_at)) ?? 0) + t.net_pnl),
+    );
     return m;
   }, [yearTrades]);
-  const period = periodBase(all, journal?.starting_balance ?? 0, flows, `${year}-01-01`, `${year}-12-31`);
+  const period = periodBase(
+    all,
+    journal?.starting_balance ?? 0,
+    flows,
+    `${year}-01-01`,
+    `${year}-12-31`,
+  );
   const s = computeStats(yearTrades, period.base, period.flows);
   const cur = journal?.currency;
 
@@ -44,35 +78,80 @@ function Annual() {
       <section className="rounded-xl border bg-card p-5">
         <div className="mb-5 flex justify-center">
           <div className="inline-flex overflow-hidden rounded-md border text-xs font-medium">
-             {years.map((y) => <Button key={y} variant="ghost" size="sm" onClick={() => navigate({ to: "/reports/annual", search: { year: y } })} className={cn("rounded-none", y === year && "bg-ink text-ink-foreground")}>{y}</Button>)}
+            {years.map((y) => (
+              <Button
+                key={y}
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate({ to: "/reports/annual", search: { year: y } })}
+                className={cn("rounded-none", y === year && "bg-ink text-ink-foreground")}
+              >
+                {y}
+              </Button>
+            ))}
           </div>
         </div>
-         <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {Array.from({ length: 12 }, (_, mi) => {
             const month = new Date(year, mi, 1);
-            const days = eachDayOfInterval({ start: startOfWeek(startOfMonth(month), { weekStartsOn: sow }), end: endOfWeek(endOfMonth(month), { weekStartsOn: sow }) });
-            const mNet = [...daily.entries()].filter(([k]) => k.startsWith(format(month, "yyyy-MM"))).reduce((a, [, v]) => a + v, 0);
+            const days = eachDayOfInterval({
+              start: startOfWeek(startOfMonth(month), { weekStartsOn: sow }),
+              end: endOfWeek(endOfMonth(month), { weekStartsOn: sow }),
+            });
+            const mNet = [...daily.entries()]
+              .filter(([k]) => k.startsWith(format(month, "yyyy-MM")))
+              .reduce((a, [, v]) => a + v, 0);
             return (
-               <Button variant="ghost" key={mi} onClick={() => navigate({ to: "/reports/calendar", search: { m: format(month, "yyyy-MM") } })} className="h-auto min-w-0 flex-col items-stretch rounded-md p-2 text-left transition hover:bg-muted/60" aria-label={`Open ${format(month, "MMMM yyyy")}`}>
+              <Button
+                variant="ghost"
+                key={mi}
+                onClick={() =>
+                  navigate({ to: "/reports/calendar", search: { m: format(month, "yyyy-MM") } })
+                }
+                className="h-auto min-w-0 flex-col items-stretch rounded-md p-2 text-left transition hover:bg-muted/60"
+                aria-label={`Open ${format(month, "MMMM yyyy")}`}
+              >
                 <div className="mb-1.5 flex items-baseline justify-between">
                   <span className="text-sm font-medium">{format(month, "MMMM")}</span>
-                  {mNet !== 0 && <span className={cn("text-xs font-semibold tabular", mNet > 0 ? "text-profit" : "text-loss")}>{fmtMoney(mNet, cur)}</span>}
+                  {mNet !== 0 && (
+                    <span
+                      className={cn(
+                        "text-xs font-semibold tabular",
+                        mNet > 0 ? "text-profit" : "text-loss",
+                      )}
+                    >
+                      {fmtMoney(mNet, cur)}
+                    </span>
+                  )}
                 </div>
                 <div className="grid grid-cols-7 gap-0.5 text-center text-xs text-muted-foreground">
-                  {(sow === 0 ? ["S", "M", "T", "W", "T", "F", "S"] : ["M", "T", "W", "T", "F", "S", "S"]).map((d, i) => <span key={i}>{d}</span>)}
+                  {(sow === 0
+                    ? ["S", "M", "T", "W", "T", "F", "S"]
+                    : ["M", "T", "W", "T", "F", "S", "S"]
+                  ).map((d, i) => (
+                    <span key={i}>{d}</span>
+                  ))}
                   {days.map((d) => {
                     const v = daily.get(format(d, "yyyy-MM-dd"));
                     const inM = isSameMonth(d, month);
                     return (
-                      <span key={d.toISOString()} className={cn("flex aspect-square items-center justify-center rounded-full tabular",
-                        !inM && "opacity-0", inM && v == null && "text-foreground/70",
-                        inM && v != null && v > 0 && "bg-profit text-primary-foreground", inM && v != null && v < 0 && "bg-loss text-primary-foreground", inM && v === 0 && "bg-muted text-foreground")}>
+                      <span
+                        key={d.toISOString()}
+                        className={cn(
+                          "flex aspect-square items-center justify-center rounded-full tabular",
+                          !inM && "opacity-0",
+                          inM && v == null && "text-foreground/70",
+                          inM && v != null && v > 0 && "bg-profit text-primary-foreground",
+                          inM && v != null && v < 0 && "bg-loss text-primary-foreground",
+                          inM && v === 0 && "bg-muted text-foreground",
+                        )}
+                      >
                         {format(d, "d")}
                       </span>
                     );
                   })}
                 </div>
-               </Button>
+              </Button>
             );
           })}
         </div>

@@ -9,7 +9,14 @@ const isNum = (v: string) => v.trim() !== "" && Number.isFinite(Number(v));
  * prices recalculates the P&L instead of freezing the old figure.
  * `manual` is what is written to pnl_manual: true tells the database never to recompute this P&L.
  */
-export function resolveGross(i: { open: boolean; breakEven: boolean; touched: boolean; typed: string; auto: number | null; wasManual: boolean }) {
+export function resolveGross(i: {
+  open: boolean;
+  breakEven: boolean;
+  touched: boolean;
+  typed: string;
+  auto: number | null;
+  wasManual: boolean;
+}) {
   if (i.open || i.breakEven) return { gross: 0, manual: i.wasManual };
   const gross = i.touched && isNum(i.typed) ? Number(i.typed) : i.auto;
   const typedByTrader = i.touched && gross != null && (i.auto == null || gross !== i.auto);
@@ -20,5 +27,7 @@ export function resolveGross(i: { open: boolean; breakEven: boolean; touched: bo
  * Whether opening an existing trade should treat its stored gross as a value to keep: it was typed or imported, or the prices
  * alone cannot give money for it (`canAuto` false: a cross-currency pair, an instrument of unknown size).
  */
-export const keepStoredGross = (t: { exit_price: number | null; pnl_manual?: boolean | null }, canAuto: boolean) =>
-  t.exit_price != null && (!!t.pnl_manual || !canAuto);
+export const keepStoredGross = (
+  t: { exit_price: number | null; pnl_manual?: boolean | null },
+  canAuto: boolean,
+) => t.exit_price != null && (!!t.pnl_manual || !canAuto);

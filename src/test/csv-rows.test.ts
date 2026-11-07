@@ -1,9 +1,36 @@
 import { describe, expect, it } from "vitest";
-import { buildCsvTrades, detectDateOrder, detectDecimal, parseDateTime, parseNumber, type CsvContext } from "@/lib/import/csv-rows";
+import {
+  buildCsvTrades,
+  detectDateOrder,
+  detectDecimal,
+  parseDateTime,
+  parseNumber,
+  type CsvContext,
+} from "@/lib/import/csv-rows";
 
 describe("parseNumber (AM-M17)", () => {
-  it.each([["1,234.50", 1234.5], ["$12.50", 12.5], ["(12.50)", -12.5], ["-3", -3], ["3-", -3], ["1,234,567", 1234567], ["  7 ", 7], ["1.5E-05", 0.000015], ["1,234", 1234]])("dot decimal: %s", (s, v) => expect(parseNumber(s, ".")).toBe(v));
-  it.each([["1.234,50", 1234.5], ["12,5", 12.5], ["(12,50)", -12.5], ["1.234.567", 1234567], ["150,123", 150.123], ["1,085", 1.085], ["0,125", 0.125], ["1,0850", 1.085], ["1.234", 1234]])("comma decimal: %s", (s, v) => expect(parseNumber(s, ",")).toBe(v));
+  it.each([
+    ["1,234.50", 1234.5],
+    ["$12.50", 12.5],
+    ["(12.50)", -12.5],
+    ["-3", -3],
+    ["3-", -3],
+    ["1,234,567", 1234567],
+    ["  7 ", 7],
+    ["1.5E-05", 0.000015],
+    ["1,234", 1234],
+  ])("dot decimal: %s", (s, v) => expect(parseNumber(s, ".")).toBe(v));
+  it.each([
+    ["1.234,50", 1234.5],
+    ["12,5", 12.5],
+    ["(12,50)", -12.5],
+    ["1.234.567", 1234567],
+    ["150,123", 150.123],
+    ["1,085", 1.085],
+    ["0,125", 0.125],
+    ["1,0850", 1.085],
+    ["1.234", 1234],
+  ])("comma decimal: %s", (s, v) => expect(parseNumber(s, ",")).toBe(v));
   it("empty is null, junk throws", () => {
     expect(parseNumber("")).toBeNull();
     expect(parseNumber(undefined)).toBeNull();
@@ -17,7 +44,7 @@ describe("parseNumber (AM-M17)", () => {
 
 describe("detectDecimal: a lone 150,123 must never be guessed (the 1,000x error)", () => {
   it("reads the separator from the whole file", () => {
-    expect(detectDecimal(["62,00", "150,123", "0,125"])).toBe(",");   // 62,00 proves comma-decimal
+    expect(detectDecimal(["62,00", "150,123", "0,125"])).toBe(","); // 62,00 proves comma-decimal
     expect(detectDecimal(["1.234,50", "150,123"])).toBe(",");
     expect(detectDecimal(["62.00", "1,234.50", "150.123"])).toBe(".");
     expect(detectDecimal(["1,234,567", "5"])).toBe(".");
@@ -46,7 +73,9 @@ describe("parseDateTime (AM-M17)", () => {
   });
   it("a bare time is wall time in the chosen zone; Z and offsets are exact", () => {
     expect(parseDateTime("2026-10-20 14:30:15", "dmy", "utc")).toBe("2026-10-20T14:30:15.000Z");
-    expect(parseDateTime("2026-10-20T14:30:00+01:00", "dmy", "utc")).toBe("2026-10-20T13:30:00.000Z");
+    expect(parseDateTime("2026-10-20T14:30:00+01:00", "dmy", "utc")).toBe(
+      "2026-10-20T13:30:00.000Z",
+    );
     expect(parseDateTime("2026-10-20T14:30:00Z", "dmy", "local")).toBe("2026-10-20T14:30:00.000Z");
   });
   it("rejects impossible dates instead of rolling them over", () => {
@@ -54,7 +83,8 @@ describe("parseDateTime (AM-M17)", () => {
     expect(() => parseDateTime("13/13/2026", "mdy", "utc")).toThrow();
     expect(() => parseDateTime("hello", "dmy", "utc")).toThrow();
   });
-  it("handles am/pm", () => expect(parseDateTime("10/20/2026 12:05 AM", "mdy", "utc")).toBe("2026-10-20T00:05:00.000Z"));
+  it("handles am/pm", () =>
+    expect(parseDateTime("10/20/2026 12:05 AM", "mdy", "utc")).toBe("2026-10-20T00:05:00.000Z"));
   it("detects the order or says it is ambiguous", () => {
     expect(detectDateOrder(["13/02/2026", "01/02/2026"])).toBe("dmy");
     expect(detectDateOrder(["02/13/2026"])).toBe("mdy");
@@ -64,9 +94,40 @@ describe("parseDateTime (AM-M17)", () => {
 });
 
 const header = ["Time", "Symbol", "Side", "Price", "Exit", "Qty", "P&L", "Fee", "Net"];
-const map = { entry_at: "Time", instrument: "Symbol", direction: "Side", entry_price: "Price", exit_price: "Exit", quantity: "Qty", gross_pnl: "P&L", fees: "Fee", net_pnl: "Net" } as const;
-const ctx: CsvContext = { journalId: "j", order: "dmy", zone: "utc", decimal: ".", instrumentId: () => "i", setupId: () => null };
-const row = (over: Partial<Record<string, string>> = {}) => { const base: Record<string, string> = { Time: "2026-10-20 10:00", Symbol: "EURUSD", Side: "buy", Price: "1.085", Exit: "1.091", Qty: "1", "P&L": "100", Fee: "-2.00", Net: "98", ...over }; return header.map((h) => base[h]!); };
+const map = {
+  entry_at: "Time",
+  instrument: "Symbol",
+  direction: "Side",
+  entry_price: "Price",
+  exit_price: "Exit",
+  quantity: "Qty",
+  gross_pnl: "P&L",
+  fees: "Fee",
+  net_pnl: "Net",
+} as const;
+const ctx: CsvContext = {
+  journalId: "j",
+  order: "dmy",
+  zone: "utc",
+  decimal: ".",
+  instrumentId: () => "i",
+  setupId: () => null,
+};
+const row = (over: Partial<Record<string, string>> = {}) => {
+  const base: Record<string, string> = {
+    Time: "2026-10-20 10:00",
+    Symbol: "EURUSD",
+    Side: "buy",
+    Price: "1.085",
+    Exit: "1.091",
+    Qty: "1",
+    "P&L": "100",
+    Fee: "-2.00",
+    Net: "98",
+    ...over,
+  };
+  return header.map((h) => base[h]!);
+};
 
 describe("buildCsvTrades", () => {
   it("signed fees reduce net instead of inflating it (AM-H05)", () => {
@@ -86,11 +147,17 @@ describe("buildCsvTrades", () => {
   });
   it("a file-supplied P&L is manual so the trigger keeps it (AM-H03)", () => {
     expect(buildCsvTrades([row()], header, map, ctx).trades[0]!.pnl_manual).toBe(true);
-    expect(buildCsvTrades([row({ "P&L": "", Net: "" })], header, map, ctx).trades[0]!.pnl_manual).toBe(false);
+    expect(
+      buildCsvTrades([row({ "P&L": "", Net: "" })], header, map, ctx).trades[0]!.pnl_manual,
+    ).toBe(false);
   });
   it("importing the same file twice yields the same external ids (AM-H04)", () => {
-    const a = buildCsvTrades([row(), row({ Symbol: "GBPUSD" })], header, map, ctx).trades.map((t) => t.external_id);
-    const b = buildCsvTrades([row(), row({ Symbol: "GBPUSD" })], header, map, ctx).trades.map((t) => t.external_id);
+    const a = buildCsvTrades([row(), row({ Symbol: "GBPUSD" })], header, map, ctx).trades.map(
+      (t) => t.external_id,
+    );
+    const b = buildCsvTrades([row(), row({ Symbol: "GBPUSD" })], header, map, ctx).trades.map(
+      (t) => t.external_id,
+    );
     expect(a).toEqual(b);
     expect(new Set(a).size).toBe(2);
   });
@@ -101,8 +168,15 @@ describe("buildCsvTrades", () => {
   });
   it("a European file (comma decimal) imports 150,123 as 150.123", () => {
     const eu = { ...ctx, decimal: "," as const };
-    const t = buildCsvTrades([row({ Price: "150,123", Exit: "150,456", "P&L": "33,30", Fee: "-0,70", Net: "32,60" })], header, map, eu).trades[0]!;
-    expect([t.entry_price, t.exit_price, t.gross_pnl, t.fees]).toEqual([150.123, 150.456, 33.3, 0.7]);
+    const t = buildCsvTrades(
+      [row({ Price: "150,123", Exit: "150,456", "P&L": "33,30", Fee: "-0,70", Net: "32,60" })],
+      header,
+      map,
+      eu,
+    ).trades[0]!;
+    expect([t.entry_price, t.exit_price, t.gross_pnl, t.fees]).toEqual([
+      150.123, 150.456, 33.3, 0.7,
+    ]);
   });
   it("warns when the fee column disagrees with gross minus net", () => {
     const r = buildCsvTrades([row({ Fee: "5.00" })], header, map, ctx); // gross 100, net 98, so 2 was really taken
@@ -112,7 +186,18 @@ describe("buildCsvTrades", () => {
     expect(buildCsvTrades([row()], header, map, ctx).warnings).toHaveLength(0);
   });
   it("bad rows are skipped with a row number and reason, good rows still import (AM-M17)", () => {
-    const r = buildCsvTrades([row(), row({ Time: "31/02/2026" }), row({ Price: "" }), row({ "P&L": "abc" }), row({ Qty: "0" })], header, map, ctx);
+    const r = buildCsvTrades(
+      [
+        row(),
+        row({ Time: "31/02/2026" }),
+        row({ Price: "" }),
+        row({ "P&L": "abc" }),
+        row({ Qty: "0" }),
+      ],
+      header,
+      map,
+      ctx,
+    );
     expect(r.trades).toHaveLength(1);
     expect(r.skipped.map((s) => s.row)).toEqual([2, 3, 4, 5]);
     expect(r.skipped[1]!.reason).toMatch(/missing entry/);
@@ -122,9 +207,18 @@ describe("buildCsvTrades", () => {
 import { detectDelimiter, parseCsv } from "@/lib/import/csv-mapping";
 describe("delimiters (AM-L03)", () => {
   it("reads semicolon and tab files", () => {
-    expect(parseCsv("a;b;c\n1;2,5;3")).toEqual([["a", "b", "c"], ["1", "2,5", "3"]]);
-    expect(parseCsv("a\tb\n1\t2")).toEqual([["a", "b"], ["1", "2"]]);
-    expect(parseCsv("a,b\n1,2")).toEqual([["a", "b"], ["1", "2"]]);
+    expect(parseCsv("a;b;c\n1;2,5;3")).toEqual([
+      ["a", "b", "c"],
+      ["1", "2,5", "3"],
+    ]);
+    expect(parseCsv("a\tb\n1\t2")).toEqual([
+      ["a", "b"],
+      ["1", "2"],
+    ]);
+    expect(parseCsv("a,b\n1,2")).toEqual([
+      ["a", "b"],
+      ["1", "2"],
+    ]);
   });
   it("decides from the header, so decimal commas in the data cannot outvote a semicolon", () => {
     const cols = "A;B;C;D;E;F";

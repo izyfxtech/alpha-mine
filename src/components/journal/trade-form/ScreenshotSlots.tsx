@@ -10,13 +10,30 @@ export type PendingShot = { key: string; file?: File; url?: string; preview: str
 
 const MIN_SLOTS = 4;
 
-export function ScreenshotSlots({ existing, pending, onAdd, onRemoveExisting, onRemovePending }: {
-  existing: Shot[]; pending: PendingShot[];
-  onAdd: (p: PendingShot[]) => void; onRemoveExisting: (s: Shot) => void; onRemovePending: (key: string) => void;
+export function ScreenshotSlots({
+  existing,
+  pending,
+  onAdd,
+  onRemoveExisting,
+  onRemovePending,
+}: {
+  existing: Shot[];
+  pending: PendingShot[];
+  onAdd: (p: PendingShot[]) => void;
+  onRemoveExisting: (s: Shot) => void;
+  onRemovePending: (key: string) => void;
 }) {
   const filled = [
-    ...existing.map((s) => ({ key: s.id, preview: s.thumb || s.url, remove: () => onRemoveExisting(s) })),
-    ...pending.map((p) => ({ key: p.key, preview: p.preview, remove: () => onRemovePending(p.key) })),
+    ...existing.map((s) => ({
+      key: s.id,
+      preview: s.thumb || s.url,
+      remove: () => onRemoveExisting(s),
+    })),
+    ...pending.map((p) => ({
+      key: p.key,
+      preview: p.preview,
+      remove: () => onRemovePending(p.key),
+    })),
   ];
   const empty = Math.min(MAX_SHOTS - filled.length, Math.max(MIN_SLOTS - filled.length, 1));
   const addLimited = (items: PendingShot[]) => {
@@ -31,7 +48,9 @@ export function ScreenshotSlots({ existing, pending, onAdd, onRemoveExisting, on
       // An image pasted into a text field (Notes, a price) belongs to that field, not to the screenshots.
       const t = e.target as HTMLElement | null;
       if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
-      const files = Array.from(e.clipboardData?.files ?? []).filter((f) => f.type.startsWith("image/"));
+      const files = Array.from(e.clipboardData?.files ?? []).filter((f) =>
+        f.type.startsWith("image/"),
+      );
       if (!files.length) return;
       e.preventDefault();
       addLimited(fromFiles(files));
@@ -43,12 +62,27 @@ export function ScreenshotSlots({ existing, pending, onAdd, onRemoveExisting, on
     <div className="space-y-6">
       {filled.map((f) => (
         <div key={f.key} className="tf-drop relative p-2">
-          <img src={f.preview} alt="Trade screenshot" loading="lazy" decoding="async" referrerPolicy="no-referrer" className="max-h-64 w-full rounded-[3px] object-contain" />
-          <button type="button" onClick={f.remove} aria-label="Remove screenshot"
-            className="absolute right-3 top-3 grid h-6 w-6 place-items-center rounded-full bg-ink text-ink-foreground"><X className="h-3.5 w-3.5" /></button>
+          <img
+            src={f.preview}
+            alt="Trade screenshot"
+            loading="lazy"
+            decoding="async"
+            referrerPolicy="no-referrer"
+            className="max-h-64 w-full rounded-[3px] object-contain"
+          />
+          <button
+            type="button"
+            onClick={f.remove}
+            aria-label="Remove screenshot"
+            className="absolute right-3 top-3 grid h-6 w-6 place-items-center rounded-full bg-ink text-ink-foreground"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
         </div>
       ))}
-      {Array.from({ length: empty }).map((_, i) => <EmptySlot key={i} onAdd={addLimited} />)}
+      {Array.from({ length: empty }).map((_, i) => (
+        <EmptySlot key={i} onAdd={addLimited} />
+      ))}
     </div>
   );
 }
@@ -56,8 +90,15 @@ export function ScreenshotSlots({ existing, pending, onAdd, onRemoveExisting, on
 function fromFiles(files: FileList | File[]): PendingShot[] {
   const all = Array.from(files);
   const images = all.filter((f) => f.type.startsWith("image/"));
-  if (all.length > images.length) toast.error(`${all.length - images.length} file${all.length - images.length === 1 ? " was" : "s were"} skipped: only images can be added.`);
-  return images.map((file) => ({ key: crypto.randomUUID(), file, preview: URL.createObjectURL(file) }));
+  if (all.length > images.length)
+    toast.error(
+      `${all.length - images.length} file${all.length - images.length === 1 ? " was" : "s were"} skipped: only images can be added.`,
+    );
+  return images.map((file) => ({
+    key: crypto.randomUUID(),
+    file,
+    preview: URL.createObjectURL(file),
+  }));
 }
 
 function EmptySlot({ onAdd }: { onAdd: (p: PendingShot[]) => void }) {
@@ -67,29 +108,75 @@ function EmptySlot({ onAdd }: { onAdd: (p: PendingShot[]) => void }) {
   const addUrl = async () => {
     const v = url.trim();
     if (!v || checking) return;
-    if (!/^https:\/\/\S+$/i.test(v)) { toast.error("Paste a valid image link (https://…)"); return; }
+    if (!/^https:\/\/\S+$/i.test(v)) {
+      toast.error("Paste a valid image link (https://…)");
+      return;
+    }
     const link = normalizeImageUrl(v); // a TradingView share page becomes its picture
     setChecking(true);
     const ok = await imageLoads(link);
     setChecking(false);
-    if (!ok) { toast.error("That link does not load as an image. Use the direct image address, or upload the file."); return; }
+    if (!ok) {
+      toast.error(
+        "That link does not load as an image. Use the direct image address, or upload the file.",
+      );
+      return;
+    }
     onAdd([{ key: crypto.randomUUID(), url: link, preview: link }]);
     setUrl("");
   };
   return (
-    <div className="tf-drop" data-over={over}
-      onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)}
-      onDrop={(e) => { e.preventDefault(); setOver(false); onAdd(fromFiles(e.dataTransfer.files)); }}>
-      <div className="mx-auto grid h-9 w-9 place-items-center rounded-full border border-dashed border-muted-foreground text-muted-foreground"><ArrowUp className="h-4 w-4" /></div>
+    <div
+      className="tf-drop"
+      data-over={over}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setOver(true);
+      }}
+      onDragLeave={() => setOver(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setOver(false);
+        onAdd(fromFiles(e.dataTransfer.files));
+      }}
+    >
+      <div className="mx-auto grid h-9 w-9 place-items-center rounded-full border border-dashed border-muted-foreground text-muted-foreground">
+        <ArrowUp className="h-4 w-4" />
+      </div>
       <p className="mt-3 text-[13px]">Drop image to upload or</p>
       <label className="mt-2 inline-flex h-[30px] cursor-pointer items-center rounded-[4px] border border-input px-3 text-[12px] hover:bg-muted">
         Select file
-        <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => { if (e.target.files) onAdd(fromFiles(e.target.files)); e.target.value = ""; }} />
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            if (e.target.files) onAdd(fromFiles(e.target.files));
+            e.target.value = "";
+          }}
+        />
       </label>
-      <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder={checking ? "Checking link…" : "Paste URL or Image from Clipboard"}
-        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void addUrl(); } }} onBlur={() => void addUrl()}
-        onPaste={(e) => { const files = Array.from(e.clipboardData.files); if (files.length) { e.preventDefault(); onAdd(fromFiles(files)); } }}
-        className="mt-4 h-[34px] w-full rounded-[4px] border border-input bg-card px-3 text-[12.5px] outline-none placeholder:text-foreground focus:border-foreground" />
+      <input
+        value={url}
+        onChange={(e) => setUrl(e.target.value)}
+        placeholder={checking ? "Checking link…" : "Paste URL or Image from Clipboard"}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            void addUrl();
+          }
+        }}
+        onBlur={() => void addUrl()}
+        onPaste={(e) => {
+          const files = Array.from(e.clipboardData.files);
+          if (files.length) {
+            e.preventDefault();
+            onAdd(fromFiles(files));
+          }
+        }}
+        className="mt-4 h-[34px] w-full rounded-[4px] border border-input bg-card px-3 text-[12.5px] outline-none placeholder:text-foreground focus:border-foreground"
+      />
     </div>
   );
 }

@@ -21,7 +21,10 @@ export function useFillViewport<T extends HTMLElement>(bottomGap = 21) {
     const ro = new ResizeObserver(apply);
     if (main) ro.observe(main);
     if (main?.parentElement) ro.observe(main.parentElement);
-    return () => { window.removeEventListener("resize", apply); ro.disconnect(); };
+    return () => {
+      window.removeEventListener("resize", apply);
+      ro.disconnect();
+    };
   }, [bottomGap]);
   return ref;
 }

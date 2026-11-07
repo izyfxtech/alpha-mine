@@ -1,5 +1,14 @@
 import { useState } from "react";
-import { eachDayOfInterval, endOfMonth, endOfWeek, format, isSameMonth, parseISO, startOfMonth, startOfWeek } from "date-fns";
+import {
+  eachDayOfInterval,
+  endOfMonth,
+  endOfWeek,
+  format,
+  isSameMonth,
+  parseISO,
+  startOfMonth,
+  startOfWeek,
+} from "date-fns";
 import { useProfile } from "@/lib/profile-settings";
 import { CalendarDays } from "lucide-react";
 import { MonthYearNav } from "@/components/ui/date-picker";
@@ -10,33 +19,89 @@ import { cn } from "@/lib/utils";
  * One "Start date – End date" button that opens a month calendar: first click sets the start, the second
  * click sets the end (clicking an earlier day restarts the range). Values are yyyy-MM-dd strings, "" when unset.
  */
-export function DateRangeButton({ value, onChange, className }: { value: { a: string; b: string }; onChange: (v: { a: string; b: string }) => void; className?: string }) {
+export function DateRangeButton({
+  value,
+  onChange,
+  className,
+}: {
+  value: { a: string; b: string };
+  onChange: (v: { a: string; b: string }) => void;
+  className?: string;
+}) {
   const weekStartsOn = useProfile().settings.weekStartsOn;
   const [open, setOpen] = useState(false);
   const [month, setMonth] = useState(() => (value.a ? parseISO(value.a) : new Date()));
-  const days = eachDayOfInterval({ start: startOfWeek(startOfMonth(month), { weekStartsOn }), end: endOfWeek(endOfMonth(month), { weekStartsOn }) });
+  const days = eachDayOfInterval({
+    start: startOfWeek(startOfMonth(month), { weekStartsOn }),
+    end: endOfWeek(endOfMonth(month), { weekStartsOn }),
+  });
   const pick = (k: string) => {
     if (!value.a || (value.a && value.b) || k < value.a) onChange({ a: k, b: "" });
-    else { onChange({ a: value.a, b: k }); setOpen(false); }
+    else {
+      onChange({ a: value.a, b: k });
+      setOpen(false);
+    }
   };
   const label = value.a ? `${value.a} – ${value.b || "End date"}` : "Start date – End date";
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button type="button" className={cn("flex h-9 items-center gap-2 rounded-md border bg-card px-3 text-[12px]", className)}><CalendarDays className="h-4 w-4" /><span className={cn(!value.a && "text-t4")}>{label}</span></button>
+        <button
+          type="button"
+          className={cn(
+            "flex h-9 items-center gap-2 rounded-md border bg-card px-3 text-[12px]",
+            className,
+          )}
+        >
+          <CalendarDays className="h-4 w-4" />
+          <span className={cn(!value.a && "text-t4")}>{label}</span>
+        </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-[288px] p-3">
         <MonthYearNav month={month} onChange={setMonth} />
-        <div className="grid grid-cols-7 gap-y-1 text-center text-xs text-t4">{(weekStartsOn === 0 ? ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"] : ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]).map((d) => <span key={d}>{d}</span>)}</div>
+        <div className="grid grid-cols-7 gap-y-1 text-center text-xs text-t4">
+          {(weekStartsOn === 0
+            ? ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
+            : ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+          ).map((d) => (
+            <span key={d}>{d}</span>
+          ))}
+        </div>
         <div className="mt-1 grid grid-cols-7 gap-y-1 text-center text-[12px]">
           {days.map((d) => {
             const k = format(d, "yyyy-MM-dd");
             const end = value.b || value.a;
-            const inRange = value.a && k >= value.a && k <= end, edge = k === value.a || k === value.b;
-            return <button key={k} type="button" aria-label={format(d, "EEEE d MMMM yyyy")} aria-pressed={!!(inRange || edge)} onClick={() => pick(k)} className={cn("h-8 rounded-md", !isSameMonth(d, month) && "text-t4", inRange && "bg-muted", edge && "bg-ink font-semibold text-ink-foreground", !inRange && "hover:bg-muted")}>{format(d, "d")}</button>;
+            const inRange = value.a && k >= value.a && k <= end,
+              edge = k === value.a || k === value.b;
+            return (
+              <button
+                key={k}
+                type="button"
+                aria-label={format(d, "EEEE d MMMM yyyy")}
+                aria-pressed={!!(inRange || edge)}
+                onClick={() => pick(k)}
+                className={cn(
+                  "h-8 rounded-md",
+                  !isSameMonth(d, month) && "text-t4",
+                  inRange && "bg-muted",
+                  edge && "bg-ink font-semibold text-ink-foreground",
+                  !inRange && "hover:bg-muted",
+                )}
+              >
+                {format(d, "d")}
+              </button>
+            );
           })}
         </div>
-        <div className="mt-2 flex justify-end"><button type="button" className="text-xs text-t3 underline" onClick={() => onChange({ a: "", b: "" })}>Clear</button></div>
+        <div className="mt-2 flex justify-end">
+          <button
+            type="button"
+            className="text-xs text-t3 underline"
+            onClick={() => onChange({ a: "", b: "" })}
+          >
+            Clear
+          </button>
+        </div>
       </PopoverContent>
     </Popover>
   );

@@ -14,8 +14,8 @@
  * follow the fill they were charged on. Swap follows the CLOSING fill (that is
  * where MT5 books it).
  */
-import { D, Dec, ZERO } from './decimal.ts';
-import type { ClosedTrade, InstrumentSpec, Side } from './types.ts';
+import { D, Dec, ZERO } from "./decimal.ts";
+import type { ClosedTrade, InstrumentSpec, Side } from "./types.ts";
 
 export interface Fill {
   id: string;
@@ -174,7 +174,10 @@ export function matchAverage(fills: Fill[]): MatchResult {
           fillId: fill.id,
         };
       } else {
-        pos.avg = pos.avg.times(pos.lots).plus(fill.price.times(remaining)).div(pos.lots.plus(remaining));
+        pos.avg = pos.avg
+          .times(pos.lots)
+          .plus(fill.price.times(remaining))
+          .div(pos.lots.plus(remaining));
         pos.lots = pos.lots.plus(remaining);
         pos.commissionTotal = pos.commissionTotal.plus(cPer.times(remaining));
         pos.feeTotal = pos.feeTotal.plus(fPer.times(remaining));
@@ -205,7 +208,7 @@ export function segmentToClosedTrade(
   accountCurrency: string,
   id: string,
 ): ClosedTrade {
-  const broker: NonNullable<ClosedTrade['broker']> = {};
+  const broker: NonNullable<ClosedTrade["broker"]> = {};
   if (!seg.commission.isZero()) broker.commission = seg.commission;
   if (!seg.swap.isZero()) broker.swap = seg.swap;
   if (!seg.fee.isZero()) broker.fee = seg.fee;

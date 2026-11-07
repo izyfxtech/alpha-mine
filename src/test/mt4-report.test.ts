@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { parseMtReport, parseMt5Report, MtParseError, readMtRows } from "@/lib/import/mt/parse-report";
+import {
+  parseMtReport,
+  parseMt5Report,
+  MtParseError,
+  readMtRows,
+} from "@/lib/import/mt/parse-report";
 import {
   balanceOpsToCashflows,
   checkCompatibility,

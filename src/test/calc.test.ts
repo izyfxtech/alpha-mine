@@ -8,9 +8,15 @@ const long = { direction: "long", entry_price: 1.085, stop_loss: 1.08, exit_pric
 describe("R is a ratio of prices", () => {
   it("is the same for any instrument and scale", () => {
     expect(rMultiple(long)).toBeCloseTo(1.24, 6);
-    expect(rMultiple({ direction: "long", entry_price: 2350, stop_loss: 2335, exit_price: 2380 })).toBe(2);
-    expect(rMultiple({ direction: "short", entry_price: 100, stop_loss: 105, exit_price: 90 })).toBe(2);
-    expect(rMultiple({ direction: "long", entry_price: 100, stop_loss: 95, exit_price: 95 })).toBe(-1);
+    expect(
+      rMultiple({ direction: "long", entry_price: 2350, stop_loss: 2335, exit_price: 2380 }),
+    ).toBe(2);
+    expect(
+      rMultiple({ direction: "short", entry_price: 100, stop_loss: 105, exit_price: 90 }),
+    ).toBe(2);
+    expect(rMultiple({ direction: "long", entry_price: 100, stop_loss: 95, exit_price: 95 })).toBe(
+      -1,
+    );
   });
   it("is blank, never guessed, without a usable stop or exit", () => {
     expect(rMultiple({ ...long, stop_loss: null })).toBeNull();
@@ -36,13 +42,23 @@ describe("money from the asset class", () => {
     expect(riskMoney({ ...long, quantity: 1 }, specFor("EURGBP"), "USD")).toBeNull();
   });
   it("stocks are price move x shares", () => {
-    expect(riskMoney({ direction: "long", entry_price: 50, stop_loss: 48, quantity: 10 }, specFor("AAPL"), "USD")).toBe(20);
+    expect(
+      riskMoney(
+        { direction: "long", entry_price: 50, stop_loss: 48, quantity: 10 },
+        specFor("AAPL"),
+        "USD",
+      ),
+    ).toBe(20);
   });
 });
 
 describe("catalogue", () => {
   it("classes and units", () => {
-    expect(specFor("XAUUSD.a")).toMatchObject({ assetClass: "metal", unit: "lots", contractSize: 100 });
+    expect(specFor("XAUUSD.a")).toMatchObject({
+      assetClass: "metal",
+      unit: "lots",
+      contractSize: 100,
+    });
     expect(specFor("BTCUSDT")).toMatchObject({ assetClass: "crypto", unit: "units" });
     expect(specFor("GOLD").symbol).toBe("XAUUSD");
     expect(specFor("AAPL")).toMatchObject({ assetClass: "stock", unit: "units", known: false });
@@ -59,15 +75,41 @@ describe("catalogue", () => {
 
 describe("enrichTrade", () => {
   const row = (o: Partial<TradeRow>): TradeRow => ({
-    id: "t", journal_id: "j", instrument_id: "i", setup_id: null, trading_plan_id: null, direction: "long", trade_type: "Spot",
-    entry_at: "2026-01-01T10:00:00Z", exit_at: "2026-01-01T12:00:00Z", entry_price: 1.1, exit_price: 1.11, quantity: 1, stop_loss: 1.095, take_profit: null,
-    high_price: null, low_price: null, otp_hit: null, gross_pnl: 1000, fees: 0, net_pnl: 1000, risk_amount: null, is_favorite: false, notes: null,
-    created_at: "", is_break_even: false, trade_no: 1, ...o,
+    id: "t",
+    journal_id: "j",
+    instrument_id: "i",
+    setup_id: null,
+    trading_plan_id: null,
+    direction: "long",
+    trade_type: "Spot",
+    entry_at: "2026-01-01T10:00:00Z",
+    exit_at: "2026-01-01T12:00:00Z",
+    entry_price: 1.1,
+    exit_price: 1.11,
+    quantity: 1,
+    stop_loss: 1.095,
+    take_profit: null,
+    high_price: null,
+    low_price: null,
+    otp_hit: null,
+    gross_pnl: 1000,
+    fees: 0,
+    net_pnl: 1000,
+    risk_amount: null,
+    is_favorite: false,
+    notes: null,
+    created_at: "",
+    is_break_even: false,
+    trade_no: 1,
+    ...o,
   });
   it("every trade with a stop and exit has R, with or without money context", () => {
     const im = new Map([["i", "EURGBP"]]);
     expect(enrichTrade(row({}), im, new Map(), []).r).toBeCloseTo(2, 6);
-    const t = enrichTrade(row({}), im, new Map(), [], () => ({ spec: specFor("EURGBP"), account: "USD" }));
+    const t = enrichTrade(row({}), im, new Map(), [], () => ({
+      spec: specFor("EURGBP"),
+      account: "USD",
+    }));
     expect(t.r).toBeCloseTo(2, 6);
     expect(t.risk_amount).toBeNull(); // a cross needs a rate: money blank, R fine
   });
@@ -84,7 +126,13 @@ describe("blank R reasons", () => {
 });
 
 describe("initial stop", () => {
-  const trailed = { direction: "short", entry_price: 0.56652, stop_loss: 0.56644, initial_stop: 0.56882, exit_price: 0.56192 };
+  const trailed = {
+    direction: "short",
+    entry_price: 0.56652,
+    stop_loss: 0.56644,
+    initial_stop: 0.56882,
+    exit_price: 0.56192,
+  };
   it("R uses the stop the trade was opened with, not the trailed one", () => {
     expect(rMultiple(trailed)).toBeCloseTo((0.56652 - 0.56192) / (0.56882 - 0.56652), 6); // 2R
     expect(rMultiple({ ...trailed, initial_stop: null })).toBeNull(); // trailed into profit, nothing recorded

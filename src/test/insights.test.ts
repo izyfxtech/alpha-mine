@@ -3,7 +3,20 @@ import { computeInsights } from "@/lib/pnl/insights";
 import type { Trade } from "@/lib/pnl/metrics";
 
 const day = (n: number) => new Date(Date.UTC(2026, 9, n, 10)).toISOString();
-const win = (i: number, entry: string): Trade => ({ id: `t${i}`, instrument: "EURUSD", direction: "long", entry_at: entry, exit_at: entry, exit_price: 1.1, net_pnl: 10, tilt: 0, comments: [], take_profit: null, setup: "S" } as unknown as Trade);
+const win = (i: number, entry: string): Trade =>
+  ({
+    id: `t${i}`,
+    instrument: "EURUSD",
+    direction: "long",
+    entry_at: entry,
+    exit_at: entry,
+    exit_price: 1.1,
+    net_pnl: 10,
+    tilt: 0,
+    comments: [],
+    take_profit: null,
+    setup: "S",
+  }) as unknown as Trade;
 
 describe("computeInsights", () => {
   // Five wins in a row on 1–5 Oct 2026, plus five more on 20–24 Oct.
@@ -14,7 +27,9 @@ describe("computeInsights", () => {
 
   it("only reports recent events, so an imported history does not flood the bell", () => {
     const all = computeInsights([...old, gap, ...recent], NOW);
-    expect(all.filter((i) => i.title === "5 Wins in a Row!").map((i) => i.tradeId)).toEqual(["t14"]);
+    expect(all.filter((i) => i.title === "5 Wins in a Row!").map((i) => i.tradeId)).toEqual([
+      "t14",
+    ]);
   });
   it("still counts old trades towards streaks and can be widened", () => {
     expect(computeInsights(old, NOW, 365).some((i) => i.title === "5 Wins in a Row!")).toBe(true);

@@ -1,7 +1,23 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -51,33 +67,43 @@ export function DialogProvider({ children }: { children: ReactNode }) {
   // The ref mirrors `pending` and is only written where the state is set (never during render), so a second question
   // asked in the same tick still finds and cancels the first.
   const current = useRef<Pending | null>(null);
-  const show = useCallback((p: Pending | null) => { current.current = p; setPending(p); }, []);
+  const show = useCallback((p: Pending | null) => {
+    current.current = p;
+    setPending(p);
+  }, []);
 
   // Asking while another question is open cancels the first one, so no promise is ever left hanging.
   const cancelOpen = useCallback(() => {
     const p = current.current;
     if (!p) return;
-    if (p.kind === "confirm") p.resolve(false); else p.resolve(null);
+    if (p.kind === "confirm") p.resolve(false);
+    else p.resolve(null);
   }, []);
 
-  const api = useMemo<DialogApi>(() => ({
-    confirm: (o) => new Promise<boolean>((resolve) => {
-      cancelOpen();
-      show({ kind: "confirm", opts: typeof o === "string" ? { message: o } : o, resolve });
+  const api = useMemo<DialogApi>(
+    () => ({
+      confirm: (o) =>
+        new Promise<boolean>((resolve) => {
+          cancelOpen();
+          show({ kind: "confirm", opts: typeof o === "string" ? { message: o } : o, resolve });
+        }),
+      prompt: (o) =>
+        new Promise<string | null>((resolve) => {
+          cancelOpen();
+          const opts = typeof o === "string" ? { title: o } : o;
+          setText(opts.defaultValue ?? "");
+          show({ kind: "prompt", opts, resolve });
+        }),
     }),
-    prompt: (o) => new Promise<string | null>((resolve) => {
-      cancelOpen();
-      const opts = typeof o === "string" ? { title: o } : o;
-      setText(opts.defaultValue ?? "");
-      show({ kind: "prompt", opts, resolve });
-    }),
-  }), [cancelOpen, show]);
+    [cancelOpen, show],
+  );
 
   const close = (result: boolean | string | null) => {
     const p = current.current;
     if (!p) return;
     show(null);
-    if (p.kind === "confirm") p.resolve(result === true); else p.resolve(typeof result === "string" ? result : null);
+    if (p.kind === "confirm") p.resolve(result === true);
+    else p.resolve(typeof result === "string" ? result : null);
   };
 
   // Leaving the page while a question is open counts as "no".
@@ -86,8 +112,18 @@ export function DialogProvider({ children }: { children: ReactNode }) {
   return (
     <Ctx.Provider value={api}>
       {children}
-      <Dialog open={!!pending} onOpenChange={(open) => { if (!open) close(pending?.kind === "prompt" ? null : false); }}>
-        <DialogContent className="max-w-md" onOpenAutoFocus={(e) => { if (pending?.kind === "confirm") e.preventDefault(); }}>
+      <Dialog
+        open={!!pending}
+        onOpenChange={(open) => {
+          if (!open) close(pending?.kind === "prompt" ? null : false);
+        }}
+      >
+        <DialogContent
+          className="max-w-md"
+          onOpenAutoFocus={(e) => {
+            if (pending?.kind === "confirm") e.preventDefault();
+          }}
+        >
           {pending?.kind === "confirm" && (
             <>
               <DialogHeader>
@@ -95,21 +131,48 @@ export function DialogProvider({ children }: { children: ReactNode }) {
                 <DialogDescription>{pending.opts.message}</DialogDescription>
               </DialogHeader>
               <DialogFooter className="gap-2 sm:gap-0">
-                <Button variant="outline" onClick={() => close(false)}>{pending.opts.cancelLabel ?? "Cancel"}</Button>
-                <Button autoFocus variant={pending.opts.destructive ? "destructive" : "ink"} onClick={() => close(true)}>{pending.opts.confirmLabel ?? (pending.opts.destructive ? "Delete" : "Confirm")}</Button>
+                <Button variant="outline" onClick={() => close(false)}>
+                  {pending.opts.cancelLabel ?? "Cancel"}
+                </Button>
+                <Button
+                  autoFocus
+                  variant={pending.opts.destructive ? "destructive" : "ink"}
+                  onClick={() => close(true)}
+                >
+                  {pending.opts.confirmLabel ?? (pending.opts.destructive ? "Delete" : "Confirm")}
+                </Button>
               </DialogFooter>
             </>
           )}
           {pending?.kind === "prompt" && (
-            <form onSubmit={(e) => { e.preventDefault(); close(text); }} className="grid gap-4">
-              <DialogHeader><DialogTitle>{pending.opts.title}</DialogTitle></DialogHeader>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                close(text);
+              }}
+              className="grid gap-4"
+            >
+              <DialogHeader>
+                <DialogTitle>{pending.opts.title}</DialogTitle>
+              </DialogHeader>
               <label className="grid gap-1.5 text-sm">
-                {pending.opts.label && <span className="text-xs text-muted-foreground">{pending.opts.label}</span>}
-                <Input autoFocus value={text} placeholder={pending.opts.placeholder} onChange={(e) => setText(e.target.value)} />
+                {pending.opts.label && (
+                  <span className="text-xs text-muted-foreground">{pending.opts.label}</span>
+                )}
+                <Input
+                  autoFocus
+                  value={text}
+                  placeholder={pending.opts.placeholder}
+                  onChange={(e) => setText(e.target.value)}
+                />
               </label>
               <DialogFooter className="gap-2 sm:gap-0">
-                <Button type="button" variant="outline" onClick={() => close(null)}>Cancel</Button>
-                <Button type="submit" variant="ink">{pending.opts.confirmLabel ?? "OK"}</Button>
+                <Button type="button" variant="outline" onClick={() => close(null)}>
+                  Cancel
+                </Button>
+                <Button type="submit" variant="ink">
+                  {pending.opts.confirmLabel ?? "OK"}
+                </Button>
               </DialogFooter>
             </form>
           )}

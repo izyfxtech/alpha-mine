@@ -6,11 +6,11 @@
 
 /** How the broker's server clock relates to UTC. */
 export type ServerTz =
-  | { kind: 'fixed'; offsetMinutes: number }
+  | { kind: "fixed"; offsetMinutes: number }
   /** The dominant FX convention: GMT+2 in winter, GMT+3 during US DST ("New York close" servers). */
-  | { kind: 'ny-close' }
+  | { kind: "ny-close" }
   /** Server follows an IANA zone's own DST rules, e.g. "Europe/Athens" (EET/EEST, EU DST). */
-  | { kind: 'iana'; zone: string };
+  | { kind: "iana"; zone: string };
 
 const dtfCache = new Map<string, Intl.DateTimeFormat>();
 
@@ -18,23 +18,30 @@ const dtfCache = new Map<string, Intl.DateTimeFormat>();
 export function zoneOffsetMs(zone: string, utcMs: number): number {
   let f = dtfCache.get(zone);
   if (!f) {
-    f = new Intl.DateTimeFormat('en-US', {
+    f = new Intl.DateTimeFormat("en-US", {
       timeZone: zone,
-      hourCycle: 'h23',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
+      hourCycle: "h23",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
     });
     dtfCache.set(zone, f);
   }
   const p: Record<string, number> = {};
   for (const part of f.formatToParts(new Date(utcMs))) {
-    if (part.type !== 'literal') p[part.type] = Number(part.value);
+    if (part.type !== "literal") p[part.type] = Number(part.value);
   }
-  const asUtc = Date.UTC(p['year']!, p['month']! - 1, p['day']!, p['hour']!, p['minute']!, p['second']!);
+  const asUtc = Date.UTC(
+    p["year"]!,
+    p["month"]! - 1,
+    p["day"]!,
+    p["hour"]!,
+    p["minute"]!,
+    p["second"]!,
+  );
   return asUtc - Math.floor(utcMs / 1000) * 1000;
 }
 
@@ -65,11 +72,11 @@ function nthSundayMs(year: number, monthIdx: number, n: number): number {
  */
 export function serverWallToUtcMs(serverWallMs: number, tz: ServerTz): number {
   switch (tz.kind) {
-    case 'fixed':
+    case "fixed":
       return serverWallMs - tz.offsetMinutes * 60_000;
-    case 'iana':
+    case "iana":
       return zoneWallToUtcMs(tz.zone, serverWallMs);
-    case 'ny-close': {
+    case "ny-close": {
       const y = new Date(serverWallMs).getUTCFullYear();
       const dstStart = nthSundayMs(y, 2, 2);
       const dstEnd = nthSundayMs(y, 10, 1);
@@ -81,8 +88,8 @@ export function serverWallToUtcMs(serverWallMs: number, tz: ServerTz): number {
 
 /** ECB reference rates are published ~16:00 Central European Time on TARGET business days. */
 export function ecbFixingUtcMs(dateIso: string): number {
-  const [y, m, d] = dateIso.split('-').map(Number) as [number, number, number];
-  return zoneWallToUtcMs('Europe/Berlin', Date.UTC(y, m - 1, d, 16, 0, 0));
+  const [y, m, d] = dateIso.split("-").map(Number) as [number, number, number];
+  return zoneWallToUtcMs("Europe/Berlin", Date.UTC(y, m - 1, d, 16, 0, 0));
 }
 
 export function isoDateUtc(ms: number): string {
@@ -90,12 +97,12 @@ export function isoDateUtc(ms: number): string {
 }
 
 export function addDaysIso(dateIso: string, days: number): string {
-  const [y, m, d] = dateIso.split('-').map(Number) as [number, number, number];
+  const [y, m, d] = dateIso.split("-").map(Number) as [number, number, number];
   return isoDateUtc(Date.UTC(y, m - 1, d + days));
 }
 
 export function isWeekendIso(dateIso: string): boolean {
-  const [y, m, d] = dateIso.split('-').map(Number) as [number, number, number];
+  const [y, m, d] = dateIso.split("-").map(Number) as [number, number, number];
   const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
   return dow === 0 || dow === 6;
 }

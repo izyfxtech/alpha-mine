@@ -1,5 +1,5 @@
-import { ONE } from '../decimal.ts';
-import type { RateObservation, RateProvider } from './types.ts';
+import { ONE } from "../decimal.ts";
+import type { RateObservation, RateProvider } from "./types.ts";
 
 export interface ResolverOptions {
   /** Priority order: most accurate first. The first provider able to price the pair wins. */
@@ -32,7 +32,7 @@ export class RateResolver {
 
   constructor(opts: ResolverOptions) {
     this.providers = opts.providers;
-    this.pivots = (opts.pivots ?? ['USD', 'EUR']).map((c) => c.toUpperCase());
+    this.pivots = (opts.pivots ?? ["USD", "EUR"]).map((c) => c.toUpperCase());
     this.onErr = opts.onProviderError ?? (() => undefined);
   }
 
@@ -40,7 +40,15 @@ export class RateResolver {
     const f = from.toUpperCase();
     const t = to.toUpperCase();
     if (f === t) {
-      return { base: f, quote: t, rate: ONE, observedAtMs: atMs, source: 'identity', kind: 'derived', side: 'mid' };
+      return {
+        base: f,
+        quote: t,
+        rate: ONE,
+        observedAtMs: atMs,
+        source: "identity",
+        kind: "derived",
+        side: "mid",
+      };
     }
     for (const p of this.providers) {
       try {
@@ -53,7 +61,12 @@ export class RateResolver {
     return null;
   }
 
-  private async viaProvider(p: RateProvider, f: string, t: string, atMs: number): Promise<RateObservation | null> {
+  private async viaProvider(
+    p: RateProvider,
+    f: string,
+    t: string,
+    atMs: number,
+  ): Promise<RateObservation | null> {
     const direct = await this.directOrInverse(p, f, t, atMs);
     if (direct) return direct;
 
@@ -70,15 +83,20 @@ export class RateResolver {
         // A chain is only as fresh as its stalest link.
         observedAtMs: Math.min(leg1.observedAtMs, leg2.observedAtMs),
         source: p.name,
-        kind: 'derived',
-        side: leg1.side === leg2.side ? leg1.side : 'unspecified',
+        kind: "derived",
+        side: leg1.side === leg2.side ? leg1.side : "unspecified",
         lineage: [leg1, leg2],
       };
     }
     return null;
   }
 
-  private async directOrInverse(p: RateProvider, f: string, t: string, atMs: number): Promise<RateObservation | null> {
+  private async directOrInverse(
+    p: RateProvider,
+    f: string,
+    t: string,
+    atMs: number,
+  ): Promise<RateObservation | null> {
     const d = await this.fetchChecked(p, f, t, atMs);
     if (d) return d;
     const i = await this.fetchChecked(p, t, f, atMs);
@@ -89,15 +107,20 @@ export class RateResolver {
       rate: ONE.div(i.rate),
       observedAtMs: i.observedAtMs,
       source: i.source,
-      kind: 'derived',
+      kind: "derived",
       // Inverting swaps bid<->ask.
-      side: i.side === 'bid' ? 'ask' : i.side === 'ask' ? 'bid' : i.side,
+      side: i.side === "bid" ? "ask" : i.side === "ask" ? "bid" : i.side,
       lineage: [i],
     };
   }
 
   /** Enforce the provider contract: positive rate, no look-ahead, inside staleness window. */
-  private async fetchChecked(p: RateProvider, b: string, q: string, atMs: number): Promise<RateObservation | null> {
+  private async fetchChecked(
+    p: RateProvider,
+    b: string,
+    q: string,
+    atMs: number,
+  ): Promise<RateObservation | null> {
     const o = await p.get(b, q, atMs);
     if (!o) return null;
     if (!o.rate.isFinite() || o.rate.lte(0)) return null;

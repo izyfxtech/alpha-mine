@@ -2,14 +2,21 @@ import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
 
-vi.mock("@/lib/profile-settings", () => ({ useProfile: () => ({ settings: { weekStartsOn: 1 } }) }));
+vi.mock("@/lib/profile-settings", () => ({
+  useProfile: () => ({ settings: { weekStartsOn: 1 } }),
+}));
 
 import { CalendarPanel } from "@/components/ui/date-picker";
 import { DialogProvider, useDialogs } from "@/components/ui/confirm";
 
 function Panel({ initial = "", withTime = false }: { initial?: string; withTime?: boolean }) {
   const [v, setV] = useState(initial);
-  return <><CalendarPanel value={v} withTime={withTime} onChange={setV} /><output data-testid="v">{v}</output></>;
+  return (
+    <>
+      <CalendarPanel value={v} withTime={withTime} onChange={setV} />
+      <output data-testid="v">{v}</output>
+    </>
+  );
 }
 
 describe("CalendarPanel", () => {
@@ -23,7 +30,9 @@ describe("CalendarPanel", () => {
   });
   it("marks the picked day and shows a leading/trailing month's days", () => {
     render(<Panel initial="2026-02-10" />);
-    expect(screen.getByLabelText("Tuesday 10 February 2026").getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByLabelText("Tuesday 10 February 2026").getAttribute("aria-pressed")).toBe(
+      "true",
+    );
   });
   it("with time: picking a day keeps the time, and the seconds already on the value", () => {
     render(<Panel initial="2026-02-10T09:30:15" withTime />);
@@ -43,8 +52,20 @@ function Ask({ onResult }: { onResult: (v: unknown) => void }) {
   const { confirm, prompt } = useDialogs();
   return (
     <>
-      <button onClick={async () => onResult(await confirm({ title: "Delete it?", message: "Gone for good.", destructive: true }))}>ask</button>
-      <button onClick={async () => onResult(await prompt({ title: "Folder", defaultValue: "Old" }))}>name</button>
+      <button
+        onClick={async () =>
+          onResult(
+            await confirm({ title: "Delete it?", message: "Gone for good.", destructive: true }),
+          )
+        }
+      >
+        ask
+      </button>
+      <button
+        onClick={async () => onResult(await prompt({ title: "Folder", defaultValue: "Old" }))}
+      >
+        name
+      </button>
     </>
   );
 }
@@ -52,7 +73,11 @@ function Ask({ onResult }: { onResult: (v: unknown) => void }) {
 describe("in-app confirm and prompt", () => {
   it("confirm resolves true on the confirm button and false on cancel", async () => {
     const onResult = vi.fn();
-    render(<DialogProvider><Ask onResult={onResult} /></DialogProvider>);
+    render(
+      <DialogProvider>
+        <Ask onResult={onResult} />
+      </DialogProvider>,
+    );
     fireEvent.click(screen.getByText("ask"));
     expect(await screen.findByText("Gone for good.")).toBeTruthy();
     fireEvent.click(screen.getByText("Delete"));
@@ -63,7 +88,11 @@ describe("in-app confirm and prompt", () => {
   });
   it("prompt returns the typed text, or null when cancelled", async () => {
     const onResult = vi.fn();
-    render(<DialogProvider><Ask onResult={onResult} /></DialogProvider>);
+    render(
+      <DialogProvider>
+        <Ask onResult={onResult} />
+      </DialogProvider>,
+    );
     fireEvent.click(screen.getByText("name"));
     const input = (await screen.findByDisplayValue("Old")) as HTMLInputElement;
     fireEvent.change(input, { target: { value: "New" } });

@@ -14,15 +14,25 @@ const SYMBOLS: [string, number, number][] = [
 /** Fills a journal with ~120 realistic sample trades over the past 4 months. */
 export async function seedDemoTrades(journalId: string) {
   if (!import.meta.env.DEV) throw new Error("Reference fixtures are development-only");
-  const { data: existing } = await supabase.from("instruments").select("id,symbol").eq("journal_id", journalId);
+  const { data: existing } = await supabase
+    .from("instruments")
+    .select("id,symbol")
+    .eq("journal_id", journalId);
   const have = new Map((existing ?? []).map((i) => [i.symbol, i.id]));
-  const missing = SYMBOLS.filter(([s]) => !have.has(s)).map(([symbol]) => ({ symbol, asset_class: inferAssetClass(symbol), journal_id: journalId }));
+  const missing = SYMBOLS.filter(([s]) => !have.has(s)).map(([symbol]) => ({
+    symbol,
+    asset_class: inferAssetClass(symbol),
+    journal_id: journalId,
+  }));
   if (missing.length) {
     const { data } = await supabase.from("instruments").insert(missing).select("id,symbol");
     data?.forEach((i) => have.set(i.symbol, i.id));
   }
   const { data: setups } = await supabase.from("setups").select("id").eq("journal_id", journalId);
-  const { data: comments } = await supabase.from("comment_definitions").select("id,phase,sentiment").eq("journal_id", journalId);
+  const { data: comments } = await supabase
+    .from("comment_definitions")
+    .select("id,phase,sentiment")
+    .eq("journal_id", journalId);
 
   const rows = [];
   const now = Date.now();
@@ -39,7 +49,8 @@ export async function seedDemoTrades(journalId: string) {
     const riskUsd = 70 + Math.random() * 90;
     const qty = +(riskUsd / stopDist).toPrecision(3) || baseQty;
     const u = Math.random();
-    const rMult = u < 0.03 ? 0 : u < 0.6 ? 0.4 + Math.random() * 1.8 : -(0.5 + Math.random() * 0.55);
+    const rMult =
+      u < 0.03 ? 0 : u < 0.6 ? 0.4 + Math.random() * 1.8 : -(0.5 + Math.random() * 0.55);
     const move = stopDist * rMult * (dir === "long" ? 1 : -1);
     const exit = px + move;
     const gross = +((exit - px) * qty * (dir === "long" ? 1 : -1)).toFixed(2);
@@ -47,7 +58,10 @@ export async function seedDemoTrades(journalId: string) {
     rows.push({
       journal_id: journalId,
       instrument_id: have.get(sym)!,
-      setup_id: setups?.length && Math.random() > 0.15 ? setups[Math.floor(Math.random() * setups.length)]!.id : null,
+      setup_id:
+        setups?.length && Math.random() > 0.15
+          ? setups[Math.floor(Math.random() * setups.length)]!.id
+          : null,
       direction: dir,
       entry_at: entry.toISOString(),
       exit_at: new Date(entry.getTime() + hold).toISOString(),
@@ -73,8 +87,15 @@ export async function seedDemoTrades(journalId: string) {
     inserted.forEach((t) => {
       for (const phase of ["entry", "management", "exit"]) {
         const good = Number(t.net_pnl) > 0 ? Math.random() < 0.75 : Math.random() < 0.35;
-        const pool = comments.filter((c) => c.phase === phase && c.sentiment === (good ? "positive" : "negative"));
-        if (pool.length) tc.push({ trade_id: t.id, comment_definition_id: pool[Math.floor(Math.random() * pool.length)].id, journal_id: journalId });
+        const pool = comments.filter(
+          (c) => c.phase === phase && c.sentiment === (good ? "positive" : "negative"),
+        );
+        if (pool.length)
+          tc.push({
+            trade_id: t.id,
+            comment_definition_id: pool[Math.floor(Math.random() * pool.length)].id,
+            journal_id: journalId,
+          });
       }
     });
     await supabase.from("trade_comments").insert(tc);

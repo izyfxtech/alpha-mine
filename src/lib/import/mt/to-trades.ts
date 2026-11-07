@@ -10,15 +10,8 @@
  *  - external_id = the position (MT5) or order (MT4) ticket, the idempotency key behind the
  *                 (journal_id, external_id) unique index.
  */
-import {
-  serverWallToUtcMs,
-  type ServerTz,
-} from "@engine/time.ts";
-import type {
-  MtPlatform,
-  MtPosition,
-  MtReport,
-} from "@shared/mt/index.ts";
+import { serverWallToUtcMs, type ServerTz } from "@engine/time.ts";
+import type { MtPlatform, MtPosition, MtReport } from "@shared/mt/index.ts";
 
 export interface JournalLink {
   currency: string;
@@ -72,14 +65,25 @@ export function mismatchRisks(reason: string): string[] {
     "Trades, balance, drawdown and every statistic of this journal will mix numbers from different sources.",
     "Deposits and withdrawals from this report are added to this journal's balance as well.",
   ];
-  if (/currency/i.test(reason)) out.unshift("Amounts are in a different currency and will be read as if they were in this journal's currency, with no conversion.");
-  if (/report is for account|is an? .* report/i.test(reason)) out.push("Ticket numbers are only unique within one account. They are prefixed with the account number so they cannot overwrite each other, but removing a report later means deleting its trades by hand.");
-  if (/linked to another journal/i.test(reason)) out.push("The same trades will exist in two journals, so any combined view double counts them.");
+  if (/currency/i.test(reason))
+    out.unshift(
+      "Amounts are in a different currency and will be read as if they were in this journal's currency, with no conversion.",
+    );
+  if (/report is for account|is an? .* report/i.test(reason))
+    out.push(
+      "Ticket numbers are only unique within one account. They are prefixed with the account number so they cannot overwrite each other, but removing a report later means deleting its trades by hand.",
+    );
+  if (/linked to another journal/i.test(reason))
+    out.push(
+      "The same trades will exist in two journals, so any combined view double counts them.",
+    );
   return out;
 }
 
 export function isMismatchError(message: string): boolean {
-  return /report is for account|is an? .* report, but this journal|report is in .*journal currency|already linked to another journal|has no account number, but this journal is linked/i.test(message);
+  return /report is for account|is an? .* report, but this journal|report is in .*journal currency|already linked to another journal|has no account number, but this journal is linked/i.test(
+    message,
+  );
 }
 
 export interface TradeInsertRow {
@@ -229,7 +233,10 @@ export interface ImportPayload {
 export function toImportPayload(
   report: MtReport,
   tz: ServerTz,
-  opts: { withCashflows?: boolean; /** Prefix for every ticket / deal id, so a report of another account cannot collide with the journal's own tickets. */ namespace?: string } = {},
+  opts: {
+    withCashflows?: boolean;
+    /** Prefix for every ticket / deal id, so a report of another account cannot collide with the journal's own tickets. */ namespace?: string;
+  } = {},
 ): ImportPayload {
   const ns = (id: string) => (opts.namespace ? `${opts.namespace}:${id}` : id);
   const positions = report.positions.map((p): PositionPayload => {
