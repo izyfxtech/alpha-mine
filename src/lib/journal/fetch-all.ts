@@ -15,6 +15,12 @@ type Page<T> = PromiseLike<{
   error: { message: string } | null;
 }>;
 
+/**
+ * States the row type of a query whose column list is a run-time string. The client derives row types by parsing the column
+ * list, and for a string it cannot parse it falls back to an error type, so the caller says what the rows are.
+ */
+export const asPage = <T>(query: PromiseLike<unknown>) => query as Page<T>;
+
 export const countOption = (first: boolean) => (first ? ({ count: "exact" } as const) : undefined);
 
 export async function fetchAllRows<T>(

@@ -1,3 +1,4 @@
+import { fromTable } from "@/lib/journal/untyped-table";
 import { syncLinks } from "@/lib/journal/sync-links";
 import { storageJson, storageSet } from "@/lib/safe-storage";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
@@ -292,10 +293,7 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
     );
     const reuse = async (id: string, disabled?: boolean) => {
       if (disabled) {
-        const { error } = await supabase
-          .from(table)
-          .update({ disabled: false } as never)
-          .eq("id", id);
+        const { error } = await supabase.from(table).update({ disabled: false }).eq("id", id);
         if (error) {
           toast.error(`Could not bring back "${value}": ${error.message}`);
           return null;
@@ -305,7 +303,7 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
       return id;
     };
     if (existing) return reuse(existing.id, (existing as { disabled?: boolean }).disabled);
-    const row =
+    const row: Record<string, unknown> =
       table === "instruments"
         ? {
             symbol: value,
@@ -313,11 +311,7 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
             journal_id: journal.id,
           }
         : { name: value, journal_id: journal.id };
-    const { data, error } = await supabase
-      .from(table)
-      .insert(row as never)
-      .select("id")
-      .single();
+    const { data, error } = await fromTable(table).insert(row).select("id").single();
     if (error) {
       if (error.code === "23505") {
         // Created a moment ago in another tab or by a retry: find it and use it.

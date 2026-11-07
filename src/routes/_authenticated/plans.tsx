@@ -133,7 +133,7 @@ function PlansPage() {
         take_profit: n(p.take_profit),
         notes: p.notes,
         customStats: statLinks.filter((l) => l.planned_trade_id === p.id).map((l) => l.option_id),
-      } as never,
+      },
       onSaved: async () => {
         await t.remove(p.id);
         qc.invalidateQueries({ queryKey: ["planned_trades"] });
@@ -378,7 +378,7 @@ function PlansPage() {
               const { supabase } = await import("@/integrations/supabase/client");
               const { data, error } = await supabase
                 .from("missed_trades")
-                .insert({ ...v, journal_id: journal!.id } as never)
+                .insert({ ...v, journal_id: journal!.id })
                 .select("id")
                 .single();
               if (error) {
