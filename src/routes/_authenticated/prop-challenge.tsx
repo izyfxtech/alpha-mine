@@ -111,7 +111,7 @@ function PropChallengePage() {
           row={c}
           trades={all}
           currency={journal.currency}
-          onSave={(rules) => table.update(c.id, { rules: rules as never })}
+          onSave={(rules) => table.update(c.id, { rules: rules })}
           onDelete={async () => {
             if (
               await confirm({
@@ -156,7 +156,7 @@ function CreateForm({
             start_balance: bal,
             started_on: started || null,
             time_zone: zone,
-            rules: rules as never,
+            rules: rules,
           });
         }}
       >

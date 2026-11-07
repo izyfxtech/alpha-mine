@@ -63,15 +63,14 @@ function useResults(journalId?: string) {
         trade_id: string;
         alt_profit: number;
         alt_r: number;
-      }>(
-        (from, to, first) =>
-          supabase
-            .from("alt_strategy_results")
-            .select("strategy_id,trade_id,alt_profit,alt_r", countOption(first))
-            .eq("journal_id", journalId!)
-            .order("strategy_id")
-            .order("trade_id")
-            .range(from, to) as never,
+      }>((from, to, first) =>
+        supabase
+          .from("alt_strategy_results")
+          .select("strategy_id,trade_id,alt_profit,alt_r", countOption(first))
+          .eq("journal_id", journalId!)
+          .order("strategy_id")
+          .order("trade_id")
+          .range(from, to),
       );
       return data.map((r) => ({
         ...r,

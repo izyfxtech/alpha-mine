@@ -36,7 +36,7 @@ export function useScreenshots(journalId?: string, tradeId?: string) {
             .order("created_at", { ascending: false })
             .order("id");
           if (tradeId) q = q.eq("trade_id", tradeId);
-          return q.range(from, to) as never;
+          return q.range(from, to);
         },
       );
       if (!data.length) return [];

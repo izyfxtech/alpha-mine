@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { fromTable } from "@/lib/journal/untyped-table";
 import { countOption, fetchAllRows } from "@/lib/journal/fetch-all";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -23,6 +23,8 @@ export type TableName =
   | "prop_challenges"
   | "trading_rules";
 export type Row<T extends TableName> = Tables[T]["Row"];
+/** Columns to change on a row of table T. Spread over a union of tables, so a helper bound to several tables accepts a patch for any of them. */
+export type RowPatch<T extends TableName> = T extends TableName ? Partial<Row<T>> : never;
 
 /** Journal-scoped list + insert/update/delete helpers for simple tables. */
 /** Tables behind the pickers (instruments, setups, tags, rules, plans). */
@@ -60,8 +62,7 @@ export function useJournalTable<T extends TableName>(
     queryFn: async () => {
       // Every row (not just the first Max Rows), ordered with `id` as the tiebreaker so pages never repeat or skip.
       const rows = await fetchAllRows<Row<T>>((from, to, first) =>
-        (supabase as any)
-          .from(table)
+        fromTable(table)
           .select("*", countOption(first))
           .eq("journal_id", journalId!)
           .order(orderBy, { ascending })
@@ -87,20 +88,18 @@ export function useJournalTable<T extends TableName>(
   return {
     rows: q.data ?? [],
     isLoading: q.isLoading,
-    insert: async (values: Partial<Row<T>>) => {
-      const { data, error } = await (supabase as any)
-        .from(table)
-        .insert({ ...values, journal_id: journalId } as never)
+    insert: async (values: RowPatch<T>) => {
+      const { data, error } = await fromTable(table)
+        .insert({ ...values, journal_id: journalId })
         .select()
         .single();
       if (!fail(error)) done();
       return data as unknown as Row<T> | null;
     },
     /** Returns whether it worked, so a sheet can stay open (keeping what was typed) when it did not. */
-    update: async (id: string, values: Partial<Row<T>>): Promise<boolean> => {
-      const { error } = await (supabase as any)
-        .from(table)
-        .update(values as never)
+    update: async (id: string, values: RowPatch<T>): Promise<boolean> => {
+      const { error } = await fromTable(table)
+        .update(values as Record<string, unknown>)
         .eq("id", id);
       if (fail(error)) return false;
       done();
@@ -116,9 +115,7 @@ export function useJournalTable<T extends TableName>(
       if (i < 0 || j < 0 || j >= rows.length) return;
       [rows[i], rows[j]] = [rows[j], rows[i]];
       const results = await Promise.all(
-        rows.map((r, position) =>
-          (supabase as any).from(table).update({ position }).eq("id", r.id),
-        ),
+        rows.map((r, position) => fromTable(table).update({ position }).eq("id", r.id)),
       );
       if (!fail(results.find((r: { error: { message: string } | null }) => r.error)?.error ?? null))
         done();
@@ -126,16 +123,14 @@ export function useJournalTable<T extends TableName>(
     /** Persist a drag-and-drop order: every id gets position = its index in the given list. */
     reorder: async (orderedIds: string[]) => {
       const results = await Promise.all(
-        orderedIds.map((id, position) =>
-          (supabase as any).from(table).update({ position }).eq("id", id),
-        ),
+        orderedIds.map((id, position) => fromTable(table).update({ position }).eq("id", id)),
       );
       if (!fail(results.find((r: { error: { message: string } | null }) => r.error)?.error ?? null))
         done();
     },
     /** Deletes one row. Returns whether it worked, so callers never act as if a failed delete had succeeded. */
     remove: async (id: string): Promise<boolean> => {
-      const { error } = await (supabase as any).from(table).delete().eq("id", id);
+      const { error } = await fromTable(table).delete().eq("id", id);
       if (fail(error)) return false;
       done();
       return true;

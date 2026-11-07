@@ -1,3 +1,4 @@
+import { fromTable } from "@/lib/journal/untyped-table";
 import { useDialogs } from "@/components/ui/confirm";
 import { assetClassFor as inferAssetClass } from "@/lib/pnl/instrument-catalogue";
 import { useMemo, useState } from "react";
@@ -202,8 +203,7 @@ export function ImportDialog({
         );
         const fresh = [...new Set(names.filter((n): n is string => !!n && !ids.has(n)))];
         if (fresh.length) {
-          const { data, error: e2 } = await supabase
-            .from(table)
+          const { data, error: e2 } = await fromTable(table)
             .insert(
               fresh.map((n) => ({
                 [column]: n,
@@ -211,7 +211,7 @@ export function ImportDialog({
                   ? { asset_class: inferAssetClass(n, journal.markets) }
                   : {}),
                 journal_id: journal.id,
-              })) as never,
+              })),
             )
             .select(`id,${column}`);
           if (e2) throw e2;

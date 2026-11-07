@@ -70,7 +70,7 @@ function Portfolio() {
             .select("id,journal_id,occurred_on,amount", countOption(first))
             .in("journal_id", ids)
             .order("id")
-            .range(from, to) as never,
+            .range(from, to),
       ),
   });
   // Portfolio works in % of each journal's own balance before the trade (deposits included), so different currencies and

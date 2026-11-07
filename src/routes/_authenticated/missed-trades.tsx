@@ -77,15 +77,14 @@ function MissedTrades() {
     queryKey: ["missed_trade_custom_stats", journal?.id],
     enabled: !!journal,
     queryFn: () =>
-      fetchAllRows<{ missed_trade_id: string; option_id: string }>(
-        (from, to, first) =>
-          supabase
-            .from("missed_trade_custom_stats")
-            .select("missed_trade_id,option_id", countOption(first))
-            .eq("journal_id", journal?.id ?? "")
-            .order("missed_trade_id")
-            .order("option_id")
-            .range(from, to) as never,
+      fetchAllRows<{ missed_trade_id: string; option_id: string }>((from, to, first) =>
+        supabase
+          .from("missed_trade_custom_stats")
+          .select("missed_trade_id,option_id", countOption(first))
+          .eq("journal_id", journal?.id ?? "")
+          .order("missed_trade_id")
+          .order("option_id")
+          .range(from, to),
       ),
   });
   const { data: lk0 } = useLookups(journal?.id);

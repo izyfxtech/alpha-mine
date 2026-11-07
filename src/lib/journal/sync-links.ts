@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { fromTable } from "@/lib/journal/untyped-table";
 
 /**
  * Make the tag links of one record equal `wanted`, safely: missing links are added first, then the ones no longer wanted are removed.
@@ -12,23 +12,25 @@ export async function syncLinks(
   wanted: string[],
   valueColumn = "option_id",
 ): Promise<string | null> {
-  const db = supabase as unknown as { from: (t: string) => any };
-  const cur = await db.from(table).select(valueColumn).eq(ownerColumn, ownerId);
+  const cur = await fromTable(table).select(valueColumn).eq(ownerColumn, ownerId);
   if (cur.error) return cur.error.message;
-  const have = new Set<string>((cur.data ?? []).map((r: Record<string, string>) => r[valueColumn]));
+  const have = new Set<string>(
+    ((cur.data ?? []) as unknown as Record<string, string>[]).map((r) => r[valueColumn]),
+  );
   const want = new Set(wanted);
   const add = [...want].filter((id) => !have.has(id));
   const drop = [...have].filter((id) => !want.has(id));
   if (add.length) {
-    const { error } = await db
-      .from(table)
-      .insert(
-        add.map((v) => ({ [ownerColumn]: ownerId, [valueColumn]: v, journal_id: journalId })),
-      );
+    const { error } = await fromTable(table).insert(
+      add.map((v) => ({ [ownerColumn]: ownerId, [valueColumn]: v, journal_id: journalId })),
+    );
     if (error) return error.message;
   }
   if (drop.length) {
-    const { error } = await db.from(table).delete().eq(ownerColumn, ownerId).in(valueColumn, drop);
+    const { error } = await fromTable(table)
+      .delete()
+      .eq(ownerColumn, ownerId)
+      .in(valueColumn, drop);
     if (error) return error.message;
   }
   return null;

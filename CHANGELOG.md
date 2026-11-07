@@ -2,6 +2,11 @@
 
 Newest first. Dates are the day the work landed on `main`.
 
+## 2026-11-08 (refactor 3: typed data layer, copy journal)
+
+- Run-time table access goes through one documented helper (`fromTable`) instead of `any` casts scattered over the data code. `any` in source: 29 to 0; `as never`: 46 to 6 (the rest are router link targets); lint warnings 174 to 146.
+- Copy journal moved out of the picker dialog into `lib/journal/copy-journal.ts`: typed, split into small steps, only reads plans when they are copied, with tests (ids remapped, screenshot files shared, all-or-nothing on failure). Behaviour unchanged.
+
 ## 2026-11-07 (refactor 2: dead code)
 
 - Removed code nothing used (`UsageBadge`, `TradeScreenshots`, `tiltFill`, `milestoneLevel`, `listInstruments`, `costOf`, milestone tables), unused imports, and props that were accepted but ignored (`tone` on stats, `n` on marketing sections). Helpers only used inside their own file are no longer exported. No behaviour change; lint warnings 196 to 174.
