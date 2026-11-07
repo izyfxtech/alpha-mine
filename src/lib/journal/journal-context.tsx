@@ -1,3 +1,4 @@
+import { fromTable } from "@/lib/journal/untyped-table";
 import { pushTo } from "@/lib/group";
 import { storageGet, storageSet } from "@/lib/safe-storage";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
@@ -133,10 +134,10 @@ export async function createJournal(
 ) {
   // One database call = one transaction: the journal and its default comments, statistics and setups arrive together.
   const { data, error } = await supabase.rpc("create_journal", {
-    _journal: { name, starting_balance: startingBalance, currency, ...extra } as never,
-    _comments: DEFAULT_COMMENTS as never,
-    _stats: DEFAULT_STATS.map(([statName, options]) => ({ name: statName, options })) as never,
-    _setups: ["Pullback", "Breakout", "Retest", "Pinbar"] as never,
+    _journal: { name, starting_balance: startingBalance, currency, ...extra },
+    _comments: DEFAULT_COMMENTS,
+    _stats: DEFAULT_STATS.map(([statName, options]) => ({ name: statName, options })),
+    _setups: ["Pullback", "Breakout", "Retest", "Pinbar"],
     _only_if_none: onlyIfNone,
   });
   if (error) throw error;
@@ -276,30 +277,26 @@ export function useLookups(journalId?: string) {
   });
 }
 
-import { countOption, fetchAllRows } from "./fetch-all";
+import { asPage, countOption, fetchAllRows } from "./fetch-all";
 export { fetchAllRows };
 
 export async function fetchTrades(journalIds: string[]): Promise<Trade[]> {
   if (!journalIds.length) return [];
   const all = <T,>(table: string, cols: string, order: string[]) =>
     fetchAllRows<T>((from, to, first) => {
-      let q = supabase
-        .from(table as never)
-        .select(cols, countOption(first))
-        .in("journal_id", journalIds);
+      let q = fromTable(table).select(cols, countOption(first)).in("journal_id", journalIds);
       for (const o of order) q = q.order(o, { ascending: true });
-      return q.range(from, to) as never;
+      return asPage<T>(q.range(from, to));
     });
   const [t, i, s, tc, cd, cs, jr, cf, rc] = await Promise.all([
-    fetchAllRows<TradeRow>(
-      (from, to, first) =>
-        supabase
-          .from("trades")
-          .select("*", countOption(first))
-          .in("journal_id", journalIds)
-          .order("entry_at", { ascending: false })
-          .order("id")
-          .range(from, to) as never,
+    fetchAllRows<TradeRow>((from, to, first) =>
+      supabase
+        .from("trades")
+        .select("*", countOption(first))
+        .in("journal_id", journalIds)
+        .order("entry_at", { ascending: false })
+        .order("id")
+        .range(from, to),
     ).then((data) => ({ data, error: null })),
     all<{ id: string; symbol: string; asset_class: string | null }>(
       "instruments",

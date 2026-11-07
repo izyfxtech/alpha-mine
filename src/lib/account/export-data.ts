@@ -1,5 +1,6 @@
+import { fromTable } from "@/lib/journal/untyped-table";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchAllRows } from "@/lib/journal/fetch-all";
+import { asPage, countOption, fetchAllRows } from "@/lib/journal/fetch-all";
 
 /** Every table that holds a journal's data, with the columns that make its row order total (paging needs that). */
 export const EXPORT_TABLES: { table: string; order: string[] }[] = [
@@ -40,26 +41,12 @@ export interface ExportFile {
 }
 
 type Row = Record<string, unknown>;
-const loose = supabase as unknown as {
-  from: (t: string) => {
-    select: (
-      c: string,
-      o?: unknown,
-    ) => { eq: (c: string, v: string) => { order: (c: string) => unknown } };
-  };
-};
 
 async function allRows(table: string, order: string[], journalId: string): Promise<Row[]> {
   return fetchAllRows<Row>((from, to, first) => {
-    let q = loose
-      .from(table)
-      .select("*", first ? { count: "exact" } : undefined)
-      .eq("journal_id", journalId) as unknown as {
-      order: (c: string) => unknown;
-      range: (a: number, b: number) => unknown;
-    };
-    for (const col of order) q = q.order(col) as typeof q;
-    return q.range(from, to) as never;
+    let q = fromTable(table).select("*", countOption(first)).eq("journal_id", journalId);
+    for (const col of order) q = q.order(col);
+    return asPage<Row>(q.range(from, to));
   });
 }
 
@@ -131,14 +118,13 @@ async function removeMyFiles(): Promise<void> {
   if (!u.user) throw new Error("Not signed in");
   const { data: journals } = await supabase.from("journals").select("id").eq("owner_id", u.user.id);
   for (const j of journals ?? []) {
-    const rows = await fetchAllRows<{ id: string; path: string }>(
-      (from, to, first) =>
-        supabase
-          .from("trade_screenshots")
-          .select("id,path", first ? { count: "exact" } : undefined)
-          .eq("journal_id", j.id)
-          .order("id")
-          .range(from, to) as never,
+    const rows = await fetchAllRows<{ id: string; path: string }>((from, to, first) =>
+      supabase
+        .from("trade_screenshots")
+        .select("id,path", first ? { count: "exact" } : undefined)
+        .eq("journal_id", j.id)
+        .order("id")
+        .range(from, to),
     );
     const files = rows
       .map((r) => r.path)

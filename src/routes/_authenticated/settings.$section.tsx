@@ -862,7 +862,7 @@ function ItemList({
   const addStarters = async () => {
     for (const r of STARTER_RULES)
       if (!exists(r.name))
-        await t.insert({ name: r.name, description: r.description, position: all.length } as never);
+        await t.insert({ name: r.name, description: r.description, position: all.length });
   };
   const exists = (n: string, except?: string) =>
     all.some((r) => r.id !== except && String(r[field] ?? "").toLowerCase() === n.toLowerCase());
@@ -875,7 +875,7 @@ function ItemList({
       );
       return;
     }
-    await t.insert({ [field]: n, position: all.length } as never);
+    await t.insert({ [field]: n, position: all.length });
     setName("");
   };
   const extra = describe ? "description" : null;
@@ -941,7 +941,7 @@ function ItemList({
                   className={describe ? "!flex-none w-[230px]" : undefined}
                   onSave={(v) => {
                     if (exists(v, r.id)) toast.error(`${label} "${v}" already exists`);
-                    else void t.update(r.id, { [field]: v } as never);
+                    else void t.update(r.id, { [field]: v });
                   }}
                 />
               ) : (
@@ -952,7 +952,7 @@ function ItemList({
                   value={String(r[extra] ?? "")}
                   label="Description"
                   className="text-t3"
-                  onSave={(v) => void t.update(r.id, { [extra]: v } as never)}
+                  onSave={(v) => void t.update(r.id, { [extra]: v })}
                 />
               )}
               {tab === "disabled" && (
@@ -963,12 +963,12 @@ function ItemList({
                 name={n}
                 used={used(n, r.id)}
                 onDisable={() => {
-                  void t.update(r.id, { disabled: true } as never);
+                  void t.update(r.id, { disabled: true });
                   toast.success(
                     `"${n}" disabled. It stays on your existing trades; restore it under Disabled Items.`,
                   );
                 }}
-                onRestore={() => void t.update(r.id, { disabled: false } as never)}
+                onRestore={() => void t.update(r.id, { disabled: false })}
                 onDelete={() => void t.remove(r.id)}
               />
             </div>
@@ -1105,7 +1105,7 @@ function PhaseCard({
                 toast.error(`"${label}" already exists in ${title}`);
                 return false;
               }
-              await t.insert({ phase, label, sentiment, position: all.length } as never);
+              await t.insert({ phase, label, sentiment, position: all.length });
               return true;
             }}
           />
@@ -1130,7 +1130,7 @@ function PhaseCard({
             <EditableText
               value={c.label}
               label="Comment"
-              onSave={(v) => void t.update(c.id, { label: v } as never)}
+              onSave={(v) => void t.update(c.id, { label: v })}
             />
           ) : (
             <span className="flex-1 px-2">{c.label}</span>
@@ -1142,7 +1142,7 @@ function PhaseCard({
               sentimentTone(c.sentiment),
             )}
             value={c.sentiment}
-            onChange={(e) => t.update(c.id, { sentiment: e.target.value } as never)}
+            onChange={(e) => t.update(c.id, { sentiment: e.target.value })}
           >
             <option value="positive">Positive</option>
             <option value="neutral">Neutral</option>
@@ -1153,10 +1153,10 @@ function PhaseCard({
             name={c.label}
             used={usage.get(c.id) ?? 0}
             onDisable={() => {
-              void t.update(c.id, { disabled: true } as never);
+              void t.update(c.id, { disabled: true });
               toast.success(`"${c.label}" disabled. It stays on your existing trades.`);
             }}
-            onRestore={() => void t.update(c.id, { disabled: false } as never)}
+            onRestore={() => void t.update(c.id, { disabled: false })}
             onDelete={() => void t.remove(c.id)}
           />
         </div>
@@ -1390,7 +1390,7 @@ function StatCard({
             value={cat.name}
             label="Statistic name"
             className="!px-0 text-[13px] font-semibold"
-            onSave={(v) => void cats.update(cat.id, { name: v } as never)}
+            onSave={(v) => void cats.update(cat.id, { name: v })}
           />
         ) : (
           <h3 className="truncate text-[13px] font-semibold">{title}</h3>
@@ -1417,11 +1417,11 @@ function StatCard({
               }
               let id = cat?.id;
               if (!id) {
-                const made = await cats.insert({ name: title, position: slot - 1 } as never);
+                const made = await cats.insert({ name: title, position: slot - 1 });
                 id = (made as unknown as CatRow | undefined)?.id;
               }
               if (!id) return false;
-              await options.insert({ category_id: id, label, position: mine.length } as never);
+              await options.insert({ category_id: id, label, position: mine.length });
               return true;
             }}
           />
@@ -1447,7 +1447,7 @@ function StatCard({
             <EditableText
               value={o.label}
               label="Tag"
-              onSave={(v) => void options.update(o.id, { label: v } as never)}
+              onSave={(v) => void options.update(o.id, { label: v })}
             />
           ) : (
             <span className="flex-1 px-2">{o.label}</span>
@@ -1457,10 +1457,10 @@ function StatCard({
             name={o.label}
             used={usage.get(o.id) ?? 0}
             onDisable={() => {
-              void options.update(o.id, { disabled: true } as never);
+              void options.update(o.id, { disabled: true });
               toast.success(`"${o.label}" disabled. It stays on your existing trades.`);
             }}
-            onRestore={() => void options.update(o.id, { disabled: false } as never)}
+            onRestore={() => void options.update(o.id, { disabled: false })}
             onDelete={() => void options.remove(o.id)}
           />
         </div>

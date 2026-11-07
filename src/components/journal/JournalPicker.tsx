@@ -1,3 +1,4 @@
+import { copyJournal } from "@/lib/journal/copy-journal";
 import { CURRENCIES } from "@/lib/currencies";
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -12,7 +13,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { sweepStorage } from "@/lib/media/sweep-storage";
 import { createJournal, useJournal, type Journal } from "@/lib/journal/journal-context";
 import { cn } from "@/lib/utils";
-import { countOption, fetchAllRows } from "@/lib/journal/fetch-all";
 import { useProfile } from "@/lib/profile-settings";
 import { ShareJournalDialog } from "@/components/journal/ShareJournal";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -321,181 +321,12 @@ function CopyJournal({
 
   async function submit() {
     setBusy(true);
-    let jid: string | undefined;
     try {
-      // Every row of every table (the API caps one response at Max Rows), in a stable order.
-      const all = <R,>(table: string, order: string[] = ["id"]) =>
-        fetchAllRows<R>((from, to, first) => {
-          let q = (supabase as any)
-            .from(table)
-            .select("*", countOption(first))
-            .eq("journal_id", source.id);
-          for (const o of order) q = q.order(o);
-          return q.range(from, to);
-        });
-      const must = (e: { message: string } | null) => {
-        if (e) throw new Error(e.message);
-      };
-      const { data: j, error } = await supabase
-        .from("journals")
-        .insert({
-          name,
-          currency: source.currency,
-          starting_balance: source.starting_balance,
-          broker: source.broker,
-          markets: source.markets,
-          deposit_date: source.deposit_date,
-          trade_type: source.trade_type,
-          auto_pnl: source.auto_pnl,
-          quantity_unit: source.quantity_unit,
-          session_categories: source.session_categories,
-        })
-        .select()
-        .single();
-      if (error) throw error;
-      jid = j.id;
-      const [ins, sets, cds, cats, opts, plans] = await Promise.all([
-        all<any>("instruments"),
-        all<any>("setups"),
-        all<any>("comment_definitions"),
-        all<any>("custom_stat_categories"),
-        all<any>("custom_stat_options"),
-        all<any>("trading_plans"),
-      ]);
-      const copyRows = async <R extends { id: string }>(
-        table: string,
-        rows: R[] | null,
-        map: (r: R) => Record<string, unknown>,
-      ) => {
-        const m = new Map<string, string>();
-        if (!rows?.length) return m;
-        const payload = rows.map((r) => ({ ...map(r), id: crypto.randomUUID(), journal_id: jid! }));
-        const { error: e } = await (supabase as any).from(table).insert(payload);
-        if (e) throw e;
-        rows.forEach((r, i) => m.set(r.id, payload[i].id));
-        return m;
-      };
-      const strip = <R extends Record<string, unknown>>({
-        id: _i,
-        journal_id: _j,
-        created_at: _c,
-        ...rest
-      }: R) => rest;
-      const insMap = await copyRows("instruments", ins, strip);
-      const setMap = await copyRows("setups", sets, strip);
-      const cdMap = await copyRows("comment_definitions", cds, strip);
-      const catMap = await copyRows("custom_stat_categories", cats, strip);
-      const optMap = await copyRows("custom_stat_options", opts, (o: any) => ({
-        ...strip(o),
-        category_id: catMap.get(o.category_id),
-      }));
-      const planMap = inc.plans
-        ? await copyRows("trading_plans", plans, strip)
-        : new Map<string, string>();
-
-      const screenshotCopies: {
-        trade_id?: string | null;
-        missed_trade_id?: string | null;
-        planned_trade_id?: string | null;
-        journal_id: string;
-        path: string;
-        caption: string | null;
-      }[] = [];
-      const sourceShots = await all<any>("trade_screenshots");
-      const collectShots = (
-        field: "trade_id" | "missed_trade_id" | "planned_trade_id",
-        ids: Map<string, string>,
-      ) => {
-        sourceShots?.forEach((s) => {
-          const old = s[field];
-          if (old && ids.has(old))
-            screenshotCopies.push({
-              journal_id: jid!,
-              [field]: ids.get(old),
-              path: s.path,
-              caption: s.caption,
-            });
-        });
-      };
-      if (inc.trades) {
-        const trades = await all<any>("trades");
-        const tMap = await copyRows("trades", trades, ({ trade_no: _n, ...t }: any) => ({
-          ...strip(t),
-          instrument_id: t.instrument_id ? (insMap.get(t.instrument_id) ?? null) : null,
-          setup_id: t.setup_id ? (setMap.get(t.setup_id) ?? null) : null,
-          trading_plan_id: t.trading_plan_id ? (planMap.get(t.trading_plan_id) ?? null) : null,
-          pnl_manual: true,
-        }));
-        const [tc, tcs] = await Promise.all([
-          all<any>("trade_comments", ["trade_id", "comment_definition_id"]),
-          all<any>("trade_custom_stats", ["trade_id", "option_id"]),
-        ]);
-        const insertAll = async (table: string, rows: Record<string, unknown>[]) => {
-          for (let k = 0; k < rows.length; k += 500)
-            must((await (supabase as any).from(table).insert(rows.slice(k, k + 500))).error);
-        };
-        await insertAll(
-          "trade_comments",
-          tc
-            .filter((r) => tMap.has(r.trade_id) && cdMap.has(r.comment_definition_id))
-            .map((r: any) => ({
-              trade_id: tMap.get(r.trade_id)!,
-              comment_definition_id: cdMap.get(r.comment_definition_id)!,
-              journal_id: jid!,
-            })),
-        );
-        await insertAll(
-          "trade_custom_stats",
-          tcs
-            .filter((r) => tMap.has(r.trade_id) && optMap.has(r.option_id))
-            .map((r: any) => ({
-              trade_id: tMap.get(r.trade_id)!,
-              option_id: optMap.get(r.option_id)!,
-              journal_id: jid!,
-            })),
-        );
-        collectShots("trade_id", tMap);
-        const flows = await all<any>("journal_cashflows");
-        await copyRows("journal_cashflows", flows, strip);
-      }
-      if (inc.missed) {
-        const missed = await all<any>("missed_trades");
-        const missedMap = await copyRows("missed_trades", missed, strip);
-        const missedStats = await all<any>("missed_trade_custom_stats", [
-          "missed_trade_id",
-          "option_id",
-        ]);
-        const msRows = missedStats
-          .filter((r) => missedMap.has(r.missed_trade_id) && optMap.has(r.option_id))
-          .map((r) => ({
-            journal_id: jid!,
-            missed_trade_id: missedMap.get(r.missed_trade_id)!,
-            option_id: optMap.get(r.option_id)!,
-          }));
-        for (let k = 0; k < msRows.length; k += 500)
-          must(
-            (await supabase.from("missed_trade_custom_stats").insert(msRows.slice(k, k + 500)))
-              .error,
-          );
-        collectShots("missed_trade_id", missedMap);
-      }
-      if (inc.plans) {
-        const planned = await all<any>("planned_trades");
-        const plannedMap = await copyRows("planned_trades", planned, strip);
-        collectShots("planned_trade_id", plannedMap);
-      }
-      for (let k = 0; k < screenshotCopies.length; k += 500)
-        must(
-          (await supabase.from("trade_screenshots").insert(screenshotCopies.slice(k, k + 500)))
-            .error,
-        );
+      const id = await copyJournal(source, name, inc);
       await qc.invalidateQueries();
       toast.success("Journal copied");
-      onDone(jid);
+      onDone(id);
     } catch (e) {
-      // All or nothing: a failed copy must not leave a half-filled journal behind. Deleting the new journal removes
-      // everything copied so far (screenshot files are shared with the original, so they are never deleted).
-      if (jid) await supabase.from("journals").delete().eq("id", jid);
       toast.error(`The journal was not copied: ${(e as Error).message}`);
     } finally {
       setBusy(false);
