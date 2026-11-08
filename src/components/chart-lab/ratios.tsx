@@ -1,3 +1,4 @@
+import { toggled } from "@/lib/collections";
 import { useMemo, useState } from "react";
 import {
   CartesianGrid,
@@ -103,13 +104,7 @@ export function Ratios({ trades, start }: { trades: Trade[]; start: number }) {
                   key={r}
                   checked={sel.has(r)}
                   onSelect={(e) => e.preventDefault()}
-                  onCheckedChange={() =>
-                    setSel((p) => {
-                      const n = new Set(p);
-                      n.has(r) ? n.delete(r) : n.add(r);
-                      return n;
-                    })
-                  }
+                  onCheckedChange={() => setSel((p) => toggled(p, r))}
                   className="py-2"
                 >
                   {r}

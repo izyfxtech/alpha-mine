@@ -1,3 +1,4 @@
+import { toggled } from "@/lib/collections";
 import { toast } from "sonner";
 import { numberOrNull } from "@/lib/numbers";
 import { syncLinks } from "@/lib/journal/sync-links";
@@ -272,13 +273,7 @@ function PlansPage() {
                   <td className="px-3" onClick={(e) => e.stopPropagation()}>
                     <Checkbox
                       checked={sel.has(r.id)}
-                      onCheckedChange={() =>
-                        setSel((p) => {
-                          const x = new Set(p);
-                          x.has(r.id) ? x.delete(r.id) : x.add(r.id);
-                          return x;
-                        })
-                      }
+                      onCheckedChange={() => setSel((p) => toggled(p, r.id))}
                     />
                   </td>
                   <td className="px-3">{dt(r.entry_at)}</td>
@@ -374,7 +369,6 @@ function PlansPage() {
               .map((l) => l.option_id)}
             onClose={() => setToMissed(null)}
             onSave={async (v, ids) => {
-              const { supabase } = await import("@/integrations/supabase/client");
               const { data, error } = await supabase
                 .from("missed_trades")
                 .insert({ ...v, journal_id: journal!.id })

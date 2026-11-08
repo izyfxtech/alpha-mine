@@ -27,7 +27,7 @@ export function RiskDistribution({ trades, start }: { trades: Trade[]; start: nu
     .map((t) => (display === "Return (%)" ? (start ? (t.net_pnl / start) * 100 : 0) : t.r))
     .filter((v): v is number => v != null);
   vals.forEach((v) => {
-    const b = buckets.find((b) => v >= b.lo && v < b.hi);
+    const b = buckets.find((x) => v >= x.lo && v < x.hi);
     if (b) b.n++;
   });
   const avg = (a: number[]) => (a.length ? a.reduce((s, x) => s + x, 0) / a.length : 0);

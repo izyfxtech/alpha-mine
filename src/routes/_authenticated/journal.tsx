@@ -922,7 +922,7 @@ function useScreenshotTradeIds(journalId?: string) {
     queryKey: ["screenshot-ids", journalId],
     enabled: !!journalId,
     queryFn: async () => {
-      const data = await fetchAllRows<{ id: string; trade_id: string | null }>((from, to, first) =>
+      const rows = await fetchAllRows<{ id: string; trade_id: string | null }>((from, to, first) =>
         supabase
           .from("trade_screenshots")
           .select("id,trade_id", countOption(first))
@@ -930,7 +930,7 @@ function useScreenshotTradeIds(journalId?: string) {
           .order("id")
           .range(from, to),
       );
-      return new Set(data.map((r) => r.trade_id as string));
+      return new Set(rows.map((r) => r.trade_id as string));
     },
   });
   return data ?? new Set<string>();

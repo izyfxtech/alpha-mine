@@ -450,22 +450,22 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
       <Plus className="h-4 w-4" strokeWidth={2.25} />
     </button>
   );
-  const legRow = (legs: Leg[], setLegs: (l: Leg[]) => void, i: number, kind: string) => (
+  const legRow = (list: Leg[], setLegs: (l: Leg[]) => void, i: number, kind: string) => (
     <div key={i} className="grid grid-cols-[1fr_1fr_auto] items-center gap-2">
       <FloatInput
         label={`${kind} Price ${i + 2}`}
-        value={legs[i]!.price}
-        onChange={(v) => setLegs(legs.map((l, j) => (j === i ? { ...l, price: v } : l)))}
+        value={list[i]!.price}
+        onChange={(v) => setLegs(list.map((l, j) => (j === i ? { ...l, price: v } : l)))}
       />
       <FloatInput
         label="Quantity"
-        value={legs[i]!.qty}
-        onChange={(v) => setLegs(legs.map((l, j) => (j === i ? { ...l, qty: v } : l)))}
+        value={list[i]!.qty}
+        onChange={(v) => setLegs(list.map((l, j) => (j === i ? { ...l, qty: v } : l)))}
       />
       <button
         type="button"
         aria-label="Remove"
-        onClick={() => setLegs(legs.filter((_, j) => j !== i))}
+        onClick={() => setLegs(list.filter((_, j) => j !== i))}
         className="text-muted-foreground hover:text-foreground"
       >
         <X className="h-3.5 w-3.5" />
@@ -972,8 +972,8 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
                 onAdd={(p) => setPending((x) => [...x, ...p])}
                 onRemovePending={(k) =>
                   setPending((x) => {
-                    x.find((p) => p.key === k && p.file)?.preview &&
-                      URL.revokeObjectURL(x.find((p) => p.key === k)!.preview);
+                    const gone = x.find((p) => p.key === k && p.file);
+                    if (gone) URL.revokeObjectURL(gone.preview);
                     return x.filter((p) => p.key !== k);
                   })
                 }

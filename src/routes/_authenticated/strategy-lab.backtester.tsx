@@ -1,3 +1,4 @@
+import { toggled } from "@/lib/collections";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Plus, Trash2, X } from "lucide-react";
@@ -153,13 +154,7 @@ function Backtester() {
                   <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                     <Checkbox
                       checked={sel.has(r.id)}
-                      onCheckedChange={() =>
-                        setSel((p) => {
-                          const x = new Set(p);
-                          x.has(r.id) ? x.delete(r.id) : x.add(r.id);
-                          return x;
-                        })
-                      }
+                      onCheckedChange={() => setSel((p) => toggled(p, r.id))}
                     />
                   </td>
                   <td>

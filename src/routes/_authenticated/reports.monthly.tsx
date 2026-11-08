@@ -53,7 +53,7 @@ function weekKey(d: Date, sow: 0 | 1) {
 }
 
 function Monthly() {
-  const { trades, journal } = useTrades();
+  const { trades } = useTrades();
   const sow = useProfile().settings.weekStartsOn;
   const [expanded, setExpanded] = useState<string[]>([]);
   const months = [...groupBy(trades, (t) => localMonth(t.entry_at)).entries()].sort(([a], [b]) =>

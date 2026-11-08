@@ -517,8 +517,8 @@ function build(
 
   /* 6. Risk Management */
   {
-    const all_ = riskWindow(ts, balance, flows, null);
-    const ratio = Number.isFinite(all_.ratio) ? all_.ratio : 99;
+    const allTime = riskWindow(ts, balance, flows, null);
+    const ratio = Number.isFinite(allTime.ratio) ? allTime.ratio : 99;
     const rating: Rating = ratio >= 2 ? "good" : ratio >= 1 ? "ok" : "poor";
     const text =
       rating === "good"
@@ -550,19 +550,19 @@ function build(
           id: "rd",
           title: "Return/Drawdown",
           rating,
-          value: Number.isFinite(all_.ratio) ? all_.ratio.toFixed(2) : "No drawdown",
+          value: Number.isFinite(allTime.ratio) ? allTime.ratio.toFixed(2) : "No drawdown",
           text,
         },
         {
           kind: "metric",
           id: "dd",
           title: "Max Drawdown",
-          rating: all_.dd < 10 ? "good" : all_.dd < 20 ? "ok" : "poor",
-          value: pct(all_.dd, 2),
+          rating: allTime.dd < 10 ? "good" : allTime.dd < 20 ? "ok" : "poor",
+          value: pct(allTime.dd, 2),
           text:
-            all_.dd < 10
+            allTime.dd < 10
               ? "Your deepest drop from a peak is shallow. Keep position sizes consistent."
-              : all_.dd < 20
+              : allTime.dd < 20
                 ? "Your deepest drop from a peak is noticeable. Make sure it is within what you planned for."
                 : "Your deepest drop from a peak is large. A drawdown this deep takes a much bigger gain to recover.",
         },

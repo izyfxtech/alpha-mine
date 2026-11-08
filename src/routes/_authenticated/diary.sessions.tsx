@@ -1,3 +1,4 @@
+import { toggled } from "@/lib/collections";
 import { DateRangeButton } from "@/components/analytics/DateRangeButton";
 import { localToday } from "@/lib/time/local-time";
 import { createFileRoute } from "@tanstack/react-router";
@@ -188,13 +189,7 @@ function Sessions() {
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                       <Checkbox
                         checked={sel.has(r.id)}
-                        onCheckedChange={() =>
-                          setSel((p) => {
-                            const n = new Set(p);
-                            n.has(r.id) ? n.delete(r.id) : n.add(r.id);
-                            return n;
-                          })
-                        }
+                        onCheckedChange={() => setSel((p) => toggled(p, r.id))}
                       />
                     </td>
                     <td>
@@ -282,9 +277,7 @@ function CategorySelect({
             checked={value.has(c)}
             onSelect={(e) => e.preventDefault()}
             onCheckedChange={() => {
-              const n = new Set(value);
-              n.has(c) ? n.delete(c) : n.add(c);
-              onChange(n);
+              onChange(toggled(value, c));
             }}
             className="py-2"
           >
