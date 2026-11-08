@@ -1,6 +1,15 @@
 import { numberOrNull } from "@/lib/numbers";
-import { fromTable } from "@/lib/journal/untyped-table";
-import { syncLinks } from "@/lib/journal/sync-links";
+import {
+  fetchAltStrategies,
+  fetchTradeExecutions,
+  findLookupByName,
+  insertCommentDefinition,
+  insertLookup,
+  insertStatCategory,
+  insertStatOption,
+  reenableLookup,
+  saveTradeRecord,
+} from "@/lib/journal/trade-form-data";
 import { storageJson, storageSet } from "@/lib/safe-storage";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { fmtPrice } from "@/lib/pnl/format-price";
@@ -11,7 +20,6 @@ import { ChevronLeft, ChevronRight, Plus, Settings, Star, X } from "lucide-react
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
 import { useJournal, useLookups } from "@/lib/journal/journal-context";
 import { COMPLIANCE_LABEL } from "@/lib/pnl/compliance";
 import type { RuleStatus } from "@/lib/pnl/metrics";
@@ -121,15 +129,7 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
   const { data: legs = [] } = useQuery({
     queryKey: ["trade_executions", trade?.id],
     enabled: !!trade?.id,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("trade_executions")
-        .select("id,kind,side,quantity,price,executed_at,commission,swap,fee")
-        .eq("trade_id", trade!.id)
-        .order("executed_at", { ascending: true });
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => fetchTradeExecutions(trade!.id),
   });
 
   const [alts, setAlts] = useState<Record<string, { p: string; r: string }>>({});
@@ -137,22 +137,9 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
     queryKey: ["alt_strategies_for_trade", journal?.id, trade?.id],
     enabled: !!journal && open,
     queryFn: async () => {
-      const [s, r] = await Promise.all([
-        supabase.from("alt_strategies").select("id,name,setup_id").eq("journal_id", journal!.id),
-        trade
-          ? supabase
-              .from("alt_strategy_results")
-              .select("strategy_id,alt_profit,alt_r")
-              .eq("trade_id", trade.id)
-          : Promise.resolve({
-              data: [] as { strategy_id: string; alt_profit: number; alt_r: number }[],
-            }),
-      ]);
-      const m: Record<string, { p: string; r: string }> = {};
-      for (const x of r.data ?? [])
-        m[x.strategy_id] = { p: String(x.alt_profit), r: String(x.alt_r) };
-      setAlts(m);
-      return s.data ?? [];
+      const { strategies, saved } = await fetchAltStrategies(journal!.id, trade?.id);
+      setAlts(saved);
+      return strategies;
     },
   });
   const myAlts = altStrats.filter((a) => a.setup_id && a.setup_id === f.setup_id);
@@ -294,9 +281,9 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
     );
     const reuse = async (id: string, disabled?: boolean) => {
       if (disabled) {
-        const { error } = await supabase.from(table).update({ disabled: false }).eq("id", id);
-        if (error) {
-          toast.error(`Could not bring back "${value}": ${error.message}`);
+        const message = await reenableLookup(table, id);
+        if (message) {
+          toast.error(`Could not bring back "${value}": ${message}`);
           return null;
         }
       }
@@ -312,52 +299,38 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
             journal_id: journal.id,
           }
         : { name: value, journal_id: journal.id };
-    const { data, error } = await fromTable(table).insert(row).select("id").single();
+    const { id: createdId, error } = await insertLookup(table, row);
     if (error) {
       if (error.code === "23505") {
         // Created a moment ago in another tab or by a retry: find it and use it.
-        const { data: found } = await supabase
-          .from(table)
-          .select("id,disabled")
-          .eq("journal_id", journal.id)
-          .ilike(column, value.replace(/[\\%_]/g, "\\$&"))
-          .limit(1)
-          .maybeSingle();
+        const found = await findLookupByName(table, journal.id, column, value);
         if (found) return reuse(found.id, (found as { disabled?: boolean }).disabled);
       }
       toast.error(`Could not add "${value}": ${error.message}`);
       return null;
     }
     await refreshLookups();
-    return (data as { id: string }).id;
+    return createdId;
   }
   async function createComment(phase: string, label: string) {
     if (!journal) return null;
-    const { data, error } = await supabase
-      .from("comment_definitions")
-      .insert({ phase, label, sentiment: "neutral", journal_id: journal.id })
-      .select("id")
-      .single();
+    const { id, error } = await insertCommentDefinition(journal.id, phase, label);
     if (error) {
       toast.error(error.message);
       return null;
     }
     await refreshLookups();
-    return data.id;
+    return id;
   }
   async function createStatOption(category_id: string, label: string) {
     if (!journal) return null;
-    const { data, error } = await supabase
-      .from("custom_stat_options")
-      .insert({ category_id, label, journal_id: journal.id })
-      .select("id")
-      .single();
+    const { id, error } = await insertStatOption(journal.id, category_id, label);
     if (error) {
       toast.error(error.message);
       return null;
     }
     await refreshLookups();
-    return data.id;
+    return id;
   }
   async function addCategory() {
     const name = newCat?.trim();
@@ -365,10 +338,8 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
       setNewCat(null);
       return;
     }
-    const { error } = await supabase
-      .from("custom_stat_categories")
-      .insert({ name, position: lk?.statCategories.length ?? 0, journal_id: journal.id });
-    if (error) toast.error(error.message);
+    const message = await insertStatCategory(journal.id, name, lk?.statCategories.length ?? 0);
+    if (message) toast.error(message);
     setNewCat(null);
     refreshLookups();
   }
@@ -436,51 +407,21 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
         ...(trade ? {} : { trade_type: journal.trade_type }),
       };
       const row = imported ? owned : full;
-      const res = trade
-        ? await supabase.from("trades").update(row).eq("id", trade.id).select("id").single()
-        : await supabase.from("trades").insert(full).select("id").single();
-      if (res.error) throw res.error;
-      const id = res.data.id;
-      // Add what is missing first, then remove what is no longer wanted, so a failure part-way never wipes a trade's tags and ratings.
-      const [e1, e2] = await Promise.all([
-        syncLinks("trade_comments", "trade_id", id, journal.id, comments, "comment_definition_id"),
-        syncLinks("trade_custom_stats", "trade_id", id, journal.id, stats),
-      ]);
-      if (e1 || e2) throw new Error((e1 ?? e2)!);
-      const checks = Object.entries(ruleSt).map(([rule_id, status]) => ({
-        trade_id: id,
-        rule_id,
-        status,
-        journal_id: journal.id,
-      }));
-      if (checks.length) {
-        const { error } = await supabase
-          .from("trade_rule_checks")
-          .upsert(checks, { onConflict: "trade_id,rule_id" });
-        if (error) throw error;
-      }
-      {
-        const del = supabase.from("trade_rule_checks").delete().eq("trade_id", id);
-        const { error } = checks.length
-          ? await del.not("rule_id", "in", `(${checks.map((c) => c.rule_id).join(",")})`)
-          : await del;
-        if (error) throw error;
-      }
-      const altRows = myAlts
-        .filter((a) => alts[a.id])
-        .map((a) => ({
-          strategy_id: a.id,
-          trade_id: id,
-          journal_id: journal.id,
-          alt_profit: Number(alts[a.id]!.p) || 0,
-          alt_r: Number(alts[a.id]!.r) || 0,
-        }));
-      if (altRows.length) {
-        const { error } = await supabase
-          .from("alt_strategy_results")
-          .upsert(altRows, { onConflict: "strategy_id,trade_id" });
-        if (error) throw error;
-      }
+      const id = await saveTradeRecord({
+        journalId: journal.id,
+        tradeId: trade?.id,
+        row,
+        commentIds: comments,
+        statIds: stats,
+        ruleStatuses: ruleSt,
+        altResults: myAlts
+          .filter((a) => alts[a.id])
+          .map((a) => ({
+            strategyId: a.id,
+            profit: Number(alts[a.id]!.p) || 0,
+            r: Number(alts[a.id]!.r) || 0,
+          })),
+      });
       for (const s of removed) await deleteShot(s);
       await saveShots(journal.id, id, pending);
       toast.success(trade ? "Trade updated" : "Trade added");
