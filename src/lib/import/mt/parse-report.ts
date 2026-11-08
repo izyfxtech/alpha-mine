@@ -5,7 +5,7 @@
  * only turns uploaded BYTES into table rows: HTML through the shared extractor, Excel through SheetJS (browser side).
  * The old `Mt5*` names remain as aliases so existing imports keep working.
  */
-import * as XLSX from "xlsx";
+import { loadXlsx } from "@/lib/import/spreadsheet";
 import {
   MtParseError,
   decodeText,
@@ -33,7 +33,8 @@ export type Mt5Position = MtPosition;
 export type Mt5BalanceOp = MtBalanceOp;
 export type Mt5Report = MtReport;
 
-function xlsxToRows(bytes: Uint8Array): string[][] {
+async function xlsxToRows(bytes: Uint8Array): Promise<string[][]> {
+  const XLSX = await loadXlsx();
   const wb = XLSX.read(bytes, { type: "array", cellDates: false });
   const rows: string[][] = [];
   for (const name of wb.SheetNames) {
@@ -53,20 +54,20 @@ function xlsxToRows(bytes: Uint8Array): string[][] {
   return rows;
 }
 
-/** Uploaded bytes -> table rows. */
-export function readMtRows(bytes: Uint8Array): string[][] {
+/** Uploaded bytes -> table rows. Asynchronous because an Excel file needs the spreadsheet library, which loads on demand. */
+export async function readMtRows(bytes: Uint8Array): Promise<string[][]> {
   if (bytes.length === 0) throw new MtParseError("The file is empty.", "empty");
   return isXlsx(bytes) ? xlsxToRows(bytes) : htmlToRows(decodeText(bytes));
 }
 
 /** Entry point: raw bytes of an uploaded MT4 or MT5 report. The platform is detected from the file itself. */
-export function parseMtReport(bytes: Uint8Array): MtReport {
-  return parseMtRows(readMtRows(bytes));
+export async function parseMtReport(bytes: Uint8Array): Promise<MtReport> {
+  return parseMtRows(await readMtRows(bytes));
 }
 
 /** MT5-only entry point, kept for callers that must reject MT4 files. */
-export function parseMt5Report(bytes: Uint8Array): MtReport {
-  const rows = readMtRows(bytes);
+export async function parseMt5Report(bytes: Uint8Array): Promise<MtReport> {
+  const rows = await readMtRows(bytes);
   if (rows.length === 0)
     throw new MtParseError(
       "No table rows found: this does not look like a MetaTrader 5 report.",

@@ -1,9 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import {
   parseMtReport,
   parseMt5Report,
   MtParseError,
   readMtRows,
+  type MtReport,
 } from "@/lib/import/mt/parse-report";
 import {
   balanceOpsToCashflows,
@@ -112,9 +113,12 @@ function statement(opts: { taxes?: boolean; extraClosed?: string; open?: string 
 }
 
 describe("MT4 statement parsing", () => {
-  const r = parseMtReport(utf8(statement()));
+  let r: MtReport;
+  beforeAll(async () => {
+    r = await parseMtReport(utf8(statement()));
+  });
 
-  it("detects the platform and reads the account header", () => {
+  it("detects the platform and reads the account header", async () => {
     expect(r.platform).toBe("mt4");
     expect(r.account).toEqual({
       login: "8123456",
@@ -126,12 +130,12 @@ describe("MT4 statement parsing", () => {
     });
   });
 
-  it("imports only closed buy/sell rows: not balance, credit, pending orders, totals, open trades or working orders", () => {
+  it("imports only closed buy/sell rows: not balance, credit, pending orders, totals, open trades or working orders", async () => {
     expect(r.positions.map((p) => p.ticket)).toEqual(["3001", "3002", "3003"]);
     expect(r.skipped).toEqual([]);
   });
 
-  it("reads prices, size, times, SL/TP and the three money columns", () => {
+  it("reads prices, size, times, SL/TP and the three money columns", async () => {
     const p = r.positions[0]!;
     expect(p).toMatchObject({
       side: "buy",
@@ -153,39 +157,39 @@ describe("MT4 statement parsing", () => {
     }); // 0.000 means "no stop"
   });
 
-  it("folds Taxes into commission so net stays exact", () => {
+  it("folds Taxes into commission so net stays exact", async () => {
     expect(r.positions[0]!.commission).toBeCloseTo(-0.8, 10);
     expect(summarize(r).net).toBeCloseTo(62 - 0.8 + (333.89 - 7 - 1.25) + (27.5 - 0.35), 8);
   });
 
-  it("reads the same trades when the build has no Taxes column", () => {
-    const nt = parseMtReport(utf8(statement({ taxes: false })));
+  it("reads the same trades when the build has no Taxes column", async () => {
+    const nt = await parseMtReport(utf8(statement({ taxes: false })));
     expect(nt.positions).toHaveLength(3);
     expect(nt.positions[0]!.commission).toBe(-0.7);
     expect(nt.positions[2]!.profit).toBe(27.5);
   });
 
-  it("upper-cases an all-lower-case item but keeps broker suffixes", () => {
+  it("upper-cases an all-lower-case item but keeps broker suffixes", async () => {
     expect(r.positions.map((p) => p.symbol)).toEqual(["EURUSD", "USDJPY", "XAUUSDm"]);
   });
 
-  it("takes price digits from the printed prices", () => {
+  it("takes price digits from the printed prices", async () => {
     expect(r.digitsBySymbol).toEqual({ EURUSD: 5, USDJPY: 3, XAUUSDm: 2 });
   });
 
-  it("reports deposits and withdrawals with their sign", () => {
+  it("reports deposits and withdrawals with their sign", async () => {
     expect(r.balanceOps.map((b) => [b.deal, b.amount, b.comment])).toEqual([
       ["3010", 10000, "Deposit"],
       ["3011", -500, "Withdrawal"],
     ]);
   });
 
-  it("counts open trades, never imports them, and says so", () => {
+  it("counts open trades, never imports them, and says so", async () => {
     expect(r.openCount).toBe(1);
     expect(r.warnings.join(" ")).toMatch(/1 open trade is in the statement and not imported/);
   });
 
-  it("skips a duplicate ticket and a row it cannot trust, with a reason", () => {
+  it("skips a duplicate ticket and a row it cannot trust, with a reason", async () => {
     const bad = td([
       "3004",
       "2026.10.23 10:00:00",
@@ -203,7 +207,7 @@ describe("MT4 statement parsing", () => {
       "0.00",
     ]);
     const dup = td(eur);
-    const rr = parseMtReport(utf8(statement({ extraClosed: bad + dup })));
+    const rr = await parseMtReport(utf8(statement({ extraClosed: bad + dup })));
     expect(rr.positions).toHaveLength(3);
     expect(rr.skipped.map((s) => s.reason)).toEqual([
       expect.stringMatching(/close time/),
@@ -211,16 +215,16 @@ describe("MT4 statement parsing", () => {
     ]);
   });
 
-  it("copes with the unclosed tags and entities real MT4 files contain", () => {
+  it("copes with the unclosed tags and entities real MT4 files contain", async () => {
     const sloppy = `<table><tr><td colspan=14>Account: 777&nbsp;&nbsp;Currency: EUR
       <tr><td colspan=14><b>Closed Transactions:</b>
       <tr><td>1<td>2026.10.20 08:00:00<td>sell<td>1&nbsp;000.00<td>eurusd<td>1.08000<td>0.00000<td>0.00000<td>2026.10.20 09:00:00<td>1.07900<td>0.00<td>0.00<td>1&nbsp;000.50</table>`;
-    const rr = parseMtReport(utf8(sloppy));
+    const rr = await parseMtReport(utf8(sloppy));
     expect(rr.account?.login).toBe("777");
     expect(rr.positions[0]).toMatchObject({ volume: 1000, profit: 1000.5 });
   });
 
-  it("reads the same file written as UTF-16", () => {
+  it("reads the same file written as UTF-16", async () => {
     const s = statement();
     const bytes = new Uint8Array(2 + s.length * 2);
     bytes[0] = 0xff;
@@ -229,62 +233,65 @@ describe("MT4 statement parsing", () => {
       bytes[2 + i * 2] = s.charCodeAt(i) & 0xff;
       bytes[3 + i * 2] = s.charCodeAt(i) >> 8;
     }
-    expect(parseMtReport(bytes).positions).toHaveLength(3);
+    expect((await parseMtReport(bytes)).positions).toHaveLength(3);
   });
 });
 
 describe("file detection and unsupported files", () => {
-  const code = (bytes: Uint8Array) => {
+  const code = async (bytes: Uint8Array) => {
     try {
-      parseMtReport(bytes);
+      await parseMtReport(bytes);
     } catch (e) {
       return e instanceof MtParseError ? e.code : "other";
     }
     return "none";
   };
 
-  it("tells MT5 from MT4", () => {
+  it("tells MT5 from MT4", async () => {
     const mt5 = `<table>${td(["Trade History Report"])}${td(["Account:", "5012345 (USD, MetaQuotes-Demo, demo, Hedge)"])}${td(["Positions"])}${td(["2026.10.20 08:15:00", "52001", "EURUSD", "buy", "0.10", "1.08500", "1.08000", "1.09500", "2026.10.20 12:40:10", "1.09120", "-0.70", "0.00", "62.00"])}</table>`;
-    expect(parseMtReport(utf8(mt5)).platform).toBe("mt5");
-    expect(parseMtReport(utf8(statement())).platform).toBe("mt4");
+    expect((await parseMtReport(utf8(mt5))).platform).toBe("mt5");
+    expect((await parseMtReport(utf8(statement()))).platform).toBe("mt4");
   });
 
-  it("explains an MT5 report that has no Positions table", () => {
+  it("explains an MT5 report that has no Positions table", async () => {
     expect(
-      code(
+      await code(
         utf8(`<table>${td(["Deals"])}${td(["2026.10.01 00:00:00", "1", "", "balance"])}</table>`),
       ),
     ).toBe("mt5-no-positions");
   });
 
-  it("recognises a translated terminal instead of silently importing nothing", () => {
+  it("recognises a translated terminal instead of silently importing nothing", async () => {
     const es = `<table>${td(["Cuenta: 5012345"])}${td(["Posiciones"])}${td(["2026.10.20 08:15:00", "52001", "EURUSD", "compra", "0.10", "1.08500"])}</table>`;
-    expect(code(utf8(es))).toBe("unsupported-language");
+    expect(await code(utf8(es))).toBe("unsupported-language");
   });
 
-  it("rejects a page that is not a MetaTrader report", () => {
-    expect(code(utf8("<table><tr><td>hello</td></tr></table>"))).toBe("not-a-report");
-    expect(code(utf8("just some text"))).toBe("not-a-report");
+  it("rejects a page that is not a MetaTrader report", async () => {
+    expect(await code(utf8("<table><tr><td>hello</td></tr></table>"))).toBe("not-a-report");
+    expect(await code(utf8("just some text"))).toBe("not-a-report");
   });
 
-  it("rejects an empty file", () => {
-    expect(code(new Uint8Array())).toBe("empty");
+  it("rejects an empty file", async () => {
+    expect(await code(new Uint8Array())).toBe("empty");
   });
 
-  it("the MT5-only entry point still refuses an MT4 statement", () => {
-    expect(() => parseMt5Report(utf8(statement()))).toThrow(MtParseError);
+  it("the MT5-only entry point still refuses an MT4 statement", async () => {
+    await expect(parseMt5Report(utf8(statement()))).rejects.toThrow(MtParseError);
   });
 
-  it("readMtRows exposes the extracted table", () => {
-    expect(readMtRows(utf8("<table><tr><td>a</td></tr></table>"))).toEqual([["a"]]);
+  it("readMtRows exposes the extracted table", async () => {
+    expect(await readMtRows(utf8("<table><tr><td>a</td></tr></table>"))).toEqual([["a"]]);
   });
 });
 
 describe("MT4 -> journal rows", () => {
-  const r = parseMtReport(utf8(statement()));
+  let r: MtReport;
+  beforeAll(async () => {
+    r = await parseMtReport(utf8(statement()));
+  });
   const utc = { kind: "fixed", offsetMinutes: 0 } as const;
 
-  it("tags trades as mt4 with the order ticket as the idempotency key", () => {
+  it("tags trades as mt4 with the order ticket as the idempotency key", async () => {
     const rows = reportToTrades(r, "j1", new Map(), utc);
     expect(rows.map((t) => [t.source, t.external_id, t.raw_symbol])).toEqual([
       ["mt4", "3001", "EURUSD"],
@@ -300,14 +307,14 @@ describe("MT4 -> journal rows", () => {
     expect(rows[0]!.net_pnl).toBeCloseTo(61.2, 8);
   });
 
-  it("keys deposits by platform so MT4 and MT5 ids can never collide", () => {
+  it("keys deposits by platform so MT4 and MT5 ids can never collide", async () => {
     expect(balanceOpsToCashflows(r, "j1", utc).map((c) => c.external_id)).toEqual([
       "mt4-deal:3010",
       "mt4-deal:3011",
     ]);
   });
 
-  it("builds the RPC payload from broker facts only", () => {
+  it("builds the RPC payload from broker facts only", async () => {
     const p = toImportPayload(r, { kind: "fixed", offsetMinutes: 120 }, { withCashflows: true });
     expect(p.platform).toBe("mt4");
     expect(p.account).toEqual({ login: "8123456", server: null, currency: "USD" });
@@ -334,7 +341,7 @@ describe("MT4 -> journal rows", () => {
     expect(toImportPayload(r, utc).cashflows).toEqual([]); // deposits are opt-in
   });
 
-  it("checks platform, account and currency before anything is written", () => {
+  it("checks platform, account and currency before anything is written", async () => {
     const ok = { currency: "USD", mt_platform: "mt4", mt_login: "8123456" };
     expect(checkCompatibility(r, ok)).toEqual({ ok: true, warnings: [] });
     expect(checkCompatibility(r, { ...ok, mt_platform: "mt5" })).toEqual({

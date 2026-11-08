@@ -39,6 +39,7 @@ import {
   type Decimal,
 } from "@/lib/import/csv-rows";
 import { parseMtReport, type MtReport } from "@/lib/import/mt/parse-report";
+import { firstSheetRows } from "@/lib/import/spreadsheet";
 import {
   checkCompatibility,
   isMismatchError,
@@ -59,21 +60,6 @@ const TZ_OPTIONS: { value: string; label: string; tz: ServerTz }[] = [
   { value: "p2", label: "Fixed GMT+2 (no DST)", tz: { kind: "fixed", offsetMinutes: 120 } },
   { value: "p3", label: "Fixed GMT+3 (no DST)", tz: { kind: "fixed", offsetMinutes: 180 } },
 ];
-
-/** The first sheet of an .xlsx as rows of text, exactly as Excel displays them (dates and numbers keep their format). */
-async function sheetRows(bytes: Uint8Array): Promise<string[][]> {
-  const XLSX = await import("xlsx");
-  const wb = XLSX.read(bytes, { type: "array", cellDates: false });
-  const ws = wb.Sheets[wb.SheetNames[0] ?? ""];
-  if (!ws) return [];
-  return (
-    XLSX.utils.sheet_to_json<unknown[]>(ws, {
-      header: 1,
-      raw: false,
-      blankrows: false,
-    }) as unknown[][]
-  ).map((r) => r.map((c) => (c == null ? "" : String(c))));
-}
 
 export function ImportDialog({
   open,
@@ -113,11 +99,13 @@ export function ImportDialog({
       setCsv(null);
       const bytes = new Uint8Array(await file.arrayBuffer());
       try {
-        setMt(parseMtReport(bytes));
+        setMt(await parseMtReport(bytes));
       } catch (e) {
         setMt(null);
         // A spreadsheet that is not a MetaTrader report may still be a plain trade log: read its first sheet like a CSV.
-        const sheet = /\.xlsx$/i.test(file.name) ? await sheetRows(bytes).catch(() => null) : null;
+        const sheet = /\.xlsx$/i.test(file.name)
+          ? await firstSheetRows(bytes).catch(() => null)
+          : null;
         const mapped =
           sheet && sheet.length ? suggestMapping(sheet[detectHeaderRow(sheet)] ?? []) : null;
         if (sheet && mapped?.entry_at && mapped.entry_price) {

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import * as XLSX from "xlsx";
 import {
   parseMt5Report,
@@ -6,6 +6,7 @@ import {
   parseNumber,
   parseWallTime,
   Mt5ParseError,
+  type MtReport,
 } from "@/lib/import/mt/parse-report";
 import { D, PnlEngine, RateResolver } from "@engine/index.ts";
 import { mapTrade, type TradeRow } from "@shared/pnl-map.ts";
@@ -116,14 +117,14 @@ function utf16le(s: string): Uint8Array {
 }
 
 describe("cell parsing", () => {
-  it("reads MT5 numbers with space and NBSP thousands separators", () => {
+  it("reads MT5 numbers with space and NBSP thousands separators", async () => {
     expect(parseNumber("3 340.12")).toBe(3340.12);
     expect(parseNumber("1 234.50")).toBe(1234.5);
     expect(parseNumber("-0.70")).toBe(-0.7);
     expect(parseNumber("")).toBeNull();
     expect(parseNumber("buy")).toBeNull();
   });
-  it("reads server wall time and rejects impossible dates", () => {
+  it("reads server wall time and rejects impossible dates", async () => {
     expect(parseWallTime("2026.10.23 14:05:09")).toBe(Date.UTC(2026, 9, 23, 14, 5, 9));
     expect(parseWallTime("2026.13.45 00:00:00")).toBeNull();
     expect(parseWallTime("Time")).toBeNull();
@@ -131,8 +132,8 @@ describe("cell parsing", () => {
 });
 
 describe("parseMt5Report (HTML)", () => {
-  const check = (bytes: Uint8Array) => {
-    const r = parseMt5Report(bytes);
+  const check = async (bytes: Uint8Array) => {
+    const r = await parseMt5Report(bytes);
     expect(r.account).toMatchObject({
       login: "5012345",
       currency: "USD",
@@ -168,10 +169,10 @@ describe("parseMt5Report (HTML)", () => {
     ]);
     expect(r.skipped).toEqual([]);
   };
-  it("parses UTF-16LE with BOM, as MT5 writes it", () => check(utf16le(reportHtml())));
-  it("parses plain UTF-8", () => check(utf8(reportHtml())));
+  it("parses UTF-16LE with BOM, as MT5 writes it", async () => check(utf16le(reportHtml())));
+  it("parses plain UTF-8", async () => check(utf8(reportHtml())));
 
-  it("reports rows it cannot trust instead of importing them", () => {
+  it("reports rows it cannot trust instead of importing them", async () => {
     const bad = td([
       "2026.10.23 10:00:00",
       "52004",
@@ -187,19 +188,19 @@ describe("parseMt5Report (HTML)", () => {
       "0.00",
       "0.00",
     ]);
-    const r = parseMt5Report(utf8(reportHtml(bad)));
+    const r = await parseMt5Report(utf8(reportHtml(bad)));
     expect(r.positions).toHaveLength(3);
     expect(r.skipped).toEqual([
       expect.objectContaining({ reason: expect.stringMatching(/close time/) }),
     ]);
   });
-  it("skips duplicate tickets", () => {
-    const r = parseMt5Report(utf8(reportHtml(td(rows.eur))));
+  it("skips duplicate tickets", async () => {
+    const r = await parseMt5Report(utf8(reportHtml(td(rows.eur))));
     expect(r.positions).toHaveLength(3);
     expect(r.skipped).toEqual([expect.objectContaining({ reason: "duplicate ticket 52001" })]);
   });
-  it("throws a helpful error when there is no Positions section", () => {
-    expect(() => parseMt5Report(utf8("<table><tr><td>hello</td></tr></table>"))).toThrow(
+  it("throws a helpful error when there is no Positions section", async () => {
+    await expect(parseMt5Report(utf8("<table><tr><td>hello</td></tr></table>"))).rejects.toThrow(
       Mt5ParseError,
     );
     expect(() => parseMt5Rows([["Deals"], ["x"]])).toThrow(/Positions/);
@@ -207,7 +208,7 @@ describe("parseMt5Report (HTML)", () => {
 });
 
 describe("parseMt5Report (Excel)", () => {
-  it("parses the same layout from an .xlsx export, tolerating spacer columns", () => {
+  it("parses the same layout from an .xlsx export, tolerating spacer columns", async () => {
     const aoa = [
       ["Trade History Report"],
       ["", "Account:", "", "5012345 (USD, MetaQuotes-Demo, demo, Hedge)"],
@@ -221,7 +222,7 @@ describe("parseMt5Report (Excel)", () => {
       { SheetNames: ["Sheet1"], Sheets: { Sheet1: ws } },
       { type: "array", bookType: "xlsx" },
     ) as ArrayBuffer;
-    const r = parseMt5Report(new Uint8Array(buf));
+    const r = await parseMt5Report(new Uint8Array(buf));
     expect(r.account?.login).toBe("5012345");
     expect(r.positions.map((p) => p.ticket)).toEqual(["52001", "52002"]);
     expect(r.positions[0]!.openPrice).toBe(1.085);
@@ -229,10 +230,13 @@ describe("parseMt5Report (Excel)", () => {
 });
 
 describe("to-trades", () => {
-  const report = parseMt5Report(utf8(reportHtml()));
+  let report: MtReport;
+  beforeAll(async () => {
+    report = await parseMt5Report(utf8(reportHtml()));
+  });
   const ids = new Map([["EURUSD", "i-eur"]]);
 
-  it("maps costs so net = profit + commission + swap, and marks the P&L as broker-supplied", () => {
+  it("maps costs so net = profit + commission + swap, and marks the P&L as broker-supplied", async () => {
     const [t] = reportToTrades(report, "j1", ids, { kind: "fixed", offsetMinutes: 0 });
     expect(t).toMatchObject({
       instrument_id: "i-eur",
@@ -260,19 +264,19 @@ describe("to-trades", () => {
     });
   });
 
-  it("converts server time to UTC (GMT+3 summer server)", () => {
+  it("converts server time to UTC (GMT+3 summer server)", async () => {
     const t = positionToTrade(report.positions[0]!, "j1", null, {
       kind: "fixed",
       offsetMinutes: 180,
     });
     expect(t.entry_at).toBe("2026-10-20T05:15:00.000Z");
   });
-  it("applies New York close DST: Oct 20 is GMT+3", () => {
+  it("applies New York close DST: Oct 20 is GMT+3", async () => {
     const t = positionToTrade(report.positions[0]!, "j1", null, { kind: "ny-close" });
     expect(t.entry_at).toBe("2026-10-20T05:15:00.000Z");
   });
 
-  it("maps deposits and withdrawals to idempotent cashflows", () => {
+  it("maps deposits and withdrawals to idempotent cashflows", async () => {
     expect(balanceOpsToCashflows(report, "j1", { kind: "fixed", offsetMinutes: 0 })).toEqual([
       {
         journal_id: "j1",
@@ -291,11 +295,11 @@ describe("to-trades", () => {
     ]);
   });
 
-  it("summarises the report", () => {
+  it("summarises the report", async () => {
     expect(summarize(report)).toMatchObject({ trades: 3, symbols: 3, net: 414.09 });
   });
 
-  it("refuses another account or currency, warns on server mismatch", () => {
+  it("refuses another account or currency, warns on server mismatch", async () => {
     expect(checkCompatibility(report, { currency: "USD", mt_login: "999" })).toMatchObject({
       ok: false,
     });
@@ -312,7 +316,7 @@ describe("to-trades", () => {
 
 describe("import -> P&L engine round trip", () => {
   it("every imported row maps and reconciles against an independent calculation", async () => {
-    const report = parseMt5Report(utf8(reportHtml()));
+    const report = await parseMt5Report(utf8(reportHtml()));
     const trades = reportToTrades(report, "j1", new Map(), { kind: "fixed", offsetMinutes: 0 });
     const engine = new PnlEngine({
       rates: new RateResolver({
@@ -388,7 +392,7 @@ describe("balance rows with a numeric comment (AM-M12)", () => {
       expect(ops[0]!.comment).toBe(comment);
     },
   );
-  it("a zero-decimal currency still reads its two numbers", () => {
+  it("a zero-decimal currency still reads its two numbers", async () => {
     const ops = parseMt5Rows([
       ["Positions"],
       POS_HEADER,
@@ -426,15 +430,18 @@ describe("initial stop from the Orders table", () => {
     ${td(["2026.10.01 05:07:27", "393173852", "NZDUSD", "buy", "0.43 / 0.43", "0.56192", "", "", "2026.10.01 05:07:27", "filled", "[tp 0.56192]"])}
     ${td(["2026.10.07 12:03:19", "397972480", "AUDUSD", "buy", "0.75 / 0.75", "market", "0.69617", "", "2026.10.07 12:03:19", "filled", ""])}
   </table></body></html>`;
-  it("reads the stop as placed, so a stop trailed into profit keeps its real risk", () => {
-    const r = parseMt5Report(new TextEncoder().encode(html));
+  it("reads the stop as placed, so a stop trailed into profit keeps its real risk", async () => {
+    const r = await parseMt5Report(new TextEncoder().encode(html));
     expect(r.positions[0]).toMatchObject({ stopLoss: 0.56644, initialStopLoss: 0.56882 });
     expect(r.positions[1]).toMatchObject({ stopLoss: 0.69617, initialStopLoss: 0.69617 });
   });
 });
 
 describe("importing into a journal that does not match", () => {
-  const report = parseMt5Report(utf8(reportHtml()));
+  let report: MtReport;
+  beforeAll(async () => {
+    report = await parseMt5Report(utf8(reportHtml()));
+  });
   it("is a warning with plain-words risks, not a block", async () => {
     const { mismatchRisks, isMismatchError, toImportPayload } =
       await import("@/lib/import/mt/to-trades");

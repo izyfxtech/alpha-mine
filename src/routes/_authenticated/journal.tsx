@@ -1,4 +1,5 @@
 import { pushTo } from "@/lib/group";
+import { loadXlsx } from "@/lib/import/spreadsheet";
 import { useWhenChanged } from "@/lib/use-when-changed";
 import { useDebouncedCallback } from "use-debounce";
 import { useStoredString } from "@/lib/use-stored-value";
@@ -383,7 +384,7 @@ function JournalPage() {
     qc.invalidateQueries({ queryKey: ["trades"] });
   }
   async function exportExcel() {
-    const XLSX = await import("xlsx");
+    const XLSX = await loadXlsx();
     const rows = sorted.map((t) => Object.fromEntries(cols.map((c) => [c.l, c.get(t) ?? ""])));
     const sheet = XLSX.utils.json_to_sheet(rows, { header: cols.map((c) => c.l) });
     sheet["!cols"] = cols.map((c) => ({ wpx: layout.widths[c.k] ?? c.width ?? 110 }));
