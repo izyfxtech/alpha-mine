@@ -22,6 +22,35 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useDialogs } from "@/components/ui/confirm";
 
+/** One toolbar button. Defined at module level so React keeps the same button between renders instead of remounting it. */
+function ToolButton({
+  icon: Icon,
+  cmd,
+  arg,
+  title,
+  onClick,
+  run,
+}: {
+  icon: typeof Bold;
+  cmd?: string;
+  arg?: string;
+  title: string;
+  onClick?: () => void;
+  run: (cmd: string, arg?: string) => void;
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={onClick ?? (() => cmd && run(cmd, arg))}
+      className="rounded p-1.5 text-foreground/80 hover:bg-muted hover:text-foreground"
+    >
+      <Icon className="h-4 w-4" />
+    </button>
+  );
+}
+
 /** Lightweight rich-text editor (bold, lists, links, tables…) storing HTML. */
 export function RichEditor({
   value,
@@ -73,51 +102,35 @@ export function RichEditor({
     }
     run(cmd, u);
   };
-  const B = ({
-    icon: I,
-    cmd,
-    arg,
-    title,
-    onClick,
-  }: {
-    icon: typeof Bold;
-    cmd?: string;
-    arg?: string;
-    title: string;
-    onClick?: () => void;
-  }) => (
-    <button
-      type="button"
-      title={title}
-      onMouseDown={(e) => e.preventDefault()}
-      onClick={onClick ?? (() => cmd && run(cmd, arg))}
-      className="rounded p-1.5 text-foreground/80 hover:bg-muted hover:text-foreground"
-    >
-      <I className="h-4 w-4" />
-    </button>
-  );
   const left = (
     <>
-      <B icon={Bold} cmd="bold" title="Bold" />
-      <B icon={Italic} cmd="italic" title="Italic" />
-      <B icon={Underline} cmd="underline" title="Underline" />
-      <B icon={Type} cmd="formatBlock" arg="h3" title="Heading" />
+      <ToolButton run={run} icon={Bold} cmd="bold" title="Bold" />
+      <ToolButton run={run} icon={Italic} cmd="italic" title="Italic" />
+      <ToolButton run={run} icon={Underline} cmd="underline" title="Underline" />
+      <ToolButton run={run} icon={Type} cmd="formatBlock" arg="h3" title="Heading" />
       <span className="w-3" />
-      <B icon={AlignLeft} cmd="justifyLeft" title="Align left" />
-      <B icon={AlignCenter} cmd="justifyCenter" title="Center" />
-      <B icon={ListOrdered} cmd="insertOrderedList" title="Numbered list" />
-      <B icon={Pilcrow} cmd="formatBlock" arg="p" title="Paragraph" />
+      <ToolButton run={run} icon={AlignLeft} cmd="justifyLeft" title="Align left" />
+      <ToolButton run={run} icon={AlignCenter} cmd="justifyCenter" title="Center" />
+      <ToolButton run={run} icon={ListOrdered} cmd="insertOrderedList" title="Numbered list" />
+      <ToolButton run={run} icon={Pilcrow} cmd="formatBlock" arg="p" title="Paragraph" />
     </>
   );
   const mid = (
     <>
-      <B icon={Link2} title="Link" onClick={() => void askUrl("Insert link", "createLink")} />
-      <B
+      <ToolButton
+        run={run}
+        icon={Link2}
+        title="Link"
+        onClick={() => void askUrl("Insert link", "createLink")}
+      />
+      <ToolButton
+        run={run}
         icon={ImageIcon}
         title="Image"
         onClick={() => void askUrl("Insert image", "insertImage")}
       />
-      <B
+      <ToolButton
+        run={run}
         icon={Table}
         title="Table"
         onClick={() =>
@@ -127,19 +140,20 @@ export function RichEditor({
           )
         }
       />
-      <B icon={Minus} cmd="insertHorizontalRule" title="Divider" />
+      <ToolButton run={run} icon={Minus} cmd="insertHorizontalRule" title="Divider" />
     </>
   );
   const right = (
     <>
-      <B icon={Undo2} cmd="undo" title="Undo" />
-      <B icon={Redo2} cmd="redo" title="Redo" />
-      <B
+      <ToolButton run={run} icon={Undo2} cmd="undo" title="Undo" />
+      <ToolButton run={run} icon={Redo2} cmd="redo" title="Redo" />
+      <ToolButton
+        run={run}
         icon={Maximize2}
         title="Fullscreen"
         onClick={() => ref.current?.parentElement?.requestFullscreen?.()}
       />
-      <B icon={Printer} title="Print" onClick={() => window.print()} />
+      <ToolButton run={run} icon={Printer} title="Print" onClick={() => window.print()} />
     </>
   );
   return (

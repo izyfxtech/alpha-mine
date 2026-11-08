@@ -327,6 +327,40 @@ function Pill({ tone, children }: { tone: number; children: React.ReactNode }) {
   );
 }
 
+/** A labelled input that picks the right control for its type (date-time, date or plain input). */
+function FormField({
+  l,
+  value,
+  onValue,
+  type = "text",
+  list,
+}: {
+  l: string;
+  value: string;
+  onValue: (v: string) => void;
+  type?: string;
+  list?: string;
+}) {
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs">{l}</Label>
+      {type === "datetime-local" ? (
+        <DateTimePicker aria-label={l} value={value} onChange={onValue} />
+      ) : type === "date" ? (
+        <DatePicker aria-label={l} value={value} onChange={onValue} />
+      ) : (
+        <Input
+          type={type}
+          step="any"
+          list={list}
+          value={value}
+          onChange={(e) => onValue(e.target.value)}
+        />
+      )}
+    </div>
+  );
+}
+
 export function MissedSheet({
   row,
   journalId,
@@ -385,36 +419,11 @@ export function MissedSheet({
     );
   };
   const sel = "h-9 w-full rounded-md border bg-background px-2 text-sm";
-  const F = ({
-    l,
-    k,
-    type = "text",
-    list,
-  }: {
-    l: string;
-    k: keyof typeof f;
-    type?: string;
-    list?: string;
-  }) => (
-    <div className="space-y-1">
-      <Label className="text-xs">{l}</Label>
-      {type === "datetime-local" ? (
-        <DateTimePicker
-          aria-label={l}
-          value={f[k]}
-          onChange={(v) => set(k)({ target: { value: v } })}
-        />
-      ) : type === "date" ? (
-        <DatePicker
-          aria-label={l}
-          value={f[k]}
-          onChange={(v) => set(k)({ target: { value: v } })}
-        />
-      ) : (
-        <Input type={type} step="any" list={list} value={f[k]} onChange={set(k)} />
-      )}
-    </div>
-  );
+  /** Props that tie a form field to one key of the form state. */
+  const bind = (k: keyof typeof f) => ({
+    value: f[k],
+    onValue: (v: string) => setF((p) => ({ ...p, [k]: v })),
+  });
   return (
     <Sheet open onOpenChange={(o) => !o && onClose()}>
       <SheetContent className="flex w-full flex-col gap-0 p-0 sm:max-w-[520px] [&>button]:hidden">
@@ -437,7 +446,7 @@ export function MissedSheet({
               <option key={i.id} value={i.name} />
             ))}
           </datalist>
-          <F l="Instrument" k="instrument" list="mt-inst" />
+          <FormField l="Instrument" {...bind("instrument")} list="mt-inst" />
           <div className="space-y-1">
             <Label className="text-xs">Direction</Label>
             <select className={sel} value={f.direction} onChange={set("direction")}>
@@ -445,11 +454,11 @@ export function MissedSheet({
               <option value="short">Sell</option>
             </select>
           </div>
-          <F l="Entry Date" k="occurred_at" type="datetime-local" />
-          <F l="Exit Date" k="exit_at" type="datetime-local" />
-          <F l="Entry Price" k="entry_price" type="number" />
-          <F l="Exit Price" k="exit_price" type="number" />
-          <F l="Quantity" k="quantity" type="number" />
+          <FormField l="Entry Date" {...bind("occurred_at")} type="datetime-local" />
+          <FormField l="Exit Date" {...bind("exit_at")} type="datetime-local" />
+          <FormField l="Entry Price" {...bind("entry_price")} type="number" />
+          <FormField l="Exit Price" {...bind("exit_price")} type="number" />
+          <FormField l="Quantity" {...bind("quantity")} type="number" />
           <div className="space-y-1">
             <Label className="text-xs">Trade Type</Label>
             <select className={sel} value={f.trade_type} onChange={set("trade_type")}>
@@ -458,8 +467,8 @@ export function MissedSheet({
               ))}
             </select>
           </div>
-          <F l="TP Price" k="take_profit" type="number" />
-          <F l="SL Price" k="stop_loss" type="number" />
+          <FormField l="TP Price" {...bind("take_profit")} type="number" />
+          <FormField l="SL Price" {...bind("stop_loss")} type="number" />
           {f.trade_type === "Options" && (
             <div className="space-y-1">
               <Label className="text-xs">Option Type</Label>
@@ -470,9 +479,11 @@ export function MissedSheet({
               </select>
             </div>
           )}
-          {f.trade_type === "Options" && <F l="Expiry Date" k="expiry_date" type="date" />}
-          <F l="Multiplier" k="multiplier" type="number" />
-          <F l="Setup" k="setup" list="mt-setup" />
+          {f.trade_type === "Options" && (
+            <FormField l="Expiry Date" {...bind("expiry_date")} type="date" />
+          )}
+          <FormField l="Multiplier" {...bind("multiplier")} type="number" />
+          <FormField l="Setup" {...bind("setup")} list="mt-setup" />
           <div className="space-y-1">
             <Label className="text-xs">Return ($)</Label>
             <Input

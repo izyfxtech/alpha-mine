@@ -289,6 +289,15 @@ function CategorySelect({
   );
 }
 
+function Box({ l, v }: { l: string; v: React.ReactNode }) {
+  return (
+    <div className="rounded-md bg-muted/60 px-2 py-4 text-center">
+      <p className="text-xs uppercase text-muted-foreground">{l}</p>
+      <div className="mt-1 text-sm font-bold tabular">{v}</div>
+    </div>
+  );
+}
+
 function SessionSheet({
   session,
   trades,
@@ -321,13 +330,6 @@ function SessionSheet({
   let c = 0;
   const curve = [{ v: 0 }, ...ts.map((t) => ({ v: (c += t.net_pnl) }))];
   const tilt = Math.round(ts.reduce((acc, t) => acc + t.tilt, 0));
-
-  const Box = ({ l, v }: { l: string; v: React.ReactNode }) => (
-    <div className="rounded-md bg-muted/60 px-2 py-4 text-center">
-      <p className="text-xs uppercase text-muted-foreground">{l}</p>
-      <div className="mt-1 text-sm font-bold tabular">{v}</div>
-    </div>
-  );
 
   return (
     <Sheet open onOpenChange={(o) => !o && onClose()}>
