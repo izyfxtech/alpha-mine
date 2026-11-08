@@ -400,7 +400,9 @@ export function FilterPanel({ mode }: { mode: FilterMode }) {
       ),
     [all],
   );
-  const L = (s: string) => <span className="w-3 text-center text-xs font-semibold">{s}</span>;
+  const letterIcon = (s: string) => (
+    <span className="w-3 text-center text-xs font-semibold">{s}</span>
+  );
   if (mode === "closed") return null;
   const dateVal = f.from || f.to ? `${f.from ?? "…"} → ${f.to ?? "…"}` : undefined;
   return (
@@ -426,14 +428,14 @@ export function FilterPanel({ mode }: { mode: FilterMode }) {
           onChange={(v) => up({ outcome: v })}
         />
         <Multi
-          icon={L("M")}
+          icon={letterIcon("M")}
           label="Month"
           options={MONTHS.map((m, i) => [i, m] as const)}
           value={f.month}
           onChange={(v) => up({ month: v })}
         />
         <Multi
-          icon={L("H")}
+          icon={letterIcon("H")}
           label="Hour"
           options={Array.from(
             { length: 24 },
@@ -444,7 +446,7 @@ export function FilterPanel({ mode }: { mode: FilterMode }) {
           onChange={(v) => up({ hour: v })}
         />
         <Multi
-          icon={L("T")}
+          icon={letterIcon("T")}
           label="Trade Type"
           options={types}
           value={f.tradeType}
@@ -484,7 +486,7 @@ export function FilterPanel({ mode }: { mode: FilterMode }) {
           onChange={(v) => up({ direction: v })}
         />
         <Multi
-          icon={L("D")}
+          icon={letterIcon("D")}
           label="Day"
           options={DAYS}
           value={f.weekday}
@@ -524,14 +526,14 @@ export function FilterPanel({ mode }: { mode: FilterMode }) {
           onChange={(v) => up({ lastTrades: v })}
         />
         <Multi
-          icon={L("Y")}
+          icon={letterIcon("Y")}
           label="Year"
           options={years}
           value={f.year}
           onChange={(v) => up({ year: v })}
         />
         <RangeTile
-          icon={L("R")}
+          icon={letterIcon("R")}
           label="R-Multiple Gain"
           unit="R"
           value={f.rMultiple}
