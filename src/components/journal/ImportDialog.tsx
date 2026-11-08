@@ -1,6 +1,12 @@
-import { fromTable } from "@/lib/journal/untyped-table";
+import {
+  ensureNamedRows,
+  findTradeIds,
+  importMtReport,
+  insertExecutions,
+  insertNewTrades,
+  tradeIdsWithLegs,
+} from "@/lib/journal/import-data";
 import { useDialogs } from "@/components/ui/confirm";
-import { assetClassFor as inferAssetClass } from "@/lib/pnl/instrument-catalogue";
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -12,7 +18,6 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
 import { useJournal } from "@/lib/journal/journal-context";
 import { seedDemoTrades } from "@/lib/journal/demo";
 import { fillsToTrades, type RawFill } from "@/lib/import/fills-import";
@@ -41,7 +46,6 @@ import {
   summarize,
   toImportPayload,
 } from "@/lib/import/mt/to-trades";
-import type { Json } from "@/integrations/supabase/types";
 import type { ServerTz } from "@engine/time.ts";
 
 const TZ_OPTIONS: { value: string; label: string; tz: ServerTz }[] = [
@@ -55,7 +59,6 @@ const TZ_OPTIONS: { value: string; label: string; tz: ServerTz }[] = [
   { value: "p2", label: "Fixed GMT+2 (no DST)", tz: { kind: "fixed", offsetMinutes: 120 } },
   { value: "p3", label: "Fixed GMT+3 (no DST)", tz: { kind: "fixed", offsetMinutes: 180 } },
 ];
-const CHUNK = 500;
 
 /** The first sheet of an .xlsx as rows of text, exactly as Excel displays them (dates and numbers keep their format). */
 async function sheetRows(bytes: Uint8Array): Promise<string[][]> {
@@ -187,38 +190,11 @@ export function ImportDialog({
       );
     setBusy(true);
     try {
-      const ensure = async (
+      const ensure = (
         table: "instruments" | "setups",
         column: "symbol" | "name",
         names: (string | undefined)[],
-      ) => {
-        const { data: have, error } = await supabase
-          .from(table)
-          .select(`id,${column}`)
-          .eq("journal_id", journal.id);
-        if (error) throw error;
-        const named = (x: unknown) => x as Record<string, string>;
-        const ids = new Map<string, string>(
-          (have ?? []).map((x) => [named(x)[column]!, named(x).id!]),
-        );
-        const fresh = [...new Set(names.filter((n): n is string => !!n && !ids.has(n)))];
-        if (fresh.length) {
-          const { data, error: e2 } = await fromTable(table)
-            .insert(
-              fresh.map((n) => ({
-                [column]: n,
-                ...(table === "instruments"
-                  ? { asset_class: inferAssetClass(n, journal.markets) }
-                  : {}),
-                journal_id: journal.id,
-              })),
-            )
-            .select(`id,${column}`);
-          if (e2) throw e2;
-          data?.forEach((x) => ids.set(named(x)[column]!, named(x).id!));
-        }
-        return ids;
-      };
+      ) => ensureNamedRows(journal.id, journal.markets, table, column, names);
       const im = await ensure(
         "instruments",
         "symbol",
@@ -246,18 +222,7 @@ export function ImportDialog({
             : "The file has no rows to import.",
         );
       // Re-importing the same file skips what is already there (external_id is derived from the row's content).
-      let inserted = 0;
-      for (let i = 0; i < trades.length; i += 500) {
-        const { data, error } = await supabase
-          .from("trades")
-          .upsert(trades.slice(i, i + 500), {
-            onConflict: "journal_id,external_id",
-            ignoreDuplicates: true,
-          })
-          .select("id");
-        if (error) throw error;
-        inserted += data?.length ?? 0;
-      }
+      const inserted = (await insertNewTrades(trades)).size;
       const dupes = trades.length - inserted;
       toast.success(`Imported ${inserted} trades${dupes ? `, ${dupes} already imported` : ""}`);
       if (warnings.length)
@@ -343,79 +308,32 @@ export function ImportDialog({
             : "No trades could be built from this file.",
         );
 
-      const { data: ins } = await supabase
-        .from("instruments")
-        .select("id,symbol")
-        .eq("journal_id", journal.id);
-      const im = new Map((ins ?? []).map((i) => [i.symbol, i.id]));
-      const newSyms = [...new Set(res.trades.map((t) => t.symbol))].filter((x) => !im.has(x));
-      if (newSyms.length) {
-        const { data, error } = await supabase
-          .from("instruments")
-          .insert(
-            newSyms.map((symbol) => ({
-              symbol,
-              asset_class: inferAssetClass(symbol, journal.markets),
-              journal_id: journal.id,
-            })),
-          )
-          .select("id,symbol");
-        if (error) throw error;
-        data?.forEach((i) => im.set(i.symbol, i.id));
-      }
+      const im = await ensureNamedRows(journal.id, journal.markets, "instruments", "symbol", [
+        ...new Set(res.trades.map((t) => t.symbol)),
+      ]);
       const rows = res.trades.map(({ legs: _legs, symbol, ...t }) => ({
         ...t,
         journal_id: journal.id,
         instrument_id: im.get(symbol) ?? null,
       }));
-      const idByExternal = new Map<string, string>();
-      for (let k = 0; k < rows.length; k += CHUNK) {
-        const { data, error } = await supabase
-          .from("trades")
-          .upsert(rows.slice(k, k + CHUNK), {
-            onConflict: "journal_id,external_id",
-            ignoreDuplicates: true,
-          })
-          .select("id,external_id");
-        if (error) throw error;
-        data?.forEach((d) => d.external_id && idByExternal.set(d.external_id, d.id));
-      }
+      const idByExternal = await insertNewTrades(rows);
       // Legs for every trade in the file that has none yet. A trade inserted by an earlier, interrupted run is skipped as a
       // duplicate above but may have no legs; looking them up here lets a retry repair it (AM-M16). Trades that already
       // have legs are left exactly as they are.
       const added = idByExternal.size;
-      const missing = res.trades
+      const unsaved = res.trades
         .filter((t) => !idByExternal.has(t.external_id))
         .map((t) => t.external_id);
-      for (let k = 0; k < missing.length; k += 200) {
-        const { data, error } = await supabase
-          .from("trades")
-          .select("id,external_id")
-          .eq("journal_id", journal.id)
-          .in("external_id", missing.slice(k, k + 200));
-        if (error) throw error;
-        data?.forEach((d) => d.external_id && idByExternal.set(d.external_id, d.id));
-      }
+      (await findTradeIds(journal.id, unsaved)).forEach((id, ext) => idByExternal.set(ext, id));
       const ids = [...idByExternal.values()];
-      const hasLegs = new Set<string>();
-      for (let k = 0; k < ids.length; k += 200) {
-        const { data, error } = await supabase
-          .from("trade_executions")
-          .select("trade_id")
-          .in("trade_id", ids.slice(k, k + 200));
-        if (error) throw error;
-        data?.forEach((d) => hasLegs.add(d.trade_id));
-      }
+      const hasLegs = await tradeIdsWithLegs(ids);
       const legs = res.trades.flatMap((t) => {
         const id = idByExternal.get(t.external_id);
         return id && !hasLegs.has(id)
           ? t.legs.map((l) => ({ ...l, trade_id: id, journal_id: journal.id }))
           : [];
       });
-      for (let k = 0; k < legs.length; k += CHUNK) {
-        const { error } = await supabase.from("trade_executions").insert(legs.slice(k, k + CHUNK));
-        if (error) throw error;
-      }
+      await insertExecutions(legs);
       const extra = [
         res.open.length
           ? `${res.open.length} position${res.open.length === 1 ? "" : "s"} still open (not imported)`
@@ -479,14 +397,11 @@ export function ImportDialog({
           ? `${mt.platform}-${mt.account?.login ?? "acct"}`
           : undefined;
       const call = (f: boolean, ns?: string) =>
-        supabase.rpc("import_mt_report", {
-          _journal_id: journal.id,
-          _payload: toImportPayload(mt, tz, {
-            withCashflows: withCash,
-            namespace: ns,
-          }) as unknown as Json,
-          _repair: repair,
-          _force: f,
+        importMtReport({
+          journalId: journal.id,
+          payload: toImportPayload(mt, tz, { withCashflows: withCash, namespace: ns }),
+          repair,
+          force: f,
         });
       let res = await call(force, namespace);
       // The database knows things the file does not (this account is linked to another of your journals).
@@ -497,9 +412,8 @@ export function ImportDialog({
         }
         res = await call(true, undefined);
       }
-      const { data, error } = res;
-      if (error) throw error;
-      const r = data as { inserted: number; updated: number; unchanged: number; cashflows: number };
+      const { result: r, error } = res;
+      if (error || !r) throw error ?? new Error("The import returned no result.");
       const parts = [
         `${r.inserted} new`,
         r.updated ? `${r.updated} updated` : null,
