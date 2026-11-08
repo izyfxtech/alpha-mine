@@ -1,3 +1,4 @@
+import { cumulative } from "@/lib/numbers";
 import { parseSharedJournal } from "@/lib/validation/schemas";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { localDay } from "@/lib/time/local-time";
@@ -85,10 +86,14 @@ function SharedJournal() {
   const gw = all ? Number(data.gross_win) : wins.reduce((s, t) => s + t.net_pnl, 0);
   const count = all ? Number(data.total) : ts.length;
   const winCount = all ? Number(data.wins) : wins.length;
-  let run = all ? net - returnedNet : 0; // trades older than the list are already in the starting point
-  const curve = ts.map((t, i) => ({
+  // Trades older than the list are already in the starting point.
+  const runs = cumulative(
+    ts.map((t) => t.net_pnl),
+    all ? net - returnedNet : 0,
+  );
+  const curve = ts.map((_, i) => ({
     n: count - ts.length + i + 1,
-    v: +(run += t.net_pnl).toFixed(2),
+    v: +runs[i]!.toFixed(2),
   }));
   const kpis: [string, string][] = [
     ["Net Return", fmtMoney(net, data.currency)],

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useWhenChanged } from "@/lib/use-when-changed";
 import { localDay } from "@/lib/time/local-time";
 import { useNavigate } from "@tanstack/react-router";
 import { CornerDownLeft, FileText, Plus, Search } from "lucide-react";
@@ -24,12 +25,12 @@ export function CommandPalette({
   const [q, setQ] = useState("");
   const [cur, setCur] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (open) {
+  useWhenChanged(open, (isOpen) => {
+    if (isOpen) {
       setQ("");
       setCur(0);
     }
-  }, [open]);
+  });
 
   const items = useMemo<Item[]>(() => {
     const go = (to: string) => () => {
@@ -99,9 +100,7 @@ export function CommandPalette({
     return [...trades, ...filtered.slice(0, 12)];
   }, [q, all, navigate, onOpenChange, drawer]);
 
-  useEffect(() => {
-    setCur(0);
-  }, [q]);
+  useWhenChanged(q, () => setCur(0));
   useEffect(() => {
     listRef.current?.querySelector(`[data-i="${cur}"]`)?.scrollIntoView({ block: "nearest" });
   }, [cur]);

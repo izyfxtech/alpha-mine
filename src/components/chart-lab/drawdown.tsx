@@ -1,3 +1,4 @@
+import { cumulative } from "@/lib/numbers";
 import { useMemo, useState } from "react";
 import {
   Area,
@@ -27,22 +28,29 @@ export function Drawdown({ trades, cur, start }: { trades: Trade[]; cur: string;
   const [display, setDisplay] = useState<"Return ($)" | "Return (%)">("Return ($)");
   const [xm, setXm] = useXMode();
   const { data, worst, avgDD, current, topBottom, bottomTop } = useMemo(() => {
-    let eq = 0,
-      peak = 0,
+    const ordered = sorted(trades);
+    const equity = cumulative(ordered.map((t) => t.net_pnl));
+    // The highest equity so far (never below the starting zero) and the trade where it was reached.
+    const peaks: number[] = [];
+    const peakIdxs: number[] = [];
+    let peak = 0,
       peakIdx = 0;
-    const pts = sorted(trades).map((t, i) => {
-      eq += t.net_pnl;
+    equity.forEach((eq, i) => {
       if (eq >= peak) {
         peak = eq;
         peakIdx = i;
       }
-      const dd = eq - peak;
+      peaks.push(peak);
+      peakIdxs.push(peakIdx);
+    });
+    const pts = ordered.map((t, i) => {
+      const dd = equity[i]! - peaks[i]!;
       return {
         x: i + 1,
         t: tradeTime(t),
         dd,
-        ddPct: start + peak ? (dd / (start + peak)) * 100 : 0,
-        peakIdx,
+        ddPct: start + peaks[i]! ? (dd / (start + peaks[i]!)) * 100 : 0,
+        peakIdx: peakIdxs[i]!,
       };
     });
     const min = pts.reduce(

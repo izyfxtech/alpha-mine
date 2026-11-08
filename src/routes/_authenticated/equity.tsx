@@ -1,3 +1,4 @@
+import { cumulative } from "@/lib/numbers";
 import { toggled } from "@/lib/collections";
 import { byEntry } from "@/lib/pnl/sort";
 import { createFileRoute } from "@tanstack/react-router";
@@ -104,20 +105,29 @@ function Equity() {
       });
       rows = [...m.values()];
     }
-    let c = 0,
-      g = 0,
-      r = 0,
-      pctSum = 0,
-      pctSumG = 0,
-      tiltSum = 0;
-    const out = rows.map((row, i) => {
-      const balBefore = start + c;
-      c += row.pnl;
-      g += row.gross;
-      r += row.r;
-      tiltSum += row.tilt;
+    const netTotals = cumulative(rows.map((row) => row.pnl));
+    const grossTotals = cumulative(rows.map((row) => row.gross));
+    const rTotals = cumulative(rows.map((row) => row.r));
+    const tiltTotals = cumulative(rows.map((row) => row.tilt));
+    // Each step's return is measured against the balance before it, so these sums are built in order.
+    const pctSums: number[] = [];
+    const pctSumsGross: number[] = [];
+    let pctSum = 0,
+      pctSumG = 0;
+    rows.forEach((row, i) => {
+      const balBefore = start + (netTotals[i - 1] ?? 0);
       pctSum += balBefore ? (row.pnl / balBefore) * 100 : 0;
       pctSumG += balBefore ? (row.gross / balBefore) * 100 : 0;
+      pctSums.push(pctSum);
+      pctSumsGross.push(pctSumG);
+    });
+    const out = rows.map((row, i) => {
+      const c = netTotals[i]!,
+        g = grossTotals[i]!,
+        r = rTotals[i]!,
+        tiltSum = tiltTotals[i]!,
+        ps = pctSums[i]!,
+        psg = pctSumsGross[i]!;
       const pick = (net: number, gross: number, ps: number, psg: number) => {
         switch (display) {
           case "Account Balance ($)":
@@ -132,7 +142,7 @@ function Equity() {
             return [net, gross];
         }
       };
-      const [v, v2] = pick(c, g, pctSum, pctSumG);
+      const [v, v2] = pick(c, g, ps, psg);
       return {
         x: xm === "date" ? row.t : i + 1,
         v: +v.toFixed(2),

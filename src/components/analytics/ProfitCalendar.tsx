@@ -1,3 +1,4 @@
+import { now } from "@/lib/time/clock";
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo } from "react";
 import {
@@ -59,7 +60,7 @@ export function ProfitCalendar({
     days = eachDayOfInterval({ start, end: addDays(days[days.length - 1], 7) });
   const rows: Date[][] = [];
   for (let i = 0; i < days.length; i += 7) rows.push(days.slice(i, i + 7));
-  const today = new Date();
+  const today = now();
 
   const cell = (x: Day | undefined, inMonth: boolean) =>
     cn(

@@ -1,5 +1,6 @@
 import { byEntry } from "@/lib/pnl/sort";
-import { useEffect, useMemo, useState } from "react";
+import { useWhenChanged } from "@/lib/use-when-changed";
+import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -57,17 +58,17 @@ export function MergeTradesDialog({
   const qc = useQueryClient();
   const sorted = useMemo(() => [...trades].sort(byEntry), [trades]);
   const likelyDuplicate = useMemo(() => looksLikeDuplicate(sorted), [sorted]);
-  const [mode, setMode] = useState<MergeMode>("combine");
-  const [keepId, setKeepId] = useState<string>("");
+  const [mode, setMode] = useState<MergeMode>(likelyDuplicate ? "duplicate" : "combine");
+  const [keepId, setKeepId] = useState<string>(defaultKeeper(sorted)?.id ?? "");
   const [busy, setBusy] = useState(false);
 
   // Each time the dialog opens, pre-select what the trades look like; the trader can change it.
-  useEffect(() => {
-    if (!open) return;
+  useWhenChanged(open, (isOpen) => {
+    if (!isOpen) return;
     setMode(likelyDuplicate ? "duplicate" : "combine");
     setKeepId(defaultKeeper(sorted)?.id ?? "");
     setBusy(false);
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  });
 
   const ids = sorted.map((t) => t.id);
   const { data: shots = [] } = useQuery({

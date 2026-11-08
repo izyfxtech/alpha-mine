@@ -1,3 +1,4 @@
+import { currentYear } from "@/lib/time/clock";
 import { Link } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import { CaretDown } from "@phosphor-icons/react";
@@ -206,8 +207,7 @@ function Footer() {
       </div>
       <div className="mk-wrap mt-12 text-sm text-[var(--mk-mute)]">
         <div className="border-t border-[var(--mk-line)] pt-6">
-          © {new Date().getFullYear()} IZ Technologies Limited. AlphaMine is built by traders, for
-          traders.
+          © {currentYear()} IZ Technologies Limited. AlphaMine is built by traders, for traders.
         </div>
       </div>
     </footer>

@@ -421,7 +421,7 @@ function PlanSheet({
   const [stats, setStats] = useState<string[]>(selectedStats);
   const { data: lk } = useLookups(journalId);
   const s = (v: unknown) => (v == null ? "" : String(v));
-  const [f, setF] = useState({
+  const [f, setF] = useState(() => ({
     entry_at: toInputValue(row?.entry_at ?? new Date().toISOString()),
     instrument: s(row?.instrument),
     setup: s(row?.setup),
@@ -435,7 +435,7 @@ function PlanSheet({
     option_type: s(row?.option_type),
     expiry_date: s(row?.expiry_date),
     multiplier: s(row?.multiplier ?? 1),
-  });
+  }));
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) =>
     setF((p) => ({ ...p, [k]: e.target.value }));
   const sel = "h-9 w-full rounded-md border bg-background px-2 text-sm";

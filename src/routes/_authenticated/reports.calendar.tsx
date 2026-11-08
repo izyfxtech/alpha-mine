@@ -1,3 +1,4 @@
+import { currentYear } from "@/lib/time/clock";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { localDay } from "@/lib/time/local-time";
 import { useMemo, useState } from "react";
@@ -44,7 +45,7 @@ function CalendarReport() {
   const bal = journal?.starting_balance ?? 0;
   const years = useMemo(() => {
     const ys = new Set(trades.map((t) => Number(localDay(t.entry_at).slice(0, 4))));
-    ys.add(new Date().getFullYear());
+    ys.add(currentYear());
     return [...ys].sort();
   }, [trades]);
   const monthTrades = trades.filter((t) => isSameMonth(new Date(t.entry_at), month));

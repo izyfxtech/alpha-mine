@@ -1,3 +1,4 @@
+import { cumulative } from "@/lib/numbers";
 import { toggled } from "@/lib/collections";
 import { useMemo, useState } from "react";
 import {
@@ -52,18 +53,23 @@ export function Ratios({ trades, start }: { trades: Trade[]; start: number }) {
   const data = useMemo(() => {
     const s = sorted(trades);
     const dd = drawdownRatioSeries(s, start);
-    let eq = 0,
-      peak = 0,
+    const equity = cumulative(s.map((t) => t.net_pnl));
+    const maxDDs: number[] = [];
+    let peak = 0,
       maxDD = 0;
-    return s.map((t, i) => {
+    for (const eq of equity) {
+      peak = Math.max(peak, eq);
+      maxDD = Math.max(maxDD, peak - eq);
+      maxDDs.push(maxDD);
+    }
+    return s.map((_, i) => {
+      const eq = equity[i]!;
+      const maxDD = maxDDs[i]!;
       const w = s.slice(0, i + 1).map((x) => x.net_pnl);
       const rs = s
         .slice(0, i + 1)
         .map((x) => x.r)
         .filter((v): v is number => v != null);
-      eq += t.net_pnl;
-      peak = Math.max(peak, eq);
-      maxDD = Math.max(maxDD, peak - eq);
       const m = w.reduce((a, b) => a + b, 0) / w.length;
       const sd = stdev(w);
       const gw = w.filter((x) => x > 0).reduce((a, b) => a + b, 0),

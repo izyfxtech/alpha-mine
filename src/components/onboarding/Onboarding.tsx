@@ -144,8 +144,8 @@ export function Onboarding() {
   }, []);
 
   // Fill the form once the profile and journal are known.
-  useEffect(() => {
-    if (seeded || !profile || !journal) return;
+  if (!seeded && profile && journal) {
+    setSeeded(true);
     setName(profile.display_name);
     setF({
       name: journal.name,
@@ -154,8 +154,7 @@ export function Onboarding() {
       trade_type: journal.trade_type,
       markets: journal.markets ?? [],
     });
-    setSeeded(true);
-  }, [profile, journal, seeded]);
+  }
 
   // A journal you already named, funded or gave markets to is not asked for again: it is shown for confirmation instead.
   const untouched =

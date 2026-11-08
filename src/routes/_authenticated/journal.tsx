@@ -1,4 +1,5 @@
 import { pushTo } from "@/lib/group";
+import { useWhenChanged } from "@/lib/use-when-changed";
 import { storageGet, storageSet } from "@/lib/safe-storage";
 import { rBlankReason } from "@/lib/pnl/calc";
 import { createFileRoute } from "@tanstack/react-router";
@@ -251,9 +252,7 @@ function JournalPage() {
   const { trades } = useTrades({ includeOpen: true });
   const { filters, setFilters, journal } = useJournal();
   const [qText, setQText] = useState(filters.q ?? "");
-  useEffect(() => {
-    setQText(filters.q ?? "");
-  }, [filters.q]);
+  useWhenChanged(filters.q, (q) => setQText(q ?? ""));
   useEffect(() => {
     if (qText.trim() === (filters.q ?? "")) return;
     const id = setTimeout(() => setFilters({ ...filters, q: qText.trim() || undefined }), 250);
