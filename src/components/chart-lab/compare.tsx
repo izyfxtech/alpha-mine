@@ -13,7 +13,14 @@ import { computeStats, fmtMoney, fmtNum, type Trade } from "@/lib/pnl/metrics";
 import { Empty, axis, seriesValues, tradeAxis, yScale } from "@/components/kit";
 import { COMPARE_ALL, groupValues, resolveValue, runningTotal } from "@/lib/compare";
 import { DAYS } from "@/components/chart-lab/calendar-labels";
-import { ChartCard, Dot, Select, Tip, sorted, tickFmt } from "@/components/chart-lab/chart-kit";
+import {
+  ChartCard,
+  Dot,
+  Select,
+  sorted,
+  tickFmt,
+  PointTip,
+} from "@/components/chart-lab/chart-kit";
 
 /* ---------------- Compare Charts: two trade groups side by side ---------------- */
 const DIMS = ["All Trades", "Setup", "Instrument", "Weekday", "Direction"] as const;
@@ -178,19 +185,16 @@ export function Compare({ trades, cur, start }: { trades: Trade[]; cur: string; 
                 />
                 <ReferenceLine y={0} stroke="var(--color-foreground)" />
                 <Tooltip
-                  content={({ active, payload, label }) =>
-                    active && payload?.length ? (
-                      <Tip
-                        title={Number(label) === 0 ? "Start" : `Trade ${label}`}
-                        lines={payload.map(
-                          (p) =>
-                            [p.dataKey === "A" ? nameA : nameB, fmtMoney(Number(p.value), cur)] as [
-                              string,
-                              string,
-                            ],
-                        )}
-                      />
-                    ) : null
+                  content={
+                    <PointTip
+                      describe={(_, items, label) => ({
+                        title: Number(label) === 0 ? "Start" : `Trade ${label}`,
+                        lines: items.map((item): [string, string] => [
+                          item.dataKey === "A" ? nameA : nameB,
+                          fmtMoney(Number(item.value), cur),
+                        ]),
+                      })}
+                    />
                   }
                 />
                 <Line

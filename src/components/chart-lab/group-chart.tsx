@@ -23,10 +23,10 @@ import {
   Select,
   Sort,
   Stats,
-  Tip,
   fmtD,
   tickFmt,
   valueOf,
+  PointTip,
 } from "@/components/chart-lab/chart-kit";
 
 export function BarsBig({
@@ -88,16 +88,13 @@ export function BarsBig({
         <ReferenceLine y={0} stroke="var(--color-axis-line)" />
         <Tooltip
           cursor={{ fill: "rgba(90,186,80,0.08)" }}
-          content={({ active, payload }) =>
-            active && payload?.length ? (
-              <Tip
-                title={(payload[0].payload as { k: string }).k}
-                lines={[
-                  [yLabel, fmt((payload[0].payload as { v: number }).v)],
-                  ...(extra ? extra(payload[0].payload as never) : []),
-                ]}
-              />
-            ) : null
+          content={
+            <PointTip<{ k: string; v: number }>
+              describe={(p) => ({
+                title: p.k,
+                lines: [[yLabel, fmt(p.v)], ...(extra ? extra(p as never) : [])],
+              })}
+            />
           }
         />
         <Bar

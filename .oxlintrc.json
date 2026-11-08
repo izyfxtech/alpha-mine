@@ -1,10 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": [
-    "typescript",
-    "react",
-    "import"
-  ],
+  "plugins": ["typescript", "react", "import"],
   "categories": {
     "correctness": "error",
     "suspicious": "warn"
@@ -31,7 +27,10 @@
     "no-unused-expressions": "warn",
     "no-shadow": "warn",
     "no-underscore-dangle": "warn",
-    "import/no-unassigned-import": "warn"
+    "import/no-unassigned-import": [
+      "warn",
+      { "allow": ["@testing-library/jest-dom/vitest", "**/error-capture"] }
+    ]
   },
   "ignorePatterns": [
     ".output",

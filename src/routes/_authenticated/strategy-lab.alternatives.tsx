@@ -2,7 +2,7 @@ import { toggled } from "@/lib/collections";
 import { byEntry } from "@/lib/pnl/sort";
 import { createFileRoute } from "@tanstack/react-router";
 import { countOption, fetchAllRows } from "@/lib/journal/fetch-all";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Plus, Trash2, X } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -274,18 +274,20 @@ function StrategySheet({
   const [setupId, setSetupId] = useState<string>(row?.setup_id ?? setups[0]?.id ?? "");
   const [notes, setNotes] = useState(row?.notes ?? "");
   const tr = useMemo(() => tradesFor(setupId || null), [tradesFor, setupId]);
-  const [alt, setAlt] = useState<Record<string, { p: string; r: string }>>({});
-  useEffect(() => {
-    const m: Record<string, { p: string; r: string }> = {};
-    for (const x of results.filter((r) => r.strategy_id === row?.id))
-      m[x.trade_id] = { p: String(x.alt_profit), r: String(x.alt_r) };
-    setAlt(m);
-  }, [row?.id, results]);
+  // What was saved for this strategy, with the trader's unsaved edits on top; trades with neither use their real result.
+  const saved = useMemo(() => {
+    const byTrade: Record<string, { p: string; r: string }> = {};
+    for (const x of results)
+      if (x.strategy_id === row?.id)
+        byTrade[x.trade_id] = { p: String(x.alt_profit), r: String(x.alt_r) };
+    return byTrade;
+  }, [results, row?.id]);
+  const [edits, setEdits] = useState<Record<string, { p: string; r: string }>>({});
   const def = (x: Trade) => ({
     p: String(+x.net_pnl.toFixed(2)),
     r: String(+(x.r ?? 0).toFixed(2)),
   });
-  const val = (x: Trade) => alt[x.id] ?? def(x);
+  const val = (x: Trade) => edits[x.id] ?? saved[x.id] ?? def(x);
   const chart = tr.map((x, i) => ({
     n: i + 1,
     Profit: +x.net_pnl.toFixed(2),
@@ -294,7 +296,7 @@ function StrategySheet({
     "Alternative R-Multiple": Number(val(x).r) || 0,
   }));
   const setCell = (x: Trade, k: "p" | "r", v: string) =>
-    setAlt((p) => ({ ...p, [x.id]: { ...(p[x.id] ?? def(x)), [k]: v } }));
+    setEdits((p) => ({ ...p, [x.id]: { ...val(x), [k]: v } }));
 
   return (
     <Sheet open onOpenChange={(o) => !o && onClose()}>

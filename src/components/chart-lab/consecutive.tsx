@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { fmtMoney, isLoss, isWin, type Trade } from "@/lib/pnl/metrics";
 import { axis, yScale } from "@/components/kit";
-import { ChartCard, Select, Tip, sorted, tickFmt } from "@/components/chart-lab/chart-kit";
+import { ChartCard, Select, sorted, tickFmt, PointTip } from "@/components/chart-lab/chart-kit";
 
 /* ---------------- individual charts ---------------- */
 export function Consecutive({
@@ -98,23 +98,23 @@ export function Consecutive({
           />
           <Tooltip
             cursor={{ fill: "var(--color-muted)", opacity: 0.4 }}
-            content={({ active, payload }) =>
-              active && payload?.length ? (
-                <Tip
-                  title={`Consecutive ${kind}: ${(payload[0].payload as { k: string }).k}`}
-                  lines={[
+            content={
+              <PointTip<{ k: string; v: number; n: number }>
+                describe={(p) => ({
+                  title: `Consecutive ${kind}: ${p.k}`,
+                  lines: [
                     [
                       avg,
                       avg === "Frequency"
-                        ? String((payload[0].payload as { v: number }).v)
+                        ? String(p.v)
                         : avg === "Return ($)"
-                          ? fmtMoney((payload[0].payload as { v: number }).v, cur)
-                          : `${(payload[0].payload as { v: number }).v}%`,
+                          ? fmtMoney(p.v, cur)
+                          : `${p.v}%`,
                     ],
-                    ["Frequency", String((payload[0].payload as { n: number }).n)],
-                  ]}
-                />
-              ) : null
+                    ["Frequency", String(p.n)],
+                  ],
+                })}
+              />
             }
           />
           <Bar

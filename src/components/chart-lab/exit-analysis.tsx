@@ -12,7 +12,12 @@ import {
 import { useTradeDrawer } from "@/components/journal/TradeDrawer";
 import { fmtNum, isWin, type Trade } from "@/lib/pnl/metrics";
 import { AccentStat, Empty, axis, niceTicks } from "@/components/kit";
-import { ChartCard, Dot, Stats, Tip, sorted } from "@/components/chart-lab/chart-kit";
+import { ChartCard, Dot, Stats, sorted, PointTip } from "@/components/chart-lab/chart-kit";
+
+/** The marker for a trade's exit point on the updraw/drawdown chart. */
+function ExitDot({ cx, cy }: { cx?: number; cy?: number }) {
+  return <circle cx={cx} cy={cy} r={2.5} fill="var(--color-foreground)" />;
+}
 
 export function ExitAnalysis({ trades }: { trades: Trade[] }) {
   const drawer = useTradeDrawer();
@@ -107,17 +112,17 @@ export function ExitAnalysis({ trades }: { trades: Trade[] }) {
             <ReferenceLine y={-100} stroke="var(--color-chart-2)" />
             <ReferenceLine y={0} stroke="var(--color-foreground)" />
             <Tooltip
-              content={({ active, payload }) =>
-                active && payload?.length ? (
-                  <Tip
-                    title={`Trade ${(payload[0].payload as { x: number }).x}`}
-                    lines={[
-                      ["Updraw", `${(payload[0].payload as { up: number }).up}%`],
-                      ["Drawdown", `${(payload[0].payload as { dn: number }).dn}%`],
-                      ["Exit", `${(payload[0].payload as { exit: number }).exit}%`],
-                    ]}
-                  />
-                ) : null
+              content={
+                <PointTip<{ x: number; up: number; dn: number; exit: number }>
+                  describe={(p) => ({
+                    title: `Trade ${p.x}`,
+                    lines: [
+                      ["Updraw", `${p.up}%`],
+                      ["Drawdown", `${p.dn}%`],
+                      ["Exit", `${p.exit}%`],
+                    ],
+                  })}
+                />
               }
             />
             <Bar dataKey="up" stackId="a" fill="var(--color-chart-1)" isAnimationActive={false} />
@@ -125,9 +130,7 @@ export function ExitAnalysis({ trades }: { trades: Trade[] }) {
             <Scatter
               dataKey="exit"
               fill="var(--color-foreground)"
-              shape={(pp: { cx?: number; cy?: number }) => (
-                <circle cx={pp.cx} cy={pp.cy} r={2.5} fill="var(--color-foreground)" />
-              )}
+              shape={ExitDot}
               isAnimationActive={false}
             />
           </ComposedChart>

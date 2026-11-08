@@ -208,6 +208,59 @@ const axisNum = (n: number) =>
     ? `${(n / 1000).toFixed(0)}k`
     : n.toLocaleString("en-US", { maximumFractionDigits: 2 });
 
+/** Tooltip for the PnL bar chart. Recharts passes `active` and `payload`; the rest says which fields to read and how to format. */
+function PnlBarsTip({
+  active,
+  payload,
+  x,
+  y,
+  f,
+}: {
+  active?: boolean;
+  payload?: readonly { payload?: unknown }[];
+  x: string;
+  y: string;
+  f: (n: number) => string;
+}) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0]!.payload as Record<string, unknown>;
+  const v = Number(d[y]);
+  const has = (k: string) => typeof d[k] === "number";
+  return (
+    <div className="min-w-[150px] rounded-md bg-popover px-3 py-2 text-xs shadow-[0_2px_10px_rgba(0,0,0,0.15)]">
+      <p className="mb-1 font-semibold">{String(d[x])}</p>
+      <p className="mb-1.5 flex items-center justify-between gap-4">
+        <span className={cn("h-2 w-2 rounded-full", v >= 0 ? "bg-profit" : "bg-loss")} />
+        <b className="tabular">{f(v)}</b>
+      </p>
+      {has("trades") && (
+        <p className="flex justify-between gap-4">
+          <span>Number of trades:</span>
+          <b className="tabular">{String(d["trades"])}</b>
+        </p>
+      )}
+      {has("wins") && (
+        <p className="flex justify-between gap-4">
+          <span>Winners:</span>
+          <b className="tabular">{String(d["wins"])}</b>
+        </p>
+      )}
+      {has("losses") && (
+        <p className="flex justify-between gap-4">
+          <span>Losers:</span>
+          <b className="tabular">{String(d["losses"])}</b>
+        </p>
+      )}
+      {has("be") && (
+        <p className="flex justify-between gap-4">
+          <span>Break evens:</span>
+          <b className="tabular">{String(d["be"])}</b>
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function PnlBars({
   data,
   x,
@@ -255,45 +308,7 @@ export function PnlBars({
         <RRef y={0} stroke="var(--color-axis-line)" />
         <Tooltip
           cursor={{ fill: "rgba(90,186,80,0.08)" }}
-          content={({ active, payload }) => {
-            if (!active || !payload?.length) return null;
-            const d = payload[0].payload as Record<string, unknown>;
-            const v = Number(d[y]);
-            const has = (k: string) => typeof d[k] === "number";
-            return (
-              <div className="min-w-[150px] rounded-md bg-popover px-3 py-2 text-xs shadow-[0_2px_10px_rgba(0,0,0,0.15)]">
-                <p className="mb-1 font-semibold">{String(d[x])}</p>
-                <p className="mb-1.5 flex items-center justify-between gap-4">
-                  <span className={cn("h-2 w-2 rounded-full", v >= 0 ? "bg-profit" : "bg-loss")} />
-                  <b className="tabular">{f(v)}</b>
-                </p>
-                {has("trades") && (
-                  <p className="flex justify-between gap-4">
-                    <span>Number of trades:</span>
-                    <b className="tabular">{String(d["trades"])}</b>
-                  </p>
-                )}
-                {has("wins") && (
-                  <p className="flex justify-between gap-4">
-                    <span>Winners:</span>
-                    <b className="tabular">{String(d["wins"])}</b>
-                  </p>
-                )}
-                {has("losses") && (
-                  <p className="flex justify-between gap-4">
-                    <span>Losers:</span>
-                    <b className="tabular">{String(d["losses"])}</b>
-                  </p>
-                )}
-                {has("be") && (
-                  <p className="flex justify-between gap-4">
-                    <span>Break evens:</span>
-                    <b className="tabular">{String(d["be"])}</b>
-                  </p>
-                )}
-              </div>
-            );
-          }}
+          content={<PnlBarsTip x={x} y={y} f={f} />}
         />
         <Bar dataKey={y} maxBarSize={30}>
           {data.map((d, i) => (
@@ -391,6 +406,41 @@ export type EquityPoint = {
   label?: string;
   id?: string;
 };
+
+/** Tooltip for the equity chart: the value (and optional second value) at the hovered point. */
+function EquityTip({
+  active,
+  payload,
+  baseline,
+  valueName,
+  value2Name,
+  fmt,
+}: {
+  active?: boolean;
+  payload?: readonly { payload?: unknown }[];
+  baseline: number;
+  valueName: string;
+  value2Name?: string;
+  fmt: (n: number) => string;
+}) {
+  if (!active || !payload?.length) return null;
+  const p = payload[0]!.payload as EquityPoint;
+  return (
+    <div className="rounded-md border bg-popover px-3 py-2 text-xs shadow-md">
+      <p className="mb-1 font-semibold">{p.label ?? `Trade #${p.x}`}</p>
+      <p className="flex items-center gap-1.5">
+        <span className={cn("h-2 w-2 rounded-full", p.v >= baseline ? "bg-profit" : "bg-loss")} />
+        {valueName}: <b className="tabular">{fmt(p.v)}</b>
+      </p>
+      {p.v2 !== undefined && value2Name && (
+        <p className="flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-chart-4" />
+          {value2Name}: <b className="tabular">{fmt(p.v2)}</b>
+        </p>
+      )}
+    </div>
+  );
+}
 
 export function EquityChart({
   data,
@@ -587,30 +637,14 @@ export function EquityChart({
         />
         <Tooltip
           cursor={{ stroke: "var(--color-border)" }}
-          content={({ active, payload }) => {
-            if (!active || !payload?.length) return null;
-            const p = payload[0].payload as EquityPoint;
-            return (
-              <div className="rounded-md border bg-popover px-3 py-2 text-xs shadow-md">
-                <p className="mb-1 font-semibold">{p.label ?? `Trade #${p.x}`}</p>
-                <p className="flex items-center gap-1.5">
-                  <span
-                    className={cn(
-                      "h-2 w-2 rounded-full",
-                      p.v >= baseline ? "bg-profit" : "bg-loss",
-                    )}
-                  />
-                  {valueName}: <b className="tabular">{fmt(p.v)}</b>
-                </p>
-                {p.v2 !== undefined && value2Name && (
-                  <p className="flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-full bg-chart-4" />
-                    {value2Name}: <b className="tabular">{fmt(p.v2)}</b>
-                  </p>
-                )}
-              </div>
-            );
-          }}
+          content={
+            <EquityTip
+              baseline={baseline}
+              valueName={valueName}
+              value2Name={value2Name}
+              fmt={fmt}
+            />
+          }
         />
         {showTilt && (
           <Bar yAxisId="t" dataKey="tilt" barSize={3}>

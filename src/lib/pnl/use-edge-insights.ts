@@ -1,5 +1,6 @@
-import { storageStrings } from "@/lib/safe-storage";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { parseStrings } from "@/lib/safe-storage";
+import { useStoredJson } from "@/lib/use-stored-value";
+import { useMemo } from "react";
 import { useLookups, useTrades } from "@/lib/journal/journal-context";
 import { computeEdgeFinder, type EdgeCard } from "@/lib/pnl/edge-finder";
 
@@ -11,24 +12,7 @@ export function useEdgeCards() {
   const { trades, journal, flows } = useTrades({ unfiltered: true });
   const { data: lookups } = useLookups(journal?.id);
   const storageKey = journal ? `am.edge-ignored.${journal.id}` : null;
-  const [ignored, setIgnored] = useState<string[]>([]);
-  useEffect(() => {
-    if (!storageKey) return;
-    setIgnored(storageStrings(storageKey));
-  }, [storageKey]);
-  const persist = useCallback(
-    (next: string[]) => {
-      setIgnored(next);
-      if (storageKey) {
-        try {
-          localStorage.setItem(storageKey, JSON.stringify(next));
-        } catch {
-          /* private mode: keep it in memory only */
-        }
-      }
-    },
-    [storageKey],
-  );
+  const [ignored, persist] = useStoredJson(storageKey, parseStrings);
 
   const cards = useMemo<EdgeCard[]>(() => {
     if (!journal) return [];

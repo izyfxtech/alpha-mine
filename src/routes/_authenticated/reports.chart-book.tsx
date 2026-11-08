@@ -57,10 +57,26 @@ function ChartBook() {
   });
   const [editing, setEditing] = useState<string | null>(null);
 
-  const has = (kind: Kind, id: string) => shots.some((x) => x[KIND_FIELD[kind]] === id);
-  const withShots = useMemo(() => trades.filter((t) => has("trades", t.id)), [trades, shots]);
-  const missedShots = missed.rows.filter((m) => has("missed", m.id));
-  const planShots = plans.rows.filter((p) => has("plans", p.id));
+  // The ids that have at least one screenshot, per kind of record.
+  const shotIds = useMemo(() => {
+    const ids: Record<Kind, Set<string>> = {
+      trades: new Set(),
+      missed: new Set(),
+      plans: new Set(),
+    };
+    for (const kind of Object.keys(ids) as Kind[])
+      for (const shot of shots) {
+        const id = shot[KIND_FIELD[kind]];
+        if (id) ids[kind].add(id);
+      }
+    return ids;
+  }, [shots]);
+  const withShots = useMemo(
+    () => trades.filter((t) => shotIds.trades.has(t.id)),
+    [trades, shotIds],
+  );
+  const missedShots = missed.rows.filter((m) => shotIds.missed.has(m.id));
+  const planShots = plans.rows.filter((p) => shotIds.plans.has(p.id));
   const sections: {
     kind: Kind;
     title: string;

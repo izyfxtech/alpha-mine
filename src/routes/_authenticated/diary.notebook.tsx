@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { localDateTime, localToday } from "@/lib/time/local-time";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Folder, FolderOpen, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { RichEditor, stripHtml } from "@/components/RichEditor";
+import { stripHtml } from "@/components/RichEditor";
+import { NoteEditor } from "@/components/diary/NoteEditor";
 import { useJournal } from "@/lib/journal/journal-context";
 import { useJournalTable } from "@/lib/journal/crud";
 import { cn } from "@/lib/utils";
@@ -45,67 +46,6 @@ function Notebook() {
   const list = folder === ALL ? pages.rows : pages.rows.filter((p) => p.folder === folder);
   // Reference behaviour: the first note of the current list is open by default.
   const page = list.find((p) => p.id === sel) ?? list[0] ?? null;
-
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  // Pending (unsaved) edit, kept in a ref so it can be flushed when the user switches notes quickly
-  // instead of being dropped by the debounce timer.
-  const pending = useRef<{ id: string; title: string; content: string } | null>(null);
-  const [saveState, setSaveState] = useState<"saved" | "saving" | "failed">("saved");
-  const flush = async () => {
-    const p = pending.current;
-    if (!p) return;
-    setSaveState("saving");
-    const ok = await pages.update(p.id, {
-      title: p.title,
-      content: p.content,
-      updated_at: new Date().toISOString(),
-    });
-    if (ok) {
-      // Only clear if nothing newer was typed while the request was in flight.
-      if (pending.current === p) pending.current = null;
-      setSaveState(pending.current ? "saving" : "saved");
-    } else {
-      // Keep the edit so the next change, retry or leaving the page tries again.
-      if (!pending.current) pending.current = p;
-      setSaveState("failed");
-    }
-  };
-  useEffect(() => {
-    void flush();
-    setTitle(page?.title ?? "");
-    setContent(page?.content ?? "");
-  }, [page?.id]);
-  useEffect(() => {
-    if (!page || (title === page.title && content === (page.content ?? ""))) return;
-    pending.current = { id: page.id, title, content };
-    setSaveState("saving");
-    const h = setTimeout(() => void flush(), 700);
-    return () => clearTimeout(h);
-  }, [title, content]);
-  useEffect(() => {
-    // Save when leaving the page, hiding the tab or closing it; warn if an edit is still unsaved.
-    const hide = () => {
-      if (document.visibilityState === "hidden") void flush();
-    };
-    const warn = (e: BeforeUnloadEvent) => {
-      if (pending.current) {
-        void flush();
-        e.preventDefault();
-        e.returnValue = "";
-      }
-    };
-    document.addEventListener("visibilitychange", hide);
-    const leave = () => void flush();
-    window.addEventListener("pagehide", leave);
-    window.addEventListener("beforeunload", warn);
-    return () => {
-      document.removeEventListener("visibilitychange", hide);
-      window.removeEventListener("beforeunload", warn);
-      window.removeEventListener("pagehide", leave);
-      void flush();
-    };
-  }, []);
 
   const addNote = async () => {
     const target = folder === ALL ? (names[0] ?? "Diary") : folder;
@@ -222,44 +162,22 @@ function Notebook() {
               {list.length ? "Select a note." : "There are no notes."}
             </div>
           ) : (
-            <>
-              <div className="mb-3 flex items-center gap-2">
-                <input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="flex-1 bg-transparent text-[16px] font-bold outline-none"
-                />
-                <span
-                  className={cn("text-xs", saveState === "failed" ? "text-destructive" : "text-t4")}
-                  role="status"
-                >
-                  {saveState === "saving"
-                    ? "Saving…"
-                    : saveState === "failed"
-                      ? "Not saved — retrying on your next edit"
-                      : "Saved"}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={async () => {
-                    if (
-                      !(await confirm({
-                        title: `Delete "${page.title || "Untitled"}"?`,
-                        message: "This cannot be undone.",
-                        destructive: true,
-                      }))
-                    )
-                      return;
-                    if (await pages.remove(page.id)) setSel(null);
-                  }}
-                  title="Delete note"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-              <RichEditor value={content} onChange={setContent} className="min-h-0 flex-1" />
-            </>
+            <NoteEditor
+              key={page.id}
+              page={page}
+              save={pages.update}
+              onDelete={async () => {
+                if (
+                  !(await confirm({
+                    title: `Delete "${page.title || "Untitled"}"?`,
+                    message: "This cannot be undone.",
+                    destructive: true,
+                  }))
+                )
+                  return;
+                if (await pages.remove(page.id)) setSel(null);
+              }}
+            />
           )}
         </div>
       </div>

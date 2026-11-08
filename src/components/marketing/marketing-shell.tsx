@@ -1,5 +1,5 @@
-import { storageGet } from "@/lib/safe-storage";
-import { useEffect, useState, type ReactNode } from "react";
+import { useHydrated, useStoredString } from "@/lib/use-stored-value";
+import { useEffect, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { Moon, Sun } from "@phosphor-icons/react";
 import { Logo } from "@/components/layout/Logo";
@@ -9,13 +9,9 @@ const KEY = "am.mk-theme";
 
 /** Marketing + auth wrapper: dark by default, persisted toggle, one observer for reveals and word fades. */
 export function MkShell({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("dark");
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    if (storageGet(KEY) === "light") setTheme("light");
-    setReady(true);
-  }, []);
+  const [storedTheme, storeTheme] = useStoredString(KEY);
+  const theme: Theme = storedTheme === "light" ? "light" : "dark";
+  const ready = useHydrated();
 
   useEffect(() => {
     if (!ready) return;
@@ -34,16 +30,7 @@ export function MkShell({ children }: { children: ReactNode }) {
     return () => obs.disconnect();
   }, [ready]);
 
-  const toggle = () =>
-    setTheme((t) => {
-      const n = t === "dark" ? "light" : "dark";
-      try {
-        localStorage.setItem(KEY, n);
-      } catch {
-        /* ignore */
-      }
-      return n;
-    });
+  const toggle = () => storeTheme(theme === "dark" ? "light" : "dark");
 
   return (
     <div className={`mk ${theme === "dark" ? "mk-dark" : "mk-light"} ${ready ? "mk-js" : ""}`}>

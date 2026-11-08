@@ -20,7 +20,14 @@ import {
   xAxisLabel,
   xAxisProps,
 } from "@/components/analytics/x-axis";
-import { ChartCard, Select, Stats, Tip, sorted, tickFmt } from "@/components/chart-lab/chart-kit";
+import {
+  ChartCard,
+  Select,
+  Stats,
+  sorted,
+  tickFmt,
+  PointTip,
+} from "@/components/chart-lab/chart-kit";
 
 export function Drawdown({ trades, cur, start }: { trades: Trade[]; cur: string; start: number }) {
   const drawer = useTradeDrawer();
@@ -28,8 +35,8 @@ export function Drawdown({ trades, cur, start }: { trades: Trade[]; cur: string;
   const [display, setDisplay] = useState<"Return ($)" | "Return (%)">("Return ($)");
   const [xm, setXm] = useXMode();
   const { data, worst, avgDD, current, topBottom, bottomTop } = useMemo(() => {
-    const ordered = sorted(trades);
-    const equity = cumulative(ordered.map((t) => t.net_pnl));
+    const inOrder = sorted(trades);
+    const equity = cumulative(inOrder.map((t) => t.net_pnl));
     // The highest equity so far (never below the starting zero) and the trade where it was reached.
     const peaks: number[] = [];
     const peakIdxs: number[] = [];
@@ -43,7 +50,7 @@ export function Drawdown({ trades, cur, start }: { trades: Trade[]; cur: string;
       peaks.push(peak);
       peakIdxs.push(peakIdx);
     });
-    const pts = ordered.map((t, i) => {
+    const pts = inOrder.map((t, i) => {
       const dd = equity[i]! - peaks[i]!;
       return {
         x: i + 1,
@@ -128,20 +135,15 @@ export function Drawdown({ trades, cur, start }: { trades: Trade[]; cur: string;
               }}
             />
             <Tooltip
-              content={({ active, payload }) =>
-                active && payload?.length ? (
-                  <Tip
-                    title={pointTitle(xm, payload[0].payload as { x: number; t: number })}
-                    lines={[
-                      [
-                        "Drawdown",
-                        display === "Return ($)"
-                          ? fmtMoney((payload[0].payload as { v: number }).v, cur)
-                          : `${(payload[0].payload as { v: number }).v}%`,
-                      ],
-                    ]}
-                  />
-                ) : null
+              content={
+                <PointTip<{ x: number; t: number; v: number }>
+                  describe={(p) => ({
+                    title: pointTitle(xm, p),
+                    lines: [
+                      ["Drawdown", display === "Return ($)" ? fmtMoney(p.v, cur) : `${p.v}%`],
+                    ],
+                  })}
+                />
               }
             />
             <Area

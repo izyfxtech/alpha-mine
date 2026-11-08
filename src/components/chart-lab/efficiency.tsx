@@ -18,7 +18,7 @@ import {
   xAxisLabel,
   xAxisProps,
 } from "@/components/analytics/x-axis";
-import { ChartCard, Stats, Tip, sorted } from "@/components/chart-lab/chart-kit";
+import { ChartCard, Stats, sorted, PointTip } from "@/components/chart-lab/chart-kit";
 
 export function Efficiency({ trades }: { trades: Trade[] }) {
   const drawer = useTradeDrawer();
@@ -88,13 +88,13 @@ export function Efficiency({ trades }: { trades: Trade[] }) {
               }}
             />
             <Tooltip
-              content={({ active, payload }) =>
-                active && payload?.length ? (
-                  <Tip
-                    title={pointTitle(xm, payload[0].payload as { x: number; t: number })}
-                    lines={[["Efficiency", `${(payload[0].payload as { v: number }).v}%`]]}
-                  />
-                ) : null
+              content={
+                <PointTip<{ x: number; t: number; v: number }>
+                  describe={(p) => ({
+                    title: pointTitle(xm, p),
+                    lines: [["Efficiency", `${p.v}%`]],
+                  })}
+                />
               }
             />
             <Area
