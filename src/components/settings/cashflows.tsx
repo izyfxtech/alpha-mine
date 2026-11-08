@@ -1,3 +1,4 @@
+import { cumulative } from "@/lib/numbers";
 import { safeCurrency } from "@/lib/currencies";
 import { localDay, localToday } from "@/lib/time/local-time";
 import { useMemo, useState } from "react";
@@ -46,8 +47,8 @@ export function Cashflows() {
         locked: false,
       })),
     ].sort((a, b) => a.occurred_on.localeCompare(b.occurred_on) || (a.locked ? -1 : 1));
-    let bal = 0;
-    return list.map((r) => ({ ...r, balance: (bal += r.amount) })).reverse();
+    const balances = cumulative(list.map((r) => r.amount));
+    return list.map((r, i) => ({ ...r, balance: balances[i]! })).reverse();
   }, [t.rows, journal]);
   const valid = !!date && Number.isFinite(Number(amount)) && Number(amount) > 0;
   return (

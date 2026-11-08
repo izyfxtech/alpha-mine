@@ -1,4 +1,5 @@
 import { storageSet } from "@/lib/safe-storage";
+import { useWhenChanged } from "@/lib/use-when-changed";
 import { safeCurrency } from "@/lib/currencies";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -21,9 +22,9 @@ const rowCls =
 function Group({ item, collapsed, path }: { item: NavItem; collapsed: boolean; path: string }) {
   const active = item.children!.some((c) => path === childPath(c));
   const [open, setOpen] = useState(active);
-  useEffect(() => {
-    if (active) setOpen(true);
-  }, [active]);
+  useWhenChanged(active, (now) => {
+    if (now) setOpen(true);
+  });
   const links = item.children!.map((c) => (
     <Link
       key={c.label}

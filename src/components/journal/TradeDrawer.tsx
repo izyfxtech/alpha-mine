@@ -264,7 +264,7 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
           .filter((o) => o.category_id === cat)
           .map((o) => ({ id: o.id, label: o.label })) as Opt[],
     }),
-    [lk],
+    [lk, trade?.instrument_id, trade?.setup_id],
   );
 
   const refreshLookups = () => qc.invalidateQueries({ queryKey: ["lookups", journal?.id] });

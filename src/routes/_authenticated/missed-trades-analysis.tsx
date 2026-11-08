@@ -1,3 +1,4 @@
+import { cumulative } from "@/lib/numbers";
 import { rewardRisk } from "@/lib/pnl/calc";
 import { createFileRoute } from "@tanstack/react-router";
 import { countOption, fetchAllRows } from "@/lib/journal/fetch-all";
@@ -137,10 +138,11 @@ function Analysis() {
   const fmt = (v: number) =>
     unit === "r" ? `${fmtNum(v)}R` : unit === "pct" ? `${fmtNum(v)}%` : fmtMoney(v, cur);
 
-  let c = 0;
-  const curve = [...mItems]
-    .sort((a, b) => a.at.localeCompare(b.at))
-    .map((i, k) => ({ x: k + 1, v: +(c += conv(i.pnl, i.r)).toFixed(2) }));
+  const orderedMissed = [...mItems].sort((a, b) => a.at.localeCompare(b.at));
+  const curve = cumulative(orderedMissed.map((i) => conv(i.pnl, i.r))).map((v, k) => ({
+    x: k + 1,
+    v: +v.toFixed(2),
+  }));
   const vs = [
     { k: "Missed", v: +mItems.reduce((a, i) => a + conv(i.pnl, i.r), 0).toFixed(2) },
     { k: "Real", v: +rItems.reduce((a, i) => a + conv(i.pnl, i.r), 0).toFixed(2) },

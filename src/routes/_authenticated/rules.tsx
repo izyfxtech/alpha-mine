@@ -31,7 +31,7 @@ function RulesPage() {
   const { trades, journal } = useTrades();
   const { data: lk } = useLookups(journal?.id);
   const drill = useDrillDown();
-  const rules = lk?.all.rules ?? [];
+  const rules = useMemo(() => lk?.all.rules ?? [], [lk]);
   const rep = useMemo(() => complianceReport(trades, rules), [trades, rules]);
   if (!journal) return null;
   const cur = journal.currency;

@@ -1,3 +1,4 @@
+import { cumulative } from "@/lib/numbers";
 import { useMemo } from "react";
 import {
   CartesianGrid,
@@ -39,20 +40,16 @@ export function TradeManagement({ trades }: { trades: Trade[] }) {
         / low price) to see trade management.
       </Empty>
     );
-  let A = 0,
-    P = 0;
-  const data = rows.map(({ t, a, p }, i) => {
-    A += a;
-    P += p;
-    return {
-      x: i + 1,
-      t: tradeTime(t),
-      actual: +A.toFixed(2),
-      potential: +P.toFixed(2),
-      effect: +(A - P).toFixed(2),
-      trade: t,
-    };
-  });
+  const actualTotals = cumulative(rows.map((r) => r.a));
+  const potentialTotals = cumulative(rows.map((r) => r.p));
+  const data = rows.map(({ t }, i) => ({
+    x: i + 1,
+    t: tradeTime(t),
+    actual: +actualTotals[i]!.toFixed(2),
+    potential: +potentialTotals[i]!.toFixed(2),
+    effect: +(actualTotals[i]! - potentialTotals[i]!).toFixed(2),
+    trade: t,
+  }));
   const managed = rows.filter((r) => Math.abs(r.a - r.p) > 1e-6);
   const good = managed.filter((r) => r.a > r.p).length;
   const last = data[data.length - 1];

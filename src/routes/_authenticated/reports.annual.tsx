@@ -1,3 +1,4 @@
+import { currentYear } from "@/lib/time/clock";
 import { useProfile } from "@/lib/profile-settings";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { localDay } from "@/lib/time/local-time";
@@ -46,10 +47,10 @@ function Annual() {
   const { trades, all, journal, flows } = useTrades();
   const search = Route.useSearch();
   const navigate = useNavigate();
-  const year = search.year ?? new Date().getFullYear();
+  const year = search.year ?? currentYear();
   const years = useMemo(() => {
     const ys = new Set(trades.map((t) => Number(localDay(t.entry_at).slice(0, 4))));
-    ys.add(new Date().getFullYear());
+    ys.add(currentYear());
     return [...ys].sort();
   }, [trades]);
   const yearTrades = useMemo(

@@ -382,7 +382,7 @@ export function MissedSheet({
     setups = lk?.setups ?? [];
   const [stats, setStats] = useState<string[]>(selectedStats);
   const s = (v: unknown) => (v == null ? "" : String(v));
-  const [f, setF] = useState({
+  const [f, setF] = useState(() => ({
     occurred_at: toInputValue(row?.occurred_at ?? new Date().toISOString()),
     exit_at: toInputValue(row?.exit_at),
     instrument: s(row?.instrument),
@@ -400,7 +400,7 @@ export function MissedSheet({
     option_type: s(row?.option_type),
     expiry_date: s(row?.expiry_date),
     multiplier: s(row?.multiplier ?? 1),
-  });
+  }));
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) =>
     setF((p) => ({ ...p, [k]: e.target.value }));
   const auto = () => {

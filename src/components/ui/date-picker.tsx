@@ -1,6 +1,6 @@
-"use client";
-
-import { useEffect, useMemo, useState } from "react";
+import { currentYear, todayKey } from "@/lib/time/clock";
+import { useWhenChanged } from "@/lib/use-when-changed";
+import { useMemo, useState } from "react";
 import {
   addDays,
   addMonths,
@@ -43,7 +43,7 @@ const selectCls =
  * under it never goes away, so an exact date is always one more tap.
  */
 export function MonthYearNav({ month, onChange }: { month: Date; onChange: (m: Date) => void }) {
-  const thisYear = new Date().getFullYear();
+  const thisYear = currentYear();
   const y = month.getFullYear();
   const years = useMemo(() => {
     const from = Math.min(thisYear - 25, y),
@@ -119,7 +119,7 @@ function DayGrid({
     weekStartsOn === 0
       ? ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
       : ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
-  const today = format(new Date(), "yyyy-MM-dd");
+  const today = todayKey();
   return (
     <>
       <div className="grid grid-cols-7 gap-y-1 text-center text-xs text-muted-foreground">
@@ -173,9 +173,9 @@ export function CalendarPanel({
   const day = value.slice(0, 10);
   const valid = DAY_RE.test(day) && isValid(parseISO(day));
   const [month, setMonth] = useState(() => startOfMonth(valid ? parseISO(day) : new Date()));
-  useEffect(() => {
+  useWhenChanged(`${valid}${day}`, () => {
     if (valid) setMonth(startOfMonth(parseISO(day)));
-  }, [day, valid]);
+  });
 
   const time = withTime && value.length >= 16 ? value.slice(11, 16) : "";
   const secs = withTime && value.length >= 19 ? value.slice(16, 19) : "";
@@ -185,7 +185,7 @@ export function CalendarPanel({
   };
   const emit = (d: string, t: string) => onChange(withTime ? `${d}T${t || nowHM()}${secs}` : d);
   const [hh, mm] = (time || "00:00").split(":");
-  const today = format(new Date(), "yyyy-MM-dd");
+  const today = todayKey();
 
   return (
     <div className="w-[272px]">

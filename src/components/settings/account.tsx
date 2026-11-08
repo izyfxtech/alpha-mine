@@ -1,6 +1,7 @@
 import { CURRENCIES } from "@/lib/currencies";
+import { useWhenChanged } from "@/lib/use-when-changed";
 import { localToday } from "@/lib/time/local-time";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
@@ -21,7 +22,10 @@ import { card, currencyName, sel, selFixed } from "@/components/settings/setting
 export function Account() {
   const qc = useQueryClient();
   const { profile: data, settings, saveSettings } = useProfile();
-  const [f, setF] = useState({ display_name: "", base_currency: "USD" });
+  const [f, setF] = useState({
+    display_name: data?.display_name ?? "",
+    base_currency: data?.base_currency ?? "USD",
+  });
   const [pwOpen, setPwOpen] = useState(false);
   const [pw, setPw] = useState("");
   const [exporting, setExporting] = useState<string | null>(null);
@@ -46,9 +50,9 @@ export function Account() {
       setExporting(null);
     }
   }
-  useEffect(() => {
-    if (data) setF({ display_name: data.display_name, base_currency: data.base_currency });
-  }, [data]);
+  useWhenChanged(data, (next) => {
+    if (next) setF({ display_name: next.display_name, base_currency: next.base_currency });
+  });
   const toggles: [
     "showWeeklyTotals" | "showCalendarWinrate" | "showBalance" | "allowSharing",
     string,

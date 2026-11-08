@@ -1,5 +1,6 @@
 import { CURRENCIES } from "@/lib/currencies";
-import { useEffect, useMemo, useState } from "react";
+import { useWhenChanged } from "@/lib/use-when-changed";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -33,7 +34,7 @@ export function JournalSettings() {
   );
   const [f, setF] = useState(initial);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  useEffect(() => setF(initial), [initial]);
+  useWhenChanged(initial, setF);
   if (!journal || !f || !initial) return null;
   const dirty = JSON.stringify(f) !== JSON.stringify(initial);
   const valid = f.name.trim() && f.markets.trim() && Number.isFinite(Number(f.starting_balance));

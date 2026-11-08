@@ -1,3 +1,4 @@
+import { cumulative } from "@/lib/numbers";
 import { toggled } from "@/lib/collections";
 import { DateRangeButton } from "@/components/analytics/DateRangeButton";
 import { localToday } from "@/lib/time/local-time";
@@ -327,8 +328,7 @@ function SessionSheet({
     [trades, a, b],
   );
   const s = computeStats(ts, start, useJournalFlows());
-  let c = 0;
-  const curve = [{ v: 0 }, ...ts.map((t) => ({ v: (c += t.net_pnl) }))];
+  const curve = [{ v: 0 }, ...cumulative(ts.map((t) => t.net_pnl)).map((v) => ({ v }))];
   const tilt = Math.round(ts.reduce((acc, t) => acc + t.tilt, 0));
 
   return (
