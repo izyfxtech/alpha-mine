@@ -13,7 +13,7 @@ import {
 import { useTradeDrawer } from "@/components/journal/TradeDrawer";
 import { fmtMoney, fmtNum, type Trade } from "@/lib/pnl/metrics";
 import { AccentStat, Empty, axis, niceTicks } from "@/components/kit";
-import { ChartCard, Select, Stats, Tip, tickFmt } from "@/components/chart-lab/chart-kit";
+import { ChartCard, Select, Stats, tickFmt, PointTip } from "@/components/chart-lab/chart-kit";
 
 export function HoldingTime({ trades, cur }: { trades: Trade[]; cur: string }) {
   const drawer = useTradeDrawer();
@@ -102,20 +102,18 @@ export function HoldingTime({ trades, cur }: { trades: Trade[]; cur: string }) {
             />
             <ReferenceLine y={0} stroke="var(--color-muted-foreground)" />
             <Tooltip
-              content={({ active, payload }) => {
-                if (!active || !payload?.length) return null;
-                const p = payload[0].payload as (typeof pts)[number];
-                return (
-                  <Tip
-                    title={`Trade #${p.id}`}
-                    lines={[
+              content={
+                <PointTip<(typeof pts)[number]>
+                  describe={(p) => ({
+                    title: `Trade #${p.id}`,
+                    lines: [
                       ["Exit Date", p.exit],
                       ["Holding Time", `${p.x} ${unit.toLowerCase()}`],
                       ["Return", display === "Return ($)" ? fmtMoney(p.y, cur) : String(p.y)],
-                    ]}
-                  />
-                );
-              }}
+                    ],
+                  })}
+                />
+              }
             />
             <Scatter
               data={pts}

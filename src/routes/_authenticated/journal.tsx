@@ -1,12 +1,13 @@
 import { pushTo } from "@/lib/group";
 import { useWhenChanged } from "@/lib/use-when-changed";
-import { storageGet, storageSet } from "@/lib/safe-storage";
+import { useDebouncedCallback } from "use-debounce";
+import { useStoredString } from "@/lib/use-stored-value";
 import { rBlankReason } from "@/lib/pnl/calc";
 import { createFileRoute } from "@tanstack/react-router";
 import { fmtPrice } from "@/lib/pnl/format-price";
 import { localDateTime } from "@/lib/time/local-time";
 import { countOption, fetchAllRows } from "@/lib/journal/fetch-all";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useFillViewport } from "@/lib/use-fill-viewport";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -53,9 +54,8 @@ import { cn } from "@/lib/utils";
 import {
   defaultJournalTableLayout,
   moveJournalColumn,
-  normalizeJournalTableLayout,
   suggestedColumnWidth,
-  type JournalTableLayout,
+  useJournalTableLayout,
 } from "@/lib/journal/journal-table-layout";
 import { useDialogs } from "@/components/ui/confirm";
 
@@ -253,18 +253,20 @@ function JournalPage() {
   const { filters, setFilters, journal } = useJournal();
   const [qText, setQText] = useState(filters.q ?? "");
   useWhenChanged(filters.q, (q) => setQText(q ?? ""));
-  useEffect(() => {
-    if (qText.trim() === (filters.q ?? "")) return;
-    const id = setTimeout(() => setFilters({ ...filters, q: qText.trim() || undefined }), 250);
-    return () => clearTimeout(id);
-  }, [qText]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Typing updates the box at once; the list filter follows once typing pauses.
+  const applyQuery = useDebouncedCallback((text: string) => {
+    if (text.trim() !== (filters.q ?? "")) setFilters({ ...filters, q: text.trim() || undefined });
+  }, 250);
+  const changeQuery = (text: string) => {
+    setQText(text);
+    applyQuery(text);
+  };
   const drawer = useTradeDrawer();
   const qc = useQueryClient();
   const [sort, setSort] = useState<{ k: string; asc: boolean }>({ k: "entry_at", asc: false });
   const keys = useMemo(() => COLS.map((c) => c.k), []);
   const defaults = useMemo(() => defaultJournalTableLayout(keys), [keys]);
-  const [layout, setLayout] = useState<JournalTableLayout>(defaults);
-  const [layoutReady, setLayoutReady] = useState(false);
+  const [layout, setLayout] = useJournalTableLayout(journal?.id, keys);
   const [columnsOpen, setColumnsOpen] = useState(false);
   const dragKey = useRef<string | null>(null);
   const [colSearch, setColSearch] = useState("");
@@ -289,13 +291,13 @@ function JournalPage() {
   const chosen = trades.filter((t) => sel.has(t.id));
   // The selection can only hold trades on the current filtered list: a filter change drops the rest, so Delete,
   // Duplicate and Merge always act on exactly the trades the user can see ticked (AM-Y04).
-  useEffect(() => {
-    setSel((s) => {
-      const visible = new Set(trades.map((t) => t.id));
-      const kept = [...s].filter((id) => visible.has(id));
-      return kept.length === s.size ? s : new Set(kept); // same Set when nothing changed, so this never re-renders in a loop
-    });
-  }, [trades]);
+  useWhenChanged(trades, (list) =>
+    setSel((current) => {
+      const visibleIds = new Set(list.map((t) => t.id));
+      const kept = [...current].filter((id) => visibleIds.has(id));
+      return kept.length === current.size ? current : new Set(kept); // same Set when nothing changed
+    }),
+  );
   const fillRef = useFillViewport<HTMLDivElement>();
   const [pageSize, setPageSize] = useState(50);
   const [page, setPage] = useState(0);
@@ -303,18 +305,9 @@ function JournalPage() {
   const pg = Math.min(page, pages - 1);
   const visible = sorted.slice(pg * pageSize, pg * pageSize + pageSize);
   const shotIds = useScreenshotTradeIds(journal?.id);
-  const [view, setView] = useState<"table" | "cards" | "gallery">(() => {
-    const v = storageGet("am.journal-view");
-    return v === "cards" || v === "gallery" ? v : "table";
-  });
-  const changeView = (v: "table" | "cards" | "gallery") => {
-    setView(v);
-    try {
-      localStorage.setItem("am.journal-view", v);
-    } catch {
-      /* storage unavailable */
-    }
-  };
+  const [storedView, changeView] = useStoredString("am.journal-view");
+  const view: "table" | "cards" | "gallery" =
+    storedView === "cards" || storedView === "gallery" ? storedView : "table";
   // Signed screenshot URLs are only fetched for the views that show images.
   const { data: allShots = [], isLoading: shotsLoading } = useScreenshots(
     view === "table" ? undefined : journal?.id,
@@ -324,27 +317,6 @@ function JournalPage() {
     for (const sh of allShots) if (sh.trade_id) pushTo(m, sh.trade_id, sh);
     return m;
   }, [allShots]);
-
-  useEffect(() => {
-    if (!journal?.id) return;
-    const raw = storageGet(`am.journal-table.${journal.id}`);
-    try {
-      setLayout(
-        normalizeJournalTableLayout(
-          raw ? (JSON.parse(raw) as Partial<JournalTableLayout>) : null,
-          keys,
-        ),
-      );
-    } catch {
-      setLayout(defaults);
-    }
-    setLayoutReady(true);
-  }, [defaults, journal?.id, keys]);
-
-  useEffect(() => {
-    if (!journal?.id || !layoutReady) return;
-    storageSet(`am.journal-table.${journal.id}`, JSON.stringify(layout));
-  }, [journal?.id, layout, layoutReady]);
 
   async function del() {
     const ids = chosen.map((t) => t.id);
@@ -538,7 +510,7 @@ function JournalPage() {
         <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input
           value={qText}
-          onChange={(e) => setQText(e.target.value)}
+          onChange={(e) => changeQuery(e.target.value)}
           placeholder="Search trades, notes, rules…"
           aria-label="Search trades"
           className="h-9 pl-8"
@@ -548,7 +520,7 @@ function JournalPage() {
             aria-label="Clear search"
             className="absolute right-2 top-2.5 text-muted-foreground"
             onClick={() => {
-              setQText("");
+              changeQuery("");
               setFilters({ ...filters, q: undefined });
             }}
           >
@@ -562,7 +534,7 @@ function JournalPage() {
           size="sm"
           className="h-9 text-sm"
           onClick={() => {
-            setQText("");
+            changeQuery("");
             setFilters({});
           }}
         >

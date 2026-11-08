@@ -1,5 +1,6 @@
-import { storageStringMap } from "@/lib/safe-storage";
-import { useEffect, useMemo, useState } from "react";
+import { parseStringMap } from "@/lib/safe-storage";
+import { useStoredJson } from "@/lib/use-stored-value";
+import { useMemo } from "react";
 import { fmtPrice } from "@/lib/pnl/format-price";
 import { localDay } from "@/lib/time/local-time";
 import { createFileRoute } from "@tanstack/react-router";
@@ -30,20 +31,8 @@ function OpenTradesPage() {
   const drawer = useTradeDrawer();
   const { journal: j } = useJournal();
   const key = `am.openprices.${j?.id ?? ""}`;
-  const [prices, setPrices] = useState<Record<string, string>>({});
-  useEffect(() => {
-    setPrices(storageStringMap(key));
-  }, [key]);
-  const setPrice = (id: string, v: string) =>
-    setPrices((p) => {
-      const n = { ...p, [id]: v };
-      try {
-        localStorage.setItem(key, JSON.stringify(n));
-      } catch {
-        /* ignore */
-      }
-      return n;
-    });
+  const [prices, setPrices] = useStoredJson(key, parseStringMap);
+  const setPrice = (id: string, v: string) => setPrices((current) => ({ ...current, [id]: v }));
   const cur = journal?.currency ?? "USD";
   const rows = useMemo(
     () => open.map((t) => openRow(t, prices[t.id]?.trim() ? Number(prices[t.id]) : null)),

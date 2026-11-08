@@ -83,7 +83,7 @@ function Equity() {
       id: t.id,
       t: new Date(t.entry_at).getTime(),
     }));
-    if (has("Group Trades by Day")) {
+    if (opts.has("Group Trades by Day")) {
       const m = new Map<string, Row>();
       sorted.forEach((t) => {
         const k = localDay(t.entry_at);
@@ -128,12 +128,12 @@ function Equity() {
         tiltSum = tiltTotals[i]!,
         ps = pctSums[i]!,
         psg = pctSumsGross[i]!;
-      const pick = (net: number, gross: number, ps: number, psg: number) => {
+      const pick = (net: number, gross: number, pctNet: number, pctGross: number) => {
         switch (display) {
           case "Account Balance ($)":
             return [start + net, start + gross];
           case "Return, gain sum (%)":
-            return [ps, psg];
+            return [pctNet, pctGross];
           case "Return, ROI (%)":
             return [start ? (net / start) * 100 : 0, start ? (gross / start) * 100 : 0];
           case "R Multiple (R)":
@@ -146,8 +146,8 @@ function Equity() {
       return {
         x: xm === "date" ? row.t : i + 1,
         v: +v.toFixed(2),
-        v2: has("Display Value Without Fees") ? +v2.toFixed(2) : undefined,
-        tilt: has("Display Tiltmeter") ? tiltSum : undefined,
+        v2: opts.has("Display Value Without Fees") ? +v2.toFixed(2) : undefined,
+        tilt: opts.has("Display Tiltmeter") ? tiltSum : undefined,
         label: row.label,
         id: row.id,
       };
@@ -158,8 +158,8 @@ function Equity() {
           ? +(out.slice(i - n + 1, i + 1).reduce((a, p) => a + p.v, 0) / n).toFixed(2)
           : undefined,
       );
-    const m20 = has("Moving Average (20)") ? ma(20) : [];
-    const m50 = has("Moving Average (50)") ? ma(50) : [];
+    const m20 = opts.has("Moving Average (20)") ? ma(20) : [];
+    const m50 = opts.has("Moving Average (50)") ? ma(50) : [];
     return out.map((p, i) => ({ ...p, ma20: m20[i], ma50: m50[i] }));
   }, [trades, start, display, opts, xm]);
 

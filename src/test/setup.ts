@@ -20,4 +20,15 @@ if (typeof window !== "undefined") {
       dispatchEvent: () => {},
     }),
   });
+
+  // jsdom has no layout engine and no ResizeObserver. Like a browser, report once as soon as an element is watched.
+  class TestResizeObserver {
+    constructor(private callback: ResizeObserverCallback) {}
+    observe() {
+      queueMicrotask(() => this.callback([], this as unknown as ResizeObserver));
+    }
+    unobserve() {}
+    disconnect() {}
+  }
+  window.ResizeObserver = TestResizeObserver;
 }

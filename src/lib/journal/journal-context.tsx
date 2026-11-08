@@ -1,7 +1,7 @@
 import { fromTable } from "@/lib/journal/untyped-table";
+import { useStoredString } from "@/lib/use-stored-value";
 import { pushTo } from "@/lib/group";
-import { storageGet, storageSet } from "@/lib/safe-storage";
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import { localDay } from "@/lib/time/local-time";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -157,10 +157,8 @@ const JournalCtx = createContext<Ctx | null>(null);
 
 export function JournalProvider({ children }: { children: ReactNode }) {
   const qc = useQueryClient();
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeId, setActiveId] = useStoredString("am.journal");
   const [filters, setFilters] = useState<Filters>({});
-
-  useEffect(() => setActiveId(storageGet("am.journal")), []);
 
   const { data: journals = [] } = useQuery({
     queryKey: ["journals"],
@@ -183,7 +181,6 @@ export function JournalProvider({ children }: { children: ReactNode }) {
     journals,
     journal: journal ? { ...journal, starting_balance: Number(journal.starting_balance) } : null,
     setJournalId: (id) => {
-      storageSet("am.journal", id);
       void supabase
         .from("journals")
         .update({ last_used_at: new Date().toISOString() })

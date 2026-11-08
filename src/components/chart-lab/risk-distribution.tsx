@@ -11,7 +11,7 @@ import {
 } from "recharts";
 import { fmtNum, type Trade } from "@/lib/pnl/metrics";
 import { AccentStat, axis, yScale } from "@/components/kit";
-import { ChartCard, Select, Stats, Tip } from "@/components/chart-lab/chart-kit";
+import { ChartCard, Select, Stats, PointTip } from "@/components/chart-lab/chart-kit";
 
 export function RiskDistribution({ trades, start }: { trades: Trade[]; start: number }) {
   const [display, setDisplay] = useState<"Return (%)" | "R Multiple (R)">("Return (%)");
@@ -81,13 +81,10 @@ export function RiskDistribution({ trades, start }: { trades: Trade[]; start: nu
             />
             <Tooltip
               cursor={{ fill: "var(--color-muted)", opacity: 0.4 }}
-              content={({ active, payload }) =>
-                active && payload?.length ? (
-                  <Tip
-                    title={(payload[0].payload as { k: string }).k}
-                    lines={[["Trades", String((payload[0].payload as { n: number }).n)]]}
-                  />
-                ) : null
+              content={
+                <PointTip<{ k: string; n: number }>
+                  describe={(p) => ({ title: p.k, lines: [["Trades", String(p.n)]] })}
+                />
               }
             />
             <Bar dataKey="n" isAnimationActive={false}>

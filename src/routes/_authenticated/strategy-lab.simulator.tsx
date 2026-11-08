@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import seedrandom from "seedrandom";
 import {
   CartesianGrid,
   Line,
@@ -30,6 +31,23 @@ export const Route = createFileRoute("/_authenticated/strategy-lab/simulator")({
   component: Simulator,
 });
 
+type Params = {
+  balance: number;
+  winRate: number;
+  avgWin: number;
+  avgLoss: number;
+  sims: number;
+  trades: number;
+};
+const DEFAULTS: Params = {
+  balance: 10000,
+  winRate: 50,
+  avgWin: 150,
+  avgLoss: 100,
+  sims: 100,
+  trades: 100,
+};
+
 const SHOWN = 20;
 const COLORS = [
   "var(--color-chart-1)",
@@ -44,24 +62,13 @@ function Simulator() {
   const { trades, journal, flows } = useTrades();
   const base = computeStats(trades, journal?.starting_balance ?? 10000, flows);
   const cur = journal?.currency;
-  const [p, setP] = useState({
-    balance: 10000,
-    winRate: 50,
-    avgWin: 150,
-    avgLoss: 100,
-    sims: 100,
-    trades: 100,
-  });
-  const [seed, setSeed] = useState(0);
-
-  // Prefill from the journal: measured avg win / avg loss in currency, not an assumed 1R loss.
-  useEffect(() => {
-    if (!trades.length) return;
+  // Starting values come from the journal's own trades: the measured average win and loss in currency, not an assumed 1R.
+  // Whatever the trader types replaces the measured value for that field.
+  const measured = useMemo(() => {
     const wins = trades.filter((t) => t.net_pnl > 0).map((t) => t.net_pnl);
     const losses = trades.filter((t) => t.net_pnl < 0).map((t) => -t.net_pnl);
     const avg = (a: number[]) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0);
-    setP((x) => ({
-      ...x,
+    return {
       balance: Math.round(base.balance),
       // Wins over wins + losses: avgLoss is measured on losers only, so break-evens must not dilute the rate.
       winRate: +(
@@ -69,12 +76,28 @@ function Simulator() {
           ? (wins.length / (wins.length + losses.length)) * 100
           : base.winRate
       ).toFixed(1),
-      avgWin: +(avg(wins) || x.avgWin).toFixed(2),
-      avgLoss: +(avg(losses) || x.avgLoss).toFixed(2),
-    }));
-  }, [trades.length]);
+      avgWin: +avg(wins).toFixed(2),
+      avgLoss: +avg(losses).toFixed(2),
+    };
+  }, [trades, base.balance, base.winRate]);
+  const [edits, setEdits] = useState<Partial<Params>>({});
+  const p: Params = {
+    ...DEFAULTS,
+    ...(trades.length
+      ? {
+          balance: measured.balance,
+          winRate: measured.winRate,
+          avgWin: measured.avgWin || DEFAULTS.avgWin,
+          avgLoss: measured.avgLoss || DEFAULTS.avgLoss,
+        }
+      : {}),
+    ...edits,
+  };
+  // Each run is drawn from a seeded generator, so the same inputs and seed always give the same picture; "Run again" changes the seed.
+  const [seed, setSeed] = useState(0);
 
   const sim = useMemo(() => {
+    const random = seedrandom(String(seed));
     const paths: number[][] = [];
     let longestWin = 0,
       longestLoss = 0,
@@ -86,7 +109,7 @@ function Simulator() {
         ls = 0;
       const path = [bal];
       for (let i = 0; i < p.trades; i++) {
-        if (Math.random() * 100 < p.winRate) {
+        if (random() * 100 < p.winRate) {
           bal += p.avgWin;
           winners++;
           ws++;
@@ -130,13 +153,13 @@ function Simulator() {
       losers,
       profitable: (finals.filter((f) => f > p.balance).length / Math.max(1, p.sims)) * 100,
     };
-  }, [p, seed]);
+  }, [p.sims, p.trades, p.balance, p.winRate, p.avgWin, p.avgLoss, seed]);
 
   const pct = (a: number[], q: number) => a[Math.floor((a.length - 1) * q)] ?? 0;
   const num =
     (k: keyof typeof p, min = 0, max = Infinity) =>
     (e: { target: { value: string } }) =>
-      setP({ ...p, [k]: Math.min(max, Math.max(min, Number(e.target.value))) });
+      setEdits((prev) => ({ ...prev, [k]: Math.min(max, Math.max(min, Number(e.target.value))) }));
   const exp = (p.winRate / 100) * p.avgWin - (1 - p.winRate / 100) * p.avgLoss;
   const total = sim.winners + sim.losers || 1;
 

@@ -116,6 +116,34 @@ export function Tip({ title, lines }: { title: string; lines: [string, string][]
   );
 }
 
+type TipItem = { payload?: unknown; dataKey?: unknown; value?: unknown };
+
+/**
+ * Tooltip body for a Recharts chart. Pass it as an element, `content={<PointTip describe={...} />}`: Recharts supplies
+ * `active`, `payload` and `label` itself, and `describe` turns the hovered point into a title and lines. `P` is the shape
+ * of the chart's data points.
+ */
+export function PointTip<P = unknown>({
+  active,
+  payload,
+  label,
+  describe,
+}: {
+  active?: boolean;
+  payload?: readonly TipItem[];
+  label?: string | number;
+  describe: (
+    point: P,
+    items: readonly TipItem[],
+    label: string | number | undefined,
+  ) => { title: string; lines: [string, string][] };
+}) {
+  const first = payload?.[0];
+  if (!active || !first) return null;
+  const { title, lines } = describe(first.payload as P, payload, label);
+  return <Tip title={title} lines={lines} />;
+}
+
 export const DISPLAY = [
   "Return ($)",
   "Average Return ($)",

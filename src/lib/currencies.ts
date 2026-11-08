@@ -53,8 +53,11 @@ export const CURRENCIES = [
 export function isCurrencyCode(code: unknown): code is string {
   if (typeof code !== "string" || !/^[A-Za-z]{3}$/.test(code)) return false;
   try {
-    new Intl.NumberFormat("en-US", { style: "currency", currency: code });
-    return true;
+    const { currency } = new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: code,
+    }).resolvedOptions();
+    return currency === code.toUpperCase();
   } catch {
     return false;
   }

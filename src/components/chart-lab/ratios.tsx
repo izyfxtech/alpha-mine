@@ -56,11 +56,11 @@ export function Ratios({ trades, start }: { trades: Trade[]; start: number }) {
     const equity = cumulative(s.map((t) => t.net_pnl));
     const maxDDs: number[] = [];
     let peak = 0,
-      maxDD = 0;
+      deepest = 0;
     for (const eq of equity) {
       peak = Math.max(peak, eq);
-      maxDD = Math.max(maxDD, peak - eq);
-      maxDDs.push(maxDD);
+      deepest = Math.max(deepest, peak - eq);
+      maxDDs.push(deepest);
     }
     return s.map((_, i) => {
       const eq = equity[i]!;

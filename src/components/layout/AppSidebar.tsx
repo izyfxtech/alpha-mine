@@ -1,8 +1,8 @@
-import { storageSet } from "@/lib/safe-storage";
+import { useDarkMode } from "@/lib/use-dark-mode";
 import { useWhenChanged } from "@/lib/use-when-changed";
 import { safeCurrency } from "@/lib/currencies";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ChevronRight, Moon, Sun, PanelLeftClose, PanelLeftOpen, Upload } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -74,18 +74,11 @@ function Group({ item, collapsed, path }: { item: NavItem; collapsed: boolean; p
 
 export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
-  const [dark, setDark] = useState(false);
+  const [dark, toggleDark] = useDarkMode();
   const { trades, journal, flows } = useTrades({ unfiltered: true });
   const { settings } = useProfile();
   const drawer = useTradeDrawer();
   const [importOpen, setImportOpen] = useState(false);
-  useEffect(() => setDark(document.documentElement.classList.contains("dark")), []);
-  const toggleDark = () => {
-    const next = !dark;
-    setDark(next);
-    document.documentElement.classList.toggle("dark", next);
-    storageSet("am.theme", next ? "dark" : "light");
-  };
   const balance = journal ? computeStats(trades, journal.starting_balance, flows).balance : 0;
 
   return (

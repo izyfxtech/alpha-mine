@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { START_TOUR_EVENT, TOUR_STEPS, placePopover, type Box, type TourStep } from "@/lib/tour";
@@ -47,19 +47,22 @@ export function SpotlightTour() {
     setPos(placePopover(b, size, { width: window.innerWidth, height: window.innerHeight }));
   }, [step]);
 
-  // Bring the element into view first (the menu can scroll), then measure; keep following it if the window changes.
-  useLayoutEffect(() => {
+  // Bring the element into view first (the menu can scroll), then keep the spotlight and card on it. ResizeObserver reports the
+  // first size as soon as it starts watching (and again when the target or the card changes size), and the window events cover
+  // scrolling and resizing.
+  useEffect(() => {
     if (!step) return;
-    find(step.target)?.scrollIntoView({ block: "nearest" });
-    measure();
-    const again = () => measure();
-    window.addEventListener("resize", again);
-    window.addEventListener("scroll", again, true);
-    const t = window.setTimeout(measure, 60); // the card's real height is known after its first paint
+    const target = find(step.target);
+    target?.scrollIntoView({ block: "nearest" });
+    const observer = new ResizeObserver(measure);
+    if (target) observer.observe(target);
+    if (card.current) observer.observe(card.current);
+    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", measure, true);
     return () => {
-      window.removeEventListener("resize", again);
-      window.removeEventListener("scroll", again, true);
-      window.clearTimeout(t);
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", measure, true);
     };
   }, [step, measure]);
 

@@ -53,12 +53,11 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const fx = (d: { toFixed(n: number): string } | null | undefined, n = 8) =>
   d ? d.toFixed(n) : null;
 
-// deno-lint-ignore no-explicit-any
 async function pageAll<T>(
   build: (
     from: number,
     to: number,
-  ) => PromiseLike<{ data: any[] | null; error: { message: string } | null }>,
+  ) => PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>,
 ): Promise<T[]> {
   const out: T[] = [];
   for (let from = 0; ; from += 1000) {

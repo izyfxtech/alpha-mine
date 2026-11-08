@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -50,18 +51,22 @@ export function ShareJournalDialog({
   const current = useJournal().journal;
   const journal = target ?? current; // any journal can be shared from here, e.g. from the journal switcher
   const allowSharing = useProfile().settings.allowSharing;
-  const [token, setToken] = useState<string | null>(null);
+  const qc = useQueryClient();
+  const tokenKey = ["journal-share-token", journal?.id];
+  const { data: token = null } = useQuery({
+    queryKey: tokenKey,
+    enabled: open && !!journal,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("journals")
+        .select("share_token")
+        .eq("id", journal!.id)
+        .single();
+      if (error) throw error;
+      return data.share_token;
+    },
+  });
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (!open || !journal) return;
-    supabase
-      .from("journals")
-      .select("share_token")
-      .eq("id", journal.id)
-      .single()
-      .then(({ data }) => setToken(data?.share_token ?? null));
-  }, [open, journal?.id]);
 
   const setShare = async (v: string | null) => {
     if (!journal) return;
@@ -72,7 +77,7 @@ export function ShareJournalDialog({
       .eq("id", journal.id);
     setBusy(false);
     if (error) return toast.error(error.message);
-    setToken(v);
+    qc.setQueryData(tokenKey, v);
     toast.success(v ? "Share link created" : "Share link switched off");
   };
   const url =

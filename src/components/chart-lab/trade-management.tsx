@@ -21,7 +21,7 @@ import {
   xAxisLabel,
   xAxisProps,
 } from "@/components/analytics/x-axis";
-import { ChartCard, Dot, Stats, Tip, sorted } from "@/components/chart-lab/chart-kit";
+import { ChartCard, Dot, Stats, sorted, PointTip } from "@/components/chart-lab/chart-kit";
 
 export function TradeManagement({ trades }: { trades: Trade[] }) {
   const drawer = useTradeDrawer();
@@ -104,20 +104,18 @@ export function TradeManagement({ trades }: { trades: Trade[] }) {
             />
             <ReferenceLine y={0} stroke="var(--color-muted-foreground)" />
             <Tooltip
-              content={({ active, payload }) => {
-                if (!active || !payload?.length) return null;
-                const d = payload[0].payload as (typeof data)[number];
-                return (
-                  <Tip
-                    title={pointTitle(xm, d)}
-                    lines={[
+              content={
+                <PointTip<(typeof data)[number]>
+                  describe={(d) => ({
+                    title: pointTitle(xm, d),
+                    lines: [
                       ["Actual", `${fmtNum(d.actual)}R`],
                       ["Potential", `${fmtNum(d.potential)}R`],
                       ["Managing effect", `${fmtNum(d.effect)}R`],
-                    ]}
-                  />
-                );
-              }}
+                    ],
+                  })}
+                />
+              }
             />
             <Line
               type="monotone"

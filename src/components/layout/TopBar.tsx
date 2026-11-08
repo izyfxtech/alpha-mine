@@ -1,4 +1,5 @@
-import { storageSet, storageStrings } from "@/lib/safe-storage";
+import { parseStrings } from "@/lib/safe-storage";
+import { useStoredJson } from "@/lib/use-stored-value";
 import { useEffect, useMemo, useState } from "react";
 import { localDateTime } from "@/lib/time/local-time";
 import { computeInsights } from "@/lib/pnl/insights";
@@ -59,16 +60,8 @@ export function TopBar() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
-  const [read, setRead] = useState<string[]>([]);
-  useEffect(() => {
-    setRead(storageStrings("am-read-insights"));
-  }, []);
-  const markRead = (ids: string[]) =>
-    setRead((v) => {
-      const n = [...new Set([...v, ...ids])];
-      storageSet("am-read-insights", JSON.stringify(n));
-      return n;
-    });
+  const [read, setRead] = useStoredJson("am-read-insights", parseStrings);
+  const markRead = (ids: string[]) => setRead((current) => [...new Set([...current, ...ids])]);
   const recent = useMemo(() => computeInsights(all), [all]);
   const unread = recent.filter((t) => !read.includes(t.id)).length;
 
