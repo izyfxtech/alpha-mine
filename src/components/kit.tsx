@@ -1,3 +1,4 @@
+import { byEntry } from "@/lib/pnl/sort";
 import {
   Area as RArea,
   AreaChart as RAreaChart,
@@ -678,12 +679,10 @@ export function cumulative(
   trades: { net_pnl: number; entry_at: string; id?: string }[],
 ): EquityPoint[] {
   let c = 0;
-  return [...trades]
-    .sort((a, b) => a.entry_at.localeCompare(b.entry_at))
-    .map((t, i) => {
-      c += t.net_pnl;
-      return { x: i + 1, v: +c.toFixed(2) };
-    });
+  return [...trades].sort(byEntry).map((t, i) => {
+    c += t.net_pnl;
+    return { x: i + 1, v: +c.toFixed(2) };
+  });
 }
 
 /** Spark line for KPI widgets */

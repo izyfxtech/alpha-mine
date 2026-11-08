@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { complianceOf, complianceReport, type RuleStatus } from "@/lib/pnl/compliance";
+import { complianceOf, complianceReport } from "@/lib/pnl/compliance";
+import type { RuleStatus } from "@/lib/pnl/metrics";
 import { matchesQuery } from "@/lib/journal/search";
 import { openRow, openTotals } from "@/lib/pnl/open-trades";
 import { isOpen, type Trade } from "@/lib/pnl/metrics";

@@ -1,3 +1,5 @@
+import { toast } from "sonner";
+import { numberOrNull } from "@/lib/numbers";
 import { syncLinks } from "@/lib/journal/sync-links";
 import { createFileRoute } from "@tanstack/react-router";
 import { fmtPrice } from "@/lib/pnl/format-price";
@@ -40,7 +42,6 @@ export const Route = createFileRoute("/_authenticated/plans")({
 });
 
 type Plan = Row<"planned_trades">;
-const n = (v: unknown) => (v == null || v === "" ? null : Number(v));
 const f2 = (v: number | null | undefined, d = 2) =>
   v == null
     ? ""
@@ -96,7 +97,6 @@ function PlansPage() {
           )
         : null;
       if (err) {
-        const { toast } = await import("sonner");
         toast.error(err);
       }
     }
@@ -127,10 +127,10 @@ function PlansPage() {
         instrument_id: inst?.id ?? null,
         setup_id: setup?.id ?? null,
         direction: p.direction as "long" | "short",
-        entry_price: n(p.entry_price) ?? undefined,
+        entry_price: numberOrNull(p.entry_price) ?? undefined,
         quantity: Number(p.quantity),
-        stop_loss: n(p.stop_loss),
-        take_profit: n(p.take_profit),
+        stop_loss: numberOrNull(p.stop_loss),
+        take_profit: numberOrNull(p.take_profit),
         notes: p.notes,
         customStats: statLinks.filter((l) => l.planned_trade_id === p.id).map((l) => l.option_id),
       },
@@ -295,10 +295,10 @@ function PlansPage() {
                       {r.direction === "long" ? "BUY" : "SELL"}
                     </span>
                   </td>
-                  <td className="px-3 text-right">{fmtPrice(n(r.entry_price))}</td>
+                  <td className="px-3 text-right">{fmtPrice(numberOrNull(r.entry_price))}</td>
                   <td className="px-3 text-right">{f2(Number(r.quantity))}</td>
-                  <td className="px-3 text-right">{fmtPrice(n(r.take_profit))}</td>
-                  <td className="px-3 text-right">{fmtPrice(n(r.stop_loss))}</td>
+                  <td className="px-3 text-right">{fmtPrice(numberOrNull(r.take_profit))}</td>
+                  <td className="px-3 text-right">{fmtPrice(numberOrNull(r.stop_loss))}</td>
                   <td className="px-3">{r.expiry_date ?? ""}</td>
                   <td className="px-3 text-right">{f2(Number(r.multiplier ?? 1))}</td>
                   {cats.map((c) => (
@@ -340,7 +340,6 @@ function PlansPage() {
                 ids,
               );
               if (err) {
-                const { toast } = await import("sonner");
                 toast.error(err);
                 return;
               }
@@ -382,7 +381,6 @@ function PlansPage() {
                 .select("id")
                 .single();
               if (error) {
-                const { toast } = await import("sonner");
                 toast.error(error.message);
                 return;
               }
@@ -398,7 +396,6 @@ function PlansPage() {
                   );
                 if (statError) {
                   await supabase.from("missed_trades").delete().eq("id", data.id); // roll back, so a retry does not create a second copy
-                  const { toast } = await import("sonner");
                   toast.error(statError.message);
                   return;
                 }
@@ -582,14 +579,14 @@ function PlanSheet({
                   setup: f.setup || null,
                   direction: f.direction,
                   trade_type: f.trade_type,
-                  entry_price: n(f.entry_price),
-                  quantity: n(f.quantity) ?? 1,
-                  take_profit: n(f.take_profit),
-                  stop_loss: n(f.stop_loss),
+                  entry_price: numberOrNull(f.entry_price),
+                  quantity: numberOrNull(f.quantity) ?? 1,
+                  take_profit: numberOrNull(f.take_profit),
+                  stop_loss: numberOrNull(f.stop_loss),
                   notes: f.notes || null,
                   option_type: f.trade_type === "Options" ? f.option_type || null : null,
                   expiry_date: f.trade_type === "Options" ? f.expiry_date || null : null,
-                  multiplier: n(f.multiplier) ?? 1,
+                  multiplier: numberOrNull(f.multiplier) ?? 1,
                 },
                 stats,
               )

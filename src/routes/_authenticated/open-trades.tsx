@@ -1,3 +1,4 @@
+import { storageStringMap } from "@/lib/safe-storage";
 import { useEffect, useMemo, useState } from "react";
 import { fmtPrice } from "@/lib/pnl/format-price";
 import { localDay } from "@/lib/time/local-time";
@@ -31,11 +32,7 @@ function OpenTradesPage() {
   const key = `am.openprices.${j?.id ?? ""}`;
   const [prices, setPrices] = useState<Record<string, string>>({});
   useEffect(() => {
-    try {
-      setPrices(JSON.parse(localStorage.getItem(key) ?? "{}"));
-    } catch {
-      setPrices({});
-    }
+    setPrices(storageStringMap(key));
   }, [key]);
   const setPrice = (id: string, v: string) =>
     setPrices((p) => {

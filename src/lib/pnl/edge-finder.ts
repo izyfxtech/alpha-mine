@@ -1,3 +1,4 @@
+import { byEntry } from "@/lib/pnl/sort";
 import { pushTo } from "@/lib/group";
 import { safeCurrency } from "@/lib/currencies";
 import {
@@ -90,7 +91,7 @@ function build(
   cur: string,
   optionNames: Map<string, { label: string; category: string }>,
 ): EdgeCard[] {
-  const ts = [...all].sort((a, b) => a.entry_at.localeCompare(b.entry_at));
+  const ts = [...all].sort(byEntry);
   const n = ts.length;
   const empty = (id: string, title: string, missing: string): EdgeCard => ({
     id,
