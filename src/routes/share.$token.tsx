@@ -43,9 +43,9 @@ function SharedJournal() {
     queryKey: ["shared", token],
     queryFn: async () => {
       if (!/^[0-9a-f-]{36}$/i.test(token)) return null;
-      const { data, error } = await supabase.rpc("shared_journal", { _token: token });
+      const { data: payload, error } = await supabase.rpc("shared_journal", { _token: token });
       if (error) throw error;
-      return parseSharedJournal(data);
+      return parseSharedJournal(payload);
     },
   });
   if (isLoading)

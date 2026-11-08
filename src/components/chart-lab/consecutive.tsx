@@ -18,16 +18,16 @@ export function Consecutive({
   const [avg, setAvg] = useState<"Return ($)" | "Return (%)" | "Frequency">("Return ($)");
   const data = useMemo(() => {
     const runs: Trade[][] = [];
-    let cur: Trade[] = [];
+    let run: Trade[] = [];
     sorted(trades).forEach((t) => {
       const hit = kind === "Winners" ? isWin(t) : isLoss(t);
-      if (hit) cur.push(t);
+      if (hit) run.push(t);
       else {
-        if (cur.length) runs.push(cur);
-        cur = [];
+        if (run.length) runs.push(run);
+        run = [];
       }
     });
-    if (cur.length) runs.push(cur);
+    if (run.length) runs.push(run);
     return [2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((len) => {
       const rs = runs.filter((r) => (len === 11 ? r.length > 10 : r.length === len));
       const avgRet = rs.length

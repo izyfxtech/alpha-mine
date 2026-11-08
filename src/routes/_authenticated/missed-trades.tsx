@@ -1,3 +1,4 @@
+import { toggled } from "@/lib/collections";
 import { numberOrNull } from "@/lib/numbers";
 import { syncLinks } from "@/lib/journal/sync-links";
 import { grossPnl, rMultiple as rMultiple_, rewardRisk } from "@/lib/pnl/calc";
@@ -241,13 +242,7 @@ function MissedTrades() {
                   <td className="px-3" onClick={(e) => e.stopPropagation()}>
                     <Checkbox
                       checked={sel.has(r.id)}
-                      onCheckedChange={() =>
-                        setSel((p) => {
-                          const x = new Set(p);
-                          x.has(r.id) ? x.delete(r.id) : x.add(r.id);
-                          return x;
-                        })
-                      }
+                      onCheckedChange={() => setSel((p) => toggled(p, r.id))}
                     />
                   </td>
                   <td className="px-3">{dt(r.occurred_at)}</td>

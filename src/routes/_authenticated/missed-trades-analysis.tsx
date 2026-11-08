@@ -148,7 +148,7 @@ function Analysis() {
   vs.push({ k: "Total", v: +(vs[0].v + vs[1].v).toFixed(2) });
   const selectedCategory =
     category ||
-    categories.rows.find((c) => c.name === "Missed Trades")?.id ||
+    categories.rows.find((row) => row.name === "Missed Trades")?.id ||
     categories.rows[0]?.id ||
     "";
   const tagData = options.rows
@@ -236,14 +236,14 @@ function Analysis() {
         </Panel>
         <Panel title="Missed Trades Custom Stats">
           <div className="mb-3 flex flex-wrap gap-1">
-            {categories.rows.map((c) => (
+            {categories.rows.map((cat) => (
               <Button
-                key={c.id}
+                key={cat.id}
                 size="sm"
-                variant={selectedCategory === c.id ? "secondary" : "ghost"}
-                onClick={() => setCategory(c.id)}
+                variant={selectedCategory === cat.id ? "secondary" : "ghost"}
+                onClick={() => setCategory(cat.id)}
               >
-                {c.name}
+                {cat.name}
               </Button>
             ))}
           </div>

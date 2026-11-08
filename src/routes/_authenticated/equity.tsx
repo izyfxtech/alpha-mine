@@ -1,3 +1,4 @@
+import { toggled } from "@/lib/collections";
 import { byEntry } from "@/lib/pnl/sort";
 import { createFileRoute } from "@tanstack/react-router";
 import { localDay } from "@/lib/time/local-time";
@@ -54,12 +55,7 @@ function Equity() {
   const [opts, setOpts] = useState<Set<Opt>>(new Set());
   const [xm, setXm] = useXMode();
   const has = (o: Opt) => opts.has(o);
-  const toggle = (o: Opt) =>
-    setOpts((p) => {
-      const n = new Set(p);
-      n.has(o) ? n.delete(o) : n.add(o);
-      return n;
-    });
+  const toggle = (o: Opt) => setOpts((p) => toggled(p, o));
   const start = journal?.starting_balance ?? 0;
   const cur = journal?.currency ?? "USD";
   const s = useMemo(() => computeStats(trades, start, flows), [trades, start, flows]);

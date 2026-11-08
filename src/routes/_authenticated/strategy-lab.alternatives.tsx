@@ -1,3 +1,4 @@
+import { toggled } from "@/lib/collections";
 import { byEntry } from "@/lib/pnl/sort";
 import { createFileRoute } from "@tanstack/react-router";
 import { countOption, fetchAllRows } from "@/lib/journal/fetch-all";
@@ -176,13 +177,7 @@ function Alternatives() {
                   <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                     <Checkbox
                       checked={sel.has(r.id)}
-                      onCheckedChange={() =>
-                        setSel((p) => {
-                          const x = new Set(p);
-                          x.has(r.id) ? x.delete(r.id) : x.add(r.id);
-                          return x;
-                        })
-                      }
+                      onCheckedChange={() => setSel((p) => toggled(p, r.id))}
                     />
                   </td>
                   <td>
@@ -240,10 +235,10 @@ function Alternatives() {
               }
             }
             const keep = rows.map((x) => x.trade_id);
-            const del = supabase.from("alt_strategy_results").delete().eq("strategy_id", id);
+            const staleRows = supabase.from("alt_strategy_results").delete().eq("strategy_id", id);
             const { error: delError } = keep.length
-              ? await del.not("trade_id", "in", `(${keep.join(",")})`)
-              : await del;
+              ? await staleRows.not("trade_id", "in", `(${keep.join(",")})`)
+              : await staleRows;
             if (delError) {
               toast.error(delError.message);
               return;

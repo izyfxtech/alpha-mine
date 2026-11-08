@@ -31,7 +31,7 @@ describe("placePopover", () => {
 describe("tour steps", () => {
   it("every sidebar step points at an item that exists in the menu", () => {
     const slugs = new Set(NAV.map((n) => navSlug(n.label)));
-    for (const s of TOUR_STEPS.filter((s) => s.target?.startsWith("nav-")))
+    for (const s of TOUR_STEPS.filter((step) => step.target?.startsWith("nav-")))
       expect(slugs.has(s.target!), s.target!).toBe(true);
   });
 });
