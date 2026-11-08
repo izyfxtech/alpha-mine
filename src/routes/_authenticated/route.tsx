@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { JournalProvider } from "@/lib/journal/journal-context";
 import { AppSidebar } from "@/components/layout/AppSidebar";
+import { RouteGate } from "@/components/layout/RouteGate";
 import { TopBar } from "@/components/layout/TopBar";
 import { Onboarding } from "@/components/onboarding/Onboarding";
 import { SpotlightTour } from "@/components/onboarding/SpotlightTour";
@@ -32,7 +33,9 @@ function Layout() {
             <TopBar />
             <main className="flex-1 overflow-auto p-[21px]">
               <div className="w-full min-w-0">
-                <Outlet />
+                <RouteGate>
+                  <Outlet />
+                </RouteGate>
               </div>
             </main>
           </div>

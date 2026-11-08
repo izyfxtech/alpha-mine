@@ -1,6 +1,7 @@
 import { parseSharedJournal } from "@/lib/validation/schemas";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { localDay } from "@/lib/time/local-time";
+import { PageSkeleton } from "@/components/layout/PageSkeleton";
 import { useQuery } from "@tanstack/react-query";
 import {
   Area,
@@ -47,7 +48,12 @@ function SharedJournal() {
       return parseSharedJournal(data);
     },
   });
-  if (isLoading) return <div className="p-10 text-center text-muted-foreground">Loading…</div>;
+  if (isLoading)
+    return (
+      <div className="mx-auto max-w-5xl p-6">
+        <PageSkeleton />
+      </div>
+    );
   if (isError)
     return (
       <div className="p-10 text-center">
