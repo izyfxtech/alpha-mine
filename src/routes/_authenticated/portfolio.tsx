@@ -23,7 +23,8 @@ import {
   WEEKDAYS,
   type Trade,
 } from "@/lib/pnl/metrics";
-import { EquityChart, Panel, PnlBars, Stat } from "@/components/kit";
+import { Panel, Stat } from "@/components/kit";
+import { EquityChart, PnlBars } from "@/components/charts";
 import { KpiCards } from "@/components/analytics/KpiCards";
 import { ProfitCalendar } from "@/components/analytics/ProfitCalendar";
 import { Button } from "@/components/ui/button";

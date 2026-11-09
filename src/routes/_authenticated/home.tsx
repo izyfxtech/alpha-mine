@@ -19,7 +19,8 @@ import {
   groupPerformance,
 } from "@/lib/pnl/metrics";
 import { KpiCards } from "@/components/analytics/KpiCards";
-import { Empty, EquityChart, Panel, PnlBars, Stat, cumulative } from "@/components/kit";
+import { Empty, Panel, Stat, cumulative } from "@/components/kit";
+import { EquityChart, PnlBars } from "@/components/charts";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { seedDemoTrades } from "@/lib/journal/demo";
