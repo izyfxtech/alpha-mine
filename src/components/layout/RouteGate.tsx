@@ -1,7 +1,7 @@
-import type { ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { useLocation } from "@tanstack/react-router";
 import { useJournal, useTrades } from "@/lib/journal/journal-context";
-import { PageSkeleton, type SkeletonVariant } from "@/components/layout/PageSkeleton";
+import { HomeSkeleton } from "@/components/home/HomeSkeleton";
 import { useDelayedFlag } from "@/lib/use-delayed-flag";
 
 /** Pages that never read trades, so they open at once instead of waiting for them. */
@@ -10,29 +10,22 @@ const NO_TRADES = ["/settings", "/plans", "/diary/notebook"];
 export const needsTrades = (path: string) =>
   !NO_TRADES.some((p) => path === p || path.startsWith(`${p}/`));
 
-/** Which placeholder layout a page gets, by the start of its path. Anything not listed looks like the dashboard. */
-const VARIANTS: [prefix: string, variant: SkeletonVariant][] = [
-  ["/journal", "table"],
-  ["/open-trades", "table"],
-  ["/missed-trades", "table"],
-  ["/diary", "table"],
-  ["/rules", "table"],
-  ["/strategy-lab/alternatives", "table"],
-  ["/equity", "chart"],
-  ["/analytics", "chart"],
-  ["/chart-lab", "chart"],
-  ["/edge-finder", "chart"],
-  ["/strategy-lab", "chart"],
-  ["/reports", "report"],
-];
+/**
+ * Loading placeholders, one per page whose loaded layout is fixed. Each is built from the page's own components and shared
+ * size constants (see `home-layout.ts`), so it is the same size and shape as the page. A page whose layout depends on the
+ * data (rows, saved choices, empty states) has none: a placeholder that only approximates it would shift when the page
+ * arrives, so those pages stay blank until their trades have loaded.
+ */
+const SKELETONS: Record<string, ReactElement> = {
+  "/home": <HomeSkeleton />,
+};
 
-export const skeletonFor = (path: string): SkeletonVariant =>
-  VARIANTS.find(([prefix]) => path === prefix || path.startsWith(`${prefix}/`))?.[1] ?? "dashboard";
+export const skeletonFor = (path: string): ReactElement | undefined => SKELETONS[path];
 
 /** How long loading must last before the skeleton appears, so a fast or cached load never flashes it. */
 export const SKELETON_DELAY_MS = 250;
 
-/** Shows a skeleton until the journal and its trades have loaded the first time, then the page. Later refreshes keep the page. */
+/** Holds the page back until the journal and its trades have loaded the first time, showing its skeleton if it has one. Later refreshes keep the page. */
 export function RouteGate({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   const { journal } = useJournal();
@@ -41,5 +34,10 @@ export function RouteGate({ children }: { children: ReactNode }) {
   const waiting = needsTrades(pathname) && (!journal || isLoading);
   const showSkeleton = useDelayedFlag(waiting, SKELETON_DELAY_MS);
   if (!waiting) return <>{children}</>;
-  return showSkeleton ? <PageSkeleton variant={skeletonFor(pathname)} /> : null;
+  const skeleton = skeletonFor(pathname);
+  return showSkeleton && skeleton ? (
+    <div role="status" aria-busy="true" aria-label="Loading" inert>
+      {skeleton}
+    </div>
+  ) : null;
 }

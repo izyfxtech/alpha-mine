@@ -16,9 +16,53 @@ import { useJournal } from "@/lib/journal/journal-context";
 import { dayKey, type Trade } from "@/lib/pnl/metrics";
 import { TiltMeter } from "@/components/kit";
 import { useProfile } from "@/lib/profile-settings";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 type Day = { pnl: number; n: number; tilt: number; r: number; pct: number; w: number };
+
+const cellHeight = (tall?: boolean) => (tall ? "h-[96px]" : "h-[76px]");
+
+/** The grid's column heads: the week's days in the user's order, plus a Total column when weekly totals are shown. */
+const columnHeads = (weekStartsOn: number, weekly: boolean) => [
+  ...(weekStartsOn === 0 ? ["Sun"] : []),
+  "Mon",
+  "Tue",
+  "Wed",
+  "Thu",
+  "Fri",
+  "Sat",
+  ...(weekStartsOn === 0 ? [] : ["Sun"]),
+  ...(weekly ? ["Total"] : []),
+];
+
+const gridClass = (weekly: boolean) =>
+  cn(
+    "grid gap-x-[6px] gap-y-[6px]",
+    weekly ? "grid-cols-8" : "grid-cols-7",
+    "text-center text-xs text-t4",
+  );
+
+/** Always six weeks, so the calendar is the same height in every month. */
+const WEEKS = 6;
+
+/** The calendar's shape with the day cells still empty: same column heads, six weeks, same cell height. */
+export function ProfitCalendarSkeleton({ tall }: { tall?: boolean }) {
+  const { showWeeklyTotals: weekly, weekStartsOn } = useProfile().settings;
+  const heads = columnHeads(weekStartsOn, weekly);
+  return (
+    <div className={gridClass(weekly)}>
+      {heads.map((d) => (
+        <div key={d} className="pb-[10px] pt-[6px]">
+          {d}
+        </div>
+      ))}
+      {Array.from({ length: WEEKS * heads.length }, (_, i) => (
+        <Skeleton key={i} className={cellHeight(tall)} />
+      ))}
+    </div>
+  );
+}
 
 /** Month grid with daily P&L, trade count, tiltmeter and weekly totals. Clicking a day opens the Journal for it. */
 export function ProfitCalendar({
@@ -56,7 +100,7 @@ export function ProfitCalendar({
   } = useProfile().settings;
   const start = startOfWeek(startOfMonth(month), { weekStartsOn });
   let days = eachDayOfInterval({ start, end: endOfWeek(endOfMonth(month), { weekStartsOn }) });
-  while (days.length < 42)
+  while (days.length < WEEKS * 7)
     days = eachDayOfInterval({ start, end: addDays(days[days.length - 1], 7) });
   const rows: Date[][] = [];
   for (let i = 0; i < days.length; i += 7) rows.push(days.slice(i, i + 7));
@@ -65,7 +109,7 @@ export function ProfitCalendar({
   const cell = (x: Day | undefined, inMonth: boolean) =>
     cn(
       "relative flex min-w-0 flex-col items-center justify-center overflow-hidden rounded-md text-center transition",
-      tall ? "h-[96px]" : "h-[76px]",
+      cellHeight(tall),
       !inMonth && "hatch bg-card text-t4",
       inMonth && !x && "bg-muted",
       x && inMonth && x.pnl > 0 && "bg-profit-soft",
@@ -76,24 +120,8 @@ export function ProfitCalendar({
   const countLabel = (n: number, w: number) =>
     `${n} trade${n === 1 ? "" : "s"}${showWr ? ` · ${Math.round((w / n) * 100)}%` : ""}`;
   return (
-    <div
-      className={cn(
-        "grid gap-x-[6px] gap-y-[6px]",
-        weekly ? "grid-cols-8" : "grid-cols-7",
-        "text-center text-xs text-t4",
-      )}
-    >
-      {[
-        ...(weekStartsOn === 0 ? ["Sun"] : []),
-        "Mon",
-        "Tue",
-        "Wed",
-        "Thu",
-        "Fri",
-        "Sat",
-        ...(weekStartsOn === 0 ? [] : ["Sun"]),
-        ...(weekly ? ["Total"] : []),
-      ].map((d) => (
+    <div className={gridClass(weekly)}>
+      {columnHeads(weekStartsOn, weekly).map((d) => (
         <div key={d} className="pb-[10px] pt-[6px]">
           {d}
         </div>
@@ -172,7 +200,7 @@ export function ProfitCalendar({
               key={`t${wi}`}
               className={cn(
                 "flex min-w-0 flex-col items-center justify-center overflow-hidden rounded-md",
-                tall ? "h-[96px]" : "h-[76px]",
+                cellHeight(tall),
                 tot.n ? (tot.pnl >= 0 ? "bg-profit-soft" : "bg-loss-soft") : "hatch bg-card",
               )}
             >

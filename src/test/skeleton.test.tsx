@@ -1,29 +1,39 @@
 import { act, render, renderHook, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PageSkeleton } from "@/components/layout/PageSkeleton";
+import { HomeSkeleton } from "@/components/home/HomeSkeleton";
 import { needsTrades, skeletonFor } from "@/components/layout/RouteGate";
+import { EVALUATION_LABELS, HOME_CHART_HEIGHT, HOME_CHART_ROWS } from "@/lib/home-layout";
 import { useDelayedFlag } from "@/lib/use-delayed-flag";
 
-describe("loading skeleton", () => {
-  it("announces itself to screen readers and hides the placeholder blocks", () => {
-    render(<PageSkeleton />);
-    const status = screen.getByRole("status");
-    expect(status.getAttribute("aria-busy")).toBe("true");
-    expect(screen.getByText("Loading…")).toBeTruthy();
-    expect(status.querySelectorAll('[aria-hidden="true"]').length).toBeGreaterThan(5);
+vi.mock("@/lib/journal/journal-context", () => ({ useJournal: () => ({ journal: null }) }));
+vi.mock("@/lib/profile-settings", () => ({
+  useProfile: () => ({ settings: { showWeeklyTotals: true, weekStartsOn: 1 } }),
+}));
+
+describe("Home skeleton", () => {
+  it("keeps the page's own headings, so only the data is a placeholder", () => {
+    render(<HomeSkeleton />);
+    for (const label of EVALUATION_LABELS) expect(screen.getByText(label)).toBeTruthy();
+    for (const title of HOME_CHART_ROWS.flat()) expect(screen.getByText(title)).toBeTruthy();
+    expect(screen.getByText("Profit Calendar")).toBeTruthy();
   });
 
-  it("each layout is different, so a page loads as its own shape", () => {
-    const blocks = (variant: "dashboard" | "table" | "chart" | "report") => {
-      const { container, unmount } = render(<PageSkeleton variant={variant} />);
-      const n = container.querySelectorAll(".skeleton").length;
-      unmount();
-      return n;
-    };
-    const counts = [blocks("dashboard"), blocks("table"), blocks("chart"), blocks("report")];
-    expect(new Set(counts).size).toBe(4);
+  it("gives each chart panel the chart's height", () => {
+    const { container } = render(<HomeSkeleton />);
+    const charts = [...container.querySelectorAll<HTMLElement>(".skeleton")].filter(
+      (el) => el.style.height === `${HOME_CHART_HEIGHT}px`,
+    );
+    expect(charts).toHaveLength(HOME_CHART_ROWS.flat().length);
   });
 
+  it("draws a six-week calendar with a Total column", () => {
+    const { container } = render(<HomeSkeleton />);
+    expect(screen.getByText("Total")).toBeTruthy();
+    expect(container.querySelectorAll(".h-\\[76px\\]")).toHaveLength(6 * 8);
+  });
+});
+
+describe("route gate", () => {
   it("only holds back pages that read trades", () => {
     expect(needsTrades("/journal")).toBe(true);
     expect(needsTrades("/settings/account")).toBe(false);
@@ -32,14 +42,10 @@ describe("loading skeleton", () => {
     expect(needsTrades("/diary/sessions")).toBe(true);
   });
 
-  it("picks the layout from the page", () => {
-    expect(skeletonFor("/journal")).toBe("table");
-    expect(skeletonFor("/diary/sessions")).toBe("table");
-    expect(skeletonFor("/strategy-lab/alternatives")).toBe("table");
-    expect(skeletonFor("/strategy-lab/simulator")).toBe("chart");
-    expect(skeletonFor("/chart-lab/sqn")).toBe("chart");
-    expect(skeletonFor("/reports/monthly")).toBe("report");
-    expect(skeletonFor("/home")).toBe("dashboard");
+  it("has a skeleton only for pages whose layout is fixed", () => {
+    expect(skeletonFor("/home")?.type).toBe(HomeSkeleton);
+    expect(skeletonFor("/journal")).toBeUndefined();
+    expect(skeletonFor("/reports/monthly")).toBeUndefined();
   });
 });
 
