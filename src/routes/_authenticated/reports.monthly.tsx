@@ -15,6 +15,12 @@ import {
 } from "@/lib/pnl/metrics";
 import { cn } from "@/lib/utils";
 import { TiltMeter } from "@/components/kit";
+import {
+  MONTHLY_BOX,
+  MONTHLY_ROW,
+  MONTHLY_TABLE,
+  MonthlyTableHead,
+} from "@/components/reports/MonthlyTable";
 
 export const Route = createFileRoute("/_authenticated/reports/monthly")({
   head: () => ({
@@ -65,35 +71,9 @@ function Monthly() {
   const toggle = (key: string) =>
     setExpanded((v) => (v.includes(key) ? v.filter((x) => x !== key) : [...v, key]));
   return (
-    <div className="min-h-[calc(100vh-7rem)] overflow-x-auto rounded-lg bg-card pb-6 shadow-[0_1px_5px_rgba(60,40,90,0.07)]">
-      <table className="w-full min-w-[1250px] text-xs tabular">
-        <thead className="sticky top-0 bg-card text-left">
-          <tr className="h-[38px]">
-            {[
-              "Month",
-              "Week",
-              "Trades",
-              "Tiltmeter",
-              "Return ($)",
-              "Return (%)",
-              "Winrate (%)",
-              "Avg. P&L ($)",
-              "Profit Factor",
-              "Avg. R Multiple",
-              "Sum. R Multiple",
-              "Biggest Win ($)",
-              "Week Start",
-              "Biggest Loss ($)",
-              "Efficiency (%)",
-              "W",
-              "L",
-            ].map((x) => (
-              <th key={x} className="whitespace-nowrap px-2 font-semibold first:pl-4">
-                {x}
-              </th>
-            ))}
-          </tr>
-        </thead>
+    <div className={MONTHLY_BOX}>
+      <table className={MONTHLY_TABLE}>
+        <MonthlyTableHead />
         <tbody>
           {months.map(([month, ts]) => {
             const label = new Date(`${month}-02T12:00:00`).toLocaleString("en-US", {
@@ -235,7 +215,8 @@ function ReportRow({
   return (
     <tr
       className={cn(
-        "h-[31px] hover:brightness-[0.98]",
+        MONTHLY_ROW,
+        "hover:brightness-[0.98]",
         s.net > 0 ? "bg-row-win" : s.net < 0 ? "bg-row-loss" : "",
       )}
     >

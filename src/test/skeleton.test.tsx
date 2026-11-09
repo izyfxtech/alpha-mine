@@ -1,6 +1,11 @@
 import { act, render, renderHook, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HomeSkeleton } from "@/components/home/HomeSkeleton";
+import { MILESTONES, MilestonesSkeleton } from "@/components/milestones/MilestoneCard";
+import { SimulatorSkeleton, SIMULATOR_RESULTS } from "@/components/strategy/SimulatorLayout";
+import { EQUITY_STAT_LABELS } from "@/components/equity/EquityControls";
+import { EquitySkeleton } from "@/components/equity/EquitySkeleton";
+import { MONTHLY_COLUMNS, MonthlySkeleton } from "@/components/reports/MonthlyTable";
 import { needsTrades, skeletonFor } from "@/components/layout/RouteGate";
 import { EVALUATION_LABELS, HOME_CHART_HEIGHT, HOME_CHART_ROWS } from "@/lib/home-layout";
 import { useDelayedFlag } from "@/lib/use-delayed-flag";
@@ -33,6 +38,32 @@ describe("Home skeleton", () => {
   });
 });
 
+describe("other skeletons", () => {
+  it("Milestones keeps every card's title and description", () => {
+    render(<MilestonesSkeleton />);
+    for (const m of MILESTONES) {
+      expect(screen.getByText(m.title)).toBeTruthy();
+      expect(screen.getByText(m.description)).toBeTruthy();
+    }
+  });
+
+  it("Equity keeps the stat labels", () => {
+    render(<EquitySkeleton />);
+    for (const label of EQUITY_STAT_LABELS) expect(screen.getByText(label)).toBeTruthy();
+  });
+
+  it("Monthly keeps every column head", () => {
+    render(<MonthlySkeleton />);
+    for (const h of MONTHLY_COLUMNS) expect(screen.getAllByText(h).length).toBeGreaterThan(0);
+  });
+
+  it("Simulator keeps every result panel", () => {
+    render(<SimulatorSkeleton />);
+    for (const p of [...SIMULATOR_RESULTS.streaks, ...SIMULATOR_RESULTS.distribution])
+      expect(screen.getByText(p.title)).toBeTruthy();
+  });
+});
+
 describe("route gate", () => {
   it("only holds back pages that read trades", () => {
     expect(needsTrades("/journal")).toBe(true);
@@ -42,10 +73,33 @@ describe("route gate", () => {
     expect(needsTrades("/diary/sessions")).toBe(true);
   });
 
-  it("has a skeleton only for pages whose layout is fixed", () => {
-    expect(skeletonFor("/home")?.type).toBe(HomeSkeleton);
-    expect(skeletonFor("/journal")).toBeUndefined();
-    expect(skeletonFor("/reports/monthly")).toBeUndefined();
+  it("has a skeleton for the pages whose layout is known before their data arrives", () => {
+    for (const path of [
+      "/home",
+      "/portfolio",
+      "/equity",
+      "/analytics",
+      "/journal",
+      "/milestones",
+      "/reports/annual",
+      "/reports/calendar",
+      "/reports/monthly",
+      "/strategy-lab/simulator",
+    ])
+      expect(skeletonFor(path), path).toBeTruthy();
+  });
+
+  it("has none for pages that list your own records, whose size depends on how many there are", () => {
+    for (const path of [
+      "/rules",
+      "/open-trades",
+      "/missed-trades",
+      "/prop-challenge",
+      "/edge-finder",
+      "/strategy-lab/backtester",
+      "/strategy-lab/alternatives",
+    ])
+      expect(skeletonFor(path), path).toBeUndefined();
   });
 });
 

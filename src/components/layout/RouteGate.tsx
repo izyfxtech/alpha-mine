@@ -1,7 +1,16 @@
 import type { ReactElement, ReactNode } from "react";
 import { useLocation } from "@tanstack/react-router";
 import { useJournal, useTrades } from "@/lib/journal/journal-context";
+import { AnalyticsSkeleton } from "@/components/analytics/AnalyticsSkeleton";
+import { EquitySkeleton } from "@/components/equity/EquitySkeleton";
 import { HomeSkeleton } from "@/components/home/HomeSkeleton";
+import { MilestonesSkeleton } from "@/components/milestones/MilestoneCard";
+import { AnnualSkeleton } from "@/components/reports/AnnualSkeleton";
+import { CalendarSkeleton } from "@/components/reports/CalendarSkeleton";
+import { MonthlySkeleton } from "@/components/reports/MonthlyTable";
+import { SimulatorSkeleton } from "@/components/strategy/SimulatorLayout";
+import { JournalSkeleton } from "@/components/journal/JournalSkeleton";
+import { PortfolioSkeleton } from "@/components/portfolio/PortfolioSkeleton";
 import { useDelayedFlag } from "@/lib/use-delayed-flag";
 
 /** Pages that never read trades, so they open at once instead of waiting for them. */
@@ -18,6 +27,15 @@ export const needsTrades = (path: string) =>
  */
 const SKELETONS: Record<string, ReactElement> = {
   "/home": <HomeSkeleton />,
+  "/portfolio": <PortfolioSkeleton />,
+  "/journal": <JournalSkeleton />,
+  "/equity": <EquitySkeleton />,
+  "/analytics": <AnalyticsSkeleton />,
+  "/milestones": <MilestonesSkeleton />,
+  "/reports/annual": <AnnualSkeleton />,
+  "/reports/calendar": <CalendarSkeleton />,
+  "/reports/monthly": <MonthlySkeleton />,
+  "/strategy-lab/simulator": <SimulatorSkeleton />,
 };
 
 export const skeletonFor = (path: string): ReactElement | undefined => SKELETONS[path];

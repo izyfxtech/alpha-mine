@@ -4,9 +4,9 @@ import { safeCurrency } from "@/lib/currencies";
 import { createFileRoute } from "@tanstack/react-router";
 import { localDateTime, localDay } from "@/lib/time/local-time";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
-import { addMonths, format, startOfMonth } from "date-fns";
-import { ArrowDown, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
+import { startOfMonth } from "date-fns";
+import { ArrowDown } from "lucide-react";
 import { fetchAllRows, fetchTrades, useJournal } from "@/lib/journal/journal-context";
 import { countOption } from "@/lib/journal/fetch-all";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,10 +27,22 @@ import { Panel, Stat } from "@/components/kit";
 import { EquityChart, PnlBars } from "@/components/charts";
 import { KpiCards } from "@/components/analytics/KpiCards";
 import { ProfitCalendar } from "@/components/analytics/ProfitCalendar";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { SegmentedToggle } from "@/components/segmented-toggle";
+import { JournalsTrigger } from "@/components/portfolio/JournalsTrigger";
+import { MonthSwitcher } from "@/components/portfolio/MonthSwitcher";
+import {
+  BEST_WORST_COLUMNS,
+  JOURNAL_CELL,
+  JOURNAL_COLUMNS,
+  PORTFOLIO_BAR_TITLES,
+  PORTFOLIO_CHART_HEIGHT,
+  PORTFOLIO_EVALUATION_LABELS,
+  PORTFOLIO_NOTE,
+  PORTFOLIO_UNITS,
+} from "@/lib/portfolio-layout";
 
 export const Route = createFileRoute("/_authenticated/portfolio")({
   head: () => ({
@@ -137,36 +149,63 @@ function Portfolio() {
   const avgR = rTrades.length ? rTrades.reduce((a, t) => a + (t.r ?? 0), 0) / rTrades.length : 0;
   const days = new Set(trades.map((t) => localDay(t.entry_at))).size || 1;
 
+  const evaluation: Record<(typeof PORTFOLIO_EVALUATION_LABELS)[number], ReactNode> = {
+    "Total Number of Trades": trades.length,
+    "Biggest win": fmtPct(best[0]?.pct ?? 0),
+    "Biggest loss": fmtPct(best[best.length - 1]?.pct ?? 0),
+    "Avg. Profit / day": fmtPct(trades.reduce((a, t) => a + t.pct, 0) / days),
+    "Trades per day / week": `${fmtNum(s.perDay)} / ${fmtNum(s.perWeek)}`,
+    "Followed trade plan %": fmtPct(followedPlanPct(trades)),
+  };
+  const barProps = { height: PORTFOLIO_CHART_HEIGHT.bars, fmt: fmtU, x: "key" } as const;
+  const bars: Record<(typeof PORTFOLIO_BAR_TITLES)[number], ReactNode> = {
+    "Performance by Instrument": (
+      <PnlBars
+        {...barProps}
+        data={groupPerformance(pctTrades, (t) => t.instrument).sort((a, b) => b.pnl - a.pnl)}
+      />
+    ),
+    "Performance by Setup": (
+      <PnlBars
+        {...barProps}
+        angle
+        data={groupPerformance(pctTrades, (t) => t.setup).sort((a, b) => b.pnl - a.pnl)}
+      />
+    ),
+    "Performance by Month": (
+      <PnlBars
+        {...barProps}
+        angle
+        data={bucketPerformance(
+          pctTrades,
+          (t) => new Date(t.entry_at).getMonth(),
+          MONTHS.map((m, i) => ({ k: i, label: m })),
+        )}
+      />
+    ),
+    "Performance by Hour": (
+      <PnlBars
+        {...barProps}
+        angle
+        data={bucketPerformance(
+          pctTrades,
+          (t) => new Date(t.entry_at).getHours(),
+          Array.from({ length: 24 }, (_, h) => ({
+            k: h,
+            label: `${String(h).padStart(2, "0")}:00`,
+          })),
+        )}
+      />
+    ),
+  };
+
   return (
     <div className="mx-auto max-w-[1374px] space-y-[30px]">
       <div className="flex items-center justify-between">
-        <div className="inline-flex h-[24px] overflow-hidden rounded-md border bg-card text-xs font-semibold">
-          {(
-            [
-              ["pct", "Return (%)"],
-              ["r", "R Multiple"],
-            ] as const
-          ).map(([k, l]) => (
-            <button
-              key={k}
-              onClick={() => setUnit(k)}
-              className={cn(
-                "border-r px-3 last:border-r-0",
-                unit === k && "bg-ink text-ink-foreground",
-              )}
-            >
-              {l}
-            </button>
-          ))}
-        </div>
+        <SegmentedToggle options={PORTFOLIO_UNITS} value={unit} onChange={setUnit} />
         <Popover>
           <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className="h-8 w-56 justify-between bg-card text-[12px] font-normal"
-            >
-              Journals <ChevronDown className="h-4 w-4" />
-            </Button>
+            <JournalsTrigger />
           </PopoverTrigger>
           <PopoverContent align="end" className="w-56 space-y-1.5 p-3">
             {journals.map((j) => (
@@ -207,7 +246,7 @@ function Portfolio() {
         />
       )}
       <p className="-mt-5 text-xs text-t4">
-        Uses every closed trade: top-bar filters apply to Home and the analysis pages, not here.
+        {PORTFOLIO_NOTE}
         {!single && skipped > 0
           ? ` ${skipped} trade${skipped === 1 ? " has" : "s have"} no ${unit === "pct" ? "balance to take a % of" : "R"} and ${skipped === 1 ? "is" : "are"} left out of the cards and curve.`
           : ""}
@@ -217,28 +256,8 @@ function Portfolio() {
         <table className="w-full text-xs tabular">
           <thead>
             <tr className="text-right">
-              {[
-                "Name",
-                "Balance",
-                "Return (%)",
-                "Return (R)",
-                "Avg. P&L",
-                "Avg. %",
-                "Avg. R",
-                "Profit Factor",
-                "Winrate",
-                "Trades #",
-                "AM Score",
-                "",
-              ].map((h, i) => (
-                <th
-                  key={h + i}
-                  className={cn(
-                    "whitespace-nowrap px-2 py-2.5 font-semibold",
-                    i === 0 && "text-left",
-                    i > 0 && i < 11 && "border-l",
-                  )}
-                >
+              {JOURNAL_COLUMNS.map((h, i) => (
+                <th key={h + i} className={JOURNAL_CELL.head(i)}>
                   {h}
                 </th>
               ))}
@@ -257,7 +276,7 @@ function Portfolio() {
                     x.net < 0 ? "bg-loss-soft/40" : x.net > 0 ? "bg-profit-soft/25" : "",
                   )}
                 >
-                  <td className="max-w-[130px] truncate px-2 py-2 text-left">
+                  <td className={JOURNAL_CELL.name}>
                     <button className="hover:underline" onClick={() => setJournalId(j.id)}>
                       {j.name}
                     </button>
@@ -280,11 +299,11 @@ function Portfolio() {
                     x.count,
                     n2(x.score),
                   ].map((v, i) => (
-                    <td key={i} className="whitespace-nowrap px-2 py-2">
+                    <td key={i} className={JOURNAL_CELL.value}>
                       {v}
                     </td>
                   ))}
-                  <td className="w-40 px-4">
+                  <td className={JOURNAL_CELL.bar}>
                     <div className="flex h-[14px] items-center border-l-2 border-t4">
                       <div
                         className={x.net >= 0 ? "h-full bg-chart-1" : "h-full bg-chart-2"}
@@ -316,7 +335,7 @@ function Portfolio() {
       <Panel title="Equity Graph">
         <EquityChart
           data={curve}
-          height={420}
+          height={PORTFOLIO_CHART_HEIGHT.equity}
           valueName={unit === "pct" ? "Return (%)" : "R Multiple"}
           fmt={fmtU}
         />
@@ -325,29 +344,13 @@ function Portfolio() {
       <div className="grid grid-cols-[1fr_438px] gap-[30px]">
         <Panel
           title="Profit Calendar"
-          action={
-            <div className="flex items-center overflow-hidden rounded-md border border-ink-line">
-              <button
-                className="border-r border-ink-line px-2 py-1.5"
-                onClick={() => setMonth(addMonths(month, -1))}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <span className="w-28 text-center text-[12px]">{format(month, "MMMM yyyy")}</span>
-              <button
-                className="border-l border-ink-line px-2 py-1.5"
-                onClick={() => setMonth(addMonths(month, 1))}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
-          }
+          action={<MonthSwitcher month={month} onMonthChange={setMonth} />}
         >
           <ProfitCalendar trades={pctTrades} month={month} fmt={(v) => fmtU(v)} />
         </Panel>
         <Panel title="Performance by Weekday">
           <PnlBars
-            height={520}
+            height={PORTFOLIO_CHART_HEIGHT.weekday}
             fmt={fmtU}
             angle
             data={bucketPerformance(
@@ -372,16 +375,7 @@ function Portfolio() {
             <table className="w-full text-xs tabular">
               <thead className="sticky top-0 bg-card">
                 <tr className="text-left">
-                  {[
-                    "Journal Name",
-                    "Entry Date",
-                    "Exit Date",
-                    "Instrument",
-                    "Setup",
-                    "Direction",
-                    "Return (%)",
-                    "Return (R)",
-                  ].map((h) => (
+                  {BEST_WORST_COLUMNS.map((h) => (
                     <th
                       key={h}
                       className="whitespace-nowrap border-r px-2 py-2.5 font-medium last:border-0"
@@ -434,68 +428,18 @@ function Portfolio() {
           </div>
         </Panel>
         <Panel title="Evaluation">
-          <Stat label="Total Number of Trades" value={trades.length} />
-          <Stat label="Biggest win" value={fmtPct(best[0]?.pct ?? 0)} />
-          <Stat label="Biggest loss" value={fmtPct(best[best.length - 1]?.pct ?? 0)} />
-          <Stat
-            label="Avg. Profit / day"
-            value={fmtPct(trades.reduce((a, t) => a + t.pct, 0) / days)}
-          />
-          <Stat
-            label="Trades per day / week"
-            value={`${fmtNum(s.perDay)} / ${fmtNum(s.perWeek)}`}
-          />
-          <Stat label="Followed trade plan %" value={fmtPct(followedPlanPct(trades))} />
+          {PORTFOLIO_EVALUATION_LABELS.map((label) => (
+            <Stat key={label} label={label} value={evaluation[label]} />
+          ))}
         </Panel>
       </div>
 
       <div className="grid grid-cols-2 gap-[30px]">
-        <Panel title="Performance by Instrument">
-          <PnlBars
-            height={280}
-            fmt={fmtU}
-            data={groupPerformance(pctTrades, (t) => t.instrument).sort((a, b) => b.pnl - a.pnl)}
-            x="key"
-          />
-        </Panel>
-        <Panel title="Performance by Setup">
-          <PnlBars
-            height={280}
-            fmt={fmtU}
-            angle
-            data={groupPerformance(pctTrades, (t) => t.setup).sort((a, b) => b.pnl - a.pnl)}
-            x="key"
-          />
-        </Panel>
-        <Panel title="Performance by Month">
-          <PnlBars
-            height={280}
-            fmt={fmtU}
-            angle
-            data={bucketPerformance(
-              pctTrades,
-              (t) => new Date(t.entry_at).getMonth(),
-              MONTHS.map((m, i) => ({ k: i, label: m })),
-            )}
-            x="key"
-          />
-        </Panel>
-        <Panel title="Performance by Hour">
-          <PnlBars
-            height={280}
-            fmt={fmtU}
-            angle
-            data={bucketPerformance(
-              pctTrades,
-              (t) => new Date(t.entry_at).getHours(),
-              Array.from({ length: 24 }, (_, h) => ({
-                k: h,
-                label: `${String(h).padStart(2, "0")}:00`,
-              })),
-            )}
-            x="key"
-          />
-        </Panel>
+        {PORTFOLIO_BAR_TITLES.map((title) => (
+          <Panel key={title} title={title}>
+            {bars[title]}
+          </Panel>
+        ))}
       </div>
     </div>
   );

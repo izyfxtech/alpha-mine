@@ -3,21 +3,20 @@ import { toggled } from "@/lib/collections";
 import { byEntry } from "@/lib/pnl/sort";
 import { createFileRoute } from "@tanstack/react-router";
 import { localDay } from "@/lib/time/local-time";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useTrades } from "@/lib/journal/journal-context";
 import { computeStats, fmtMoney, fmtNum } from "@/lib/pnl/metrics";
 import { AccentStat, StatGrid } from "@/components/kit";
 import { EquityChart, type EquityPoint } from "@/components/charts";
 import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ChevronDown } from "lucide-react";
-import { cn } from "@/lib/utils";
+  EQUITY_CHART_BOX,
+  EQUITY_STAT_LABELS,
+  EquityControls,
+  type Display,
+  type Opt,
+} from "@/components/equity/EquityControls";
 import { useTradeDrawer } from "@/components/journal/TradeDrawer";
-import { XModeSelect, useXMode } from "@/components/analytics/x-axis";
+import { useXMode } from "@/components/analytics/x-axis";
 
 export const Route = createFileRoute("/_authenticated/equity")({
   head: () => ({
@@ -32,23 +31,6 @@ export const Route = createFileRoute("/_authenticated/equity")({
   }),
   component: Equity,
 });
-
-const DISPLAYS = [
-  "Return ($)",
-  "Account Balance ($)",
-  "Return, gain sum (%)",
-  "Return, ROI (%)",
-  "R Multiple (R)",
-] as const;
-type Display = (typeof DISPLAYS)[number];
-const OPTIONS = [
-  "Display Value Without Fees",
-  "Display Tiltmeter",
-  "Moving Average (20)",
-  "Moving Average (50)",
-  "Group Trades by Day",
-] as const;
-type Opt = (typeof OPTIONS)[number];
 
 function Equity() {
   const { trades, journal, flows } = useTrades();
@@ -164,80 +146,32 @@ function Equity() {
     return out.map((p, i) => ({ ...p, ma20: m20[i], ma50: m50[i] }));
   }, [trades, start, display, opts, xm]);
 
-  const optLabel = opts.size === 0 ? "Options" : [...opts].join(", ");
+  const stats: Record<(typeof EQUITY_STAT_LABELS)[number], ReactNode> = {
+    Trades: s.count,
+    Winners: s.wins,
+    Losers: s.losses,
+    "Winrate (%)": fmtNum(s.winRate),
+    "Avg. P&L": fmtMoney(s.avgPnl, cur),
+    "Profit Factor": fmtNum(s.profitFactor),
+    "Return (%)": s.roi.toFixed(2),
+    "Biggest Winner": fmtMoney(s.biggestWin, cur),
+    "Biggest Loser": fmtMoney(s.biggestLoss, cur),
+    "Profit/Loss": fmtMoney(s.net, cur),
+  };
   const unit = display.match(/\((.+)\)/)?.[1] ?? "$";
 
   return (
     <div className="space-y-[22px]">
       <section className="rounded-lg bg-card p-[22px] shadow-[0_1px_5px_rgba(60,40,90,0.07)]">
-        <div className="mb-4 flex flex-wrap items-center gap-3">
-          <FieldBox label="Display">
-            <DropdownMenu>
-              <DropdownMenuTrigger className="flex w-52 items-center justify-between text-sm">
-                {display}
-                <ChevronDown className="h-4 w-4" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56">
-                {DISPLAYS.map((d) => (
-                  <button
-                    key={d}
-                    onClick={() => setDisplay(d)}
-                    className={cn(
-                      "block w-full rounded-sm px-3 py-2 text-left text-sm hover:bg-muted",
-                      d === display && "bg-muted font-medium",
-                    )}
-                  >
-                    {d}
-                  </button>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </FieldBox>
-          <FieldBox label={opts.size ? "Options" : undefined}>
-            <DropdownMenu>
-              <DropdownMenuTrigger className="flex w-80 items-center justify-between gap-2 text-sm">
-                <span className="truncate">{optLabel}</span>
-                <ChevronDown className="h-4 w-4 shrink-0" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-80">
-                {OPTIONS.map((o) => (
-                  <DropdownMenuCheckboxItem
-                    key={o}
-                    checked={has(o)}
-                    onSelect={(e) => e.preventDefault()}
-                    onCheckedChange={() => toggle(o)}
-                    className="py-2"
-                  >
-                    {o}
-                  </DropdownMenuCheckboxItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </FieldBox>
-          <XModeSelect value={xm} onChange={setXm} />
-          <div className="ml-auto flex items-center gap-4 text-sm">
-            <span>{display}</span>
-            {has("Display Value Without Fees") && (
-              <span className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-chart-4" />
-                {display} (without fees)
-              </span>
-            )}
-            {has("Moving Average (20)") && (
-              <span className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-chart-5" />
-                MA 20
-              </span>
-            )}
-            {has("Moving Average (50)") && (
-              <span className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-chart-3" />
-                MA 50
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="h-[clamp(340px,calc(100vh-330px),760px)] min-w-0 overflow-hidden">
+        <EquityControls
+          display={display}
+          opts={opts}
+          xMode={xm}
+          onDisplayChange={setDisplay}
+          onToggle={toggle}
+          onXModeChange={setXm}
+        />
+        <div className={EQUITY_CHART_BOX}>
           <EquityChart
             data={data}
             height="100%"
@@ -260,30 +194,10 @@ function Equity() {
       </section>
 
       <StatGrid>
-        <AccentStat label="Trades" value={s.count} />
-        <AccentStat label="Winners" value={s.wins} />
-        <AccentStat label="Losers" value={s.losses} />
-        <AccentStat label="Winrate (%)" value={fmtNum(s.winRate)} />
-        <AccentStat label="Avg. P&L" value={fmtMoney(s.avgPnl, cur)} />
-        <AccentStat label="Profit Factor" value={fmtNum(s.profitFactor)} />
-        <AccentStat label="Return (%)" value={s.roi.toFixed(2)} />
-        <AccentStat label="Biggest Winner" value={fmtMoney(s.biggestWin, cur)} />
-        <AccentStat label="Biggest Loser" value={fmtMoney(s.biggestLoss, cur)} />
-        <AccentStat label="Profit/Loss" value={fmtMoney(s.net, cur)} />
+        {EQUITY_STAT_LABELS.map((label) => (
+          <AccentStat key={label} label={label} value={stats[label]} />
+        ))}
       </StatGrid>
-    </div>
-  );
-}
-
-function FieldBox({ label, children }: { label?: string; children: React.ReactNode }) {
-  return (
-    <div className="relative rounded-md border border-line2 bg-card px-3 pb-1.5 pt-3">
-      {label && (
-        <span className="absolute -top-2 left-2 bg-card px-1 text-xs text-muted-foreground">
-          {label}
-        </span>
-      )}
-      {children}
     </div>
   );
 }
