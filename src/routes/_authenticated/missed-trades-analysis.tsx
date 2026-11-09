@@ -16,7 +16,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { EquityChart, Panel, axis, tooltipStyle, yScale } from "@/components/kit";
+import { Panel, axis, tooltipStyle, yScale } from "@/components/kit";
+import { EquityChart } from "@/components/charts";
 import { useJournal, useJournalFlows, useTrades } from "@/lib/journal/journal-context";
 import { useJournalTable } from "@/lib/journal/crud";
 import { computeStats, fmtMoney, fmtNum } from "@/lib/pnl/metrics";

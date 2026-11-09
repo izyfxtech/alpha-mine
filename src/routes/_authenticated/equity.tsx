@@ -6,7 +6,8 @@ import { localDay } from "@/lib/time/local-time";
 import { useMemo, useState } from "react";
 import { useTrades } from "@/lib/journal/journal-context";
 import { computeStats, fmtMoney, fmtNum } from "@/lib/pnl/metrics";
-import { AccentStat, EquityChart, type EquityPoint, StatGrid } from "@/components/kit";
+import { AccentStat, StatGrid } from "@/components/kit";
+import { EquityChart, type EquityPoint } from "@/components/charts";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
