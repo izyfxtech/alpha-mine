@@ -3,6 +3,7 @@ import { Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cumulative } from "@/components/kit";
 import { Spark } from "@/components/charts";
+import { Skeleton } from "@/components/ui/skeleton";
 import { fmtNum, fmtPct, type Trade, type computeStats } from "@/lib/pnl/metrics";
 
 type Stats = ReturnType<typeof computeStats>;
@@ -14,7 +15,7 @@ function Widget({
   children,
 }: {
   label: string;
-  value: string;
+  value: ReactNode;
   info?: string;
   children?: ReactNode;
 }) {
@@ -45,6 +46,31 @@ function Widget({
         <p className="mt-2 text-[15px] font-semibold tabular text-t1">{value}</p>
       </div>
       <div className="shrink-0">{children}</div>
+    </div>
+  );
+}
+
+/** The five cards with their headings and size, and the figures and graphics still blank. */
+export function KpiCardsSkeleton() {
+  return (
+    <div className="slim-scroll flex gap-[30px] overflow-x-auto pb-1">
+      {(
+        [
+          ["Net Return", "h-9 w-14"],
+          ["Winrate", "h-[58px] w-[84px]"],
+          ["Avg P&L", "h-[52px] w-[84px]"],
+          ["Profit Factor", "h-[9px] w-[105px]"],
+          ["AM Score", "h-11 w-11 rounded-full"],
+        ] as const
+      ).map(([label, graphic]) => (
+        <Widget
+          key={label}
+          label={label}
+          value={<Skeleton className="inline-block h-[15px] w-16 align-middle" />}
+        >
+          <Skeleton className={graphic} />
+        </Widget>
+      ))}
     </div>
   );
 }

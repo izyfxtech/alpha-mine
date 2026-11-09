@@ -4,7 +4,6 @@ import { useTrades } from "@/lib/journal/journal-context";
 import { CHARTS } from "@/lib/nav";
 import { type Trade } from "@/lib/pnl/metrics";
 import { Empty } from "@/components/kit";
-import { PageSkeleton } from "@/components/layout/PageSkeleton";
 
 // Each chart (and the charting library behind it) is fetched only when that chart is opened.
 const Comments = lazy(() =>
@@ -86,7 +85,7 @@ export const Route = createFileRoute("/_authenticated/chart-lab/$chart")({
 function ChartPage() {
   const { chart } = Route.useParams();
   return (
-    <Suspense fallback={<PageSkeleton variant="chart" />}>
+    <Suspense fallback={null}>
       <ChartBody chart={chart} />
     </Suspense>
   );

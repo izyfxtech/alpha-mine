@@ -1,9 +1,9 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { localDay } from "@/lib/time/local-time";
-import { useMemo, useRef, useState } from "react";
-import { addMonths, format, startOfMonth } from "date-fns";
+import { useMemo, useRef, useState, type ReactNode } from "react";
+import { format, startOfMonth } from "date-fns";
 import { ProfitCalendar } from "@/components/analytics/ProfitCalendar";
-import { Camera, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
+import { ChevronRight, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { downloadElementPng } from "@/lib/media/capture";
 import { useProfile } from "@/lib/profile-settings";
@@ -21,10 +21,18 @@ import {
 import { KpiCards } from "@/components/analytics/KpiCards";
 import { Empty, Panel, Stat, cumulative } from "@/components/kit";
 import { EquityChart, PnlBars } from "@/components/charts";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { seedDemoTrades } from "@/lib/journal/demo";
+import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
+import { CalendarToolbar } from "@/components/home/CalendarToolbar";
+import { UnitToggle, type Unit } from "@/components/home/UnitToggle";
+import {
+  EVALUATION_LABELS,
+  HOME_CHART_HEIGHT,
+  HOME_CHART_ROWS,
+  type EvaluationLabel,
+} from "@/lib/home-layout";
 
 export const Route = createFileRoute("/_authenticated/home")({
   head: () => ({
@@ -40,28 +48,7 @@ export const Route = createFileRoute("/_authenticated/home")({
   component: Home,
 });
 
-type Unit = "cur" | "pct" | "r";
-
 const FULL_DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const CURRENCY_NAMES: Record<string, string> = {
-  USD: "United States Dollar",
-  EUR: "Euro",
-  GBP: "British Pound",
-  JPY: "Japanese Yen",
-  AUD: "Australian Dollar",
-  CAD: "Canadian Dollar",
-  CHF: "Swiss Franc",
-  NGN: "Nigerian Naira",
-};
-const currencyName = (c: string) =>
-  CURRENCY_NAMES[c] ??
-  (() => {
-    try {
-      return new Intl.DisplayNames(["en"], { type: "currency" }).of(c) ?? c;
-    } catch {
-      return c;
-    }
-  })();
 
 import { GettingStarted } from "@/components/onboarding/GettingStarted";
 
@@ -127,6 +114,66 @@ function Home() {
   const ev = (money: number, pct: number, r: number) =>
     unit === "cur" ? fmtMoney(money, cur) : unit === "pct" ? fmtPct(pct) : `${fmtNum(r)}R`;
 
+  const evaluation: Record<EvaluationLabel, ReactNode> = {
+    "Total Number of Trades": s.count,
+    "Avg. Profit per Trading Day": ev(s.avgPerDay, s.roi / tradingDays, sumR / tradingDays),
+    "Biggest Winner": ev(
+      s.biggestWin,
+      pcts.length ? Math.max(...pcts) : 0,
+      rs.length ? Math.max(...rs) : 0,
+    ),
+    "Biggest Loser": ev(
+      s.biggestLoss,
+      pcts.length ? Math.min(...pcts) : 0,
+      rs.length ? Math.min(...rs) : 0,
+    ),
+    "Followed Trade Plan": fmtPct(s.followedPlanPct),
+    "Winrate w/o BE": fmtPct(s.winRateNoBE),
+    "Max Drawdown": fmtPct(s.maxDD),
+    "Return/Drawdown": fmtNum(s.maxDD ? s.roi / s.maxDD : s.roi),
+    "Winning / Losing Days": `${s.winDays} / ${s.lossDays}`,
+    "Trades per Day / Week": `${fmtNum(s.perDay)} / ${fmtNum(s.perWeek)}`,
+    "Avg. Hold Time": fmtHold(s.avgHoldMin),
+    "Total Fees": fmtMoney(s.fees, cur),
+    ROI: fmtPct(s.roi),
+    "Current Streak": (
+      <span className="flex gap-[3px]">
+        {s.streak.map((x, i) => (
+          <span
+            key={i}
+            className={cn(
+              "rounded px-1 text-xs font-bold",
+              x === "W"
+                ? "bg-profit-soft text-profit"
+                : x === "L"
+                  ? "bg-loss-soft text-loss"
+                  : "bg-muted",
+            )}
+          >
+            {x}
+          </span>
+        ))}
+      </span>
+    ),
+  };
+  const charts: Record<(typeof HOME_CHART_ROWS)[number][number], ReactNode> = {
+    "Performance by Instrument": (
+      <PnlBars data={byInst} x="key" fmt={barFmt} height={HOME_CHART_HEIGHT} />
+    ),
+    "Performance by Weekday": (
+      <PnlBars data={byDay} x="key" fmt={barFmt} height={HOME_CHART_HEIGHT} />
+    ),
+    "Equity Graph": (
+      <EquityChart data={curve} height={HOME_CHART_HEIGHT} compact fmt={(n) => fmtMoney(n, cur)} />
+    ),
+    "Performance by Hour": (
+      <PnlBars data={byHour} x="key" fmt={barFmt} height={HOME_CHART_HEIGHT} />
+    ),
+    "Performance by Setup": (
+      <PnlBars data={bySetup} x="key" fmt={barFmt} height={HOME_CHART_HEIGHT} />
+    ),
+  };
+
   return (
     <div className="mx-auto max-w-[1374px] space-y-[30px]">
       <GettingStarted />
@@ -134,42 +181,25 @@ function Home() {
         <h1 className="w-full text-xl font-semibold">
           {firstName ? `Welcome back, ${firstName}` : "Welcome back"}
         </h1>
-        <div className="inline-flex h-[24px] overflow-hidden rounded-md border bg-card text-xs font-semibold">
-          {(
-            [
-              ["cur", `${currencyName(cur)} (${cur})`],
-              ["pct", "Return (%)"],
-              ["r", "R Multiple"],
-            ] as const
-          ).map(([k, l]) => (
-            <button
-              key={k}
-              onClick={() => setUnit(k)}
-              className={cn(
-                "border-r px-3 last:border-r-0",
-                unit === k && "bg-ink text-ink-foreground",
-              )}
+        <div className="flex min-h-[34px] w-full flex-wrap items-center justify-between gap-3">
+          <UnitToggle unit={unit} currency={cur} onChange={setUnit} />
+          {edgeCount > 0 && (
+            <Link
+              to={"/edge-finder" as never}
+              className="flex items-center gap-2 rounded-md border bg-card px-3 py-2 text-[12px] shadow-[0_1px_5px_rgba(60,40,90,0.07)] hover:bg-muted"
             >
-              {l}
-            </button>
-          ))}
+              <Sparkles className="h-4 w-4" />
+              <span>
+                Edge Finder found{" "}
+                <b>
+                  {edgeCount} insight{edgeCount === 1 ? "" : "s"}
+                </b>{" "}
+                in your journal
+              </span>
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          )}
         </div>
-        {edgeCount > 0 && (
-          <Link
-            to={"/edge-finder" as never}
-            className="flex items-center gap-2 rounded-md border bg-card px-3 py-2 text-[12px] shadow-[0_1px_5px_rgba(60,40,90,0.07)] hover:bg-muted"
-          >
-            <Sparkles className="h-4 w-4" />
-            <span>
-              Edge Finder found{" "}
-              <b>
-                {edgeCount} insight{edgeCount === 1 ? "" : "s"}
-              </b>{" "}
-              in your journal
-            </span>
-            <ChevronRight className="h-4 w-4" />
-          </Link>
-        )}
       </div>
 
       <KpiCards
@@ -185,46 +215,17 @@ function Home() {
           title="Profit Calendar"
           sectionRef={calRef}
           action={
-            <div className="flex items-center gap-3">
-              <div
-                data-no-capture
-                className="flex items-center overflow-hidden rounded-md border border-ink-line text-[12px] font-medium"
-              >
-                <button
-                  aria-label="Previous month"
-                  className="flex h-[26px] w-[26px] items-center justify-center hover:bg-muted"
-                  onClick={() => setMonth(addMonths(month, -1))}
-                >
-                  <ChevronLeft className="h-3.5 w-3.5" />
-                </button>
-                <span className="flex h-[26px] w-[110px] items-center justify-center border-x border-ink-line">
-                  {format(month, "MMMM yyyy")}
-                </span>
-                <button
-                  aria-label="Next month"
-                  className="flex h-[26px] w-[26px] items-center justify-center hover:bg-muted"
-                  onClick={() => setMonth(addMonths(month, 1))}
-                >
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </button>
-              </div>
-              <button
-                data-no-capture
-                type="button"
-                aria-label="Save calendar as image"
-                title="Save calendar as image"
-                className="rounded-md p-1.5 hover:bg-muted"
-                onClick={() => {
-                  if (calRef.current)
-                    downloadElementPng(
-                      calRef.current,
-                      `profit-calendar-${format(month, "yyyy-MM")}.png`,
-                    ).catch(() => toast.error("Could not create the image"));
-                }}
-              >
-                <Camera className="h-5 w-5" />
-              </button>
-            </div>
+            <CalendarToolbar
+              month={month}
+              onMonthChange={setMonth}
+              onSave={() => {
+                if (calRef.current)
+                  downloadElementPng(
+                    calRef.current,
+                    `profit-calendar-${format(month, "yyyy-MM")}.png`,
+                  ).catch(() => toast.error("Could not create the image"));
+              }}
+            />
           }
         >
           <ProfitCalendar trades={trades} month={month} fmt={(pnl, r, pct) => fmt(pnl, r, pct)} />
@@ -232,84 +233,21 @@ function Home() {
 
         <Panel title="Evaluation" className="flex flex-col">
           <div className="mt-2" />
-          <Stat label="Total Number of Trades" value={s.count} />
-          <Stat
-            label="Avg. Profit per Trading Day"
-            value={ev(s.avgPerDay, s.roi / tradingDays, sumR / tradingDays)}
-          />
-          <Stat
-            label="Biggest Winner"
-            value={ev(
-              s.biggestWin,
-              pcts.length ? Math.max(...pcts) : 0,
-              rs.length ? Math.max(...rs) : 0,
-            )}
-          />
-          <Stat
-            label="Biggest Loser"
-            value={ev(
-              s.biggestLoss,
-              pcts.length ? Math.min(...pcts) : 0,
-              rs.length ? Math.min(...rs) : 0,
-            )}
-          />
-          <Stat label="Followed Trade Plan" value={fmtPct(s.followedPlanPct)} />
-          <Stat label="Winrate w/o BE" value={fmtPct(s.winRateNoBE)} />
-          <Stat label="Max Drawdown" value={fmtPct(s.maxDD)} />
-          <Stat label="Return/Drawdown" value={fmtNum(s.maxDD ? s.roi / s.maxDD : s.roi)} />
-          <Stat label="Winning / Losing Days" value={`${s.winDays} / ${s.lossDays}`} />
-          <Stat
-            label="Trades per Day / Week"
-            value={`${fmtNum(s.perDay)} / ${fmtNum(s.perWeek)}`}
-          />
-          <Stat label="Avg. Hold Time" value={fmtHold(s.avgHoldMin)} />
-          <Stat label="Total Fees" value={fmtMoney(s.fees, cur)} />
-          <Stat label="ROI" value={fmtPct(s.roi)} />
-          <Stat
-            label="Current Streak"
-            value={
-              <span className="flex gap-[3px]">
-                {s.streak.map((x, i) => (
-                  <span
-                    key={i}
-                    className={cn(
-                      "rounded px-1 text-xs font-bold",
-                      x === "W"
-                        ? "bg-profit-soft text-profit"
-                        : x === "L"
-                          ? "bg-loss-soft text-loss"
-                          : "bg-muted",
-                    )}
-                  >
-                    {x}
-                  </span>
-                ))}
-              </span>
-            }
-          />
+          {EVALUATION_LABELS.map((label) => (
+            <Stat key={label} label={label} value={evaluation[label]} />
+          ))}
         </Panel>
       </div>
 
-      <div className="grid grid-cols-3 gap-[30px]">
-        <Panel title="Performance by Instrument">
-          <PnlBars data={byInst} x="key" fmt={barFmt} height={230} />
-        </Panel>
-        <Panel title="Performance by Weekday">
-          <PnlBars data={byDay} x="key" fmt={barFmt} height={230} />
-        </Panel>
-        <Panel title="Equity Graph">
-          <EquityChart data={curve} height={230} compact fmt={(n) => fmtMoney(n, cur)} />
-        </Panel>
-      </div>
-
-      <div className="grid grid-cols-3 gap-[30px]">
-        <Panel title="Performance by Hour">
-          <PnlBars data={byHour} x="key" fmt={barFmt} height={230} />
-        </Panel>
-        <Panel title="Performance by Setup">
-          <PnlBars data={bySetup} x="key" fmt={barFmt} height={230} />
-        </Panel>
-      </div>
+      {HOME_CHART_ROWS.map((titles) => (
+        <div key={titles[0]} className="grid grid-cols-3 gap-[30px]">
+          {titles.map((title) => (
+            <Panel key={title} title={title}>
+              {charts[title]}
+            </Panel>
+          ))}
+        </div>
+      ))}
     </div>
   );
 }

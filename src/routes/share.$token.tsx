@@ -2,7 +2,6 @@ import { cumulative } from "@/lib/numbers";
 import { parseSharedJournal } from "@/lib/validation/schemas";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { localDay } from "@/lib/time/local-time";
-import { PageSkeleton } from "@/components/layout/PageSkeleton";
 import { useQuery } from "@tanstack/react-query";
 import {
   Area,
@@ -51,9 +50,9 @@ function SharedJournal() {
   });
   if (isLoading)
     return (
-      <div className="mx-auto max-w-5xl p-6">
-        <PageSkeleton />
-      </div>
+      <p role="status" className="p-10 text-center text-sm text-muted-foreground">
+        Loading…
+      </p>
     );
   if (isError)
     return (
