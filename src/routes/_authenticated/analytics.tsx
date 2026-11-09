@@ -1,22 +1,21 @@
 import { byEntry } from "@/lib/pnl/sort";
 import { compareKeys, pushTo } from "@/lib/group";
 import { createFileRoute } from "@tanstack/react-router";
-import { localMonth } from "@/lib/time/local-time";
 import { Fragment, useMemo, useRef, useState } from "react";
-import {
-  ArrowDown,
-  ArrowUp,
-  ChevronDown,
-  ChevronRight,
-  Columns3,
-  GripVertical,
-  Minus,
-  Plus,
-} from "lucide-react";
-import { plannedRRR, useLookups, useTrades } from "@/lib/journal/journal-context";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import { plannedRRR, useTrades } from "@/lib/journal/journal-context";
 import { Checkbox } from "@/components/ui/checkbox";
 import { isLoss, isWin, type Trade } from "@/lib/pnl/metrics";
 import { cn } from "@/lib/utils";
+import { ColumnsTab, GroupTableHead } from "@/components/analytics/AnalyticsTable";
+import { AnalyticsSidebar } from "@/components/analytics/AnalyticsSidebar";
+import {
+  COLS,
+  ANALYTICS_ROW_CLASS,
+  DEFAULT_VISIBLE,
+  type Crit,
+  useCriteria,
+} from "@/components/analytics/analytics-config";
 
 export const Route = createFileRoute("/_authenticated/analytics")({
   head: () => ({
@@ -38,32 +37,6 @@ export const Route = createFileRoute("/_authenticated/analytics")({
   component: Analytics,
 });
 
-type Crit = { key: string; label: string; get: (t: Trade) => string[] };
-const comments = (phase: string) => (t: Trade) => {
-  const c = t.comments.filter((x) => x.phase === phase).map((x) => x.label);
-  return c.length ? c : ["No comment"];
-};
-const CRITERIA: Crit[] = [
-  { key: "setup", label: "Trade Setups", get: (t) => [t.setup] },
-  {
-    key: "outcome",
-    label: "Outcome",
-    get: (t) => [isWin(t) ? "Winner" : isLoss(t) ? "Loser" : "Break even"],
-  },
-  { key: "direction", label: "Direction", get: (t) => [t.direction === "long" ? "Long" : "Short"] },
-  { key: "entry", label: "Entry Comment", get: comments("entry") },
-  { key: "management", label: "Management Comment", get: comments("management") },
-  { key: "exit", label: "Exit Comment", get: comments("exit") },
-  { key: "instrument", label: "Trade Instruments", get: (t) => [t.instrument] },
-  {
-    key: "weekday",
-    label: "Weekday",
-    get: (t) => [new Date(t.entry_at).toLocaleDateString("en-US", { weekday: "long" })],
-  },
-  { key: "month", label: "Month", get: (t) => [localMonth(t.entry_at)] },
-  { key: "type", label: "Trade Type", get: (t) => [t.trade_type || "—"] },
-];
-
 /** Favourable / adverse excursion of a trade in price points, and as % of the distance to TP / SL. */
 function excursion(t: Trade) {
   if (t.high_price == null || t.low_price == null) return null;
@@ -76,28 +49,6 @@ function excursion(t: Trade) {
   const sl = t.stop_loss != null ? Math.abs(t.entry_price - Number(t.stop_loss)) : 0;
   return { mfe, mae, up: tp ? (mfe / tp) * 100 : null, dn: sl ? (mae / sl) * 100 : null };
 }
-
-const COLS: { k: string; l: string }[] = [
-  { k: "n", l: "Amount" },
-  { k: "qty", l: "Avg. Qty." },
-  { k: "wr", l: "Winrate (%)" },
-  { k: "avgPnl", l: "Avg. P&L ($)" },
-  { k: "sum", l: "Sum. Gain ($)" },
-  { k: "pf", l: "Profit Factor" },
-  { k: "avgR", l: "Avg. R-Multiple" },
-  { k: "sumR", l: "Sum. R-Multiple" },
-  { k: "planR", l: "Avg. Planned R" },
-  { k: "mw", l: "Max. Cons. Winners" },
-  { k: "ml", l: "Max. Cons. Losers" },
-  { k: "dd", l: "Avg. Drawdown (%)" },
-  { k: "up", l: "Avg. Updraw (%)" },
-  { k: "mae", l: "Avg. MAE" },
-  { k: "mfe", l: "Avg. MFE" },
-  { k: "fees", l: "Fees ($)" },
-  { k: "ret", l: "Return (%)" },
-  { k: "avgRet", l: "Avg. Return (%)" },
-];
-const DEFAULT_VISIBLE = COLS.map((c) => c.k);
 
 const mean = (a: number[]) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : null);
 
@@ -168,29 +119,13 @@ function Analytics() {
   const { trades, journal, flows } = useTrades();
   const invested =
     (journal?.starting_balance ?? 0) + flows.reduce((a, f) => a + Number(f.amount), 0);
-  const { data: lookups } = useLookups(journal?.id);
   const [order, setOrder] = useState<string[]>(["setup"]);
   const [open, setOpen] = useState<Set<string>>(new Set(["Overall"]));
   const [visible, setVisible] = useState<string[]>(DEFAULT_VISIBLE);
   const [colsOpen, setColsOpen] = useState(false);
   const dragKey = useRef<string | null>(null);
 
-  // built-in criteria + one per custom statistic category, in the order set up in Settings
-  const criteria = useMemo<Crit[]>(() => {
-    const optById = new Map((lookups?.statOptions ?? []).map((o) => [o.id, o]));
-    const custom = (lookups?.statCategories ?? []).map((c): Crit => ({
-      key: `cs:${c.id}`,
-      label: c.name,
-      get: (t) => {
-        const v = t.customStats
-          .map((id) => optById.get(id))
-          .filter((o) => o?.category_id === c.id)
-          .map((o) => o!.label);
-        return v.length ? v : ["Not set"];
-      },
-    }));
-    return [...CRITERIA, ...custom];
-  }, [lookups]);
+  const criteria = useCriteria(journal?.id);
   const crits = useMemo(
     () => order.map((k) => criteria.find((c) => c.key === k)).filter((c): c is Crit => !!c),
     [order, criteria],
@@ -255,98 +190,31 @@ function Analytics() {
   }, [trades, crits, open]);
 
   const shown = COLS.filter((c) => visible.includes(c.k));
-  const rowCls = "h-[30px] text-xs";
-  const item = "flex h-[40px] items-center justify-between border-b px-1 text-xs last:border-0";
 
   return (
     <div className="grid grid-cols-[240px_1fr] gap-[22px]">
-      <div className="space-y-[22px]">
-        <section className="min-h-[200px] rounded-lg bg-card p-[22px] shadow-[0_1px_5px_rgba(60,40,90,0.07)]">
-          <h3 className="mb-3 text-[13px] font-semibold">Ordering</h3>
-          {crits.map((c) => (
-            <div
-              key={c.key}
-              draggable
-              onDragStart={() => {
-                dragKey.current = c.key;
-              }}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => reorder(c.key)}
-              className={cn(item, "cursor-grab")}
-            >
-              <span className="flex items-center gap-1.5">
-                <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
-                {c.label}
-              </span>
-              <span className="flex items-center gap-1">
-                <button
-                  aria-label={`Move ${c.label} up`}
-                  disabled={crits[0] === c}
-                  onClick={() => move(c.key, -1)}
-                  className="disabled:opacity-30"
-                >
-                  <ArrowUp className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  aria-label={`Move ${c.label} down`}
-                  disabled={crits[crits.length - 1] === c}
-                  onClick={() => move(c.key, 1)}
-                  className="disabled:opacity-30"
-                >
-                  <ArrowDown className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  aria-label={`Remove ${c.label}`}
-                  onClick={() => {
-                    setOrder((o) => o.filter((k) => k !== c.key));
-                    setOpen(new Set(["Overall"]));
-                  }}
-                >
-                  <Minus className="h-4 w-4" />
-                </button>
-              </span>
-            </div>
-          ))}
-          {!crits.length && (
-            <p className="text-xs text-muted-foreground">Add a criterion below to group trades.</p>
-          )}
-        </section>
-        <section className="rounded-lg bg-card p-[22px] shadow-[0_1px_5px_rgba(60,40,90,0.07)]">
-          <h3 className="mb-3 text-[13px] font-semibold">Add Ordering Criteria</h3>
-          {criteria
-            .filter((c) => !order.includes(c.key))
-            .map((c) => (
-              <div key={c.key} className={item}>
-                {c.label}
-                <button
-                  aria-label={`Add ${c.label}`}
-                  onClick={() => {
-                    setOrder((o) => [...o, c.key]);
-                    setOpen(new Set(["Overall"]));
-                  }}
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
-        </section>
-      </div>
+      <AnalyticsSidebar
+        crits={crits}
+        available={criteria.filter((c) => !order.includes(c.key))}
+        onDragStart={(key) => {
+          dragKey.current = key;
+        }}
+        onDrop={reorder}
+        onMove={move}
+        onRemove={(key) => {
+          setOrder((o) => o.filter((k) => k !== key));
+          setOpen(new Set(["Overall"]));
+        }}
+        onAdd={(key) => {
+          setOrder((o) => [...o, key]);
+          setOpen(new Set(["Overall"]));
+        }}
+      />
 
       <section className="relative min-w-0 pr-7">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1100px] text-xs tabular">
-            <thead>
-              <tr className="h-[34px]">
-                <th className="sticky left-0 z-10 w-[230px] border-r bg-background px-3 text-left font-semibold">
-                  Group
-                </th>
-                {shown.map((c) => (
-                  <th key={c.k} className="whitespace-nowrap px-3 text-right font-semibold">
-                    {c.l}
-                  </th>
-                ))}
-              </tr>
-            </thead>
+            <GroupTableHead columns={shown} />
             <tbody>
               {rows.map((r) => {
                 const st = rowStats(r.ts, invested);
@@ -354,7 +222,7 @@ function Analytics() {
                 const bg = st.sum > 0 ? "bg-row-win" : st.sum < 0 ? "bg-row-loss" : "bg-background";
                 return (
                   <Fragment key={r.path}>
-                    <tr className={cn(rowCls, bg, tone)}>
+                    <tr className={cn(ANALYTICS_ROW_CLASS, bg, tone)}>
                       <td
                         className={cn("sticky left-0 z-10 whitespace-nowrap border-r px-3", bg)}
                         style={{ paddingLeft: 12 + r.depth * 22 }}
@@ -389,16 +257,7 @@ function Analytics() {
             </tbody>
           </table>
         </div>
-        <button
-          type="button"
-          aria-label="Columns"
-          aria-expanded={colsOpen}
-          onClick={() => setColsOpen((o) => !o)}
-          className="absolute bottom-0 right-0 top-0 flex w-7 items-center justify-center bg-card text-xs font-semibold [writing-mode:vertical-rl] hover:bg-muted"
-        >
-          <Columns3 className="mb-1 h-3.5 w-3.5" />
-          Columns
-        </button>
+        <ColumnsTab expanded={colsOpen} onClick={() => setColsOpen((o) => !o)} />
         {colsOpen && (
           <aside className="absolute bottom-0 right-7 top-0 z-20 w-56 overflow-auto bg-card p-2 shadow-lg">
             {COLS.map((c) => (

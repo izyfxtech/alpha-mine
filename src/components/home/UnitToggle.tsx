@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { SegmentedToggle } from "@/components/segmented-toggle";
 
 export type Unit = "cur" | "pct" | "r";
 
@@ -33,25 +33,15 @@ export function UnitToggle({
   currency: string;
   onChange?: (unit: Unit) => void;
 }) {
-  const options: [Unit, string][] = [
-    ["cur", `${currencyName(currency)} (${currency})`],
-    ["pct", "Return (%)"],
-    ["r", "R Multiple"],
-  ];
   return (
-    <div className="inline-flex h-[24px] overflow-hidden rounded-md border bg-card text-xs font-semibold">
-      {options.map(([k, label]) => (
-        <button
-          key={k}
-          onClick={() => onChange?.(k)}
-          className={cn(
-            "border-r px-3 last:border-r-0",
-            unit === k && "bg-ink text-ink-foreground",
-          )}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
+    <SegmentedToggle
+      value={unit}
+      onChange={onChange}
+      options={[
+        ["cur", `${currencyName(currency)} (${currency})`],
+        ["pct", "Return (%)"],
+        ["r", "R Multiple"],
+      ]}
+    />
   );
 }

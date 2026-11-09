@@ -4,7 +4,7 @@ import { ProfitCalendarSkeleton } from "@/components/analytics/ProfitCalendar";
 import { CalendarToolbar } from "@/components/home/CalendarToolbar";
 import { UnitToggle } from "@/components/home/UnitToggle";
 import { Panel, Stat } from "@/components/kit";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
 import { EVALUATION_LABELS, HOME_CHART_HEIGHT, HOME_CHART_ROWS } from "@/lib/home-layout";
 import { useJournal } from "@/lib/journal/journal-context";
 import { now } from "@/lib/time/clock";
@@ -33,7 +33,7 @@ export function HomeSkeleton() {
         <Panel title="Evaluation" className="flex flex-col">
           <div className="mt-2" />
           {EVALUATION_LABELS.map((label) => (
-            <Stat key={label} label={label} value={<Skeleton className="h-3 w-14" />} />
+            <Stat key={label} label={label} value={<SkeletonText className="w-14" />} />
           ))}
         </Panel>
       </div>

@@ -3,54 +3,47 @@ import { loadXlsx } from "@/lib/import/spreadsheet";
 import { useWhenChanged } from "@/lib/use-when-changed";
 import { useDebouncedCallback } from "use-debounce";
 import { useStoredString } from "@/lib/use-stored-value";
-import { rBlankReason } from "@/lib/pnl/calc";
+
 import { createFileRoute } from "@tanstack/react-router";
-import { fmtPrice } from "@/lib/pnl/format-price";
-import { localDateTime } from "@/lib/time/local-time";
+
 import { countOption, fetchAllRows } from "@/lib/journal/fetch-all";
 import { useMemo, useRef, useState } from "react";
+import {
+  JOURNAL_BOX,
+  JOURNAL_HEAD_ROW,
+  JOURNAL_ROW,
+  JournalFooter,
+  JournalToolbar,
+  type JournalView,
+} from "@/components/journal/JournalFrame";
+import {
+  COLS,
+  alignRight,
+  columnWidth,
+  pnlText,
+  tableWidth,
+  visibleColumns,
+  type Col,
+} from "@/components/journal/journal-columns";
 import { useFillViewport } from "@/lib/use-fill-viewport";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import {
-  Search,
-  ArrowDown,
-  ArrowUp,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
-  Columns3,
-  Copy,
-  Download,
-  GripVertical,
-  ImageIcon,
-  Images,
-  LayoutGrid,
-  LayoutList,
-  Merge,
-  RefreshCw,
-  Scaling,
-  Star,
-  Trash2,
-  X,
-} from "lucide-react";
+import { ArrowDown, ArrowUp, Columns3, GripVertical, ImageIcon, Star } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
+
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { sweepStorage } from "@/lib/media/sweep-storage";
 import { activeFilterCount, useJournal, useTrades } from "@/lib/journal/journal-context";
 import type { Trade } from "@/lib/pnl/metrics";
-import { fmtNum, isOpen } from "@/lib/pnl/metrics";
-import { COMPLIANCE_LABEL, complianceOf } from "@/lib/pnl/compliance";
-import { Input } from "@/components/ui/input";
+import { isOpen } from "@/lib/pnl/metrics";
+
 import { useTradeDrawer } from "@/components/journal/TradeDrawer";
 import { ImportDialog } from "@/components/journal/ImportDialog";
 import { MergeTradesDialog } from "@/components/journal/MergeTradesDialog";
 import { useScreenshots, type Shot } from "@/components/journal/Screenshots";
 import { ScreenshotGallery, TradeCards } from "@/components/journal/TradeViews";
-import { Empty, TiltMeter } from "@/components/kit";
+import { Empty } from "@/components/kit";
 import { cn } from "@/lib/utils";
 import {
   defaultJournalTableLayout,
@@ -73,180 +66,6 @@ export const Route = createFileRoute("/_authenticated/journal")({
   }),
   component: JournalPage,
 });
-
-type Col = {
-  k: string;
-  l: string;
-  get: (t: Trade) => string | number;
-  render?: (t: Trade) => React.ReactNode;
-  width?: number;
-};
-const num = (v: number, d: number) =>
-  v.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
-const dt = (s: string | null) => localDateTime(s);
-const pill = (t: Trade, txt: string) => (
-  <span
-    className={cn(
-      "inline-block min-w-[38px] rounded-full px-2.5 py-[3px] text-center text-xs font-medium capitalize leading-none",
-      t.net_pnl > 0
-        ? "bg-pill-win text-profit"
-        : t.net_pnl < 0
-          ? "bg-pill-loss text-loss"
-          : "bg-muted text-foreground",
-    )}
-  >
-    {txt}
-  </span>
-);
-const LEFT_COLS = [
-  "rules",
-  "instrument",
-  "setup",
-  "trade_type",
-  "option_type",
-  "direction",
-  "entry_at",
-  "exit_at",
-  "tilt",
-  "id",
-  "notes",
-];
-const alignRight = (k: string) => !LEFT_COLS.includes(k);
-const pnlText = (t: Trade) =>
-  t.net_pnl > 0 ? "text-profit" : t.net_pnl < 0 ? "text-loss" : "text-foreground";
-const COLS: Col[] = [
-  { k: "id", l: "Trade ID", get: (t) => t.id.slice(0, 8), width: 105 },
-  {
-    k: "entry_at",
-    l: "Entry Date",
-    get: (t) => t.entry_at,
-    render: (t) => <span className={pnlText(t)}>{dt(t.entry_at)}</span>,
-    width: 132,
-  },
-  {
-    k: "exit_at",
-    l: "Exit Date",
-    get: (t) => t.exit_at ?? "",
-    render: (t) =>
-      isOpen(t) ? (
-        <span className="rounded-full bg-muted px-2 py-[3px] text-xs font-medium">Open</span>
-      ) : (
-        <span className={pnlText(t)}>{dt(t.exit_at)}</span>
-      ),
-    width: 132,
-  },
-  { k: "instrument", l: "Instrument", get: (t) => t.instrument, width: 105 },
-  {
-    k: "trade_type",
-    l: "Trade Type",
-    get: (t) => t.trade_type,
-    render: (t) => pill(t, t.trade_type),
-  },
-  {
-    k: "option_type",
-    l: "Option Type",
-    get: (t) => (t.trade_type === "options" ? "Option" : ""),
-    width: 100,
-  },
-  { k: "setup", l: "Setup", get: (t) => t.setup },
-  { k: "tilt", l: "Tiltmeter", get: (t) => t.tilt, render: (t) => <TiltMeter value={t.tilt} /> },
-  {
-    k: "rules",
-    l: "Rules",
-    get: (t) => COMPLIANCE_LABEL[complianceOf(t.ruleChecks)],
-    render: (t) => {
-      const c = complianceOf(t.ruleChecks);
-      return c === "unrated" ? (
-        <span className="text-t4">—</span>
-      ) : (
-        <span
-          className={cn(
-            "text-xs font-medium",
-            c === "followed" ? "text-profit" : c === "violated" ? "text-loss" : "text-amber-600",
-          )}
-        >
-          {COMPLIANCE_LABEL[c]}
-        </span>
-      );
-    },
-  },
-  { k: "direction", l: "Direction", get: (t) => t.direction, render: (t) => pill(t, t.direction) },
-  { k: "quantity", l: "Quantity", get: (t) => t.quantity, render: (t) => num(t.quantity, 2) },
-  {
-    k: "entry_price",
-    l: "Entry Price",
-    get: (t) => t.entry_price,
-    render: (t) => fmtPrice(t.entry_price),
-  },
-  {
-    k: "exit_price",
-    l: "Exit Price",
-    get: (t) => t.exit_price ?? "",
-    render: (t) => fmtPrice(t.exit_price),
-  },
-  {
-    k: "take_profit",
-    l: "TP Price",
-    get: (t) => t.take_profit ?? "",
-    render: (t) => fmtPrice(t.take_profit),
-  },
-  {
-    k: "stop_loss",
-    l: "SL Price",
-    get: (t) => t.stop_loss ?? "",
-    render: (t) => fmtPrice(t.stop_loss),
-  },
-  { k: "fees", l: "Fees ($)", get: (t) => t.fees, render: (t) => num(t.fees, 2) },
-  { k: "gross_pnl", l: "Gross P&L", get: (t) => t.gross_pnl, render: (t) => num(t.gross_pnl, 2) },
-  {
-    k: "net_pnl",
-    l: "Return ($)",
-    get: (t) => t.net_pnl,
-    render: (t) => <span className={pnlText(t)}>{num(t.net_pnl, 2)}</span>,
-  },
-  {
-    k: "ret_pct",
-    l: "Return (%)",
-    get: (t) => t.retPct,
-    render: (t) => <span className={pnlText(t)}>{num(t.retPct, 2)}</span>,
-  },
-  {
-    k: "r",
-    l: "R-Multiple",
-    get: (t) => t.r ?? 0,
-    render: (t) =>
-      t.r != null ? (
-        `${fmtNum(t.r)}R`
-      ) : isOpen(t) ? (
-        ""
-      ) : t.rEst != null ? (
-        <span
-          className="italic text-muted-foreground"
-          title={`Estimated from your typical risk. ${rBlankReason(t) ?? ""}`}
-        >
-          ~{fmtNum(t.rEst)}R est.
-        </span>
-      ) : (
-        <span className="text-muted-foreground" title={rBlankReason(t) ?? ""}>
-          —
-        </span>
-      ),
-  },
-  {
-    k: "risk_amount",
-    l: "Risk Amount",
-    get: (t) => t.risk_amount ?? "",
-    render: (t) => (t.risk_amount == null ? "" : num(Number(t.risk_amount), 2)),
-  },
-  {
-    k: "notes",
-    l: "Notes",
-    get: (t) => t.notes ?? "",
-    render: (t) => (
-      <span className="inline-block max-w-48 truncate align-middle">{t.notes ?? ""}</span>
-    ),
-  },
-];
 
 function JournalPage() {
   const { confirm } = useDialogs();
@@ -276,10 +95,7 @@ function JournalPage() {
   const [mergeOpen, setMergeOpen] = useState(false);
 
   const hidden = useMemo(() => new Set(layout.hidden), [layout.hidden]);
-  const cols = layout.order
-    .map((key) => COLS.find((c) => c.k === key))
-    .filter((c): c is Col => c !== undefined)
-    .filter((c) => !hidden.has(c.k));
+  const cols = visibleColumns(layout);
   const sorted = useMemo(() => {
     const c = COLS.find((x) => x.k === sort.k);
     if (!c) return trades;
@@ -307,7 +123,7 @@ function JournalPage() {
   const visible = sorted.slice(pg * pageSize, pg * pageSize + pageSize);
   const shotIds = useScreenshotTradeIds(journal?.id);
   const [storedView, changeView] = useStoredString("am.journal-view");
-  const view: "table" | "cards" | "gallery" =
+  const view: JournalView =
     storedView === "cards" || storedView === "gallery" ? storedView : "table";
   // Signed screenshot URLs are only fetched for the views that show images.
   const { data: allShots = [], isLoading: shotsLoading } = useScreenshots(
@@ -387,7 +203,7 @@ function JournalPage() {
     const XLSX = await loadXlsx();
     const rows = sorted.map((t) => Object.fromEntries(cols.map((c) => [c.l, c.get(t) ?? ""])));
     const sheet = XLSX.utils.json_to_sheet(rows, { header: cols.map((c) => c.l) });
-    sheet["!cols"] = cols.map((c) => ({ wpx: layout.widths[c.k] ?? c.width ?? 110 }));
+    sheet["!cols"] = cols.map((c) => ({ wpx: columnWidth(layout, c) }));
     const book = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(book, sheet, "Journal");
     XLSX.writeFile(book, `${journal?.name ?? "journal"}.xlsx`);
@@ -444,173 +260,35 @@ function JournalPage() {
   }
 
   const toolbar = (
-    <div className="flex flex-wrap items-center gap-2.5 px-[22px] pb-3 pt-[18px]">
-      <Button
-        variant="ink"
-        size="sm"
-        className="h-9 rounded-md px-4 text-sm"
-        onClick={() => drawer.open()}
-      >
-        Add Trade
-      </Button>
-      <Button
-        variant="ink"
-        size="sm"
-        className="h-9 rounded-md px-4 text-sm"
-        onClick={() => setImp(true)}
-      >
-        Import Trades
-      </Button>
-      <span title={sel.size < 2 ? "Select at least 2 trades to merge" : undefined}>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-9 rounded-md bg-card px-4 text-sm"
-          disabled={sel.size < 2}
-          onClick={merge}
-        >
-          <Merge className="h-4 w-4" />
-          Merge
-        </Button>
-      </span>
-      <span title={!sel.size ? "Select trades to duplicate" : undefined}>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-9 rounded-md bg-card px-4 text-sm"
-          disabled={!sel.size}
-          onClick={dup}
-        >
-          <Copy className="h-4 w-4" />
-          Duplicate
-        </Button>
-      </span>
-      <span title={!sel.size ? "Select trades to delete" : undefined}>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-9 rounded-md bg-card px-4 text-sm text-loss hover:bg-loss-soft hover:text-loss"
-          disabled={!sel.size}
-          onClick={del}
-        >
-          <Trash2 className="h-4 w-4" />
-          Delete
-        </Button>
-      </span>
-      {sel.size > 0 && <span className="text-xs text-muted-foreground">{sel.size} selected</span>}
-      {filters.day && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setFilters({ ...filters, day: undefined })}
-        >
-          Day: {filters.day} <X className="ml-1 h-3 w-3" />
-        </Button>
-      )}
-      <div className="relative w-56">
-        <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input
-          value={qText}
-          onChange={(e) => changeQuery(e.target.value)}
-          placeholder="Search trades, notes, rules…"
-          aria-label="Search trades"
-          className="h-9 pl-8"
-        />
-        {qText && (
-          <button
-            aria-label="Clear search"
-            className="absolute right-2 top-2.5 text-muted-foreground"
-            onClick={() => {
-              changeQuery("");
-              setFilters({ ...filters, q: undefined });
-            }}
-          >
-            <X className="h-4 w-4" />
-          </button>
-        )}
-      </div>
-      {activeFilterCount(filters) > 0 && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-9 text-sm"
-          onClick={() => {
-            changeQuery("");
-            setFilters({});
-          }}
-        >
-          Filters active ({activeFilterCount(filters)}) <X className="ml-1 h-3 w-3" />
-        </Button>
-      )}
-      <div className="flex-1" />
-      <div
-        role="group"
-        aria-label="Journal view"
-        className="inline-flex h-9 overflow-hidden rounded-md border"
-      >
-        {(
-          [
-            ["table", LayoutList, "Table"],
-            ["cards", LayoutGrid, "Cards"],
-            ["gallery", Images, "Gallery"],
-          ] as const
-        ).map(([k, Icon, label], i) => (
-          <button
-            key={k}
-            type="button"
-            aria-pressed={view === k}
-            title={`${label} view`}
-            onClick={() => changeView(k)}
-            className={cn(
-              "flex items-center gap-1.5 px-3 text-sm",
-              i > 0 && "border-l",
-              view === k ? "bg-ink text-ink-foreground" : "hover:bg-muted",
-            )}
-          >
-            <Icon className="h-4 w-4" />
-            <span className="hidden sm:inline">{label}</span>
-          </button>
-        ))}
-      </div>
-      {view === "table" && (
-        <>
-          <Button
-            variant="ghost"
-            size="icon"
-            title="Download to Excel"
-            aria-label="Download to Excel"
-            onClick={exportExcel}
-          >
-            <Download className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            title="Auto-size columns"
-            aria-label="Auto-size columns"
-            onClick={autoSizeColumns}
-          >
-            <Scaling className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            title="Reset to default"
-            aria-label="Reset to default"
-            onClick={resetColumns}
-          >
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-        </>
-      )}
-    </div>
+    <JournalToolbar
+      selected={sel.size}
+      day={filters.day}
+      query={qText}
+      activeFilters={activeFilterCount(filters)}
+      view={view}
+      onAdd={() => drawer.open()}
+      onImport={() => setImp(true)}
+      onMerge={merge}
+      onDuplicate={dup}
+      onDelete={del}
+      onClearDay={() => setFilters({ ...filters, day: undefined })}
+      onQueryChange={(text) => {
+        changeQuery(text);
+        if (!text) setFilters({ ...filters, q: undefined });
+      }}
+      onClearFilters={() => {
+        changeQuery("");
+        setFilters({});
+      }}
+      onViewChange={changeView}
+      onExport={exportExcel}
+      onAutoSize={autoSizeColumns}
+      onResetColumns={resetColumns}
+    />
   );
 
   return (
-    <div
-      ref={fillRef}
-      className="flex min-h-[320px] flex-col overflow-hidden rounded-lg bg-card shadow-[0_1px_5px_rgba(60,40,90,0.07)]"
-    >
+    <div ref={fillRef} className={JOURNAL_BOX}>
       {toolbar}
       {trades.length === 0 ? (
         <div className="p-6">
@@ -623,24 +301,18 @@ function JournalPage() {
               <div className="slim-scroll min-h-0 min-w-0 flex-1 overflow-auto">
                 <table
                   className="whitespace-nowrap text-[12px]"
-                  style={{
-                    tableLayout: "fixed",
-                    width: cols.reduce(
-                      (sum, c) => sum + (layout.widths[c.k] ?? c.width ?? 110),
-                      96,
-                    ),
-                  }}
+                  style={{ tableLayout: "fixed", width: tableWidth(layout, cols) }}
                 >
                   <colgroup>
                     <col style={{ width: 40 }} />
                     <col style={{ width: 28 }} />
                     <col style={{ width: 28 }} />
                     {cols.map((c) => (
-                      <col key={c.k} style={{ width: layout.widths[c.k] ?? c.width ?? 110 }} />
+                      <col key={c.k} style={{ width: columnWidth(layout, c) }} />
                     ))}
                   </colgroup>
                   <thead className="sticky top-0 z-10 bg-card">
-                    <tr className="h-[42px] border-b text-left text-[12px] text-foreground">
+                    <tr className={JOURNAL_HEAD_ROW}>
                       <th className="w-10 p-3">
                         <Checkbox
                           checked={
@@ -703,7 +375,8 @@ function JournalPage() {
                         key={t.id}
                         onClick={() => drawer.open(t, { list: sorted })}
                         className={cn(
-                          "h-[32px] cursor-pointer tabular hover:brightness-[0.97]",
+                          JOURNAL_ROW,
+                          "cursor-pointer tabular hover:brightness-[0.97]",
                           t.net_pnl > 0 ? "bg-row-win" : t.net_pnl < 0 ? "bg-row-loss" : "bg-card",
                         )}
                       >
@@ -837,44 +510,19 @@ function JournalPage() {
             </div>
           )}
           {view !== "gallery" && (
-            <div className="flex shrink-0 items-center justify-end gap-4 border-t px-4 py-2.5 text-xs">
-              <span className="flex items-center gap-1">
-                Page Size:
-                <select
-                  value={pageSize}
-                  onChange={(e) => {
-                    setPageSize(Number(e.target.value));
-                    setPage(0);
-                  }}
-                  className="rounded border bg-card px-1 py-0.5"
-                >
-                  {[25, 50, 100, 250].map((n) => (
-                    <option key={n}>{n}</option>
-                  ))}
-                </select>
-              </span>
-              <span>
-                {pg * pageSize + 1} to {Math.min(sorted.length, (pg + 1) * pageSize)} of{" "}
-                {sorted.length}
-              </span>
-              <span className="flex items-center gap-1">
-                <button onClick={() => setPage(0)} disabled={pg === 0}>
-                  <ChevronsLeft className="h-4 w-4" />
-                </button>
-                <button onClick={() => setPage(pg - 1)} disabled={pg === 0}>
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-                <span className="px-1">
-                  Page {pg + 1} of {pages}
-                </span>
-                <button onClick={() => setPage(pg + 1)} disabled={pg >= pages - 1}>
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-                <button onClick={() => setPage(pages - 1)} disabled={pg >= pages - 1}>
-                  <ChevronsRight className="h-4 w-4" />
-                </button>
-              </span>
-            </div>
+            <JournalFooter
+              pageSize={pageSize}
+              from={pg * pageSize + 1}
+              to={Math.min(sorted.length, (pg + 1) * pageSize)}
+              total={sorted.length}
+              page={pg}
+              pages={pages}
+              onPageSize={(size) => {
+                setPageSize(size);
+                setPage(0);
+              }}
+              onPage={setPage}
+            />
           )}
         </>
       )}

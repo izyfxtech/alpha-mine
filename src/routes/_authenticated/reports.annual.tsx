@@ -2,17 +2,10 @@ import { currentYear } from "@/lib/time/clock";
 import { useProfile } from "@/lib/profile-settings";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { localDay } from "@/lib/time/local-time";
-import { useMemo } from "react";
-import {
-  eachDayOfInterval,
-  endOfMonth,
-  endOfWeek,
-  format,
-  isSameMonth,
-  startOfMonth,
-  startOfWeek,
-} from "date-fns";
+import { useMemo, type ReactNode } from "react";
 import { AccentStat } from "@/components/kit";
+import { ANNUAL_STAT_LABELS } from "@/components/reports/AnnualSkeleton";
+import { YEAR_GRID, YearMonthCard } from "@/components/reports/YearMonthCard";
 import { Button } from "@/components/ui/button";
 import { useTrades } from "@/lib/journal/journal-context";
 import { computeStats, dayKey, fmtMoney, fmtPct, periodBase } from "@/lib/pnl/metrics";
@@ -74,6 +67,15 @@ function Annual() {
   const s = computeStats(yearTrades, period.base, period.flows);
   const cur = journal?.currency;
 
+  const stats: Record<(typeof ANNUAL_STAT_LABELS)[number], ReactNode> = {
+    "Number of Trades": s.count,
+    "Winning Days": s.winDays,
+    "Losing Days": s.lossDays,
+    Winrate: `${Math.round(s.winRate)}%`,
+    "Net P&L": fmtMoney(s.net, cur),
+    ROI: fmtPct(s.roi),
+  };
+
   return (
     <div className="space-y-4">
       <section className="rounded-xl border bg-card p-5">
@@ -92,78 +94,24 @@ function Annual() {
             ))}
           </div>
         </div>
-        <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {Array.from({ length: 12 }, (_, mi) => {
-            const month = new Date(year, mi, 1);
-            const days = eachDayOfInterval({
-              start: startOfWeek(startOfMonth(month), { weekStartsOn: sow }),
-              end: endOfWeek(endOfMonth(month), { weekStartsOn: sow }),
-            });
-            const mNet = [...daily.entries()]
-              .filter(([k]) => k.startsWith(format(month, "yyyy-MM")))
-              .reduce((a, [, v]) => a + v, 0);
-            return (
-              <Button
-                variant="ghost"
-                key={mi}
-                onClick={() =>
-                  navigate({ to: "/reports/calendar", search: { m: format(month, "yyyy-MM") } })
-                }
-                className="h-auto min-w-0 flex-col items-stretch rounded-md p-2 text-left transition hover:bg-muted/60"
-                aria-label={`Open ${format(month, "MMMM yyyy")}`}
-              >
-                <div className="mb-1.5 flex items-baseline justify-between">
-                  <span className="text-sm font-medium">{format(month, "MMMM")}</span>
-                  {mNet !== 0 && (
-                    <span
-                      className={cn(
-                        "text-xs font-semibold tabular",
-                        mNet > 0 ? "text-profit" : "text-loss",
-                      )}
-                    >
-                      {fmtMoney(mNet, cur)}
-                    </span>
-                  )}
-                </div>
-                <div className="grid grid-cols-7 gap-0.5 text-center text-xs text-muted-foreground">
-                  {(sow === 0
-                    ? ["S", "M", "T", "W", "T", "F", "S"]
-                    : ["M", "T", "W", "T", "F", "S", "S"]
-                  ).map((d, i) => (
-                    <span key={i}>{d}</span>
-                  ))}
-                  {days.map((d) => {
-                    const v = daily.get(format(d, "yyyy-MM-dd"));
-                    const inM = isSameMonth(d, month);
-                    return (
-                      <span
-                        key={d.toISOString()}
-                        className={cn(
-                          "flex aspect-square items-center justify-center rounded-full tabular",
-                          !inM && "opacity-0",
-                          inM && v == null && "text-foreground/70",
-                          inM && v != null && v > 0 && "bg-profit text-primary-foreground",
-                          inM && v != null && v < 0 && "bg-loss text-primary-foreground",
-                          inM && v === 0 && "bg-muted text-foreground",
-                        )}
-                      >
-                        {format(d, "d")}
-                      </span>
-                    );
-                  })}
-                </div>
-              </Button>
-            );
-          })}
+        <div className={YEAR_GRID}>
+          {Array.from({ length: 12 }, (_, mi) => (
+            <YearMonthCard
+              key={mi}
+              year={year}
+              monthIndex={mi}
+              weekStartsOn={sow}
+              daily={daily}
+              currency={cur}
+              onOpen={(m) => navigate({ to: "/reports/calendar", search: { m } })}
+            />
+          ))}
         </div>
       </section>
       <div className="flex flex-wrap gap-3">
-        <AccentStat label="Number of Trades" value={s.count} />
-        <AccentStat label="Winning Days" value={s.winDays} />
-        <AccentStat label="Losing Days" value={s.lossDays} />
-        <AccentStat label="Winrate" value={`${Math.round(s.winRate)}%`} />
-        <AccentStat label="Net P&L" value={fmtMoney(s.net, cur)} />
-        <AccentStat label="ROI" value={fmtPct(s.roi)} />
+        {ANNUAL_STAT_LABELS.map((label) => (
+          <AccentStat key={label} label={label} value={stats[label]} />
+        ))}
       </div>
     </div>
   );
