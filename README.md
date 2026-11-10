@@ -40,8 +40,8 @@ and [CHANGELOG.md](CHANGELOG.md) for what changed.
 
 ## Optional server-side variables
 
-- `SUPABASE_SERVICE_ROLE_KEY`: only needed by server code using a service-role client.
-- `CRON_SECRET`: bearer token checked by cron endpoints.
+- `SUPABASE_SERVICE_ROLE_KEY`: used only by the daily screenshot clean-up (Cloudflare secret).
+- `SCREENSHOT_SIGNING_KEY`: signs screenshot links (Cloudflare secret, see `docs/cloudflare.md`).
 - `DATABASE_URL`: Postgres connection string used by `drizzle-kit`.
 
 ## Google sign-in
@@ -96,7 +96,6 @@ Journals linked to a MetaTrader account are set to `lots`. For any other journal
 to `lots` or `units`; until then its trades are skipped, never guessed. Trades with hand typed P&L are never touched.
 Review: `select status, recon_status, count(*) from trade_pnl_audit group by 1, 2;`
 
-
 ## Importing trades
 
 The Import dialog accepts a MetaTrader 4 statement or MetaTrader 5 history report (HTML or Excel) or a CSV. For CSVs it finds the header row and
@@ -109,13 +108,16 @@ R-multiples where a stop loss was set.
 `/prop-challenge` replays your closed trades against a firm's rules (profit target, drawdown, daily loss, minimum days,
 consistency). It uses closed trades only and does not model payouts or scaling plans.
 
+## Hosting (Cloudflare)
+
+AlphaMine runs as a Cloudflare Worker. Screenshots live in an R2 bucket, shared journal links are cached in KV, and a
+Cron Trigger empties the screenshot clean-up queue every day. Setup and deploy steps are in `docs/cloudflare.md`.
+
 ## Storage clean-up (screenshots)
 
 Deleting a screenshot row (directly, or through a deleted trade, merged trade, journal or account) queues its file in
-`storage_cleanup`. The `sweep-storage` Edge Function removes queued files through the Storage API; the app calls it
-after deletes. Files of deleted accounts have no signed-in user, so schedule it too: a daily `POST` to the function
-with `Authorization: Bearer <CRON_SECRET>` (pg_cron + pg_net, or any scheduler). Deploy it with
-`supabase functions deploy sweep-storage`.
+`storage_cleanup`. The app asks the Worker to empty the queue after deletes. Files of deleted accounts have no signed-in
+user, so the daily Cron Trigger (`wrangler.jsonc`) empties the queue for everyone.
 
 ## After the audit-fixes migration
 

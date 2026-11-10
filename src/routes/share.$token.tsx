@@ -12,7 +12,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { supabase } from "@/integrations/supabase/client";
 import { fmtMoney } from "@/lib/pnl/metrics";
 import { axis, tooltipStyle, tradeAxis, yScale } from "@/components/kit";
 
@@ -43,9 +42,10 @@ function SharedJournal() {
     queryKey: ["shared", token],
     queryFn: async () => {
       if (!/^[0-9a-f-]{36}$/i.test(token)) return null;
-      const { data: payload, error } = await supabase.rpc("shared_journal", { _token: token });
-      if (error) throw error;
-      return parseSharedJournal(payload);
+      const res = await fetch(`/api/share/${token}`);
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error(`Could not load the shared journal (${res.status})`);
+      return parseSharedJournal(await res.json());
     },
   });
   if (isLoading)

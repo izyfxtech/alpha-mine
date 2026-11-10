@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { thumbPath } from "@/lib/media/compress-image";
 import { MAX_SHOTS } from "@/lib/media/limits";
 import { supabase } from "@/integrations/supabase/client";
+import { removeImages } from "@/lib/media/storage-api";
 import { useJournalTable } from "@/lib/journal/crud";
 import { Button } from "@/components/ui/button";
 import {
@@ -131,7 +132,7 @@ function ChartBook() {
         .insert({ journal_id: journal.id, ...link, path });
       if (error) {
         toast.error(error.message);
-        await supabase.storage.from("screenshots").remove([path, thumbPath(path)]);
+        await removeImages([path, thumbPath(path)]).catch(() => undefined);
       } // do not leave an orphaned file
     }
     qc.invalidateQueries({ queryKey: ["screenshots"] });

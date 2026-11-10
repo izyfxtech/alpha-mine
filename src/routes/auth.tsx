@@ -1,9 +1,13 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { Eye, EyeSlash, GoogleLogo, EnvelopeSimple } from "@phosphor-icons/react";
 import { supabase } from "@/integrations/supabase/client";
 import { MkShell } from "@/components/marketing/marketing-shell";
 import { AuthFrame, EMAIL_RE, Field } from "@/components/auth-bits";
+
+/** Cloudflare Turnstile's public site key. Unset, the check is not shown (and Supabase must not require one). */
+const TURNSTILE_SITE_KEY = import.meta.env["VITE_TURNSTILE_SITE_KEY"] as string | undefined;
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (s: Record<string, unknown>): { mode?: "signup" } =>
@@ -55,6 +59,8 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string>();
+  const turnstile = useRef<TurnstileInstance>(null);
   const [errs, setErrs] = useState<{ email?: string; password?: string; form?: string }>({});
   const [sent, setSent] = useState<null | "confirm" | "reset">(null);
 
@@ -79,24 +85,35 @@ function AuthPage() {
     const next: typeof errs = {};
     if (!EMAIL_RE.test(email)) next.email = "Enter a valid email address, like name@example.com.";
     if (mode !== "forgot" && password.length < 8) next.password = "Use at least 8 characters.";
+    if (TURNSTILE_SITE_KEY && !captchaToken)
+      next.form = "Complete the check below, then try again.";
     setErrs(next);
-    if (next.email || next.password) return;
+    if (next.email || next.password || next.form) return;
     setBusy(true);
     try {
       if (mode === "in") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+          options: { captchaToken },
+        });
         if (error) throw error;
       } else if (mode === "up") {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: window.location.origin + "/home", data: { full_name: name } },
+          options: {
+            emailRedirectTo: window.location.origin + "/home",
+            data: { full_name: name },
+            captchaToken,
+          },
         });
         if (error) throw error;
         setSent("confirm");
       } else {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: window.location.origin + "/reset-password",
+          captchaToken,
         });
         if (error) throw error;
         setSent("reset");
@@ -104,6 +121,9 @@ function AuthPage() {
     } catch (err) {
       setErrs({ form: `${(err as Error).message}. Check your details and try again.` });
     } finally {
+      // A Turnstile token works once, so the next attempt needs a fresh one.
+      turnstile.current?.reset();
+      setCaptchaToken(undefined);
       setBusy(false);
     }
   }
@@ -189,6 +209,16 @@ function AuthPage() {
           <p role="alert" className="rounded-lg border border-red-500 p-3 text-sm text-red-500">
             {errs.form}
           </p>
+        )}
+        {TURNSTILE_SITE_KEY && (
+          <Turnstile
+            key={mode}
+            ref={turnstile}
+            siteKey={TURNSTILE_SITE_KEY}
+            onSuccess={setCaptchaToken}
+            onExpire={() => setCaptchaToken(undefined)}
+            options={{ theme: "auto" }}
+          />
         )}
         <button className="mk-btn mk-btn-pri w-full disabled:opacity-60" disabled={busy}>
           {busy ? c.busy : c.cta}

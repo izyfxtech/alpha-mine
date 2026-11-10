@@ -15,6 +15,10 @@ export default defineConfig({
       "@": path.resolve(import.meta.dirname, "./src"),
       "@engine": path.resolve(import.meta.dirname, "./supabase/functions/_shared/pnl-engine"),
       "@shared": path.resolve(import.meta.dirname, "./supabase/functions/_shared"),
+      "cloudflare:workers": path.resolve(
+        import.meta.dirname,
+        "./src/test/stubs/cloudflare-workers.ts",
+      ),
     },
   },
 });
