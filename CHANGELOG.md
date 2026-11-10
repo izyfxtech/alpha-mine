@@ -2,6 +2,13 @@
 
 Newest first. Dates are the day the work landed on `main`.
 
+## 2026-11-10 (Cloudflare)
+
+- Moved off Nitro to a Cloudflare Worker (`@cloudflare/vite-plugin`, `wrangler.jsonc`). Screenshots are stored in R2 instead of Supabase Storage; the Worker verifies the Supabase session, keeps each user to their own folder and signs links for one hour. Existing files keep their paths, so no database change is needed (copy them over as described in `docs/cloudflare.md`).
+- The public share link is cached in KV for 60 seconds and rate limited per visitor. A revoked link can keep working for up to a minute.
+- A Cron Trigger empties the screenshot clean-up queue daily (replaces the `sweep-storage` Edge Function and `CRON_SECRET`).
+- Sign-in has a Cloudflare Turnstile check (turn on CAPTCHA in Supabase to enforce it). Worker observability is on.
+
 ## 2026-11-08 (refactor 6b: Settings split)
 
 - The 1,505-line Settings route is now a 53-line router plus one file per section in `src/components/settings/` (account, journal, cashflows, instruments/setups/rules list, comments, session categories, custom statistics). Code moved as it was; no behaviour change.

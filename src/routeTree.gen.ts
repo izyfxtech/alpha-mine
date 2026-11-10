@@ -48,6 +48,11 @@ import { Route as AuthenticatedSettingsSectionRouteImport } from './routes/_auth
 import { Route as AuthenticatedStrategyLabAlternativesRouteImport } from './routes/_authenticated/strategy-lab.alternatives'
 import { Route as AuthenticatedStrategyLabBacktesterRouteImport } from './routes/_authenticated/strategy-lab.backtester'
 import { Route as AuthenticatedStrategyLabSimulatorRouteImport } from './routes/_authenticated/strategy-lab.simulator'
+import { Route as ApiScreenshotsSplatRouteImport } from './routes/api.screenshots.$'
+import { Route as ApiScreenshotsRemoveRouteImport } from './routes/api.screenshots.remove'
+import { Route as ApiScreenshotsSignRouteImport } from './routes/api.screenshots.sign'
+import { Route as ApiShareTokenRouteImport } from './routes/api.share.$token'
+import { Route as ApiStorageSweepRouteImport } from './routes/api.storage.sweep'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -257,6 +262,31 @@ const AuthenticatedStrategyLabSimulatorRoute =
     path: '/strategy-lab/simulator',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiScreenshotsSplatRoute = ApiScreenshotsSplatRouteImport.update({
+  id: '/api/screenshots/$',
+  path: '/api/screenshots/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiScreenshotsRemoveRoute = ApiScreenshotsRemoveRouteImport.update({
+  id: '/api/screenshots/remove',
+  path: '/api/screenshots/remove',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiScreenshotsSignRoute = ApiScreenshotsSignRouteImport.update({
+  id: '/api/screenshots/sign',
+  path: '/api/screenshots/sign',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiShareTokenRoute = ApiShareTokenRouteImport.update({
+  id: '/api/share/$token',
+  path: '/api/share/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiStorageSweepRoute = ApiStorageSweepRouteImport.update({
+  id: '/api/storage/sweep',
+  path: '/api/storage/sweep',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -297,6 +327,11 @@ export interface FileRoutesByFullPath {
   '/strategy-lab/alternatives': typeof AuthenticatedStrategyLabAlternativesRoute
   '/strategy-lab/backtester': typeof AuthenticatedStrategyLabBacktesterRoute
   '/strategy-lab/simulator': typeof AuthenticatedStrategyLabSimulatorRoute
+  '/api/screenshots/$': typeof ApiScreenshotsSplatRoute
+  '/api/screenshots/remove': typeof ApiScreenshotsRemoveRoute
+  '/api/screenshots/sign': typeof ApiScreenshotsSignRoute
+  '/api/share/$token': typeof ApiShareTokenRoute
+  '/api/storage/sweep': typeof ApiStorageSweepRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -337,6 +372,11 @@ export interface FileRoutesByTo {
   '/strategy-lab/alternatives': typeof AuthenticatedStrategyLabAlternativesRoute
   '/strategy-lab/backtester': typeof AuthenticatedStrategyLabBacktesterRoute
   '/strategy-lab/simulator': typeof AuthenticatedStrategyLabSimulatorRoute
+  '/api/screenshots/$': typeof ApiScreenshotsSplatRoute
+  '/api/screenshots/remove': typeof ApiScreenshotsRemoveRoute
+  '/api/screenshots/sign': typeof ApiScreenshotsSignRoute
+  '/api/share/$token': typeof ApiShareTokenRoute
+  '/api/storage/sweep': typeof ApiStorageSweepRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -379,6 +419,11 @@ export interface FileRoutesById {
   '/_authenticated/strategy-lab/alternatives': typeof AuthenticatedStrategyLabAlternativesRoute
   '/_authenticated/strategy-lab/backtester': typeof AuthenticatedStrategyLabBacktesterRoute
   '/_authenticated/strategy-lab/simulator': typeof AuthenticatedStrategyLabSimulatorRoute
+  '/api/screenshots/$': typeof ApiScreenshotsSplatRoute
+  '/api/screenshots/remove': typeof ApiScreenshotsRemoveRoute
+  '/api/screenshots/sign': typeof ApiScreenshotsSignRoute
+  '/api/share/$token': typeof ApiShareTokenRoute
+  '/api/storage/sweep': typeof ApiStorageSweepRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -421,6 +466,11 @@ export interface FileRouteTypes {
     | '/strategy-lab/alternatives'
     | '/strategy-lab/backtester'
     | '/strategy-lab/simulator'
+    | '/api/screenshots/$'
+    | '/api/screenshots/remove'
+    | '/api/screenshots/sign'
+    | '/api/share/$token'
+    | '/api/storage/sweep'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -461,6 +511,11 @@ export interface FileRouteTypes {
     | '/strategy-lab/alternatives'
     | '/strategy-lab/backtester'
     | '/strategy-lab/simulator'
+    | '/api/screenshots/$'
+    | '/api/screenshots/remove'
+    | '/api/screenshots/sign'
+    | '/api/share/$token'
+    | '/api/storage/sweep'
   id:
     | '__root__'
     | '/'
@@ -502,6 +557,11 @@ export interface FileRouteTypes {
     | '/_authenticated/strategy-lab/alternatives'
     | '/_authenticated/strategy-lab/backtester'
     | '/_authenticated/strategy-lab/simulator'
+    | '/api/screenshots/$'
+    | '/api/screenshots/remove'
+    | '/api/screenshots/sign'
+    | '/api/share/$token'
+    | '/api/storage/sweep'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -520,6 +580,11 @@ export interface RootRouteChildren {
   ShareTokenRoute: typeof ShareTokenRoute
   BlogIndexRoute: typeof BlogIndexRoute
   FeaturesIndexRoute: typeof FeaturesIndexRoute
+  ApiScreenshotsSplatRoute: typeof ApiScreenshotsSplatRoute
+  ApiScreenshotsRemoveRoute: typeof ApiScreenshotsRemoveRoute
+  ApiScreenshotsSignRoute: typeof ApiScreenshotsSignRoute
+  ApiShareTokenRoute: typeof ApiShareTokenRoute
+  ApiStorageSweepRoute: typeof ApiStorageSweepRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -797,6 +862,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedStrategyLabSimulatorRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/screenshots/$': {
+      id: '/api/screenshots/$'
+      path: '/api/screenshots/$'
+      fullPath: '/api/screenshots/$'
+      preLoaderRoute: typeof ApiScreenshotsSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/screenshots/remove': {
+      id: '/api/screenshots/remove'
+      path: '/api/screenshots/remove'
+      fullPath: '/api/screenshots/remove'
+      preLoaderRoute: typeof ApiScreenshotsRemoveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/screenshots/sign': {
+      id: '/api/screenshots/sign'
+      path: '/api/screenshots/sign'
+      fullPath: '/api/screenshots/sign'
+      preLoaderRoute: typeof ApiScreenshotsSignRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/share/$token': {
+      id: '/api/share/$token'
+      path: '/api/share/$token'
+      fullPath: '/api/share/$token'
+      preLoaderRoute: typeof ApiShareTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/storage/sweep': {
+      id: '/api/storage/sweep'
+      path: '/api/storage/sweep'
+      fullPath: '/api/storage/sweep'
+      preLoaderRoute: typeof ApiStorageSweepRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -877,6 +977,11 @@ const rootRouteChildren: RootRouteChildren = {
   ShareTokenRoute: ShareTokenRoute,
   BlogIndexRoute: BlogIndexRoute,
   FeaturesIndexRoute: FeaturesIndexRoute,
+  ApiScreenshotsSplatRoute: ApiScreenshotsSplatRoute,
+  ApiScreenshotsRemoveRoute: ApiScreenshotsRemoveRoute,
+  ApiScreenshotsSignRoute: ApiScreenshotsSignRoute,
+  ApiShareTokenRoute: ApiShareTokenRoute,
+  ApiStorageSweepRoute: ApiStorageSweepRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

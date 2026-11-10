@@ -1,5 +1,6 @@
 import { fromTable } from "@/lib/journal/untyped-table";
 import { supabase } from "@/integrations/supabase/client";
+import { removeImages } from "@/lib/media/storage-api";
 import { asPage, countOption, fetchAllRows } from "@/lib/journal/fetch-all";
 
 /** Every table that holds a journal's data, with the columns that make its row order total (paging needs that). */
@@ -131,8 +132,7 @@ async function removeMyFiles(): Promise<void> {
       .filter((p) => !/^https?:\/\//i.test(p))
       .flatMap((p) => [p, `${p}.thumb.webp`]);
     for (let i = 0; i < files.length; i += 100) {
-      const { error } = await supabase.storage.from("screenshots").remove(files.slice(i, i + 100));
-      if (error) throw error;
+      await removeImages(files.slice(i, i + 100));
     }
   }
 }

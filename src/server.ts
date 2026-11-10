@@ -2,6 +2,7 @@ import "./lib/errors/error-capture";
 
 import { consumeLastCapturedError } from "./lib/errors/error-capture";
 import { renderErrorPage } from "./lib/errors/error-page";
+import { runDailySweep } from "./server/scheduled";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -45,6 +46,14 @@ function isH3SwallowedErrorBody(body: string): boolean {
 }
 
 export default {
+  /** Cron Trigger (see `triggers` in wrangler.jsonc). */
+  async scheduled(_controller: ScheduledController, env: Cloudflare.Env, ctx: ExecutionContext) {
+    ctx.waitUntil(
+      runDailySweep(env).catch((error) => {
+        console.error(error);
+      }),
+    );
+  },
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
       const handler = await getServerEntry();

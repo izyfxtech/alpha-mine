@@ -1,0 +1,28 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "alphamine",
+  // src/server.ts wraps the TanStack Start server entry (error page) and adds the scheduled (Cron) handler.
+  "main": "./src/server.ts",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Browser requests for built files (/assets/*, images, icons) are served by Cloudflare directly, not by the Worker.
+  "observability": { "enabled": true, "head_sampling_rate": 1 },
+
+  // Secrets (SUPABASE_SERVICE_ROLE_KEY, SCREENSHOT_SIGNING_KEY, TURNSTILE_SECRET_KEY) are set with `wrangler secret put`;
+  // see docs/cloudflare.md. The Supabase URL and publishable key are build-time VITE_ variables, as before.
+
+  // Screenshots (replaces the Supabase Storage bucket).
+  "r2_buckets": [{ "binding": "SCREENSHOTS", "bucket_name": "alphamine-screenshots" }],
+
+  // Caches public share links and counts requests for rate limiting.
+  "kv_namespaces": [{ "binding": "EDGE_CACHE" }],
+
+  // At most 30 share-link views a minute per visitor (see src/server/share.ts).
+  "ratelimits": [
+    { "name": "SHARE_LIMITER", "namespace_id": "1001", "simple": { "limit": 30, "period": 60 } }
+  ],
+
+  // Daily housekeeping: empties the screenshot clean-up queue (src/server/scheduled.ts).
+  "triggers": { "crons": ["17 3 * * *"] }
+}

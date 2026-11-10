@@ -1,16 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const sign = vi.fn(async (paths: string[]) => ({
-  data: paths.map((p) => ({
-    path: p,
-    signedUrl: `https://s/${p}?t=${sign.mock.calls.length}`,
-    error: null,
-  })),
-  error: null,
-}));
-vi.mock("@/integrations/supabase/client", () => ({
-  supabase: { storage: { from: () => ({ createSignedUrls: (paths: string[]) => sign(paths) }) } },
-}));
+const sign = vi.fn(async (paths: string[]) =>
+  Object.fromEntries(paths.map((p) => [p, `https://s/${p}?t=${sign.mock.calls.length}`])),
+);
+vi.mock("@/lib/media/storage-api", () => ({ signImagePaths: (paths: string[]) => sign(paths) }));
 
 import { compressImage, thumbPath } from "@/lib/media/compress-image";
 import { normalizeImageUrl } from "@/lib/media/image-links";
@@ -52,14 +45,8 @@ describe("signed urls are reused so the browser keeps its cached image", () => {
     await signPaths(Array.from({ length: 250 }, (_, i) => `u/${i % 240}.webp`));
     expect(sign).toHaveBeenCalledTimes(3);
   });
-  it("leaves out a path Storage cannot sign", async () => {
-    sign.mockResolvedValueOnce({
-      data: [
-        { path: "u/1.webp", signedUrl: "https://s/x", error: null },
-        { path: "u/1.webp.thumb.webp", signedUrl: "", error: "not found" as never },
-      ],
-      error: null,
-    });
+  it("leaves out a path the server did not sign", async () => {
+    sign.mockResolvedValueOnce({ "u/1.webp": "https://s/x" });
     const m = await signPaths(["u/1.webp", "u/1.webp.thumb.webp"]);
     expect(m.has("u/1.webp")).toBe(true);
     expect(m.has("u/1.webp.thumb.webp")).toBe(false);

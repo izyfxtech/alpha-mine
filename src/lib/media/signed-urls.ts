@@ -1,18 +1,19 @@
-import { supabase } from "@/integrations/supabase/client";
+import { signImagePaths } from "@/lib/media/storage-api";
 
 /**
- * Signed URLs for the private screenshots bucket, cached for the session.
+ * Signed URLs for the private screenshot store, cached for the session.
  *
- * Every call to createSignedUrls returns NEW urls, and a browser treats a new url as a new image: it downloads the file
- * again even though nothing changed. Refetching the screenshot list (after saving a trade, changing tabs) therefore
- * re-downloaded every image. Here a url is reused until it is close to expiring, so the browser's own cache serves the
- * image and the app only asks Storage to sign what it has not signed yet.
+ * Every signing returns NEW urls, and a browser treats a new url as a new image: it downloads the file again even though
+ * nothing changed. Refetching the screenshot list (after saving a trade, changing tabs) therefore re-downloaded every
+ * image. Here a url is reused until it is close to expiring, so the browser's own cache serves the image and the app only
+ * asks the server to sign what it has not signed yet.
  */
-const TTL = 3600; // seconds a signed url is valid
-const REUSE_FOR = 50 * 60_000; // ms it is handed out again; leaves 10 minutes of validity for the person looking at it
+// Links are valid for an hour (src/server/screenshots.ts). One is handed out again for 50 minutes, which leaves 10 minutes of
+// validity for the person looking at it.
+const REUSE_FOR = 50 * 60_000;
 const cache = new Map<string, { url: string; at: number }>();
 
-/** url per path; a path Storage cannot sign (no such file) is simply missing from the result. */
+/** url per path; a path that is not the user's own is simply missing from the result. */
 export async function signPaths(paths: string[]): Promise<Map<string, string>> {
   const now = Date.now();
   const out = new Map<string, string>();
@@ -26,12 +27,9 @@ export async function signPaths(paths: string[]): Promise<Map<string, string>> {
   });
   for (let i = 0; i < need.length; i += 100) {
     const chunk = need.slice(i, i + 100);
-    const { data } = await supabase.storage.from("screenshots").createSignedUrls(chunk, TTL);
-    for (const row of data ?? []) {
-      if (row.signedUrl && row.path) {
-        cache.set(row.path, { url: row.signedUrl, at: now });
-        out.set(row.path, row.signedUrl);
-      }
+    for (const [path, url] of Object.entries(await signImagePaths(chunk))) {
+      cache.set(path, { url, at: now });
+      out.set(path, url);
     }
   }
   return out;

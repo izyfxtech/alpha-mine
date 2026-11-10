@@ -3,17 +3,18 @@ import { defineConfig } from "vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-import { nitro } from "nitro/vite";
+import { cloudflare } from "@cloudflare/vite-plugin";
 
 export default defineConfig({
   plugins: [
+    // Builds the server side as a Cloudflare Worker (config: wrangler.jsonc) and runs it in workerd during `vite dev`.
+    cloudflare({ viteEnvironment: { name: "ssr" } }),
     tanstackStart({
       // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
       server: { entry: "server" },
     }),
     viteReact(),
     tailwindcss(),
-    nitro(),
   ],
   resolve: {
     alias: {

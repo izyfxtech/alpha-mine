@@ -7,6 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ImagePlus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { uploadImage } from "@/lib/media/storage-api";
 import type { Database } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
 
@@ -70,15 +71,9 @@ const isExternal = (p: string) => /^https?:\/\//i.test(p);
 export async function storeImage(userId: string, ownerId: string, original: File): Promise<string> {
   const file = await compressImage(original);
   const path = `${userId}/${ownerId}/${crypto.randomUUID()}-${file.name.replace(/[^\w.-]/g, "_")}`;
-  const up = await supabase.storage
-    .from("screenshots")
-    .upload(path, file, { cacheControl: "31536000", contentType: file.type || undefined });
-  if (up.error) throw up.error;
+  await uploadImage(path, file);
   const thumb = await makeThumbnail(file);
-  if (thumb)
-    await supabase.storage
-      .from("screenshots")
-      .upload(thumbPath(path), thumb, { cacheControl: "31536000", contentType: thumb.type }); // best effort: without it the list shows the full image
+  if (thumb) await uploadImage(thumbPath(path), thumb).catch(() => undefined); // best effort: without it the list shows the full image
   return path;
 }
 
@@ -100,7 +95,7 @@ export async function saveShots(
   }
 }
 
-/** Deletes the row; the database queues the file and the Storage API sweep removes it (see sweep-storage). */
+/** Deletes the row; the database queues the file and the R2 sweep removes it (see src/server/sweep.ts). */
 export async function deleteShot(s: Pick<Shot, "id" | "path">) {
   const { error } = await supabase.from("trade_screenshots").delete().eq("id", s.id);
   if (error) throw error;
