@@ -25,9 +25,12 @@ AlphaMine runs as one Cloudflare Worker (`wrangler.jsonc`, entry `src/server.ts`
 4. Build-time variables (read by `vite build`, so set them in the shell or your CI before deploying):
    `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_TURNSTILE_SITE_KEY`.
 5. `pnpm cf:deploy`. The KV namespace is created automatically on the first deploy.
-6. Turnstile: create a widget in the Cloudflare dashboard (Turnstile), put its site key in `VITE_TURNSTILE_SITE_KEY`, then in
-   Supabase (Authentication > Attack Protection) turn on CAPTCHA, choose Turnstile and paste the secret key. Supabase checks the token;
-   the Worker does not.
+6. Turnstile: in the Cloudflare dashboard open **Turnstile** > **Add widget**. Give it a name, add your Worker's hostname
+   (`alphamine.<your-subdomain>.workers.dev`, or your own domain; add it after the first deploy if you do not know it yet) and
+   choose the **Managed** widget mode. After **Create**, copy the site key and the secret key straight away. Put the site key in
+   `VITE_TURNSTILE_SITE_KEY` and redeploy. Only then, in Supabase, open the Authentication settings > **Bot and Abuse Protection**,
+   turn on **Enable CAPTCHA protection**, choose **Turnstile**, paste the secret key and **Save**. Supabase checks the token; the
+   Worker does not. Turning CAPTCHA on before the deployed site carries the site key blocks every sign-in.
 7. Add your Worker URL or custom domain to Supabase's redirect URLs (Authentication > URL Configuration) for Google sign-in.
 8. Web Analytics: Cloudflare dashboard > Analytics & Logs > Web Analytics > add your site. No code is needed on a Cloudflare-proxied domain.
 
