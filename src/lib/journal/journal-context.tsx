@@ -1,4 +1,5 @@
 import { fromTable } from "@/lib/journal/untyped-table";
+import { JOURNAL_DATA_OPTIONS } from "@/lib/journal/query-cache";
 import { useStoredString } from "@/lib/use-stored-value";
 import { pushTo } from "@/lib/group";
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
@@ -204,6 +205,7 @@ export function useJournal() {
 export function useLookups(journalId?: string) {
   return useQuery({
     queryKey: ["lookups", journalId],
+    ...JOURNAL_DATA_OPTIONS,
     enabled: !!journalId,
     queryFn: async () => {
       const [i, s, c, p, sc, so, ru] = await Promise.all([
@@ -391,6 +393,7 @@ export async function fetchTrades(journalIds: string[]): Promise<Trade[]> {
 function useCashflows(journalId?: string) {
   const q = useQuery({
     queryKey: ["journal_cashflows", journalId],
+    ...JOURNAL_DATA_OPTIONS,
     enabled: !!journalId,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -472,6 +475,7 @@ export function useTrades(opts: { unfiltered?: boolean; includeOpen?: boolean } 
   );
   const q = useQuery({
     queryKey: ["trades", journal?.id],
+    ...JOURNAL_DATA_OPTIONS,
     enabled: !!journal,
     queryFn: () => fetchTrades([journal!.id]),
   });

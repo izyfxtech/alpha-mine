@@ -13,6 +13,11 @@ export type ScreenshotDeps = {
   verify?: (request: Request) => Promise<string | null>;
 };
 
+/**
+ * A link is valid for at least this long, and at most twice as long. Expiry is rounded up to a
+ * whole bucket (see `expiryFor`) so everyone who asks within the same hour gets the same URL for
+ * the same file, and the browser's cache (keyed by URL) can answer repeat views.
+ */
 const TTL_SECONDS = 3600;
 const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
 const MAX_PATHS = 200;
@@ -26,6 +31,14 @@ const json = (body: unknown, status = 200) =>
   });
 
 const now = (deps: ScreenshotDeps) => (deps.nowSeconds ?? (() => Math.floor(Date.now() / 1000)))();
+
+/**
+ * When a link signed at `nowSeconds` expires: the first hour boundary at least TTL_SECONDS ahead.
+ * A link signed with `now + TTL` differs on every call, so the browser never reuses a cached image;
+ * this one is identical for every call inside the same hour.
+ */
+export const expiryFor = (nowSeconds: number) =>
+  Math.ceil((nowSeconds + TTL_SECONDS) / TTL_SECONDS) * TTL_SECONDS;
 const who = (request: Request, deps: ScreenshotDeps) =>
   (deps.verify ?? ((r) => verifyUser(r, deps.supabase)))(request);
 
@@ -55,13 +68,13 @@ export async function uploadScreenshot(request: Request, path: string, deps: Scr
   return stored ? json({ path }, 201) : json({ error: "That file already exists" }, 409);
 }
 
-/** POST /api/screenshots/sign { paths }: links, valid for an hour, to the signed-in user's own files. */
+/** POST /api/screenshots/sign { paths }: links, valid for one to two hours, to the signed-in user's own files. */
 export async function signScreenshots(request: Request, deps: ScreenshotDeps) {
   const userId = await who(request, deps);
   if (!userId) return json({ error: "Not signed in" }, 401);
   const paths = await readPaths(request);
   if (!paths) return json({ error: "Expected { paths: string[] }" }, 400);
-  const expires = now(deps) + TTL_SECONDS;
+  const expires = expiryFor(now(deps));
   const urls: Record<string, string> = {};
   for (const path of new Set(paths)) {
     if (!isOwnPath(userId, path)) continue;

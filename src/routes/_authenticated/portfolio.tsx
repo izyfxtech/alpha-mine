@@ -9,6 +9,7 @@ import { startOfMonth } from "date-fns";
 import { ArrowDown } from "lucide-react";
 import { fetchAllRows, fetchTrades, useJournal } from "@/lib/journal/journal-context";
 import { countOption } from "@/lib/journal/fetch-all";
+import { JOURNAL_DATA_OPTIONS } from "@/lib/journal/query-cache";
 import { supabase } from "@/integrations/supabase/client";
 import {
   bucketPerformance,
@@ -69,6 +70,7 @@ function Portfolio() {
   const ids = journals.map((j) => j.id);
   const { data: allTrades = [] } = useQuery({
     queryKey: ["trades", "portfolio", ids],
+    ...JOURNAL_DATA_OPTIONS,
     queryFn: () => fetchTrades(ids),
     enabled: ids.length > 0,
   });
@@ -76,6 +78,7 @@ function Portfolio() {
   // Dated deposits and withdrawals of every journal, so each journal's balance and drawdown match its own pages.
   const { data: allFlows = [] } = useQuery({
     queryKey: ["journal_cashflows", "portfolio", ids],
+    ...JOURNAL_DATA_OPTIONS,
     enabled: ids.length > 0,
     queryFn: () =>
       fetchAllRows<{ id: string; journal_id: string; occurred_on: string; amount: number }>(

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { isCleanPath, isOwnPath } from "@/server/paths";
 import { isValidSignature, signPath } from "@/server/signing";
 import {
+  expiryFor,
   readScreenshot,
   removeScreenshots,
   signScreenshots,
@@ -143,10 +144,38 @@ describe("screenshot API", () => {
     const url = urls["u1/t/a.png"]!;
     const get = (u: string, path: string, at = 1_000) =>
       readScreenshot(new Request(`http://app.test${u}`), path, { ...d, nowSeconds: () => at });
-    expect((await get(url, "u1/t/a.png", 1_000 + 3601)).status).toBe(403);
+    // Signed at t=1000: valid through the hour boundary at least an hour ahead (7200), not a second longer.
+    expect((await get(url, "u1/t/a.png", 1_000 + 3601)).status).toBe(200);
+    expect((await get(url, "u1/t/a.png", 7_200)).status).toBe(200);
+    expect((await get(url, "u1/t/a.png", 7_201)).status).toBe(403);
     expect((await get(url.slice(0, -1) + "0", "u1/t/a.png")).status).toBe(403);
     expect((await get(url, "u1/t/b.png")).status).toBe(403);
     expect((await get("/x", "u1/t/a.png")).status).toBe(403);
+  });
+
+  it("gives the same link for the same file all through an hour, so the browser can reuse its cached image", async () => {
+    const { d } = deps("u1");
+    const signAt = async (at: number) => {
+      const res = await signScreenshots(post({ paths: ["u1/t/a.png"] }), {
+        ...d,
+        nowSeconds: () => at,
+      });
+      return ((await res.json()) as { urls: Record<string, string> }).urls["u1/t/a.png"]!;
+    };
+    const first = await signAt(3_601); // just after a boundary
+    expect(await signAt(3_601)).toBe(first);
+    expect(await signAt(5_000)).toBe(first);
+    expect(await signAt(7_200)).toBe(first); // still the same bucket up to the next boundary
+    expect(await signAt(7_201)).not.toBe(first);
+  });
+
+  it("keeps every link valid for at least an hour and less than two", () => {
+    for (const at of [0, 1, 1_000, 3_599, 3_600, 3_601, 86_399, 1_794_000_123]) {
+      const life = expiryFor(at) - at;
+      expect(life, String(at)).toBeGreaterThanOrEqual(3600);
+      expect(life, String(at)).toBeLessThan(7200);
+      expect(expiryFor(at) % 3600).toBe(0);
+    }
   });
 
   it("deletes only the user's own files", async () => {

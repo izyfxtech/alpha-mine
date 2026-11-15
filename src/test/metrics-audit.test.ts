@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  balanceOf,
   drawdownRatioSeries,
   computeStats,
   enrichTrade,
@@ -90,6 +91,13 @@ describe("balance, ROI and drawdown include cashflows (AM-H06)", () => {
   it("a withdrawal is not a drawdown", () => {
     const t = [trade("a", "2026-10-20T08:00:00Z", 100), trade("b", "2026-10-22T08:00:00Z", 100)];
     expect(computeStats(t, 10000, [{ occurred_on: "2026-10-21", amount: -5000 }]).maxDD).toBe(0);
+  });
+  it("balanceOf (the sidebar's cheap path) equals computeStats().balance", () => {
+    const t = [trade("a", "2026-10-20T08:00:00Z", 61.3), trade("b", "2026-10-21T08:00:00Z", -20.5)];
+    const f: Cashflow[] = [...flows, { occurred_on: "2026-10-22", amount: -1200 }];
+    expect(balanceOf(t, 10000, f)).toBeCloseTo(computeStats(t, 10000, f).balance, 9);
+    expect(balanceOf(t, 10000, f)).toBeCloseTo(13840.8, 6);
+    expect(balanceOf([], 2500, [])).toBe(2500);
   });
 });
 

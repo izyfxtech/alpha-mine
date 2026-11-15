@@ -348,6 +348,23 @@ export function followedPlanPct(trades: Trade[]): number {
   return judged.length ? (judged.filter((t) => t.followedPlan).length / judged.length) * 100 : 0;
 }
 
+/**
+ * The account balance: starting balance plus net cashflows plus net P&L. This is the `balance` that
+ * `computeStats` returns, without the curve, drawdown, ratios and sorting it also builds, so a
+ * component that only shows the balance (the sidebar) does not pay for the full report.
+ */
+export function balanceOf(
+  trades: Pick<Trade, "net_pnl">[],
+  startingBalance: number,
+  cashflows: Cashflow[],
+): number {
+  return (
+    startingBalance +
+    sum(cashflows.map((c) => Number(c.amount))) +
+    sum(trades.map((t) => t.net_pnl))
+  );
+}
+
 export function computeStats(trades: Trade[], startingBalance: number, cashflows: Cashflow[]) {
   const cashflow = sum(cashflows.map((c) => Number(c.amount)));
   const wins = trades.filter(isWin);
@@ -435,7 +452,7 @@ export function computeStats(trades: Trade[], startingBalance: number, cashflows
     sqn,
     sortino,
     followedPlanPct: followedPlanPct(trades),
-    balance: invested + net,
+    balance: balanceOf(trades, startingBalance, cashflows),
     curve,
   };
 }

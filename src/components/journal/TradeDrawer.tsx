@@ -15,6 +15,7 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { fmtPrice } from "@/lib/pnl/format-price";
 import { fromInputValue, toInputValue } from "@/lib/time/local-time";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { invalidateData } from "@/lib/journal/query-cache";
 import { toast } from "sonner";
 import { ChevronLeft, ChevronRight, Plus, Settings, Star, X } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -429,7 +430,7 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
       // knows contract sizes, pip values and currency conversion. Ask it for this one trade now; the page refreshes when it
       // answers. Never blocks or fails the save.
       if (onSaved) await onSaved();
-      qc.invalidateQueries();
+      invalidateData(qc, "trades", "screenshots", "progress");
       setOpen(false);
     } catch (e) {
       toast.error((e as Error).message);

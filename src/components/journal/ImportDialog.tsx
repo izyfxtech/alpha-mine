@@ -9,6 +9,7 @@ import {
 import { useDialogs } from "@/components/ui/confirm";
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { invalidateData } from "@/lib/journal/query-cache";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -228,7 +229,7 @@ export function ImportDialog({
               .map((s) => `Row ${s.row}: ${s.reason}`)
               .join("\n") + (skipped.length > 5 ? `\n…and ${skipped.length - 5} more` : ""),
         });
-      qc.invalidateQueries();
+      invalidateData(qc, "trades", "lookups", "progress");
       setCsv(null);
       onOpenChange(false);
     } catch (e) {
@@ -336,7 +337,7 @@ export function ImportDialog({
       toast.success(
         `Imported ${added} trade${added === 1 ? "" : "s"} from ${fills.length} fills${extra ? ` · ${extra}` : ""}`,
       );
-      qc.invalidateQueries();
+      invalidateData(qc, "trades", "lookups", "progress");
       setCsv(null);
       onOpenChange(false);
     } catch (e) {
@@ -410,7 +411,7 @@ export function ImportDialog({
       ].filter(Boolean);
       toast.success(`Imported: ${parts.join(", ")}`);
 
-      qc.invalidateQueries();
+      invalidateData(qc, "trades", "lookups", "cashflows", "progress");
       setMt(null);
       onOpenChange(false);
     } catch (e) {
@@ -426,7 +427,7 @@ export function ImportDialog({
     try {
       await seedDemoTrades(journal.id);
       toast.success("Sample trades added");
-      qc.invalidateQueries();
+      invalidateData(qc, "trades", "lookups", "cashflows", "progress");
       onOpenChange(false);
     } catch (e) {
       toast.error((e as Error).message);

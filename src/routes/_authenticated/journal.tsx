@@ -27,6 +27,7 @@ import {
 } from "@/components/journal/journal-columns";
 import { useFillViewport } from "@/lib/use-fill-viewport";
 import { useQueryClient } from "@tanstack/react-query";
+import { invalidateData } from "@/lib/journal/query-cache";
 import { toast } from "sonner";
 import { ArrowDown, ArrowUp, Columns3, GripVertical, ImageIcon, Star } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -150,7 +151,7 @@ function JournalPage() {
     if (error) return toast.error(error.message);
     sweepStorage();
     setSel(new Set());
-    qc.invalidateQueries();
+    invalidateData(qc, "trades", "screenshots", "progress");
     toast.success("Deleted");
   }
   async function dup() {
@@ -186,7 +187,7 @@ function JournalPage() {
     const { error } = await supabase.from("trades").insert(rows);
     if (error) return toast.error(error.message);
     setSel(new Set());
-    qc.invalidateQueries();
+    invalidateData(qc, "trades", "progress");
     toast.success("Duplicated");
   }
   // Merging asks how the trades relate (one position built in parts, or the same trade logged twice): see MergeTradesDialog.
