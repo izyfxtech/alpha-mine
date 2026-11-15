@@ -54,4 +54,4 @@ After changing bindings in `wrangler.jsonc`, run `pnpm cf-typegen`.
 - The free Workers plan allows 3 MB per Worker (compressed; the app is about 1.3 MB) and 50 outgoing requests per call, which is why
   one clean-up run handles at most 8 batches. The daily run simply continues next day if more is queued.
 - A revoked share link keeps working for up to 60 seconds because of the KV cache.
-- Signed screenshot links expire after one hour; the app re-signs them as needed.
+- Signed screenshot links expire after one to two hours: the expiry is rounded up to the next hour boundary at least an hour ahead, so repeat requests inside an hour return the identical URL and the browser's cache (keyed by URL, `immutable` for a year) serves the image. The app re-signs only when a link has under 10 minutes left.

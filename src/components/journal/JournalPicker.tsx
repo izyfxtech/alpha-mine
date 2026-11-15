@@ -2,6 +2,7 @@ import { copyJournal } from "@/lib/journal/copy-journal";
 import { CURRENCIES } from "@/lib/currencies";
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { invalidateData } from "@/lib/journal/query-cache";
 import { ChevronDown, Copy, Plus, Search, Share2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -54,7 +55,7 @@ export function JournalPicker() {
     if (error) return toast.error(error.message);
     sweepStorage();
     if (j.id === journal?.id) setJournalId(journals.find((x) => x.id !== j.id)!.id);
-    qc.invalidateQueries();
+    invalidateData(qc, "journals", "trades", "lookups", "cashflows", "screenshots", "progress");
   }
 
   // Sharing always goes through the share dialog: it respects "Allow sharing", says what becomes public, and can revoke.
@@ -323,7 +324,7 @@ function CopyJournal({
     setBusy(true);
     try {
       const id = await copyJournal(source, name, inc);
-      await qc.invalidateQueries();
+      await invalidateData(qc, "journals", "trades", "lookups", "cashflows", "progress");
       toast.success("Journal copied");
       onDone(id);
     } catch (e) {

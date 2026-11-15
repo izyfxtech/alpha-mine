@@ -2,6 +2,7 @@ import { byEntry } from "@/lib/pnl/sort";
 import { useWhenChanged } from "@/lib/use-when-changed";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { invalidateData } from "@/lib/journal/query-cache";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -101,7 +102,7 @@ export function MergeTradesDialog({
       return toast.error(error.message);
     }
     sweepStorage();
-    qc.invalidateQueries();
+    invalidateData(qc, "trades", "screenshots", "progress");
     onMerged();
     onOpenChange(false);
     toast.success(mode === "duplicate" ? "Merged into one trade" : "Trades combined");

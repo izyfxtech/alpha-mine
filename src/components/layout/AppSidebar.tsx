@@ -2,7 +2,7 @@ import { useDarkMode } from "@/lib/use-dark-mode";
 import { useWhenChanged } from "@/lib/use-when-changed";
 import { safeCurrency } from "@/lib/currencies";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ChevronRight, Moon, Sun, PanelLeftClose, PanelLeftOpen, Upload } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -11,7 +11,7 @@ import { NAV, childPath, type NavItem } from "@/lib/nav";
 import { navSlug } from "@/lib/tour";
 import { cn } from "@/lib/utils";
 import { useTrades } from "@/lib/journal/journal-context";
-import { computeStats, fmtMoney } from "@/lib/pnl/metrics";
+import { balanceOf, fmtMoney } from "@/lib/pnl/metrics";
 import { useTradeDrawer } from "@/components/journal/TradeDrawer";
 import { ImportDialog } from "@/components/journal/ImportDialog";
 import { useProfile } from "@/lib/profile-settings";
@@ -79,7 +79,12 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
   const { settings } = useProfile();
   const drawer = useTradeDrawer();
   const [importOpen, setImportOpen] = useState(false);
-  const balance = journal ? computeStats(trades, journal.starting_balance, flows).balance : 0;
+  // Only the balance is shown here, so skip the full report (curve, drawdown, ratios) and only redo the sum when the data changes.
+  const startingBalance = journal?.starting_balance;
+  const balance = useMemo(
+    () => (startingBalance == null ? 0 : balanceOf(trades, startingBalance, flows)),
+    [trades, startingBalance, flows],
+  );
 
   return (
     <aside

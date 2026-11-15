@@ -41,6 +41,25 @@ describe("signed urls are reused so the browser keeps its cached image", () => {
       vi.useRealTimers();
     }
   });
+  it("signs again when the url's own expiry is less than 10 minutes away, even if it is recent", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-11-15T10:00:00Z"));
+      const expSeconds = (at: string) => Math.floor(new Date(at).getTime() / 1000);
+      sign.mockResolvedValueOnce({
+        "u/1.webp": `/api/screenshots/u/1.webp?exp=${expSeconds("2026-11-15T10:20:00Z")}&sig=a`,
+      });
+      await signPaths(["u/1.webp"]);
+      vi.advanceTimersByTime(5 * 60_000); // 15 minutes left: reuse
+      await signPaths(["u/1.webp"]);
+      expect(sign).toHaveBeenCalledTimes(1);
+      vi.advanceTimersByTime(6 * 60_000); // 9 minutes left: sign again
+      await signPaths(["u/1.webp"]);
+      expect(sign).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
   it("de-duplicates paths and signs in batches of 100", async () => {
     await signPaths(Array.from({ length: 250 }, (_, i) => `u/${i % 240}.webp`));
     expect(sign).toHaveBeenCalledTimes(3);

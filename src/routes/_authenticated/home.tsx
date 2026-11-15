@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { seedDemoTrades } from "@/lib/journal/demo";
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
+import { invalidateData } from "@/lib/journal/query-cache";
 import { CalendarToolbar } from "@/components/home/CalendarToolbar";
 import { UnitToggle, type Unit } from "@/components/home/UnitToggle";
 import {
@@ -82,7 +83,7 @@ function Home() {
               className="mt-4"
               onClick={async () => {
                 await seedDemoTrades(journal.id);
-                qc.invalidateQueries();
+                invalidateData(qc, "trades", "lookups", "cashflows", "progress");
               }}
             >
               Load sample trades (dev only)
