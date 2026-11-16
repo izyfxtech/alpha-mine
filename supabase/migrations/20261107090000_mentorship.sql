@@ -72,7 +72,9 @@ create policy "parties read" on public.journal_access for select to authenticate
 create policy "inviter reads" on public.mentorship_invites for select to authenticated
   using (inviter_id = auth.uid());
 
--- Reads only. The token hash is never granted.
+-- Reads only. The token hash is never granted. Supabase's default privileges give `authenticated` every right on a new
+-- table, so start from nothing: RLS alone would be the only thing between a client and a write.
+revoke all on public.mentorships, public.journal_access, public.mentorship_invites from public, anon, authenticated;
 grant select on public.mentorships, public.journal_access to authenticated;
 grant select (id, inviter_id, inviter_role, journal_ids, scopes, access_days, expires_at, accepted_by, accepted_at, revoked_at, created_at)
   on public.mentorship_invites to authenticated;
@@ -103,7 +105,7 @@ select a.journal_id, a.scopes
   join public.mentorships m on m.id = a.mentorship_id
  where m.mentor_id = auth.uid() and m.status = 'active'
    and a.revoked_at is null and (a.expires_at is null or a.expires_at > now());
-revoke all on public.my_grants from public, anon;
+revoke all on public.my_grants from public, anon, authenticated;
 grant select on public.my_grants to authenticated;
 
 -- The scopes a grant really gets. Unknown names are an error. Phase 1 always includes 'money'; see the header.
@@ -130,7 +132,7 @@ select j.id, j.owner_id, j.name, j.currency, j.markets, j.deposit_date, j.trade_
        g.scopes
   from public.journals j
   join public.my_grants g on g.journal_id = j.id;
-revoke all on public.mentee_journals from public, anon;
+revoke all on public.mentee_journals from public, anon, authenticated;
 grant select on public.mentee_journals to authenticated;
 
 -- external_id (the broker ticket) is left out. Money columns are null without the 'money' scope.
@@ -148,7 +150,7 @@ select t.id, t.journal_id, t.instrument_id, t.setup_id, t.trading_plan_id, t.dir
        case when 'money' = any (g.scopes) then t.other_fees end as other_fees
   from public.trades t
   join public.my_grants g on g.journal_id = t.journal_id and 'trades' = any (g.scopes);
-revoke all on public.mentee_trades from public, anon;
+revoke all on public.mentee_trades from public, anon, authenticated;
 grant select on public.mentee_trades to authenticated;
 
 create view public.mentee_trade_executions as
@@ -159,7 +161,7 @@ select e.id, e.trade_id, e.journal_id, e.kind, e.side, e.price, e.executed_at, e
        case when 'money' = any (g.scopes) then e.fee end as fee
   from public.trade_executions e
   join public.my_grants g on g.journal_id = e.journal_id and 'trades' = any (g.scopes);
-revoke all on public.mentee_trade_executions from public, anon;
+revoke all on public.mentee_trade_executions from public, anon, authenticated;
 grant select on public.mentee_trade_executions to authenticated;
 
 create view public.mentee_missed_trades as
@@ -169,7 +171,7 @@ select m.id, m.journal_id, m.instrument, m.setup, m.direction, m.occurred_at, m.
        case when 'money' = any (g.scopes) then m.quantity end as quantity
   from public.missed_trades m
   join public.my_grants g on g.journal_id = m.journal_id and 'trades' = any (g.scopes);
-revoke all on public.mentee_missed_trades from public, anon;
+revoke all on public.mentee_missed_trades from public, anon, authenticated;
 grant select on public.mentee_missed_trades to authenticated;
 
 -- Tables with nothing money-related in them: the whole row, for the one scope that covers them. `t.*` is expanded when the view is
@@ -189,7 +191,7 @@ begin
     execute format(
       'create view public.mentee_%1$s as select t.* from public.%1$I t join public.my_grants g on g.journal_id = t.journal_id and %2$L = any (g.scopes)',
       r.tbl, r.scope);
-    execute format('revoke all on public.mentee_%I from public, anon', r.tbl);
+    execute format('revoke all on public.mentee_%I from public, anon, authenticated', r.tbl);
     execute format('grant select on public.mentee_%I to authenticated', r.tbl);
   end loop;
 end $$;
@@ -203,7 +205,7 @@ select p.id, p.display_name, p.avatar_url
                 where m.status <> 'ended'
                   and ((m.mentor_id = auth.uid() and m.student_id = p.id)
                     or (m.student_id = auth.uid() and m.mentor_id = p.id)));
-revoke all on public.profile_cards from public, anon;
+revoke all on public.profile_cards from public, anon, authenticated;
 grant select on public.profile_cards to authenticated;
 
 -- ---------------------------------------------------------------------------------------------------------------------------------
@@ -428,6 +430,7 @@ create policy "write" on public.trade_feedback for insert to authenticated
     or (public.can_read_journal(journal_id, 'trades')
         and (target_type <> 'diary_session' or public.can_read_journal(journal_id, 'notes')))));
 
+revoke all on public.trade_feedback from public, anon, authenticated;
 grant select, insert on public.trade_feedback to authenticated;
 grant all on public.trade_feedback to service_role;
 
@@ -510,6 +513,7 @@ create policy "author adds" on public.feedback_attachments for insert to authent
   with check (path like auth.uid()::text || '/%'
     and exists (select 1 from public.trade_feedback f
                  where f.id = feedback_id and f.journal_id = feedback_attachments.journal_id and f.author_id = auth.uid()));
+revoke all on public.feedback_attachments from public, anon, authenticated;
 grant select, insert on public.feedback_attachments to authenticated;
 grant all on public.feedback_attachments to service_role;
 
@@ -557,6 +561,7 @@ alter table public.notifications enable row level security;
 create policy "own read" on public.notifications for select to authenticated using (user_id = auth.uid());
 create policy "own mark read" on public.notifications for update to authenticated
   using (user_id = auth.uid()) with check (user_id = auth.uid());
+revoke all on public.notifications from public, anon, authenticated;
 grant select on public.notifications to authenticated;
 grant update (read_at) on public.notifications to authenticated;
 grant all on public.notifications to service_role;
