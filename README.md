@@ -65,34 +65,17 @@ If your remote database already has the old manual migrations applied, mark them
 pnpm supabase migration repair --status applied 20261003080104 20261004074640 20261005113320 20261006152000
 ```
 
-## P&L engine (audit mode)
+## P&L engine
 
-An exact decimal P&L engine with currency conversion and broker reconciliation runs in the `compute-pnl`
-Edge Function (`supabase/functions/_shared/pnl-engine`). In this phase it **never writes to `trades`**. It records
-what it computed next to the values currently stored, in `trade_pnl_audit`, so the two can be compared first.
-
-```
-pnpm supabase db push                                   # adds instrument/journal columns and the audit tables
-pnpm supabase functions deploy compute-pnl
-pnpm supabase secrets set MASSIVE_API_KEY=...           # optional: minute rates (Frankfurter daily rates need no key)
-```
-
-Run it for a journal (the client calls it until `remaining` is 0):
-
-```ts
-const { data } = await supabase.functions.invoke("compute-pnl", { body: { journal_id } });
-```
-
-Journals linked to a MetaTrader account are set to `lots`. For any other journal set `journals.quantity_unit`
-to `lots` or `units`; until then its trades are skipped, never guessed. Trades with hand typed P&L are never touched.
-Review: `select status, recon_status, count(*) from trade_pnl_audit group by 1, 2;`
+The exact decimal P&L engine (`supabase/functions/_shared/pnl-engine`, imported as `@engine`) runs inside the app. The old
+`compute-pnl` Edge Function that audited trades into `trade_pnl_audit` was removed: nothing called it. Its tables
+(`trade_pnl_audit`, `rate_observations`) are still in the database and are left empty.
 
 ## Importing trades
 
 The Import dialog accepts a MetaTrader 4 statement or MetaTrader 5 history report (HTML or Excel) or a CSV. For CSVs it finds the header row and
 suggests the column mapping; tick "Each row is a single fill" for execution files (scale-ins and partial exits are grouped
-into trades). Re-importing a file never duplicates trades (late commission or swap is updated; your notes and stops are not touched). After a MetaTrader import the app runs the P&L audit and fills in
-R-multiples where a stop loss was set.
+into trades). Re-importing a file never duplicates trades (late commission or swap is updated; your notes and stops are not touched).
 
 ## Prop challenges
 

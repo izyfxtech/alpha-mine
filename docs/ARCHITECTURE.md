@@ -28,7 +28,7 @@ Code in `supabase/functions/` keeps relative imports with `.ts` extensions becau
 - `instruments`, `setups`, `comment_definitions`, `custom_stat_*`: the user's vocabulary.
 - `journal_cashflows`: deposits and withdrawals, with `external_id` for idempotent imports.
 - `prop_challenges`: prop firm rule sets as JSON.
-- `trade_pnl_audit`, `rate_observations`: output of the P&L engine and the exchange rates it used.
+- `trade_pnl_audit`, `rate_observations`: left over from the removed `compute-pnl` audit function; nothing writes to them now.
 - `sync_jobs`: queue for MetaTrader sync (`file_import`, `ea_push`, `worker_pull`).
 
 ## P&L engine
@@ -41,11 +41,9 @@ Code in `supabase/functions/` keeps relative imports with `.ts` extensions becau
 - `matching.ts`: FIFO and average-cost lot matching. `positions.ts`: fills grouped into positions (scale-in, partial exits, flips).
 - `time.ts`: MetaTrader server time to UTC.
 
-The `compute-pnl` Edge Function audits trades into `trade_pnl_audit`. It never changes gross, net or fees. With `apply: true` it only fills an empty `risk_amount`.
-
 ## Importing trades
 
-1. **MetaTrader 4 statement or MetaTrader 5 report** (HTML or Excel): `_shared/mt/` parses the Positions (MT5) or Closed Transactions (MT4) table by anchors, not header index; `lib/import/mt/to-trades.ts` builds an RPC payload of broker facts. The `import_mt_report` database function writes instruments, account link, trades, deposits and a `sync_jobs` row in one transaction. Imported rows keep the broker's profit (`pnl_manual`, `source` = `mt4`/`mt5`, `external_id` = ticket). After the import the app runs `compute-pnl` with `apply`.
+1. **MetaTrader 4 statement or MetaTrader 5 report** (HTML or Excel): `_shared/mt/` parses the Positions (MT5) or Closed Transactions (MT4) table by anchors, not header index; `lib/import/mt/to-trades.ts` builds an RPC payload of broker facts. The `import_mt_report` database function writes instruments, account link, trades, deposits and a `sync_jobs` row in one transaction. Imported rows keep the broker's profit (`pnl_manual`, `source` = `mt4`/`mt5`, `external_id` = ticket).
 2. **CSV, one row per trade**: `csv-mapping.ts` finds the header row and suggests columns; the dialog maps them.
 3. **CSV, one row per fill**: `fills-import.ts` groups fills into closed trades with legs. Still-open positions are reported, never imported.
 

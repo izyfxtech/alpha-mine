@@ -2,6 +2,12 @@
 
 Newest first. Dates are the day the work landed on `main`.
 
+## 2026-11-17 (Cleanup)
+
+- Removed the `compute-pnl` Edge Function (nothing called it) and its `supabase/config.toml` entry. `MASSIVE_API_KEY` is no longer used. `trade_pnl_audit` and `rate_observations` stay in the database, unused.
+- `.env.example` lists only what the code reads (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_TURNSTILE_SITE_KEY`, `DATABASE_URL` for drizzle-kit). The `process.env` Supabase fallbacks and `*_PROJECT_ID` variables are gone.
+- `pnpm db:push` and `pnpm db:types` pass `--remote` (Supabase CLI v3 targets the local database by default).
+
 ## 2026-11-10 (Cloudflare)
 
 - Moved off Nitro to a Cloudflare Worker (`@cloudflare/vite-plugin`, `wrangler.jsonc`). Screenshots are stored in R2 instead of Supabase Storage; the Worker verifies the Supabase session, keeps each user to their own folder and signs links for one hour. Existing files keep their paths, so no database change is needed (copy them over as described in `docs/cloudflare.md`).
