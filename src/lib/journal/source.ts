@@ -3,7 +3,7 @@
  *
  * Your own journals are read from the base tables. A journal a student shared with you (you are the mentor) is read from the
  * `mentee_*` views, which apply the student's grant and blank the columns the grant does not cover (see
- * supabase/migrations/20261107090000_mentorship.sql). The views have the same columns as the tables, so the same queries work on
+ * supabase/migrations/20261117000009_mentorship.sql). The views have the same columns as the tables, so the same queries work on
  * both once the table name goes through `tableFor`.
  */
 export type JournalSource = { kind: "own" } | { kind: "mentee"; scopes: string[] };

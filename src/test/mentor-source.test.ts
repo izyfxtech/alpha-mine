@@ -36,7 +36,7 @@ describe("journal source", () => {
     expect(keyFor(["trades", "j1"], mentee)).toEqual(["trades", "j1", "mentee"]);
   });
   it("every mentor view the client uses is created by the migration", () => {
-    const sql = readFileSync("supabase/migrations/20261107090000_mentorship.sql", "utf8");
+    const sql = readFileSync("supabase/migrations/20261117000009_mentorship.sql", "utf8");
     const explicit = [...sql.matchAll(/create view public\.(mentee_\w+)/g)].map((m) => m[1]!);
     const generated = [
       ...sql.matchAll(/\('(\w+)', '(?:trades|screenshots|plans|notes|money)'\)/g),
@@ -46,7 +46,7 @@ describe("journal source", () => {
       expect(created.has(tableFor(table, mentee)), table).toBe(true);
   });
   it("the journal and trade views leave out what the student never shared", () => {
-    const sql = readFileSync("supabase/migrations/20261107090000_mentorship.sql", "utf8");
+    const sql = readFileSync("supabase/migrations/20261117000009_mentorship.sql", "utf8");
     // The statement itself: comments are not part of what the view exposes.
     const statement = (name: string) =>
       sql

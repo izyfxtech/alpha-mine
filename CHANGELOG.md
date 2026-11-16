@@ -2,6 +2,13 @@
 
 Newest first. Dates are the day the work landed on `main`.
 
+## 2026-11-17 (migration baseline)
+
+- **Migrations rebuilt as a baseline for a brand-new project.** The 23 patch-by-patch files are replaced by 9, one per area (`core_journal`, `lookups`, `trades`, `plans_and_notebook`, `screenshots`, `metatrader_import`, `sharing`, `account`, `mentorship`), each holding the final definition of its objects. Same schema and the same pgTAP results as before. Migration file names mentioned in older entries below refer to the files this replaces.
+- Constraints that were added `NOT VALID` for existing data are plain validated constraints, and `supabase/diagnostics/legacy_rows.sql` is gone. Every table, view and function has explicit grants (`anon` has none except `shared_journal`), so a project does not depend on Supabase's default privileges. Trigger-only functions are no longer executable by clients.
+- The unused Supabase Storage bucket and its three `storage.objects` policies are not created any more; screenshots live in R2.
+- A project that ran the old migrations has to be reset, not pushed to.
+
 ## 2026-11-10 (Cloudflare)
 
 - Moved off Nitro to a Cloudflare Worker (`@cloudflare/vite-plugin`, `wrangler.jsonc`). Screenshots are stored in R2 instead of Supabase Storage; the Worker verifies the Supabase session, keeps each user to their own folder and signs links for one hour. Existing files keep their paths, so no database change is needed (copy them over as described in `docs/cloudflare.md`).

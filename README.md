@@ -59,11 +59,10 @@ Changing the schema:
 2. Edit `drizzle/schema.ts`, then `pnpm db:generate`. This writes `supabase/migrations/<timestamp>_<name>.sql`.
 3. Review the SQL, then `pnpm db:push`. RLS policies, triggers and functions are not modelled by Drizzle, so add those as hand written migrations (`pnpm supabase migration new <name>`).
 
-If your remote database already has the old manual migrations applied, mark them as done instead of re-running them:
-
-```
-pnpm supabase migration repair --status applied 20261003080104 20261004074640 20261005113320 20261006152000
-```
+The migrations are one baseline, grouped by area (`core_journal`, `lookups`, `trades`, `plans_and_notebook`, `screenshots`,
+`metatrader_import`, `sharing`, `account`, `mentorship`) and meant for a fresh project. A project that ran the earlier,
+patch-by-patch migrations must be reset first (`pnpm supabase db reset --linked`, which wipes its data). From here on a
+pushed migration is never edited: add a new file.
 
 ## P&L engine (audit mode)
 
@@ -109,8 +108,3 @@ Cron Trigger empties the screenshot clean-up queue every day. Setup and deploy s
 Deleting a screenshot row (directly, or through a deleted trade, merged trade, journal or account) queues its file in
 `storage_cleanup`. The app asks the Worker to empty the queue after deletes. Files of deleted accounts have no signed-in
 user, so the daily Cron Trigger (`wrangler.jsonc`) empties the queue for everyone.
-
-## After the audit-fixes migration
-
-Run `supabase/diagnostics/legacy_rows.sql`. Legacy rows that break the new CHECK constraints are listed there; repair
-them and then `validate constraint` (the commands are in the file header).

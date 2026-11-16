@@ -13,7 +13,7 @@ Every journal-owned table carries `journal_id` and is protected by the `owns_jou
 | `src/lib/import/` | Everything that turns files into trades: `mt/` (report reader and mapping; parsing itself is in `_shared/mt/`), `fills-import.ts`, `csv-mapping.ts`. All pure, no network. |
 | `src/integrations/supabase/` | Client and generated `types.ts` (regenerate with `pnpm db:types`). |
 | `src/test/` | Vitest. `pnl-engine/` covers the engine, the rest mirrors `src/lib`. |
-| `supabase/migrations/` | Ordered SQL, applied with `pnpm db:push`. Written to be safe to re-run. |
+| `supabase/migrations/` | Ordered SQL, applied with `pnpm db:push`: one baseline file per area, each holding the final definition of its tables, functions, policies and grants. |
 | `supabase/functions/` | Edge Functions (Deno). `_shared/pnl-engine/` is also imported by the app and tests through the `@engine` alias. |
 | `docs/` | This guide, the changelog source and `patches/` (the original staged patches, kept for history). |
 
@@ -55,6 +55,6 @@ All imports are idempotent through `(journal_id, external_id)`.
 
 - Performance numbers come from `src/lib/pnl/metrics.ts` only.
 - Simple journal-scoped tables go through `useJournalTable` in `src/lib/journal/crud.ts`.
-- Migrations are additive and re-runnable; add RLS policies and triggers by hand, Drizzle does not model them.
+- A migration runs once per project and is never edited after it is pushed: change the schema with a new file. Add RLS policies, triggers and functions by hand, Drizzle does not model them.
 - Run `pnpm check` (typecheck, lint, tests, build) before pushing. CI runs the same steps.
 - Lint findings in older code are warnings, new code should not add to them.
