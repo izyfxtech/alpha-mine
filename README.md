@@ -19,16 +19,7 @@ and [CHANGELOG.md](CHANGELOG.md) for what changed.
 
 ## Getting started
 
-1. Put your Supabase project details in `.env`:
-
-   ```
-   VITE_SUPABASE_URL=
-   VITE_SUPABASE_PUBLISHABLE_KEY=
-   VITE_SUPABASE_PROJECT_ID=
-   SUPABASE_URL=
-   SUPABASE_PUBLISHABLE_KEY=
-   SUPABASE_PROJECT_ID=
-   ```
+1. Copy `.env.example` to `.env` and fill in the three `VITE_` values (Supabase URL, publishable key, Turnstile site key).
 
 2. Link the Supabase CLI and push the migrations (see "Database workflow" below).
 3. Install and run:
@@ -38,11 +29,11 @@ and [CHANGELOG.md](CHANGELOG.md) for what changed.
    pnpm dev
    ```
 
-## Optional server-side variables
+## Server-side secrets
 
 - `SUPABASE_SERVICE_ROLE_KEY`: used only by the daily screenshot clean-up (Cloudflare secret).
 - `SCREENSHOT_SIGNING_KEY`: signs screenshot links (Cloudflare secret, see `docs/cloudflare.md`).
-- `DATABASE_URL`: Postgres connection string used by `drizzle-kit`.
+- `DATABASE_URL`: Postgres connection string, only for `drizzle-kit` (`pnpm db:pull`, `pnpm db:generate`).
 
 ## Google sign-in
 
@@ -57,7 +48,7 @@ Drizzle Kit generates SQL into `supabase/migrations/`; the Supabase CLI applies 
 pnpm install
 pnpm supabase login
 pnpm supabase link --project-ref <your-project-ref>   # once
-pnpm db:push                                          # apply migrations to the linked project
+pnpm db:push                                          # apply migrations to the linked project (the CLI targets the local database unless --remote is given)
 pnpm db:start                                         # optional: local stack (needs Docker)
 pnpm db:types                                         # regenerate src/integrations/supabase/types.ts
 ```
