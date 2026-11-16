@@ -33,7 +33,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { useTrades } from "@/lib/journal/journal-context";
+import { useJournal, useTrades } from "@/lib/journal/journal-context";
+import { useNotifications, type NotificationRow } from "@/lib/mentor/hooks";
+import { markNotificationsRead } from "@/lib/mentor/api";
+import { invalidateData } from "@/lib/journal/query-cache";
 import { useTradeDrawer } from "@/components/journal/TradeDrawer";
 import { OPEN_ONBOARDING_EVENT } from "@/components/onboarding/Onboarding";
 import { START_TOUR_EVENT } from "@/lib/tour";
@@ -63,7 +66,38 @@ export function TopBar() {
   const [read, setRead] = useStoredJson("am-read-insights", parseStrings);
   const markRead = (ids: string[]) => setRead((current) => [...new Set([...current, ...ids])]);
   const recent = useMemo(() => computeInsights(all), [all]);
-  const unread = recent.filter((t) => !read.includes(t.id)).length;
+  const unreadInsights = recent.filter((t) => !read.includes(t.id)).length;
+  // Feedback from mentors and replies from students; the insights above are computed from your own trades.
+  const { rows: inbox, unread: unreadInbox } = useNotifications();
+  const { journals, journal, setJournalId } = useJournal();
+  const unread = unreadInsights + unreadInbox;
+  const readInbox = async (ids?: string[]) => {
+    try {
+      await markNotificationsRead(ids);
+      await invalidateData(qc, "notifications");
+    } catch {
+      /* the badge stays; the next poll retries nothing, so a later click does */
+    }
+  };
+  function openInbox(n: NotificationRow) {
+    void readInbox([n.id]);
+    if (n.kind === "invite_accepted")
+      return navigate({ to: "/settings/$section", params: { section: "sharing" } });
+    const tradeId = typeof n.meta["target_id"] === "string" ? n.meta["target_id"] : undefined;
+    if (n.journal_id && journals.some((j) => j.id === n.journal_id)) {
+      // Feedback on your own journal: open the trade on its Feedback tab.
+      if (n.journal_id !== journal?.id) setJournalId(n.journal_id);
+      const t = all.find((x) => x.id === tradeId);
+      if (t) drawer.open(t, { tab: "feedback" });
+      else navigate({ to: "/journal" });
+    } else if (n.journal_id) {
+      navigate({
+        to: "/mentor/$journalId",
+        params: { journalId: n.journal_id },
+        search: tradeId ? { trade: tradeId } : {},
+      });
+    }
+  }
 
   const [fmode, setFmode] = useState<FilterMode>("closed");
   async function signOut() {
@@ -132,41 +166,71 @@ export function TopBar() {
                 variant="ghost"
                 size="sm"
                 disabled={!unread}
-                onClick={() => markRead(recent.map((t) => t.id))}
+                onClick={() => {
+                  markRead(recent.map((t) => t.id));
+                  void readInbox();
+                }}
               >
                 Mark all read
               </Button>
             </SheetHeader>
             <div className="flex-1 overflow-y-auto text-sm">
-              {recent.length ? (
-                recent.map((n) => (
-                  <button
-                    key={n.id}
-                    className="w-full border-b px-4 py-3 text-left hover:bg-muted/50"
-                    onClick={() => {
-                      markRead([n.id]);
-                      const t = all.find((x) => x.id === n.tradeId);
-                      if (t) drawer.open(t);
-                    }}
-                  >
-                    <span className="flex justify-between gap-2 text-xs font-semibold">
-                      <span>{n.title}</span>
-                      {!read.includes(n.id) && (
-                        <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-profit" />
-                      )}
+              {inbox.map((n) => (
+                <button
+                  key={n.id}
+                  className="w-full border-b px-4 py-3 text-left hover:bg-muted/50"
+                  onClick={() => openInbox(n)}
+                >
+                  <span className="flex justify-between gap-2 text-xs font-semibold">
+                    <span>
+                      {n.kind === "invite_accepted"
+                        ? `${String(n.meta["by"] ?? "Someone")} accepted your invite`
+                        : `${String(n.meta["author"] ?? "Someone")} left feedback`}
                     </span>
-                    <span className="mt-1 block text-xs text-muted-foreground">{n.body}</span>
-                    <span className="mt-1 flex justify-between text-[11px] uppercase text-muted-foreground">
-                      <span>Journal</span>
-                      <span>{localDateTime(n.at)}</span>
+                    {!n.read_at && (
+                      <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-profit" />
+                    )}
+                  </span>
+                  {typeof n.meta["snippet"] === "string" && (
+                    <span className="mt-1 block text-xs text-muted-foreground">
+                      {n.meta["snippet"]}
                     </span>
-                  </button>
-                ))
-              ) : (
-                <p className="p-4 text-muted-foreground">
-                  You're all caught up. Insights appear here as you log trades.
-                </p>
-              )}
+                  )}
+                  <span className="mt-1 flex justify-between text-[11px] uppercase text-muted-foreground">
+                    <span>{n.kind === "invite_accepted" ? "Mentoring" : "Feedback"}</span>
+                    <span>{localDateTime(n.created_at)}</span>
+                  </span>
+                </button>
+              ))}
+              {recent.length
+                ? recent.map((n) => (
+                    <button
+                      key={n.id}
+                      className="w-full border-b px-4 py-3 text-left hover:bg-muted/50"
+                      onClick={() => {
+                        markRead([n.id]);
+                        const t = all.find((x) => x.id === n.tradeId);
+                        if (t) drawer.open(t);
+                      }}
+                    >
+                      <span className="flex justify-between gap-2 text-xs font-semibold">
+                        <span>{n.title}</span>
+                        {!read.includes(n.id) && (
+                          <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-profit" />
+                        )}
+                      </span>
+                      <span className="mt-1 block text-xs text-muted-foreground">{n.body}</span>
+                      <span className="mt-1 flex justify-between text-[11px] uppercase text-muted-foreground">
+                        <span>Journal</span>
+                        <span>{localDateTime(n.at)}</span>
+                      </span>
+                    </button>
+                  ))
+                : !inbox.length && (
+                    <p className="p-4 text-muted-foreground">
+                      You're all caught up. Insights appear here as you log trades.
+                    </p>
+                  )}
             </div>
           </SheetContent>
         </Sheet>

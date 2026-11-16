@@ -13,7 +13,14 @@ describe("data export", () => {
       .map((m) => m[1]!);
     expect(withJournal.length).toBeGreaterThan(15);
     // Internal bookkeeping that is not the person's content.
-    const internal = new Set(["merged_trade_ids", "sync_jobs", "trade_pnl_audit"]);
+    // Mentor access is the relationship, not journal content: `journal_access` says who may read, `notifications` is an inbox.
+    const internal = new Set([
+      "merged_trade_ids",
+      "sync_jobs",
+      "trade_pnl_audit",
+      "journal_access",
+      "notifications",
+    ]);
     const missing = withJournal.filter(
       (t) => !internal.has(t) && !EXPORT_TABLES.some((e) => e.table === t),
     );

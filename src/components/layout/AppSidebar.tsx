@@ -3,7 +3,16 @@ import { useWhenChanged } from "@/lib/use-when-changed";
 import { safeCurrency } from "@/lib/currencies";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { ChevronRight, Moon, Sun, PanelLeftClose, PanelLeftOpen, Upload } from "lucide-react";
+import { useIsMentor } from "@/lib/mentor/hooks";
+import {
+  ChevronRight,
+  GraduationCap,
+  Moon,
+  Sun,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Upload,
+} from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Logo } from "@/components/layout/Logo";
@@ -79,6 +88,12 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
   const { settings } = useProfile();
   const drawer = useTradeDrawer();
   const [importOpen, setImportOpen] = useState(false);
+  // Only someone a student has shared a journal with sees the Mentor page.
+  const isMentor = useIsMentor();
+  const items = useMemo<NavItem[]>(
+    () => (isMentor ? [...NAV, { label: "Mentor", icon: GraduationCap, to: "/mentor" }] : NAV),
+    [isMentor],
+  );
   // Only the balance is shown here, so skip the full report (curve, drawdown, ratios) and only redo the sum when the data changes.
   const startingBalance = journal?.starting_balance;
   const balance = useMemo(
@@ -101,7 +116,7 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
         </Link>
       </div>
       <nav className="flex-1 space-y-[2px] overflow-y-auto p-2">
-        {NAV.map((item) =>
+        {items.map((item) =>
           item.children ? (
             <Group key={item.label} item={item} collapsed={collapsed} path={path} />
           ) : (

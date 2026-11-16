@@ -39,6 +39,7 @@ export type ChartSlug = (typeof CHARTS)[number][0];
 
 export const SETTINGS = [
   ["account", "Account"],
+  ["sharing", "Mentors & Sharing"],
   ["journal", "Journal"],
   ["cashflows", "Deposits & Withdrawals"],
   ["instruments", "Instruments"],

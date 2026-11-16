@@ -14,7 +14,7 @@ import { PortfolioSkeleton } from "@/components/portfolio/PortfolioSkeleton";
 import { useDelayedFlag } from "@/lib/use-delayed-flag";
 
 /** Pages that never read trades, so they open at once instead of waiting for them. */
-const NO_TRADES = ["/settings", "/plans", "/diary/notebook"];
+const NO_TRADES = ["/settings", "/plans", "/diary/notebook", "/mentor"];
 
 export const needsTrades = (path: string) =>
   !NO_TRADES.some((p) => path === p || path.startsWith(`${p}/`));

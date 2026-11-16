@@ -1335,6 +1335,207 @@ export type Database = {
           },
         ];
       };
+      feedback_attachments: {
+        Row: {
+          caption: string | null;
+          created_at: string;
+          feedback_id: string;
+          id: string;
+          journal_id: string;
+          path: string;
+        };
+        Insert: {
+          caption?: string | null;
+          created_at?: string;
+          feedback_id: string;
+          id?: string;
+          journal_id: string;
+          path: string;
+        };
+        Update: {
+          caption?: string | null;
+          created_at?: string;
+          feedback_id?: string;
+          id?: string;
+          journal_id?: string;
+          path?: string;
+        };
+        Relationships: [];
+      };
+      journal_access: {
+        Row: {
+          created_at: string;
+          expires_at: string | null;
+          journal_id: string;
+          mentorship_id: string;
+          revoked_at: string | null;
+          scopes: string[];
+        };
+        Insert: {
+          created_at?: string;
+          expires_at?: string | null;
+          journal_id: string;
+          mentorship_id: string;
+          revoked_at?: string | null;
+          scopes?: string[];
+        };
+        Update: {
+          created_at?: string;
+          expires_at?: string | null;
+          journal_id?: string;
+          mentorship_id?: string;
+          revoked_at?: string | null;
+          scopes?: string[];
+        };
+        Relationships: [];
+      };
+      mentorship_invites: {
+        Row: {
+          access_days: number | null;
+          accepted_at: string | null;
+          accepted_by: string | null;
+          created_at: string;
+          expires_at: string;
+          id: string;
+          inviter_id: string;
+          inviter_role: string;
+          journal_ids: string[];
+          revoked_at: string | null;
+          scopes: string[];
+          token_hash: string;
+        };
+        Insert: {
+          access_days?: number | null;
+          accepted_at?: string | null;
+          accepted_by?: string | null;
+          created_at?: string;
+          expires_at: string;
+          id?: string;
+          inviter_id?: string;
+          inviter_role: string;
+          journal_ids?: string[];
+          revoked_at?: string | null;
+          scopes?: string[];
+          token_hash: string;
+        };
+        Update: {
+          access_days?: number | null;
+          accepted_at?: string | null;
+          accepted_by?: string | null;
+          created_at?: string;
+          expires_at?: string;
+          id?: string;
+          inviter_id?: string;
+          inviter_role?: string;
+          journal_ids?: string[];
+          revoked_at?: string | null;
+          scopes?: string[];
+          token_hash?: string;
+        };
+        Relationships: [];
+      };
+      mentorships: {
+        Row: {
+          created_at: string;
+          created_by: string;
+          ended_at: string | null;
+          id: string;
+          mentor_id: string;
+          status: string;
+          student_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string;
+          ended_at?: string | null;
+          id?: string;
+          mentor_id: string;
+          status?: string;
+          student_id: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string;
+          ended_at?: string | null;
+          id?: string;
+          mentor_id?: string;
+          status?: string;
+          student_id?: string;
+        };
+        Relationships: [];
+      };
+      notifications: {
+        Row: {
+          created_at: string;
+          id: string;
+          journal_id: string | null;
+          kind: string;
+          meta: Json;
+          read_at: string | null;
+          ref_id: string | null;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          journal_id?: string | null;
+          kind: string;
+          meta?: Json;
+          read_at?: string | null;
+          ref_id?: string | null;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          journal_id?: string | null;
+          kind?: string;
+          meta?: Json;
+          read_at?: string | null;
+          ref_id?: string | null;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      trade_feedback: {
+        Row: {
+          author_id: string | null;
+          author_name: string;
+          body: string;
+          created_at: string;
+          id: string;
+          journal_id: string;
+          parent_id: string | null;
+          resolved_at: string | null;
+          target_id: string | null;
+          target_type: string;
+        };
+        Insert: {
+          author_id?: string | null;
+          author_name?: string;
+          body: string;
+          created_at?: string;
+          id?: string;
+          journal_id: string;
+          parent_id?: string | null;
+          resolved_at?: string | null;
+          target_id?: string | null;
+          target_type: string;
+        };
+        Update: {
+          author_id?: string | null;
+          author_name?: string;
+          body?: string;
+          created_at?: string;
+          id?: string;
+          journal_id?: string;
+          parent_id?: string | null;
+          resolved_at?: string | null;
+          target_id?: string | null;
+          target_type?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -1358,6 +1559,70 @@ export type Database = {
         Args: { _ids: string[]; _mode?: string; _keep?: string | null };
         Returns: string;
       };
+      accept_mentor_invite: {
+        Args: {
+          _token: string;
+          _journal_ids?: string[];
+          _scopes?: string[];
+          _access_days?: number | null;
+        };
+        Returns: string;
+      };
+      can_read_journal: { Args: { _j: string; _scope: string }; Returns: boolean };
+      create_mentor_invite: {
+        Args: {
+          _role: string;
+          _journal_ids?: string[];
+          _scopes?: string[];
+          _access_days?: number | null;
+          _valid_days?: number;
+        };
+        Returns: string;
+      };
+      delete_feedback: { Args: { _id: string }; Returns: undefined };
+      edit_feedback: { Args: { _id: string; _body: string }; Returns: undefined };
+      end_mentorship: { Args: { _id: string }; Returns: undefined };
+      my_students: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          mentorship_id: string;
+          student_id: string;
+          student_name: string;
+          journal_id: string;
+          journal_name: string;
+          currency: string;
+          scopes: string[];
+          expires_at: string | null;
+          trades: number;
+          wins: number | null;
+          net_pnl: number | null;
+          last_trade_at: string | null;
+          open_threads: number;
+        }[];
+      };
+      pause_all_mentors: { Args: Record<PropertyKey, never>; Returns: number };
+      preview_mentor_invite: {
+        Args: { _token: string };
+        Returns: {
+          inviter_role: string;
+          inviter_name: string;
+          journal_count: number;
+          expires_at: string;
+          usable: boolean;
+        }[];
+      };
+      resolve_feedback: { Args: { _id: string; _resolved?: boolean }; Returns: undefined };
+      revoke_mentor_invite: { Args: { _id: string }; Returns: undefined };
+      save_mentor_access: {
+        Args: {
+          _mentorship: string;
+          _journal_ids: string[];
+          _scopes: string[];
+          _access_days?: number | null;
+        };
+        Returns: undefined;
+      };
+      visible_screenshot_paths: { Args: { _paths: string[] }; Returns: string[] };
       delete_my_account: { Args: Record<PropertyKey, never>; Returns: undefined };
       owns_journal: { Args: { _j: string }; Returns: boolean };
       shared_journal: { Args: { _token: string }; Returns: Json };

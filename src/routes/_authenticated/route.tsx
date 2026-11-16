@@ -1,4 +1,11 @@
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Outlet,
+  redirect,
+  useLocation,
+  useNavigate,
+} from "@tanstack/react-router";
+import { pendingInvite } from "@/lib/mentor/scopes";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { JournalProvider } from "@/lib/journal/journal-context";
@@ -20,6 +27,14 @@ export const Route = createFileRoute("/_authenticated")({
 
 function Layout() {
   const [collapsed, setCollapsed] = useState(false);
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  // An invite link opened while signed out is remembered across sign-in; pick it up here.
+  useEffect(() => {
+    const token = pendingInvite();
+    if (token && !pathname.startsWith("/invite"))
+      navigate({ to: "/invite/$token", params: { token } });
+  }, [navigate, pathname]);
   useEffect(() => {
     document.documentElement.classList.add("app-scale");
     return () => document.documentElement.classList.remove("app-scale");

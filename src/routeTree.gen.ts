@@ -36,10 +36,13 @@ import { Route as BlogIndexRouteImport } from './routes/blog.index'
 import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
 import { Route as FeaturesIndexRouteImport } from './routes/features.index'
 import { Route as FeaturesSlugRouteImport } from './routes/features.$slug'
+import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as ShareTokenRouteImport } from './routes/share.$token'
 import { Route as AuthenticatedChartLabChartRouteImport } from './routes/_authenticated/chart-lab.$chart'
 import { Route as AuthenticatedDiaryNotebookRouteImport } from './routes/_authenticated/diary.notebook'
 import { Route as AuthenticatedDiarySessionsRouteImport } from './routes/_authenticated/diary.sessions'
+import { Route as AuthenticatedMentorIndexRouteImport } from './routes/_authenticated/mentor.index'
+import { Route as AuthenticatedMentorJournalIdRouteImport } from './routes/_authenticated/mentor.$journalId'
 import { Route as AuthenticatedReportsAnnualRouteImport } from './routes/_authenticated/reports.annual'
 import { Route as AuthenticatedReportsCalendarRouteImport } from './routes/_authenticated/reports.calendar'
 import { Route as AuthenticatedReportsChartBookRouteImport } from './routes/_authenticated/reports.chart-book'
@@ -191,6 +194,11 @@ const FeaturesSlugRoute = FeaturesSlugRouteImport.update({
   path: '/features/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InviteTokenRoute = InviteTokenRouteImport.update({
+  id: '/invite/$token',
+  path: '/invite/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ShareTokenRoute = ShareTokenRouteImport.update({
   id: '/share/$token',
   path: '/share/$token',
@@ -212,6 +220,18 @@ const AuthenticatedDiarySessionsRoute =
   AuthenticatedDiarySessionsRouteImport.update({
     id: '/diary/sessions',
     path: '/diary/sessions',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedMentorIndexRoute =
+  AuthenticatedMentorIndexRouteImport.update({
+    id: '/mentor/',
+    path: '/mentor/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedMentorJournalIdRoute =
+  AuthenticatedMentorJournalIdRouteImport.update({
+    id: '/mentor/$journalId',
+    path: '/mentor/$journalId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedReportsAnnualRoute =
@@ -313,12 +333,14 @@ export interface FileRoutesByFullPath {
   '/rules': typeof AuthenticatedRulesRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/features/$slug': typeof FeaturesSlugRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/share/$token': typeof ShareTokenRoute
   '/blog/': typeof BlogIndexRoute
   '/features/': typeof FeaturesIndexRoute
   '/chart-lab/$chart': typeof AuthenticatedChartLabChartRoute
   '/diary/notebook': typeof AuthenticatedDiaryNotebookRoute
   '/diary/sessions': typeof AuthenticatedDiarySessionsRoute
+  '/mentor/$journalId': typeof AuthenticatedMentorJournalIdRoute
   '/reports/annual': typeof AuthenticatedReportsAnnualRoute
   '/reports/calendar': typeof AuthenticatedReportsCalendarRoute
   '/reports/chart-book': typeof AuthenticatedReportsChartBookRoute
@@ -332,6 +354,7 @@ export interface FileRoutesByFullPath {
   '/api/screenshots/sign': typeof ApiScreenshotsSignRoute
   '/api/share/$token': typeof ApiShareTokenRoute
   '/api/storage/sweep': typeof ApiStorageSweepRoute
+  '/mentor/': typeof AuthenticatedMentorIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -358,12 +381,14 @@ export interface FileRoutesByTo {
   '/rules': typeof AuthenticatedRulesRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/features/$slug': typeof FeaturesSlugRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/share/$token': typeof ShareTokenRoute
   '/blog': typeof BlogIndexRoute
   '/features': typeof FeaturesIndexRoute
   '/chart-lab/$chart': typeof AuthenticatedChartLabChartRoute
   '/diary/notebook': typeof AuthenticatedDiaryNotebookRoute
   '/diary/sessions': typeof AuthenticatedDiarySessionsRoute
+  '/mentor/$journalId': typeof AuthenticatedMentorJournalIdRoute
   '/reports/annual': typeof AuthenticatedReportsAnnualRoute
   '/reports/calendar': typeof AuthenticatedReportsCalendarRoute
   '/reports/chart-book': typeof AuthenticatedReportsChartBookRoute
@@ -377,6 +402,7 @@ export interface FileRoutesByTo {
   '/api/screenshots/sign': typeof ApiScreenshotsSignRoute
   '/api/share/$token': typeof ApiShareTokenRoute
   '/api/storage/sweep': typeof ApiStorageSweepRoute
+  '/mentor': typeof AuthenticatedMentorIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -405,12 +431,14 @@ export interface FileRoutesById {
   '/_authenticated/rules': typeof AuthenticatedRulesRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/features/$slug': typeof FeaturesSlugRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/share/$token': typeof ShareTokenRoute
   '/blog/': typeof BlogIndexRoute
   '/features/': typeof FeaturesIndexRoute
   '/_authenticated/chart-lab/$chart': typeof AuthenticatedChartLabChartRoute
   '/_authenticated/diary/notebook': typeof AuthenticatedDiaryNotebookRoute
   '/_authenticated/diary/sessions': typeof AuthenticatedDiarySessionsRoute
+  '/_authenticated/mentor/$journalId': typeof AuthenticatedMentorJournalIdRoute
   '/_authenticated/reports/annual': typeof AuthenticatedReportsAnnualRoute
   '/_authenticated/reports/calendar': typeof AuthenticatedReportsCalendarRoute
   '/_authenticated/reports/chart-book': typeof AuthenticatedReportsChartBookRoute
@@ -424,6 +452,7 @@ export interface FileRoutesById {
   '/api/screenshots/sign': typeof ApiScreenshotsSignRoute
   '/api/share/$token': typeof ApiShareTokenRoute
   '/api/storage/sweep': typeof ApiStorageSweepRoute
+  '/_authenticated/mentor/': typeof AuthenticatedMentorIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -452,12 +481,14 @@ export interface FileRouteTypes {
     | '/rules'
     | '/blog/$slug'
     | '/features/$slug'
+    | '/invite/$token'
     | '/share/$token'
     | '/blog/'
     | '/features/'
     | '/chart-lab/$chart'
     | '/diary/notebook'
     | '/diary/sessions'
+    | '/mentor/$journalId'
     | '/reports/annual'
     | '/reports/calendar'
     | '/reports/chart-book'
@@ -471,6 +502,7 @@ export interface FileRouteTypes {
     | '/api/screenshots/sign'
     | '/api/share/$token'
     | '/api/storage/sweep'
+    | '/mentor/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -497,12 +529,14 @@ export interface FileRouteTypes {
     | '/rules'
     | '/blog/$slug'
     | '/features/$slug'
+    | '/invite/$token'
     | '/share/$token'
     | '/blog'
     | '/features'
     | '/chart-lab/$chart'
     | '/diary/notebook'
     | '/diary/sessions'
+    | '/mentor/$journalId'
     | '/reports/annual'
     | '/reports/calendar'
     | '/reports/chart-book'
@@ -516,6 +550,7 @@ export interface FileRouteTypes {
     | '/api/screenshots/sign'
     | '/api/share/$token'
     | '/api/storage/sweep'
+    | '/mentor'
   id:
     | '__root__'
     | '/'
@@ -543,12 +578,14 @@ export interface FileRouteTypes {
     | '/_authenticated/rules'
     | '/blog/$slug'
     | '/features/$slug'
+    | '/invite/$token'
     | '/share/$token'
     | '/blog/'
     | '/features/'
     | '/_authenticated/chart-lab/$chart'
     | '/_authenticated/diary/notebook'
     | '/_authenticated/diary/sessions'
+    | '/_authenticated/mentor/$journalId'
     | '/_authenticated/reports/annual'
     | '/_authenticated/reports/calendar'
     | '/_authenticated/reports/chart-book'
@@ -562,6 +599,7 @@ export interface FileRouteTypes {
     | '/api/screenshots/sign'
     | '/api/share/$token'
     | '/api/storage/sweep'
+    | '/_authenticated/mentor/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -577,6 +615,7 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   BlogSlugRoute: typeof BlogSlugRoute
   FeaturesSlugRoute: typeof FeaturesSlugRoute
+  InviteTokenRoute: typeof InviteTokenRoute
   ShareTokenRoute: typeof ShareTokenRoute
   BlogIndexRoute: typeof BlogIndexRoute
   FeaturesIndexRoute: typeof FeaturesIndexRoute
@@ -778,6 +817,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FeaturesSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/invite/$token': {
+      id: '/invite/$token'
+      path: '/invite/$token'
+      fullPath: '/invite/$token'
+      preLoaderRoute: typeof InviteTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/share/$token': {
       id: '/share/$token'
       path: '/share/$token'
@@ -804,6 +850,20 @@ declare module '@tanstack/react-router' {
       path: '/diary/sessions'
       fullPath: '/diary/sessions'
       preLoaderRoute: typeof AuthenticatedDiarySessionsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/mentor/': {
+      id: '/_authenticated/mentor/'
+      path: '/mentor'
+      fullPath: '/mentor/'
+      preLoaderRoute: typeof AuthenticatedMentorIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/mentor/$journalId': {
+      id: '/_authenticated/mentor/$journalId'
+      path: '/mentor/$journalId'
+      fullPath: '/mentor/$journalId'
+      preLoaderRoute: typeof AuthenticatedMentorJournalIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/reports/annual': {
@@ -917,6 +977,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedChartLabChartRoute: typeof AuthenticatedChartLabChartRoute
   AuthenticatedDiaryNotebookRoute: typeof AuthenticatedDiaryNotebookRoute
   AuthenticatedDiarySessionsRoute: typeof AuthenticatedDiarySessionsRoute
+  AuthenticatedMentorJournalIdRoute: typeof AuthenticatedMentorJournalIdRoute
   AuthenticatedReportsAnnualRoute: typeof AuthenticatedReportsAnnualRoute
   AuthenticatedReportsCalendarRoute: typeof AuthenticatedReportsCalendarRoute
   AuthenticatedReportsChartBookRoute: typeof AuthenticatedReportsChartBookRoute
@@ -925,6 +986,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedStrategyLabAlternativesRoute: typeof AuthenticatedStrategyLabAlternativesRoute
   AuthenticatedStrategyLabBacktesterRoute: typeof AuthenticatedStrategyLabBacktesterRoute
   AuthenticatedStrategyLabSimulatorRoute: typeof AuthenticatedStrategyLabSimulatorRoute
+  AuthenticatedMentorIndexRoute: typeof AuthenticatedMentorIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -945,6 +1007,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedChartLabChartRoute: AuthenticatedChartLabChartRoute,
   AuthenticatedDiaryNotebookRoute: AuthenticatedDiaryNotebookRoute,
   AuthenticatedDiarySessionsRoute: AuthenticatedDiarySessionsRoute,
+  AuthenticatedMentorJournalIdRoute: AuthenticatedMentorJournalIdRoute,
   AuthenticatedReportsAnnualRoute: AuthenticatedReportsAnnualRoute,
   AuthenticatedReportsCalendarRoute: AuthenticatedReportsCalendarRoute,
   AuthenticatedReportsChartBookRoute: AuthenticatedReportsChartBookRoute,
@@ -956,6 +1019,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedStrategyLabBacktesterRoute,
   AuthenticatedStrategyLabSimulatorRoute:
     AuthenticatedStrategyLabSimulatorRoute,
+  AuthenticatedMentorIndexRoute: AuthenticatedMentorIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -974,6 +1038,7 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   BlogSlugRoute: BlogSlugRoute,
   FeaturesSlugRoute: FeaturesSlugRoute,
+  InviteTokenRoute: InviteTokenRoute,
   ShareTokenRoute: ShareTokenRoute,
   BlogIndexRoute: BlogIndexRoute,
   FeaturesIndexRoute: FeaturesIndexRoute,

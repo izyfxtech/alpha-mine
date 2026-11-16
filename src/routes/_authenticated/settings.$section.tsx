@@ -7,6 +7,7 @@ import { Comments } from "@/components/settings/comments";
 import { CustomStatistics } from "@/components/settings/custom-statistics";
 import { ItemList } from "@/components/settings/item-list";
 import { JournalSettings } from "@/components/settings/journal-settings";
+import { Mentors } from "@/components/settings/mentors";
 import { SessionCategories } from "@/components/settings/session-categories";
 
 export const Route = createFileRoute("/_authenticated/settings/$section")({
@@ -36,6 +37,7 @@ function SettingsPage() {
   return (
     <div>
       {section === "account" && <Account />}
+      {section === "sharing" && <Mentors />}
       {section === "journal" && <JournalSettings />}
       {section === "cashflows" && <Cashflows />}
       {section === "instruments" && (
