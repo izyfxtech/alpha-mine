@@ -23,8 +23,8 @@
     "db:start": "supabase start",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
-    "db:push": "supabase db push",
-    "db:types": "supabase gen types typescript --linked > src/integrations/supabase/types.ts"
+    "db:push": "supabase db push --remote",
+    "db:types": "supabase gen types typescript --remote > src/integrations/supabase/types.ts"
   },
   "dependencies": {
     "@marsidev/react-turnstile": "^1.6.3",

@@ -2,10 +2,13 @@
 export type SupabaseConfig = { url: string; anonKey: string };
 
 export function supabaseConfig(): SupabaseConfig {
-  const url = import.meta.env["VITE_SUPABASE_URL"] || process.env["SUPABASE_URL"];
-  const anonKey =
-    import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"] || process.env["SUPABASE_PUBLISHABLE_KEY"];
-  if (!url || !anonKey) throw new Error("Missing SUPABASE_URL or SUPABASE_PUBLISHABLE_KEY");
+  const url = import.meta.env["VITE_SUPABASE_URL"];
+  const anonKey = import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"];
+  if (!url || !anonKey) {
+    throw new Error(
+      "Missing VITE_SUPABASE_URL or VITE_SUPABASE_PUBLISHABLE_KEY (set them before running pnpm build)",
+    );
+  }
   return { url, anonKey };
 }
 
