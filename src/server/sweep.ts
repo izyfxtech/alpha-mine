@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createSupabaseFetch } from "@/lib/supabase-key-fetch";
 
 /** Rows taken from the clean-up queue per round. */
 const BATCH = 200;
@@ -65,6 +66,12 @@ export async function sweepQueue(
   return { removed, remaining: remaining ?? 0 };
 }
 
-/** A Supabase client that bypasses row-level security. Server-only: the key never reaches the browser. */
+/**
+ * A Supabase client that bypasses row-level security. Server-only: the key never reaches the browser. Works with either the
+ * legacy service_role JWT or a new `sb_secret_…` key.
+ */
 export const adminClient = (url: string, serviceRoleKey: string) =>
-  createClient(url, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
+  createClient(url, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { fetch: createSupabaseFetch(serviceRoleKey) },
+  });
