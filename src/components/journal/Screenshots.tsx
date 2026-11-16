@@ -1,7 +1,10 @@
 import { compressImage, makeThumbnail, thumbPath } from "@/lib/media/compress-image";
 import { signPaths } from "@/lib/media/signed-urls";
 import { MAX_SHOTS } from "@/lib/media/limits";
-import { countOption, fetchAllRows } from "@/lib/journal/fetch-all";
+import { asPage, countOption, fetchAllRows } from "@/lib/journal/fetch-all";
+import { fromTable } from "@/lib/journal/untyped-table";
+import { keyFor, tableFor } from "@/lib/journal/source";
+import { useJournalSource } from "@/lib/journal/journal-context";
 import { sweepStorage } from "@/lib/media/sweep-storage";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ImagePlus, Trash2 } from "lucide-react";
@@ -24,20 +27,22 @@ export interface Shot {
 
 /** Loads screenshots (with short-lived signed URLs) for the given journal, optionally one trade. */
 export function useScreenshots(journalId?: string, tradeId?: string) {
+  const source = useJournalSource();
   return useQuery({
-    queryKey: ["screenshots", journalId, tradeId ?? "all"],
+    queryKey: keyFor(["screenshots", journalId, tradeId ?? "all"], source),
     enabled: !!journalId && tradeId !== "__none__",
     queryFn: async (): Promise<Shot[]> => {
       const data = await fetchAllRows<Database["public"]["Tables"]["trade_screenshots"]["Row"]>(
         (from, to, first) => {
-          let q = supabase
-            .from("trade_screenshots")
+          let q = fromTable(tableFor("trade_screenshots", source))
             .select("*", countOption(first))
             .eq("journal_id", journalId!)
             .order("created_at", { ascending: false })
             .order("id");
           if (tradeId) q = q.eq("trade_id", tradeId);
-          return q.range(from, to);
+          return asPage<Database["public"]["Tables"]["trade_screenshots"]["Row"]>(
+            q.range(from, to),
+          );
         },
       );
       if (!data.length) return [];

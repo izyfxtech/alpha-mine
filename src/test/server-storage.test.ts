@@ -5,6 +5,7 @@ import { isValidSignature, signPath } from "@/server/signing";
 import {
   expiryFor,
   readScreenshot,
+  visibleToCaller,
   removeScreenshots,
   signScreenshots,
   uploadScreenshot,
@@ -176,6 +177,88 @@ describe("screenshot API", () => {
       expect(life, String(at)).toBeLessThan(7200);
       expect(expiryFor(at) % 3600).toBe(0);
     }
+  });
+
+  it("signs another person's file only when the database says the caller may see it, with a short link", async () => {
+    const { d } = deps("m1");
+    const asked: string[][] = [];
+    const withVisible = (allowed: string[]): ScreenshotDeps => ({
+      ...d,
+      visible: async (_r, paths) => {
+        asked.push(paths);
+        return paths.filter((p) => allowed.includes(p));
+      },
+    });
+    const sign = async (dd: ScreenshotDeps, paths: string[]) =>
+      (
+        (await (await signScreenshots(post({ paths }), dd)).json()) as {
+          urls: Record<string, string>;
+        }
+      ).urls;
+
+    const urls = await sign(withVisible(["s1/t/a.png"]), [
+      "m1/own.png",
+      "s1/t/a.png",
+      "s2/t/b.png",
+    ]);
+    expect(Object.keys(urls).sort()).toEqual(["m1/own.png", "s1/t/a.png"]);
+    expect(asked).toEqual([["s1/t/a.png", "s2/t/b.png"]]); // own files are never sent to the database
+    const exp = (u: string) => Number(new URL(`http://x${u}`).searchParams.get("exp"));
+    expect(exp(urls["s1/t/a.png"]!) - 1_000).toBeGreaterThanOrEqual(300);
+    expect(exp(urls["s1/t/a.png"]!) - 1_000).toBeLessThan(600);
+    expect(exp(urls["m1/own.png"]!) - 1_000).toBeGreaterThanOrEqual(3600);
+    // the shared link really reads the file
+    await d.bucket.put("s1/t/a.png", new Response("png").body!, {
+      httpMetadata: { contentType: "image/png" },
+    } as R2PutOptions);
+    const read = await readScreenshot(
+      new Request(`http://app.test${urls["s1/t/a.png"]}`),
+      "s1/t/a.png",
+      d,
+    );
+    expect(read.status).toBe(200);
+  });
+
+  it("never asks the database about a path that could climb out of a folder, nor when nothing is foreign", async () => {
+    const { d } = deps("m1");
+    let calls = 0;
+    const dd: ScreenshotDeps = { ...d, visible: async () => (calls++, []) };
+    await signScreenshots(post({ paths: ["m1/own.png"] }), dd);
+    await signScreenshots(post({ paths: ["s1/../s2/a.png", "/etc/passwd", ""] }), dd);
+    expect(calls).toBe(0);
+  });
+
+  it("asks Supabase with the caller's own token, keeps only what was asked, and answers none on any failure", async () => {
+    const cfg = { url: "http://supabase.test", anonKey: "key" };
+    const req = (auth?: string) =>
+      new Request("http://app.test/x", {
+        method: "POST",
+        headers: auth ? { Authorization: auth } : {},
+      });
+    let seen: { url: string; auth: string | null; body: string } | null = null;
+    const fetcher = (async (url: string, init: RequestInit) => {
+      seen = {
+        url,
+        auth: (init.headers as Record<string, string>)["Authorization"] ?? null,
+        body: String(init.body),
+      };
+      return new Response(JSON.stringify(["s1/a.png", "not-asked.png", 7]), { status: 200 });
+    }) as unknown as typeof fetch;
+    expect(
+      await visibleToCaller(req("Bearer tok"), ["s1/a.png", "s1/b.png"], cfg, fetcher),
+    ).toEqual(["s1/a.png"]);
+    expect(seen).toEqual({
+      url: "http://supabase.test/rest/v1/rpc/visible_screenshot_paths",
+      auth: "Bearer tok",
+      body: JSON.stringify({ _paths: ["s1/a.png", "s1/b.png"] }),
+    });
+    expect(await visibleToCaller(req(), ["s1/a.png"], cfg, fetcher)).toEqual([]);
+    const failing = (async () => new Response("no", { status: 500 })) as unknown as typeof fetch;
+    expect(await visibleToCaller(req("Bearer tok"), ["s1/a.png"], cfg, failing)).toEqual([]);
+    const broken = (async () => {
+      throw new Error("offline");
+    }) as unknown as typeof fetch;
+    expect(await visibleToCaller(req("Bearer tok"), ["s1/a.png"], cfg, broken)).toEqual([]);
   });
 
   it("deletes only the user's own files", async () => {

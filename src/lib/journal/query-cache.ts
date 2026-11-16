@@ -26,6 +26,9 @@ const KEYS = {
   cashflows: [["journal_cashflows"]],
   screenshots: [["screenshots"], ["screenshot-ids"], ["merge-shot-count"]],
   progress: [["getting-started"], ["onboarding-trade-count"]],
+  mentors: [["mentorships"], ["my_students"], ["mentee_journal"], ["mentor_invites"]],
+  feedback: [["feedback"]],
+  notifications: [["notifications"]],
 } as const;
 
 export type DataKind = keyof typeof KEYS;

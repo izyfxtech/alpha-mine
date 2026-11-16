@@ -40,11 +40,15 @@ import {
 import { useDialogs } from "@/components/ui/confirm";
 import { assetClassFor, quantityLabel, specFor } from "@/lib/pnl/instrument-catalogue";
 import { ScreenshotSlots, type PendingShot } from "@/components/journal/trade-form/ScreenshotSlots";
+import { FeedbackThread } from "@/components/mentor/FeedbackThread";
+import { useFeedback } from "@/lib/mentor/hooks";
 
 export type DrawerOpts = {
   prefill?: Partial<Trade>;
   onSaved?: () => void | Promise<void>;
   /** Trades in display order, enables Previous/Next inside the editor. */ list?: Trade[];
+  /** Opens on this tab instead of Regular Data (a notification about feedback opens it on Feedback). */
+  tab?: "feedback";
 };
 const Ctx = createContext<{ open: (t?: Trade, opts?: DrawerOpts) => void } | null>(null);
 export const useTradeDrawer = () => {
@@ -93,7 +97,7 @@ function toForm(t?: Partial<Trade>) {
   };
 }
 type Form = ReturnType<typeof toForm>;
-type Tab = "regular" | "advanced" | "shots" | "alts" | "legs";
+type Tab = "regular" | "advanced" | "shots" | "alts" | "legs" | "feedback";
 
 /** Weighted average of price legs; returns [avgPrice, totalQty]. */
 function blend(legs: Leg[]): [number | null, number] {
@@ -127,6 +131,9 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
     storageJson<string[]>("am.tradeform.hidden", []),
   );
   const { data: shots = [] } = useScreenshots(journal?.id, trade?.id ?? "__none__");
+  // Feedback exists only for a saved trade; the count is for the tab label, and is only asked for while the drawer is open.
+  const { data: feedback = [] } = useFeedback(journal?.id, "trade", open ? trade?.id : undefined);
+  const feedbackThreads = feedback.filter((x) => !x.parent_id).length;
   const { data: legs = [] } = useQuery({
     queryKey: ["trade_executions", trade?.id],
     enabled: !!trade?.id,
@@ -156,7 +163,7 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
     setNavList(opts?.list ?? []);
     setTrade(t);
     setF(toForm(t ?? opts?.prefill));
-    setTab("regular");
+    setTab(t && opts?.tab ? opts.tab : "regular");
     setOnSaved(() => opts?.onSaved);
     setExtraEntries([]);
     setExtraExits([]);
@@ -552,6 +559,9 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
                   ["regular", "Regular Data"],
                   ["advanced", "Advanced Data"],
                   ["shots", "Screenshots"],
+                  ...(trade?.id
+                    ? [["feedback", feedbackThreads ? `Feedback (${feedbackThreads})` : "Feedback"]]
+                    : []),
                   ...(legs.length ? [["legs", `Executions (${legs.length})`]] : []),
                   ...(myAlts.length ? [["alts", "Alternative Strategies"]] : []),
                 ] as [Tab, string][]
@@ -964,6 +974,12 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+            {tab === "feedback" && trade?.id && journal && (
+              <div>
+                <SectionTitle>Mentor Feedback</SectionTitle>
+                <FeedbackThread journalId={journal.id} targetType="trade" targetId={trade.id} />
               </div>
             )}
             {tab === "shots" && (

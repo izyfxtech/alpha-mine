@@ -11,6 +11,8 @@ export type ScreenshotDeps = {
   nowSeconds?: () => number;
   /** Replaceable in tests. */
   verify?: (request: Request) => Promise<string | null>;
+  /** Which of these files, owned by someone else, the caller may see. Asks the database; replaceable in tests. */
+  visible?: (request: Request, paths: string[]) => Promise<string[]>;
 };
 
 /**
@@ -19,6 +21,8 @@ export type ScreenshotDeps = {
  * the same file, and the browser's cache (keyed by URL) can answer repeat views.
  */
 const TTL_SECONDS = 3600;
+/** Files that belong to someone else (a student's screenshots seen by their mentor) get short links, so a revoked mentor loses access within minutes. */
+const SHARED_TTL_SECONDS = 300;
 const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
 const MAX_PATHS = 200;
 /** Image types the app produces. SVG is left out on purpose: it can carry script. */
@@ -37,8 +41,40 @@ const now = (deps: ScreenshotDeps) => (deps.nowSeconds ?? (() => Math.floor(Date
  * A link signed with `now + TTL` differs on every call, so the browser never reuses a cached image;
  * this one is identical for every call inside the same hour.
  */
-export const expiryFor = (nowSeconds: number) =>
-  Math.ceil((nowSeconds + TTL_SECONDS) / TTL_SECONDS) * TTL_SECONDS;
+export const expiryFor = (nowSeconds: number, ttl = TTL_SECONDS) =>
+  Math.ceil((nowSeconds + ttl) / ttl) * ttl;
+
+/**
+ * Asks the database which of `paths` the caller may see: the grant rules live there (visible_screenshot_paths) and nowhere else. The
+ * call carries the caller's own session, so the answer is the caller's. Any failure answers "none": a file is never signed on a guess.
+ */
+export async function visibleToCaller(
+  request: Request,
+  paths: string[],
+  { url, anonKey }: SupabaseConfig,
+  fetcher: typeof fetch = fetch,
+): Promise<string[]> {
+  const token = /^Bearer\s+(\S+)$/i.exec(request.headers.get("Authorization") ?? "")?.[1];
+  if (!token || !paths.length) return [];
+  try {
+    const res = await fetcher(`${url}/rest/v1/rpc/visible_screenshot_paths`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        apikey: anonKey,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ _paths: paths }),
+    });
+    if (!res.ok) return [];
+    const body = (await res.json()) as unknown;
+    return Array.isArray(body)
+      ? body.filter((p): p is string => typeof p === "string" && paths.includes(p))
+      : [];
+  } catch {
+    return [];
+  }
+}
 const who = (request: Request, deps: ScreenshotDeps) =>
   (deps.verify ?? ((r) => verifyUser(r, deps.supabase)))(request);
 
@@ -68,20 +104,32 @@ export async function uploadScreenshot(request: Request, path: string, deps: Scr
   return stored ? json({ path }, 201) : json({ error: "That file already exists" }, 409);
 }
 
-/** POST /api/screenshots/sign { paths }: links, valid for one to two hours, to the signed-in user's own files. */
+/**
+ * POST /api/screenshots/sign { paths }: links to the signed-in user's own files (one to two hours) and, when the database says the
+ * caller may see them, to files a student shared or a mentor attached (five to ten minutes).
+ */
 export async function signScreenshots(request: Request, deps: ScreenshotDeps) {
   const userId = await who(request, deps);
   if (!userId) return json({ error: "Not signed in" }, 401);
   const paths = await readPaths(request);
   if (!paths) return json({ error: "Expected { paths: string[] }" }, 400);
-  const expires = expiryFor(now(deps));
+  const unique = [...new Set(paths)];
+  const own = unique.filter((p) => isOwnPath(userId, p));
+  const others = unique.filter((p) => !own.includes(p) && isCleanPath(p));
+  const shared = new Set(
+    others.length
+      ? await (deps.visible ?? ((r, p) => visibleToCaller(r, p, deps.supabase)))(request, others)
+      : [],
+  );
   const urls: Record<string, string> = {};
-  for (const path of new Set(paths)) {
-    if (!isOwnPath(userId, path)) continue;
+  const add = async (path: string, expires: number) => {
     const signature = await signPath(deps.secret, path, expires);
     const encoded = path.split("/").map(encodeURIComponent).join("/");
     urls[path] = `/api/screenshots/${encoded}?exp=${expires}&sig=${signature}`;
-  }
+  };
+  for (const path of own) await add(path, expiryFor(now(deps)));
+  for (const path of others)
+    if (shared.has(path)) await add(path, expiryFor(now(deps), SHARED_TTL_SECONDS));
   return json({ urls });
 }
 

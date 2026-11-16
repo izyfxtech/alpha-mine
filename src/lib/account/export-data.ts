@@ -31,6 +31,9 @@ export const EXPORT_TABLES: { table: string; order: string[] }[] = [
   { table: "alt_strategy_results", order: ["strategy_id", "trade_id"] },
   { table: "prop_challenges", order: ["id"] },
   { table: "saved_filters", order: ["id"] },
+  // What mentors wrote in the journal. A mentor's own export of what they wrote is a Phase 4 item.
+  { table: "trade_feedback", order: ["created_at", "id"] },
+  { table: "feedback_attachments", order: ["id"] },
 ];
 
 export interface ExportFile {

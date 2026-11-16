@@ -1,5 +1,6 @@
 import { fromTable } from "@/lib/journal/untyped-table";
 import { JOURNAL_DATA_OPTIONS } from "@/lib/journal/query-cache";
+import { OWN_SOURCE, keyFor, tableFor, type JournalSource } from "@/lib/journal/source";
 import { useStoredString } from "@/lib/use-stored-value";
 import { pushTo } from "@/lib/group";
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
@@ -153,6 +154,9 @@ interface Ctx {
   filters: Filters;
   setFilters: (f: Filters) => void;
   refresh: () => void;
+  /** Own journals come from the tables; a journal shared with you comes from the mentor views, read only. */
+  source: JournalSource;
+  readOnly: boolean;
 }
 const JournalCtx = createContext<Ctx | null>(null);
 
@@ -192,8 +196,85 @@ export function JournalProvider({ children }: { children: ReactNode }) {
     filters,
     setFilters,
     refresh: () => qc.invalidateQueries(),
+    source: OWN_SOURCE,
+    readOnly: false,
   };
   return <JournalCtx.Provider value={value}>{children}</JournalCtx.Provider>;
+}
+
+/** The journal a student shared with you, as the mentor sees it: the same hooks, reading the mentor views, with no write controls. */
+export function MenteeJournalProvider({
+  journalId,
+  children,
+}: {
+  journalId: string;
+  children: ReactNode;
+}) {
+  const qc = useQueryClient();
+  const [filters, setFilters] = useState<Filters>({});
+  const { data: row, isLoading } = useQuery({
+    queryKey: ["mentee_journal", journalId],
+    queryFn: async () => {
+      const { data, error } = await fromTable("mentee_journals")
+        .select("*")
+        .eq("id", journalId)
+        .maybeSingle();
+      if (error) throw error;
+      return data as
+        | (Omit<Journal, "starting_balance"> & {
+            starting_balance: number | null;
+            scopes: string[];
+          })
+        | null;
+    },
+    staleTime: 60_000,
+  });
+  const journal = useMemo<Journal | null>(
+    () =>
+      row
+        ? {
+            ...row,
+            broker: null,
+            share_token: null,
+            last_used_at: row.created_at ?? "",
+            // Without the money scope there is no starting balance; the mentor's pages are R-only then (Phase 2).
+            starting_balance: Number(row.starting_balance ?? 0),
+          }
+        : null,
+    [row],
+  );
+  const source = useMemo<JournalSource>(
+    () => ({ kind: "mentee", scopes: row?.scopes ?? [] }),
+    [row?.scopes],
+  );
+  if (isLoading) return null;
+  if (!journal)
+    return (
+      <p className="rounded-md border bg-card p-6 text-sm text-muted-foreground">
+        This journal is not shared with you (any more).
+      </p>
+    );
+  const value: Ctx = {
+    journals: [journal],
+    journal,
+    setJournalId: () => {},
+    filters,
+    setFilters,
+    refresh: () => qc.invalidateQueries({ queryKey: ["trades", journalId] }),
+    source,
+    readOnly: true,
+  };
+  return <JournalCtx.Provider value={value}>{children}</JournalCtx.Provider>;
+}
+
+/** False inside a shared journal. Hide every control that writes behind this; the views are not updatable, so a missed one fails safely. */
+export function useCanEdit(): boolean {
+  return !(useContext(JournalCtx)?.readOnly ?? false);
+}
+
+/** Where the active journal's rows come from. Outside a provider it is the user's own. */
+export function useJournalSource(): JournalSource {
+  return useContext(JournalCtx)?.source ?? OWN_SOURCE;
 }
 
 export function useJournal() {
@@ -203,44 +284,29 @@ export function useJournal() {
 }
 
 export function useLookups(journalId?: string) {
+  const source = useJournalSource();
+  const T = (table: string) => fromTable(tableFor(table, source));
   return useQuery({
-    queryKey: ["lookups", journalId],
+    queryKey: keyFor(["lookups", journalId], source),
     ...JOURNAL_DATA_OPTIONS,
     enabled: !!journalId,
     queryFn: async () => {
       const [i, s, c, p, sc, so, ru] = await Promise.all([
-        supabase
-          .from("instruments")
-          .select("*")
-          .eq("journal_id", journalId!)
-          .order("position")
-          .order("symbol"),
-        supabase
-          .from("setups")
-          .select("*")
-          .eq("journal_id", journalId!)
-          .order("position")
-          .order("name"),
-        supabase
-          .from("comment_definitions")
+        T("instruments").select("*").eq("journal_id", journalId!).order("position").order("symbol"),
+        T("setups").select("*").eq("journal_id", journalId!).order("position").order("name"),
+        T("comment_definitions")
           .select("*")
           .eq("journal_id", journalId!)
           .order("position")
           .order("created_at"),
-        supabase.from("trading_plans").select("*").eq("journal_id", journalId!).order("created_at"),
-        supabase
-          .from("custom_stat_categories")
-          .select("*")
-          .eq("journal_id", journalId!)
-          .order("position"),
-        supabase
-          .from("custom_stat_options")
+        T("trading_plans").select("*").eq("journal_id", journalId!).order("created_at"),
+        T("custom_stat_categories").select("*").eq("journal_id", journalId!).order("position"),
+        T("custom_stat_options")
           .select("*")
           .eq("journal_id", journalId!)
           .order("position")
           .order("created_at"),
-        supabase
-          .from("trading_rules")
+        T("trading_rules")
           .select("*")
           .eq("journal_id", journalId!)
           .order("position")
@@ -280,23 +346,29 @@ export function useLookups(journalId?: string) {
 import { asPage, countOption, fetchAllRows } from "./fetch-all";
 export { fetchAllRows };
 
-export async function fetchTrades(journalIds: string[]): Promise<Trade[]> {
+export async function fetchTrades(
+  journalIds: string[],
+  source: JournalSource = OWN_SOURCE,
+): Promise<Trade[]> {
   if (!journalIds.length) return [];
   const all = <T,>(table: string, cols: string, order: string[]) =>
     fetchAllRows<T>((from, to, first) => {
-      let q = fromTable(table).select(cols, countOption(first)).in("journal_id", journalIds);
+      let q = fromTable(tableFor(table, source))
+        .select(cols, countOption(first))
+        .in("journal_id", journalIds);
       for (const o of order) q = q.order(o, { ascending: true });
       return asPage<T>(q.range(from, to));
     });
   const [t, i, s, tc, cd, cs, jr, cf, rc] = await Promise.all([
     fetchAllRows<TradeRow>((from, to, first) =>
-      supabase
-        .from("trades")
-        .select("*", countOption(first))
-        .in("journal_id", journalIds)
-        .order("entry_at", { ascending: false })
-        .order("id")
-        .range(from, to),
+      asPage<TradeRow>(
+        fromTable(tableFor("trades", source))
+          .select("*", countOption(first))
+          .in("journal_id", journalIds)
+          .order("entry_at", { ascending: false })
+          .order("id")
+          .range(from, to),
+      ),
     ).then((data) => ({ data, error: null })),
     all<{ id: string; symbol: string; asset_class: string | null }>(
       "instruments",
@@ -317,8 +389,7 @@ export async function fetchTrades(journalIds: string[]): Promise<Trade[]> {
       "trade_id",
       "option_id",
     ]).then((data) => ({ data })),
-    supabase
-      .from("journals")
+    fromTable(tableFor("journals", source))
       .select("id,starting_balance,currency,quantity_unit,markets")
       .in("id", journalIds),
     all<{ journal_id: string; occurred_on: string; amount: number }>(
@@ -391,18 +462,18 @@ export async function fetchTrades(journalIds: string[]): Promise<Trade[]> {
 
 /** Deposits (+) and withdrawals (-) for a journal. */
 function useCashflows(journalId?: string) {
+  const source = useJournalSource();
   const q = useQuery({
-    queryKey: ["journal_cashflows", journalId],
+    queryKey: keyFor(["journal_cashflows", journalId], source),
     ...JOURNAL_DATA_OPTIONS,
     enabled: !!journalId,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("journal_cashflows")
+      const { data, error } = await fromTable(tableFor("journal_cashflows", source))
         .select("*")
         .eq("journal_id", journalId!)
         .order("occurred_on");
       if (error) throw error;
-      return data;
+      return data as { id: string; occurred_on: string; amount: number | string }[];
     },
   });
   const rows = useMemo(() => q.data ?? [], [q.data]);
@@ -467,17 +538,17 @@ function applyFilters(trades: Trade[], f: Filters, ruleNames?: ReadonlyMap<strin
 
 /** Trades of the active journal, with top-bar filters applied. */
 export function useTrades(opts: { unfiltered?: boolean; includeOpen?: boolean } = {}) {
-  const { journal, filters } = useJournal();
+  const { journal, filters, source } = useJournal();
   const { data: lk } = useLookups(journal?.id);
   const ruleNames = useMemo(
     () => new Map((lk?.all.rules ?? []).map((r) => [r.id, r.name] as const)),
     [lk],
   );
   const q = useQuery({
-    queryKey: ["trades", journal?.id],
+    queryKey: keyFor(["trades", journal?.id], source),
     ...JOURNAL_DATA_OPTIONS,
     enabled: !!journal,
-    queryFn: () => fetchTrades([journal!.id]),
+    queryFn: () => fetchTrades([journal!.id], source),
   });
   const everything = useMemo(() => q.data ?? [], [q.data]);
   // Open trades have no result yet, so they stay out of every statistic unless a page asks for them.

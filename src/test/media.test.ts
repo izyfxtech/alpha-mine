@@ -41,7 +41,7 @@ describe("signed urls are reused so the browser keeps its cached image", () => {
       vi.useRealTimers();
     }
   });
-  it("signs again when the url's own expiry is less than 10 minutes away, even if it is recent", async () => {
+  it("signs again when the url's own expiry is less than 2 minutes away, even if it is recent", async () => {
     vi.useFakeTimers();
     try {
       vi.setSystemTime(new Date("2026-11-15T10:00:00Z"));
@@ -53,7 +53,7 @@ describe("signed urls are reused so the browser keeps its cached image", () => {
       vi.advanceTimersByTime(5 * 60_000); // 15 minutes left: reuse
       await signPaths(["u/1.webp"]);
       expect(sign).toHaveBeenCalledTimes(1);
-      vi.advanceTimersByTime(6 * 60_000); // 9 minutes left: sign again
+      vi.advanceTimersByTime(14 * 60_000); // 1 minute left: sign again
       await signPaths(["u/1.webp"]);
       expect(sign).toHaveBeenCalledTimes(2);
     } finally {

@@ -8,10 +8,10 @@ import { signImagePaths } from "@/lib/media/storage-api";
  * url. Here a url is also kept until it is close to expiring, so the app only asks the server to sign what it has not
  * signed yet, and the browser's own cache serves every image it has already seen.
  */
-// A link is valid for one to two hours. One is handed out again for 50 minutes after it was signed and, when its expiry is
-// readable, only while at least 10 minutes of validity remain for the person looking at it.
+// A link is valid for one to two hours (a student's file seen by a mentor: five to ten minutes). One is handed out again for 50
+// minutes after it was signed and, when its expiry is readable, only while at least 2 minutes of validity remain.
 const REUSE_FOR = 50 * 60_000;
-const MIN_REMAINING = 10 * 60_000;
+const MIN_REMAINING = 2 * 60_000;
 const cache = new Map<string, { url: string; at: number }>();
 
 /** The `exp` (seconds since 1970) in a signed url; null when the url has none. */
