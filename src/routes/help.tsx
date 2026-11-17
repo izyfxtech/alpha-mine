@@ -3,7 +3,7 @@ import { Plus } from "@phosphor-icons/react";
 import { CtaBand, PageHero, SiteLayout } from "@/components/marketing/site";
 
 const DESC =
-  "Answers about getting started, importing trades, sharing, and the tools inside AlphaMine.";
+  "Answers about getting started, importing trades, sharing, and the tools inside EdgeWhiz.";
 const groups = [
   {
     id: "start",
@@ -91,9 +91,9 @@ const groups = [
 export const Route = createFileRoute("/help")({
   head: () => ({
     meta: [
-      { title: "Help centre | AlphaMine" },
+      { title: "Help centre | EdgeWhiz" },
       { name: "description", content: DESC },
-      { property: "og:title", content: "Help centre | AlphaMine" },
+      { property: "og:title", content: "Help centre | EdgeWhiz" },
       { property: "og:description", content: DESC },
       { property: "og:type", content: "website" },
     ],

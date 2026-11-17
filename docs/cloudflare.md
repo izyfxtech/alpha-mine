@@ -1,6 +1,6 @@
 # Cloudflare deployment
 
-AlphaMine runs as one Cloudflare Worker (`wrangler.jsonc`, entry `src/server.ts`). Supabase keeps Postgres, Auth and row level security.
+EdgeWhiz runs as one Cloudflare Worker (`wrangler.jsonc`, entry `src/server.ts`). Supabase keeps Postgres, Auth and row level security.
 
 | Cloudflare product              | Used for                                                  |
 | ------------------------------- | --------------------------------------------------------- |
@@ -15,7 +15,7 @@ AlphaMine runs as one Cloudflare Worker (`wrangler.jsonc`, entry `src/server.ts`
 ## One-time setup
 
 1. `pnpm install`, then `pnpm exec wrangler login`.
-2. Create the bucket: `pnpm exec wrangler r2 bucket create alphamine-screenshots`.
+2. Create the bucket: `pnpm exec wrangler r2 bucket create edgewhiz-screenshots`.
 3. Set the two secrets (Worker only, never in the browser bundle):
    ```
    pnpm exec wrangler secret put SUPABASE_SERVICE_ROLE_KEY   # Supabase > Settings > API
@@ -35,7 +35,7 @@ AlphaMine runs as one Cloudflare Worker (`wrangler.jsonc`, entry `src/server.ts`
 
 R2 keys are the same paths Supabase Storage used (`<user_id>/…`), so the database needs no change. Copy the files once with
 R2 Super Slurper (Cloudflare dashboard > R2 > Data Migration), using Supabase's S3-compatible endpoint
-(Supabase > Storage > S3 Connection) as the source and `alphamine-screenshots` as the destination. Until a file is copied, its screenshot shows as missing.
+(Supabase > Storage > S3 Connection) as the source and `edgewhiz-screenshots` as the destination. Until a file is copied, its screenshot shows as missing.
 
 ## Local development
 

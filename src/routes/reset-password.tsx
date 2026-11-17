@@ -7,8 +7,8 @@ import { AuthFrame, Field } from "@/components/auth-bits";
 export const Route = createFileRoute("/reset-password")({
   head: () => ({
     meta: [
-      { title: "Set a new password for AlphaMine" },
-      { name: "description", content: "Choose a new password for your AlphaMine account." },
+      { title: "Set a new password for EdgeWhiz" },
+      { name: "description", content: "Choose a new password for your EdgeWhiz account." },
       { name: "robots", content: "noindex" },
     ],
   }),

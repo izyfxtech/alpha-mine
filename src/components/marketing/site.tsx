@@ -207,7 +207,7 @@ function Footer() {
       </div>
       <div className="mk-wrap mt-12 text-sm text-[var(--mk-mute)]">
         <div className="border-t border-[var(--mk-line)] pt-6">
-          © {currentYear()} IZ Technologies Limited. AlphaMine is built by traders, for traders.
+          © {currentYear()} IZ Technologies Limited. EdgeWhiz is built by traders, for traders.
         </div>
       </div>
     </footer>

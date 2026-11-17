@@ -1,13 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { LegalPage, type LegalSection } from "@/components/marketing/legal";
 
-const DESC = "How AlphaMine collects, uses and protects your account and trading journal data.";
+const DESC = "How EdgeWhiz collects, uses and protects your account and trading journal data.";
 export const Route = createFileRoute("/privacy")({
   head: () => ({
     meta: [
-      { title: "Privacy policy | AlphaMine" },
+      { title: "Privacy policy | EdgeWhiz" },
       { name: "description", content: DESC },
-      { property: "og:title", content: "Privacy policy | AlphaMine" },
+      { property: "og:title", content: "Privacy policy | EdgeWhiz" },
       { property: "og:description", content: DESC },
       { property: "og:type", content: "website" },
     ],
@@ -17,7 +17,7 @@ export const Route = createFileRoute("/privacy")({
       title="Privacy policy"
       updated="26 October 2026"
       other={{ to: "/terms", label: "Read the terms of service" }}
-      intro="AlphaMine is a trading journal published by IZ Technologies Limited. This page explains what information the app holds, why, and what control you have over it."
+      intro="EdgeWhiz is a trading journal published by IZ Technologies Limited. This page explains what information the app holds, why, and what control you have over it."
       sections={sections}
     />
   ),
@@ -67,7 +67,7 @@ const sections: LegalSection[] = [
   },
   {
     h: "Children",
-    p: ["AlphaMine is meant for adults. Do not create an account if you are under 18."],
+    p: ["EdgeWhiz is meant for adults. Do not create an account if you are under 18."],
   },
   {
     h: "Changes to this policy",

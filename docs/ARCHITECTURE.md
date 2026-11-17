@@ -1,6 +1,6 @@
 # Architecture
 
-AlphaMine is a TanStack Start (React 19, Vite, Tailwind) app that runs as a Cloudflare Worker (R2 for screenshots, KV for the share-link cache, a Cron Trigger for clean-up) on Supabase (Postgres, Auth, Edge Functions).
+EdgeWhiz is a TanStack Start (React 19, Vite, Tailwind) app that runs as a Cloudflare Worker (R2 for screenshots, KV for the share-link cache, a Cron Trigger for clean-up) on Supabase (Postgres, Auth, Edge Functions).
 Every journal-owned table carries `journal_id` and is protected by the `owns_journal()` row level security policy.
 
 ## Folder map

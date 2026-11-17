@@ -10,7 +10,7 @@ import { localDay } from "@/lib/time/local-time";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/mentor/")({
-  head: () => ({ meta: [{ title: "Mentor — AlphaMine" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({ meta: [{ title: "Mentor — EdgeWhiz" }, { name: "robots", content: "noindex" }] }),
   component: StudentList,
 });
 

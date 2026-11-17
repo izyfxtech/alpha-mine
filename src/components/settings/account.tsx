@@ -38,11 +38,11 @@ export function Account() {
       const day = localToday();
       if (kind === "json")
         downloadText(
-          `alphamine-data-${day}.json`,
+          `edgewhiz-data-${day}.json`,
           JSON.stringify(file, null, 2),
           "application/json",
         );
-      else downloadText(`alphamine-trades-${day}.csv`, tradesCsv(file), "text/csv");
+      else downloadText(`edgewhiz-trades-${day}.csv`, tradesCsv(file), "text/csv");
       toast.success("Download started");
     } catch (e) {
       toast.error((e as Error).message || "Could not export your data");

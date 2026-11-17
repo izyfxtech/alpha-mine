@@ -13,7 +13,7 @@ export const Route = createFileRoute("/blog/$slug")({
     return {
       meta: p
         ? [
-            { title: `${p.title} | AlphaMine` },
+            { title: `${p.title} | EdgeWhiz` },
             { name: "description", content: p.description },
             { property: "og:title", content: p.title },
             { property: "og:description", content: p.description },

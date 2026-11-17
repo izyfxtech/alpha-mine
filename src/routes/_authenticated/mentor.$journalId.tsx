@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_authenticated/mentor/$journalId")({
   validateSearch: (s: Record<string, unknown>): { trade?: string } =>
     typeof s.trade === "string" && s.trade ? { trade: s.trade } : {},
   head: () => ({
-    meta: [{ title: "Student journal — AlphaMine" }, { name: "robots", content: "noindex" }],
+    meta: [{ title: "Student journal — EdgeWhiz" }, { name: "robots", content: "noindex" }],
   }),
   component: StudentJournal,
 });

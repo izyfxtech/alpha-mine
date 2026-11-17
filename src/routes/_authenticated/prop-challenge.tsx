@@ -23,7 +23,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 export const Route = createFileRoute("/_authenticated/prop-challenge")({
   head: () => ({
     meta: [
-      { title: "Prop Challenge — AlphaMine" },
+      { title: "Prop Challenge — EdgeWhiz" },
       {
         name: "description",
         content:

@@ -63,7 +63,7 @@ describe("grouping helpers", () => {
   });
 });
 
-describe("AM score", () => {
+describe("Edge Score", () => {
   const row = (i: number): TradeRow => ({
     id: `t${i}`,
     journal_id: "j",

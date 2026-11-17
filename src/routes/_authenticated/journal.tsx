@@ -57,9 +57,9 @@ import { useDialogs } from "@/components/ui/confirm";
 export const Route = createFileRoute("/_authenticated/journal")({
   head: () => ({
     meta: [
-      { title: "Journal — AlphaMine" },
+      { title: "Journal — EdgeWhiz" },
       { name: "description", content: "All trades in your journal." },
-      { property: "og:title", content: "Journal — AlphaMine" },
+      { property: "og:title", content: "Journal — EdgeWhiz" },
       { property: "og:description", content: "All trades in your journal." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

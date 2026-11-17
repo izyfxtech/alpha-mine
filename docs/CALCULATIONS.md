@@ -1,6 +1,6 @@
 # Calculations
 
-Every trade number in AlphaMine comes from two small files: `src/lib/pnl/calc.ts` (the formulas) and `src/lib/pnl/instrument-catalogue.ts` (which asset class a symbol is). Nothing else computes R or trade money.
+Every trade number in EdgeWhiz comes from two small files: `src/lib/pnl/calc.ts` (the formulas) and `src/lib/pnl/instrument-catalogue.ts` (which asset class a symbol is). Nothing else computes R or trade money.
 
 ## R-multiple
 

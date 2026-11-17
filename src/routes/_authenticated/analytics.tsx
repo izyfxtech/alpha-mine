@@ -20,12 +20,12 @@ import {
 export const Route = createFileRoute("/_authenticated/analytics")({
   head: () => ({
     meta: [
-      { title: "Trade Analytics — AlphaMine" },
+      { title: "Trade Analytics — EdgeWhiz" },
       {
         name: "description",
         content: "Group and drill into your trades by setup, direction, outcome and more.",
       },
-      { property: "og:title", content: "Trade Analytics — AlphaMine" },
+      { property: "og:title", content: "Trade Analytics — EdgeWhiz" },
       {
         property: "og:description",
         content: "Group and drill into your trades by setup, direction, outcome and more.",

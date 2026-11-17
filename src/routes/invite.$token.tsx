@@ -13,10 +13,10 @@ import { localDay } from "@/lib/time/local-time";
 export const Route = createFileRoute("/invite/$token")({
   head: () => ({
     meta: [
-      { title: "Mentor invitation — AlphaMine" },
+      { title: "Mentor invitation — EdgeWhiz" },
       {
         name: "description",
-        content: "Accept an invitation to share or review a trading journal on AlphaMine.",
+        content: "Accept an invitation to share or review a trading journal on EdgeWhiz.",
       },
       { name: "robots", content: "noindex" },
     ],

@@ -16,7 +16,7 @@ import { Rv, Words } from "@/components/marketing/marketing-shell";
 import { Section, SiteLayout } from "@/components/marketing/site";
 import { Cal, Meter } from "@/components/analytics/visuals";
 
-const TITLE = "AlphaMine: the trading journal that finds your edge";
+const TITLE = "EdgeWhiz: the trading journal that finds your edge";
 const DESC = `Journal trades, measure discipline with the tilt meter, and analyse performance with ${CHARTS.length} Chart Lab reports. Imports MetaTrader 5 reports.`;
 
 export const Route = createFileRoute("/")({
@@ -65,7 +65,7 @@ const faqs = [
   },
   {
     q: "What is the tilt meter?",
-    a: "You tag each entry, management decision and exit. AlphaMine turns those tags into a daily discipline score, so you can see when your process slipped.",
+    a: "You tag each entry, management decision and exit. EdgeWhiz turns those tags into a daily discipline score, so you can see when your process slipped.",
   },
   {
     q: "Can I keep more than one journal?",
@@ -93,13 +93,13 @@ function Landing() {
           >
             Your trades already contain your edge.
             <br />
-            Mine it.
+            Find it.
           </h1>
           <p
             className="mx-auto mt-6 text-lg text-[var(--mk-mute)]"
             style={{ maxWidth: 600, textWrap: "balance" }}
           >
-            AlphaMine is a trading journal that puts hard numbers on your results and on your
+            EdgeWhiz is a trading journal that puts hard numbers on your results and on your
             discipline. Import from MetaTrader 5, tag your decisions, and see what actually pays.
           </p>
           <div className="mt-8 flex flex-col items-center gap-3">
@@ -123,7 +123,7 @@ function Landing() {
             className="mx-auto text-center text-3xl font-medium leading-snug md:text-4xl"
             style={{ maxWidth: 820 }}
           >
-            <Words text="Most traders review their results. Few review their decisions. AlphaMine shows you both, so the next trade starts from evidence instead of memory." />
+            <Words text="Most traders review their results. Few review their decisions. EdgeWhiz shows you both, so the next trade starts from evidence instead of memory." />
           </p>
         </Section>
 
@@ -348,7 +348,7 @@ function Dashboard() {
   return (
     <div
       role="img"
-      aria-label="Sample AlphaMine dashboard with KPIs, an equity curve and a profit calendar"
+      aria-label="Sample EdgeWhiz dashboard with KPIs, an equity curve and a profit calendar"
       className="rounded-xl border border-[var(--mk-line)] bg-[var(--mk-bg)] text-left"
     >
       <div className="flex items-center justify-between border-b border-[var(--mk-line)] px-4 py-3 text-sm">

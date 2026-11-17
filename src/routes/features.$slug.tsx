@@ -15,9 +15,9 @@ export const Route = createFileRoute("/features/$slug")({
     return {
       meta: f
         ? [
-            { title: `${f.name} | AlphaMine` },
+            { title: `${f.name} | EdgeWhiz` },
             { name: "description", content: f.lead },
-            { property: "og:title", content: `${f.name} | AlphaMine` },
+            { property: "og:title", content: `${f.name} | EdgeWhiz` },
             { property: "og:description", content: f.lead },
             { property: "og:type", content: "website" },
           ]

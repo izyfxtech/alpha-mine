@@ -27,9 +27,9 @@ import { DatePicker } from "@/components/ui/date-picker";
 export const Route = createFileRoute("/_authenticated/diary/sessions")({
   head: () => ({
     meta: [
-      { title: "Sessions — AlphaMine" },
+      { title: "Sessions — EdgeWhiz" },
       { name: "description", content: "Review trading periods with ratings, notes and stats." },
-      { property: "og:title", content: "Sessions — AlphaMine" },
+      { property: "og:title", content: "Sessions — EdgeWhiz" },
       {
         property: "og:description",
         content: "Review trading periods with ratings, notes and stats.",

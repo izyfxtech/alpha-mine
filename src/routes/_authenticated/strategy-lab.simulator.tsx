@@ -30,9 +30,9 @@ import { computeStats, fmtMoney, fmtNum } from "@/lib/pnl/metrics";
 export const Route = createFileRoute("/_authenticated/strategy-lab/simulator")({
   head: () => ({
     meta: [
-      { title: "Simulator — AlphaMine" },
+      { title: "Simulator — EdgeWhiz" },
       { name: "description", content: "Monte Carlo simulation of future account growth." },
-      { property: "og:title", content: "Simulator — AlphaMine" },
+      { property: "og:title", content: "Simulator — EdgeWhiz" },
       { property: "og:description", content: "Monte Carlo simulation of future account growth." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

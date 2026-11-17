@@ -1,4 +1,4 @@
-# AlphaMine Trading Journal
+# EdgeWhiz Trading Journal
 
 A private trading journal built with TanStack Start, React, Tailwind and Supabase.
 Journals, trades, plans, backtests and analytics are stored per user in Supabase
@@ -100,7 +100,7 @@ consistency). It uses closed trades only and does not model payouts or scaling p
 
 ## Hosting (Cloudflare)
 
-AlphaMine runs as a Cloudflare Worker. Screenshots live in an R2 bucket, shared journal links are cached in KV, and a
+EdgeWhiz runs as a Cloudflare Worker. Screenshots live in an R2 bucket, shared journal links are cached in KV, and a
 Cron Trigger empties the screenshot clean-up queue every day. Setup and deploy steps are in `docs/cloudflare.md`.
 
 ## Storage clean-up (screenshots)

@@ -14,12 +14,12 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/_authenticated/reports/annual")({
   head: () => ({
     meta: [
-      { title: "Annual Overview — AlphaMine" },
+      { title: "Annual Overview — EdgeWhiz" },
       {
         name: "description",
         content: "Twelve month calendars showing winning and losing days for the year.",
       },
-      { property: "og:title", content: "Annual Overview — AlphaMine" },
+      { property: "og:title", content: "Annual Overview — EdgeWhiz" },
       {
         property: "og:description",
         content: "Twelve month calendars showing winning and losing days for the year.",

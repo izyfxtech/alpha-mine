@@ -18,9 +18,9 @@ import {
 export const Route = createFileRoute("/_authenticated/reports/calendar")({
   head: () => ({
     meta: [
-      { title: "Calendar Report — AlphaMine" },
+      { title: "Calendar Report — EdgeWhiz" },
       { name: "description", content: "Monthly calendar of daily trading results." },
-      { property: "og:title", content: "Calendar Report — AlphaMine" },
+      { property: "og:title", content: "Calendar Report — EdgeWhiz" },
       { property: "og:description", content: "Monthly calendar of daily trading results." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

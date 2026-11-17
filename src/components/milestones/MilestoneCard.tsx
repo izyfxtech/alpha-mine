@@ -6,7 +6,7 @@ export const MILESTONES = [
   {
     title: "Journaled Trades",
     description:
-      "The path to your first true sample size. Journal 50 trades to get meaningful data in AlphaMine.",
+      "The path to your first true sample size. Journal 50 trades to get meaningful data in EdgeWhiz.",
     icon: BookOpen,
     tone: "var(--chart-5)",
     goal: 50,

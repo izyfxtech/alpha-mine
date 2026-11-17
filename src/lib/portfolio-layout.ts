@@ -16,7 +16,7 @@ export const JOURNAL_COLUMNS = [
   "Profit Factor",
   "Winrate",
   "Trades #",
-  "AM Score",
+  "Edge Score",
   "",
 ] as const;
 

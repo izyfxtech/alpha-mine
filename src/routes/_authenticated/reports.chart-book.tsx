@@ -24,9 +24,9 @@ import { useDialogs } from "@/components/ui/confirm";
 export const Route = createFileRoute("/_authenticated/reports/chart-book")({
   head: () => ({
     meta: [
-      { title: "Chart Book — AlphaMine" },
+      { title: "Chart Book — EdgeWhiz" },
       { name: "description", content: "Browse screenshots by trade." },
-      { property: "og:title", content: "Chart Book — AlphaMine" },
+      { property: "og:title", content: "Chart Book — EdgeWhiz" },
       { property: "og:description", content: "Browse screenshots by trade." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
