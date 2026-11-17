@@ -4,7 +4,7 @@ import { CtaBand, PageHero, Section, SiteLayout } from "@/components/marketing/s
 import { Rv } from "@/components/marketing/marketing-shell";
 
 const DESC =
-  "Bring your history into AlphaMine from MetaTrader 5 reports, CSV or Excel files, or log trades by hand.";
+  "Bring your history into EdgeWhiz from MetaTrader 5 reports, CSV or Excel files, or log trades by hand.";
 const methods = [
   {
     icon: FileArrowDown,
@@ -39,9 +39,9 @@ const steps = [
 export const Route = createFileRoute("/import")({
   head: () => ({
     meta: [
-      { title: "Import trades | AlphaMine" },
+      { title: "Import trades | EdgeWhiz" },
       { name: "description", content: DESC },
-      { property: "og:title", content: "Import trades | AlphaMine" },
+      { property: "og:title", content: "Import trades | EdgeWhiz" },
       { property: "og:description", content: DESC },
       { property: "og:type", content: "website" },
     ],

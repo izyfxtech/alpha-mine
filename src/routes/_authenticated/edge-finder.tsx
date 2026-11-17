@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/_authenticated/edge-finder")({
   head: () => ({
     meta: [
-      { title: "Edge Finder — AlphaMine" },
+      { title: "Edge Finder — EdgeWhiz" },
       {
         name: "description",
         content: "Automatically finds the strong and weak parts of your trading.",

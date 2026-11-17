@@ -11,9 +11,9 @@ import { computeStats } from "@/lib/pnl/metrics";
 export const Route = createFileRoute("/_authenticated/milestones")({
   head: () => ({
     meta: [
-      { title: "Milestones — AlphaMine" },
+      { title: "Milestones — EdgeWhiz" },
       { name: "description", content: "Track your trading journal milestones and progress." },
-      { property: "og:title", content: "Milestones — AlphaMine" },
+      { property: "og:title", content: "Milestones — EdgeWhiz" },
       {
         property: "og:description",
         content: "Track your trading journal milestones and progress.",

@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "alphamine",
+  "name": "edgewhiz",
   // src/server.ts wraps the TanStack Start server entry (error page) and adds the scheduled (Cron) handler.
   "main": "./src/server.ts",
   "compatibility_date": "2026-11-01",
@@ -13,7 +13,7 @@
   // see docs/cloudflare.md. The Supabase URL and publishable key are build-time VITE_ variables, as before.
 
   // Screenshots (replaces the Supabase Storage bucket).
-  "r2_buckets": [{ "binding": "SCREENSHOTS", "bucket_name": "alphamine-screenshots" }],
+  "r2_buckets": [{ "binding": "SCREENSHOTS", "bucket_name": "edgewhiz-screenshots" }],
 
   // Caches public share links and counts requests for rate limiting.
   "kv_namespaces": [{ "binding": "EDGE_CACHE" }],

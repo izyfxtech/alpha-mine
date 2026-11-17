@@ -86,7 +86,7 @@ describe("mapTrade", () => {
       "-1.5",
     ]);
   });
-  it("falls back to AlphaMine fees (a positive cost) as a negative fee", () => {
+  it("falls back to EdgeWhiz fees (a positive cost) as a negative fee", () => {
     const m = mapTrade({ ...base, fees: 4.2 }, ins, lotsJournal, new Map());
     if (!("trade" in m)) throw new Error(m.skip);
     expect(m.trade.broker?.fee?.toString()).toBe("-4.2");

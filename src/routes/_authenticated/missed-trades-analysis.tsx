@@ -27,12 +27,12 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/_authenticated/missed-trades-analysis")({
   head: () => ({
     meta: [
-      { title: "Missed Trades Analysis — AlphaMine" },
+      { title: "Missed Trades Analysis — EdgeWhiz" },
       {
         name: "description",
         content: "Compare your missed trades with the trades you actually took.",
       },
-      { property: "og:title", content: "Missed Trades Analysis — AlphaMine" },
+      { property: "og:title", content: "Missed Trades Analysis — EdgeWhiz" },
       {
         property: "og:description",
         content: "Compare your missed trades with the trades you actually took.",

@@ -5,7 +5,7 @@ import { Rv } from "@/components/marketing/marketing-shell";
 import { FEATURES } from "@/lib/content/site-content";
 
 const DESC =
-  "AlphaMine is free while we build. Paid plans are coming, and pricing will be published here before they launch.";
+  "EdgeWhiz is free while we build. Paid plans are coming, and pricing will be published here before they launch.";
 const included = [
   ...FEATURES.map((f) => f.name),
   "MetaTrader 5, CSV and Excel import",
@@ -14,10 +14,10 @@ const included = [
   "Trading plans, missed trades and diary",
 ];
 const faqs = [
-  { q: "Is AlphaMine really free?", a: "Yes. Today every feature in the app is free to use." },
+  { q: "Is EdgeWhiz really free?", a: "Yes. Today every feature in the app is free to use." },
   {
     q: "Do I need to add a card?",
-    a: "No. AlphaMine does not collect payment details at the moment.",
+    a: "No. EdgeWhiz does not collect payment details at the moment.",
   },
   {
     q: "When will paid plans arrive?",
@@ -31,9 +31,9 @@ const faqs = [
 export const Route = createFileRoute("/pricing")({
   head: () => ({
     meta: [
-      { title: "Pricing | AlphaMine" },
+      { title: "Pricing | EdgeWhiz" },
       { name: "description", content: DESC },
-      { property: "og:title", content: "Pricing | AlphaMine" },
+      { property: "og:title", content: "Pricing | EdgeWhiz" },
       { property: "og:description", content: DESC },
       { property: "og:type", content: "website" },
     ],
@@ -49,7 +49,7 @@ export const Route = createFileRoute("/pricing")({
       <PageHero
         eyebrow="Pricing"
         title="Free while we build. Paid plans are coming."
-        lead="Everything in AlphaMine is free today. We will add paid plans later, and publish their pricing here before they launch."
+        lead="Everything in EdgeWhiz is free today. We will add paid plans later, and publish their pricing here before they launch."
       >
         <Link to="/auth" search={{ mode: "signup" }} className="mk-btn mk-btn-pri">
           Start journaling free <ArrowRight size={18} weight="bold" />
@@ -67,7 +67,7 @@ export const Route = createFileRoute("/pricing")({
               </div>
               <p className="mt-4 font-mono text-5xl font-semibold">$0</p>
               <p className="mt-2 text-base text-[var(--mk-mute)]">
-                Every feature, while AlphaMine is in its free period.
+                Every feature, while EdgeWhiz is in its free period.
               </p>
               <ul className="mt-8 grid gap-3 sm:grid-cols-2">
                 {included.map((i) => (

@@ -64,7 +64,7 @@ export const Route = createFileRoute("/_authenticated/chart-lab/$chart")({
     return { title: c[1] };
   },
   head: ({ loaderData }) => {
-    const title = `${loaderData?.title ?? "Chart Lab"} — AlphaMine`;
+    const title = `${loaderData?.title ?? "Chart Lab"} — EdgeWhiz`;
     const description = "Chart Lab analysis of your trades.";
     return {
       meta: [

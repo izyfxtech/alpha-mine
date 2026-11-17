@@ -18,15 +18,15 @@ import { axis, tooltipStyle, tradeAxis, yScale } from "@/components/kit";
 export const Route = createFileRoute("/share/$token")({
   head: () => ({
     meta: [
-      { title: "Shared Trading Journal — AlphaMine" },
+      { title: "Shared Trading Journal — EdgeWhiz" },
       {
         name: "description",
-        content: "A read-only summary of a trader's journal performance, shared from AlphaMine.",
+        content: "A read-only summary of a trader's journal performance, shared from EdgeWhiz.",
       },
-      { property: "og:title", content: "Shared Trading Journal — AlphaMine" },
+      { property: "og:title", content: "Shared Trading Journal — EdgeWhiz" },
       {
         property: "og:description",
-        content: "A read-only summary of a trader's journal performance, shared from AlphaMine.",
+        content: "A read-only summary of a trader's journal performance, shared from EdgeWhiz.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -69,7 +69,7 @@ function SharedJournal() {
       <div className="p-10 text-center">
         <p className="font-semibold">This link is no longer available.</p>
         <Link to="/" className="mt-2 inline-block text-sm text-info">
-          Go to AlphaMine
+          Go to EdgeWhiz
         </Link>
       </div>
     );
@@ -113,7 +113,7 @@ function SharedJournal() {
           <h1 className="text-xl font-semibold">{data.name}</h1>
         </div>
         <Link to="/" className="text-sm font-semibold text-profit">
-          AlphaMine
+          EdgeWhiz
         </Link>
       </header>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">

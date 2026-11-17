@@ -1,6 +1,6 @@
 /**
  * Local replacement for the "analyse" step of a broker import: find the header row and suggest which column feeds
- * which AlphaMine field, from common header names. Broker-agnostic on purpose: it never assumes a broker's exact
+ * which EdgeWhiz field, from common header names. Broker-agnostic on purpose: it never assumes a broker's exact
  * export format, and every suggestion stays editable in the dialog.
  */
 export const FIELDS = [

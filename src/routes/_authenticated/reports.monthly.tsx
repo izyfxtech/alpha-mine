@@ -25,9 +25,9 @@ import {
 export const Route = createFileRoute("/_authenticated/reports/monthly")({
   head: () => ({
     meta: [
-      { title: "Monthly Reports — AlphaMine" },
+      { title: "Monthly Reports — EdgeWhiz" },
       { name: "description", content: "Compare monthly and weekly trading performance." },
-      { property: "og:title", content: "Monthly Reports — AlphaMine" },
+      { property: "og:title", content: "Monthly Reports — EdgeWhiz" },
       { property: "og:description", content: "Compare monthly and weekly trading performance." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

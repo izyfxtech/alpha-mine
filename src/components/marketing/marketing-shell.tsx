@@ -94,7 +94,7 @@ export const Words = ({ text }: { text: string }) => (
 );
 
 export const BrandLink = () => (
-  <Link to="/" aria-label="AlphaMine home">
+  <Link to="/" aria-label="EdgeWhiz home">
     <Logo />
   </Link>
 );

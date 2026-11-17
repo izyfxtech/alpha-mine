@@ -27,9 +27,9 @@ import { DatePicker, DateTimePicker } from "@/components/ui/date-picker";
 export const Route = createFileRoute("/_authenticated/missed-trades")({
   head: () => ({
     meta: [
-      { title: "Missed Trades — AlphaMine" },
+      { title: "Missed Trades — EdgeWhiz" },
       { name: "description", content: "Log the trades you saw but didn't take." },
-      { property: "og:title", content: "Missed Trades — AlphaMine" },
+      { property: "og:title", content: "Missed Trades — EdgeWhiz" },
       { property: "og:description", content: "Log the trades you saw but didn't take." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

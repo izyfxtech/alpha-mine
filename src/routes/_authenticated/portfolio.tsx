@@ -48,9 +48,9 @@ import {
 export const Route = createFileRoute("/_authenticated/portfolio")({
   head: () => ({
     meta: [
-      { title: "Portfolio — AlphaMine" },
+      { title: "Portfolio — EdgeWhiz" },
       { name: "description", content: "Compare journal performance and combined equity." },
-      { property: "og:title", content: "Portfolio — AlphaMine" },
+      { property: "og:title", content: "Portfolio — EdgeWhiz" },
       { property: "og:description", content: "Compare journal performance and combined equity." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

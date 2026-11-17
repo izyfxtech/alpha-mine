@@ -10,9 +10,9 @@ const DESC =
 export const Route = createFileRoute("/blog/")({
   head: () => ({
     meta: [
-      { title: "Blog | AlphaMine" },
+      { title: "Blog | EdgeWhiz" },
       { name: "description", content: DESC },
-      { property: "og:title", content: "Blog | AlphaMine" },
+      { property: "og:title", content: "Blog | EdgeWhiz" },
       { property: "og:description", content: DESC },
       { property: "og:type", content: "website" },
     ],

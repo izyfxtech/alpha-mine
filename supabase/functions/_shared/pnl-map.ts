@@ -1,5 +1,5 @@
 /**
- * Pure mapping from AlphaMine rows to engine inputs. No I/O, so it is unit tested in Vitest and
+ * Pure mapping from EdgeWhiz rows to engine inputs. No I/O, so it is unit tested in Vitest and
  * reused unchanged by the Edge Function.
  */
 import {
@@ -119,7 +119,7 @@ export function mapTrade(
   const qty = D(row.quantity);
   const lots = unit === "lots" ? qty : qty.div(spec.contractSize);
 
-  // Costs. MetaTrader style columns win; otherwise AlphaMine `fees` (a positive cost) is used.
+  // Costs. MetaTrader style columns win; otherwise EdgeWhiz `fees` (a positive cost) is used.
   const broker: NonNullable<ClosedTrade["broker"]> = {};
   const imported = (row.source ?? "manual") !== "manual";
   if (imported && has(row.gross_pnl)) broker.profit = D(row.gross_pnl);

@@ -62,7 +62,7 @@ export const POSTS: Post[] = [
       },
       {
         t: "p",
-        text: "This is the idea behind the tilt meter in AlphaMine. It scores the decisions you control, so a lucky win cannot hide a broken process.",
+        text: "This is the idea behind the tilt meter in EdgeWhiz. It scores the decisions you control, so a lucky win cannot hide a broken process.",
       },
     ],
   },
@@ -154,7 +154,7 @@ export const POSTS: Post[] = [
       },
       {
         t: "p",
-        text: "Chart Lab and Edge Finder in AlphaMine compute these figures from your journal, and the simulator shows how wide the range of outcomes can be even when expectancy is positive. This article is education, not financial advice.",
+        text: "Chart Lab and Edge Finder in EdgeWhiz compute these figures from your journal, and the simulator shows how wide the range of outcomes can be even when expectancy is positive. This article is education, not financial advice.",
       },
     ],
   },
@@ -211,7 +211,7 @@ export const POSTS: Post[] = [
       },
       {
         t: "p",
-        text: "In AlphaMine you define your own setups, comment tags and custom statistics, so the journal records what you actually decide on and nothing more.",
+        text: "In EdgeWhiz you define your own setups, comment tags and custom statistics, so the journal records what you actually decide on and nothing more.",
       },
     ],
   },

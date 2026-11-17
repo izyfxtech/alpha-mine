@@ -26,12 +26,12 @@ import { useDialogs } from "@/components/ui/confirm";
 export const Route = createFileRoute("/_authenticated/strategy-lab/backtester")({
   head: () => ({
     meta: [
-      { title: "Backtester — AlphaMine" },
+      { title: "Backtester — EdgeWhiz" },
       {
         name: "description",
         content: "Record backtest outcomes side by side and compare win rates and totals.",
       },
-      { property: "og:title", content: "Backtester — AlphaMine" },
+      { property: "og:title", content: "Backtester — EdgeWhiz" },
       {
         property: "og:description",
         content: "Record backtest outcomes side by side and compare win rates and totals.",

@@ -3,7 +3,7 @@ import { ArrowRight } from "@phosphor-icons/react";
 import { CtaBand, PageHero, Section, SiteLayout } from "@/components/marketing/site";
 import { Rv } from "@/components/marketing/marketing-shell";
 
-const DESC = "AlphaMine is built by traders for traders, under IZ Technologies Limited.";
+const DESC = "EdgeWhiz is built by traders for traders, under IZ Technologies Limited.";
 const beliefs = [
   {
     t: "Decisions over outcomes",
@@ -21,9 +21,9 @@ const beliefs = [
 export const Route = createFileRoute("/about")({
   head: () => ({
     meta: [
-      { title: "About | AlphaMine" },
+      { title: "About | EdgeWhiz" },
       { name: "description", content: DESC },
-      { property: "og:title", content: "About | AlphaMine" },
+      { property: "og:title", content: "About | EdgeWhiz" },
       { property: "og:description", content: DESC },
       { property: "og:type", content: "website" },
     ],
@@ -39,7 +39,7 @@ export const Route = createFileRoute("/about")({
       <PageHero
         eyebrow="About"
         title="Built by traders, for traders"
-        lead="AlphaMine is made by committed traders for committed traders, and published by IZ Technologies Limited."
+        lead="EdgeWhiz is made by committed traders for committed traders, and published by IZ Technologies Limited."
       >
         <Link to="/auth" search={{ mode: "signup" }} className="mk-btn mk-btn-pri">
           Start journaling free <ArrowRight size={18} weight="bold" />
@@ -48,7 +48,7 @@ export const Route = createFileRoute("/about")({
       <Section label="Why we exist" title="A journal made by people who trade" split>
         <div className="space-y-6 text-lg text-[var(--mk-mute)]">
           <p>
-            Most trading tools are built to look at the market. AlphaMine looks at you: your setups,
+            Most trading tools are built to look at the market. EdgeWhiz looks at you: your setups,
             your exits and the moments your discipline slipped.
           </p>
           <p>
@@ -56,7 +56,7 @@ export const Route = createFileRoute("/about")({
             serious enough for traders who take the work seriously. So that is what we are making.
           </p>
           <p>
-            IZ Technologies Limited is the company behind AlphaMine. The people behind it are
+            IZ Technologies Limited is the company behind EdgeWhiz. The people behind it are
             committed traders, and that shapes every feature we ship.
           </p>
         </div>

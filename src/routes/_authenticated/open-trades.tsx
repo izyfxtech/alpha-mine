@@ -16,7 +16,7 @@ import { pnlText } from "@/components/kit";
 export const Route = createFileRoute("/_authenticated/open-trades")({
   head: () => ({
     meta: [
-      { title: "Open Trades — AlphaMine" },
+      { title: "Open Trades — EdgeWhiz" },
       {
         name: "description",
         content: "Open positions: size, stop, target, risk and what-if results.",

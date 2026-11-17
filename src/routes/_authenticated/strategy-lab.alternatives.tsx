@@ -33,13 +33,13 @@ import { useDialogs } from "@/components/ui/confirm";
 export const Route = createFileRoute("/_authenticated/strategy-lab/alternatives")({
   head: () => ({
     meta: [
-      { title: "Alternative Strategies — AlphaMine" },
+      { title: "Alternative Strategies — EdgeWhiz" },
       {
         name: "description",
         content:
           "Compare your real trade results with what an alternative strategy would have made.",
       },
-      { property: "og:title", content: "Alternative Strategies — AlphaMine" },
+      { property: "og:title", content: "Alternative Strategies — EdgeWhiz" },
       {
         property: "og:description",
         content:

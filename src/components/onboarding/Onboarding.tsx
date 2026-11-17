@@ -245,7 +245,7 @@ export function Onboarding() {
           {step === 0 && (
             <>
               <DialogHeader>
-                <DialogTitle className="text-xl">Welcome to AlphaMine</DialogTitle>
+                <DialogTitle className="text-xl">Welcome to EdgeWhiz</DialogTitle>
                 <DialogDescription>
                   Two minutes to set up. You will name your journal, tell us about your account and
                   bring in your first trades.

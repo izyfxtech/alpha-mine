@@ -38,9 +38,9 @@ import {
 export const Route = createFileRoute("/_authenticated/home")({
   head: () => ({
     meta: [
-      { title: "Home — AlphaMine" },
+      { title: "Home — EdgeWhiz" },
       { name: "description", content: "Your trading performance at a glance." },
-      { property: "og:title", content: "Home — AlphaMine" },
+      { property: "og:title", content: "Home — EdgeWhiz" },
       { property: "og:description", content: "Your trading performance at a glance." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

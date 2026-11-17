@@ -21,9 +21,9 @@ import { useXMode } from "@/components/analytics/x-axis";
 export const Route = createFileRoute("/_authenticated/equity")({
   head: () => ({
     meta: [
-      { title: "Equity Graph — AlphaMine" },
+      { title: "Equity Graph — EdgeWhiz" },
       { name: "description", content: "Your account equity over time." },
-      { property: "og:title", content: "Equity Graph — AlphaMine" },
+      { property: "og:title", content: "Equity Graph — EdgeWhiz" },
       { property: "og:description", content: "Your account equity over time." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

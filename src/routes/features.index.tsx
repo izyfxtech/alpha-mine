@@ -5,13 +5,13 @@ import { Rv } from "@/components/marketing/marketing-shell";
 import { FEATURES, MORE } from "@/lib/content/site-content";
 
 const DESC =
-  "Journal, profit calendar, tilt meter, Chart Lab, Edge Finder and Strategy Lab: the tools inside AlphaMine.";
+  "Journal, profit calendar, tilt meter, Chart Lab, Edge Finder and Strategy Lab: the tools inside EdgeWhiz.";
 export const Route = createFileRoute("/features/")({
   head: () => ({
     meta: [
-      { title: "Features | AlphaMine" },
+      { title: "Features | EdgeWhiz" },
       { name: "description", content: DESC },
-      { property: "og:title", content: "Features | AlphaMine" },
+      { property: "og:title", content: "Features | EdgeWhiz" },
       { property: "og:description", content: DESC },
       { property: "og:type", content: "website" },
     ],

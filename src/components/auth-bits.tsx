@@ -14,7 +14,7 @@ export function AuthFrame({ children }: { children: ReactNode }) {
         <BrandLink />
         <div>
           <h2 className="mk-grad text-5xl font-semibold" style={{ maxWidth: 480 }}>
-            Mine your trades for the edge you already have.
+            Find the edge you already have in your trades.
           </h2>
           <p className="mt-6 text-lg text-[var(--mk-mute)]" style={{ maxWidth: 480 }}>
             Journal every trade, measure discipline with the tilt meter, and let seventeen Chart Lab

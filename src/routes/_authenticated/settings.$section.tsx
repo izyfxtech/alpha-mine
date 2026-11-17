@@ -13,8 +13,8 @@ import { SessionCategories } from "@/components/settings/session-categories";
 export const Route = createFileRoute("/_authenticated/settings/$section")({
   head: ({ params }) => {
     const label = SETTINGS.find(([s]) => s === params.section)?.[1] ?? "Settings";
-    const title = `${label} Settings — AlphaMine`;
-    const description = `Manage ${label.toLowerCase()} settings in AlphaMine.`;
+    const title = `${label} Settings — EdgeWhiz`;
+    const description = `Manage ${label.toLowerCase()} settings in EdgeWhiz.`;
     return {
       meta: [
         { title },

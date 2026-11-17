@@ -14,10 +14,10 @@ export const Route = createFileRoute("/auth")({
     s.mode === "signup" ? { mode: "signup" } : {},
   head: () => ({
     meta: [
-      { title: "Sign in to AlphaMine" },
-      { name: "description", content: "Sign in or create your AlphaMine trading journal account." },
+      { title: "Sign in to EdgeWhiz" },
+      { name: "description", content: "Sign in or create your EdgeWhiz trading journal account." },
       { name: "robots", content: "noindex" },
-      { property: "og:title", content: "Sign in to AlphaMine" },
+      { property: "og:title", content: "Sign in to EdgeWhiz" },
       { property: "og:type", content: "website" },
     ],
   }),

@@ -1,9 +1,33 @@
 function LogoMark({ className = "h-7 w-7" }: { className?: string }) {
   return (
     <svg viewBox="0 0 64 64" className={className} aria-hidden>
-      <path d="M26 4 L32 12 L26 20 L20 12 Z" className="fill-profit" />
-      <path d="M22 22 L4 58 H14 L30 26 Z" className="fill-ink" />
-      <path d="M32 26 L50 58 H60 L40 22 Z" className="fill-profit" />
+      <defs>
+        <clipPath id="ew-left">
+          <rect x="0" y="0" width="32" height="64" />
+        </clipPath>
+        <clipPath id="ew-right">
+          <rect x="32" y="0" width="32" height="64" />
+        </clipPath>
+      </defs>
+      <path
+        d="M7 20 L19 56 L32 30 L45 56 L57 20"
+        fill="none"
+        strokeWidth="10"
+        strokeLinejoin="miter"
+        strokeMiterlimit="10"
+        className="stroke-ink"
+        clipPath="url(#ew-left)"
+      />
+      <path
+        d="M7 20 L19 56 L32 30 L45 56 L57 20"
+        fill="none"
+        strokeWidth="10"
+        strokeLinejoin="miter"
+        strokeMiterlimit="10"
+        className="stroke-profit"
+        clipPath="url(#ew-right)"
+      />
+      <path d="M32 1 L37.5 8.5 L32 16 L26.5 8.5 Z" className="fill-profit" />
     </svg>
   );
 }
@@ -14,8 +38,8 @@ export function Logo({ collapsed }: { collapsed?: boolean }) {
     <div className="flex items-center gap-2">
       <LogoMark />
       <span className="text-xl font-extrabold tracking-tight">
-        <span className="text-ink">Alpha</span>
-        <span className="text-profit">Mine</span>
+        <span className="text-ink">Edge</span>
+        <span className="text-profit">Whiz</span>
       </span>
     </div>
   );

@@ -15,7 +15,7 @@ import { fmtMoney, fmtNum, fmtPct } from "@/lib/pnl/metrics";
 export const Route = createFileRoute("/_authenticated/rules")({
   head: () => ({
     meta: [
-      { title: "Rule Compliance — AlphaMine" },
+      { title: "Rule Compliance — EdgeWhiz" },
       {
         name: "description",
         content: "How often you follow your trading rules and what breaking them costs.",

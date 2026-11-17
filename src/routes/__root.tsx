@@ -80,15 +80,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "AlphaMine — Trading Journal" },
+      { title: "EdgeWhiz — Trading Journal" },
       {
         name: "description",
-        content: "AlphaMine is a trading journal that turns your trades into an edge.",
+        content: "EdgeWhiz is a trading journal that turns your trades into an edge.",
       },
-      { property: "og:title", content: "AlphaMine — Trading Journal" },
+      { property: "og:title", content: "EdgeWhiz — Trading Journal" },
       {
         property: "og:description",
-        content: "AlphaMine is a trading journal that turns your trades into an edge.",
+        content: "EdgeWhiz is a trading journal that turns your trades into an edge.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

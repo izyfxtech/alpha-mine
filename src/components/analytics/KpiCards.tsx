@@ -60,7 +60,7 @@ export function KpiCardsSkeleton() {
           ["Winrate", "h-[58px] w-[84px]"],
           ["Avg P&L", "h-[52px] w-[84px]"],
           ["Profit Factor", "h-[9px] w-[105px]"],
-          ["AM Score", "h-11 w-11 rounded-full"],
+          ["Edge Score", "h-11 w-11 rounded-full"],
         ] as const
       ).map(([label, graphic]) => (
         <Widget
@@ -171,7 +171,7 @@ export function KpiCards({
         </div>
       </Widget>
       <Widget
-        label="AM Score"
+        label="Edge Score"
         value={fmtNum(s.score)}
         info="A 0-100 quality score for the journal: 40% return relative to max drawdown (capped at 5x), 40% profit factor (capped at 3), and 20% sample size (full marks at 100 trades)."
       >

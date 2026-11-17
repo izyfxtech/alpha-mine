@@ -13,9 +13,9 @@ import { useDialogs } from "@/components/ui/confirm";
 export const Route = createFileRoute("/_authenticated/diary/notebook")({
   head: () => ({
     meta: [
-      { title: "Notebook — AlphaMine" },
+      { title: "Notebook — EdgeWhiz" },
       { name: "description", content: "Your trading notebook, organised in folders." },
-      { property: "og:title", content: "Notebook — AlphaMine" },
+      { property: "og:title", content: "Notebook — EdgeWhiz" },
       { property: "og:description", content: "Your trading notebook, organised in folders." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
