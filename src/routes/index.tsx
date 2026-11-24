@@ -15,6 +15,7 @@ import {
 import { Rv, Words } from "@/components/marketing/marketing-shell";
 import { Section, SiteLayout } from "@/components/marketing/site";
 import { Cal, Meter } from "@/components/analytics/visuals";
+import { PerformanceRadar, type PerformanceMetric } from "@/components/home/PerformanceRadar";
 
 const TITLE = "EdgeWhiz: the trading journal that finds your edge";
 const DESC = `Journal trades, measure discipline with the tilt meter, and analyse performance with ${CHARTS.length} Chart Lab reports. Imports MetaTrader 5 reports.`;
@@ -333,96 +334,176 @@ function Bento({
 }
 
 const Stage = ({ children }: { children: ReactNode }) => (
-  <div className="mx-auto" style={{ maxWidth: 1040 }}>
+  <div className="mx-auto" style={{ maxWidth: 1280 }}>
     {children}
   </div>
 );
 
-/** Hero product preview. The same calendar, meters and curve reappear in the feature cards below. */
+/** Static preview of the signed-in dashboard: account context, risk profile, equity and review workflow. */
 function Dashboard() {
+  const radar: PerformanceMetric[] = [
+    { metric: "Win %", value: 55 },
+    { metric: "Profit factor", value: 38 },
+    { metric: "Avg win/loss", value: 42 },
+    { metric: "Recovery", value: 46 },
+    { metric: "Drawdown control", value: 73 },
+    { metric: "Consistency", value: 62 },
+  ];
   const kpis = [
-    ["Net P&L", "+$4,812.37", true],
-    ["Win rate", "64.8%", false],
-    ["Profit factor", "1.84", false],
-    ["Tilt score", "82", false],
+    ["Net P&L", "+$488.45", true],
+    ["Trade expectancy", "$15.76", false],
+    ["Profit factor", "1.14", false],
+    ["Trade win %", "54.84%", false],
+    ["Avg win/loss", "0.94", false],
+  ] as const;
+  const dailyBars = [44, 17, 67, 38, 14];
+  const recent = [
+    ["Feb 05", "MES", "Short", "−$456.75"],
+    ["Feb 05", "MES", "Long", "+$604.00"],
+    ["Feb 04", "6E", "Long", "+$52.90"],
+    ["Feb 04", "MNQ", "Short", "+$473.00"],
   ] as const;
   return (
     <div
       role="img"
-      aria-label="EdgeWhiz dashboard concept with account controls, key performance metrics, equity curve and profit calendar"
+      aria-label="EdgeWhiz dashboard concept with a purple navigation rail, account filters, performance radar, profit charts and trade calendar"
       className="overflow-hidden rounded-xl border border-[var(--mk-line)] bg-[var(--mk-bg)] text-left shadow-2xl"
     >
-      <div className="flex items-center justify-between border-b border-[var(--mk-line)] px-4 py-3 text-sm">
-        <div className="flex gap-4 font-semibold">
-          {["Home", "Journal", "Chart Lab"].map((t, i) => (
-            <span key={t} className={i === 0 ? "" : "text-[var(--mk-mute)]"}>
-              {t}
-            </span>
-          ))}
-        </div>
-        <span className="text-xs text-[var(--mk-mute)]">Visual concept · sample data</span>
-      </div>
-      <div className="flex flex-col justify-between gap-4 border-b border-[var(--mk-line)] px-4 py-4 lg:flex-row lg:items-end">
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--mk-mute)]">
-            Tracking · dashboard
-          </p>
-          <h3 className="mt-1 text-xl font-semibold">Day trade BTC/ETH</h3>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          {["R-multiple", "Filters", "Nov 01–30, 2026", "All accounts"].map((label) => (
-            <span
-              key={label}
-              className="rounded-md border border-[var(--mk-line)] bg-[var(--mk-s1)] px-3 py-2 text-[var(--mk-mute)]"
-            >
-              {label}
-            </span>
-          ))}
-          <span className="rounded-md bg-[var(--mk-acc)] px-3 py-2 font-semibold text-black">
-            Start my day
+      <div className="grid min-w-0 md:grid-cols-[148px_minmax(0,1fr)]">
+        <aside className="hidden flex-col gap-1 border-r border-[var(--mk-line)] bg-[var(--mk-nav)] p-3 md:flex">
+          <span className="mb-2 rounded-md bg-[var(--mk-acc)] px-2 py-2 text-center text-[11px] font-semibold text-white">
+            + Add Trade
           </span>
-        </div>
-      </div>
-      <div className="grid gap-3 p-4 md:grid-cols-5">
-        <div className="grid grid-cols-2 gap-3 md:col-span-2">
-          {kpis.map(([k, v, pos]) => (
-            <div
-              key={k}
-              className="rounded-lg border border-[var(--mk-line)] bg-[var(--mk-s1)] p-3"
+          {[
+            "Dashboard",
+            "Day View",
+            "Trade View",
+            "Notebook",
+            "Reports",
+            "Strategies",
+            "Progress Tracker",
+          ].map((item, index) => (
+            <span
+              key={item}
+              className={`rounded-md px-2 py-2 text-[10px] font-medium ${index === 0 ? "bg-[var(--mk-acc)]/20 text-[var(--mk-fg)]" : "text-[var(--mk-mute)]"}`}
             >
-              <p className="text-xs text-[var(--mk-mute)]">{k}</p>
-              <p
-                className={`mt-1 font-mono text-xl font-semibold ${pos ? "text-[var(--mk-acc)]" : ""}`}
-              >
-                {v}
-              </p>
-            </div>
+              {item}
+            </span>
           ))}
-        </div>
-        <div className="rounded-lg border border-[var(--mk-line)] bg-[var(--mk-s1)] p-3 md:col-span-2">
-          <p className="text-xs text-[var(--mk-mute)]">Equity curve</p>
-          <svg viewBox="0 0 400 200" className="mt-2 h-auto w-full" aria-hidden>
-            {[40, 90, 140, 190].map((y) => (
-              <line key={y} x1="0" x2="400" y1={y} y2={y} stroke="var(--mk-line)" />
+        </aside>
+        <div className="min-w-0">
+          <div className="flex flex-col justify-between gap-3 border-b border-[var(--mk-line)] px-4 py-3 lg:flex-row lg:items-center">
+            <div>
+              <p className="text-[9px] font-semibold uppercase tracking-[0.17em] text-[var(--mk-mute)]">
+                Trading workspace
+              </p>
+              <h3 className="mt-1 text-lg font-semibold">Dashboard</h3>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5 text-[9px]">
+              {["R-multiple", "Filters", "Jan 14–Feb 05, 2026", "All accounts"].map((label) => (
+                <span
+                  key={label}
+                  className="rounded-md border border-[var(--mk-line)] bg-[var(--mk-s1)] px-2 py-1.5 text-[var(--mk-mute)]"
+                >
+                  {label}
+                </span>
+              ))}
+              <span className="rounded-md bg-[var(--mk-acc)] px-2 py-1.5 font-semibold text-white">
+                Start my day
+              </span>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2 p-3 sm:grid-cols-3 xl:grid-cols-5">
+            {kpis.map(([label, value, positive]) => (
+              <div
+                key={label}
+                className="min-w-0 rounded-lg border border-[var(--mk-line)] bg-[var(--mk-s1)] p-2.5"
+              >
+                <p className="truncate text-[9px] text-[var(--mk-mute)]">{label}</p>
+                <p
+                  className={`mt-1 truncate font-mono text-sm font-semibold ${positive ? "text-[var(--profit)]" : "text-[var(--mk-fg)]"}`}
+                >
+                  {value}
+                </p>
+              </div>
             ))}
-            <path
-              d="M0 180 L35 170 L65 175 L100 148 L130 154 L165 118 L195 126 L230 92 L260 100 L295 66 L325 76 L360 40 L400 30 L400 200 L0 200 Z"
-              fill="var(--mk-acc)"
-              opacity="0.12"
-            />
-            <path
-              d="M0 180 L35 170 L65 175 L100 148 L130 154 L165 118 L195 126 L230 92 L260 100 L295 66 L325 76 L360 40 L400 30"
-              fill="none"
-              stroke="var(--mk-acc)"
-              strokeWidth="3"
-              strokeLinejoin="round"
-              strokeLinecap="round"
-            />
-          </svg>
-        </div>
-        <div className="rounded-lg border border-[var(--mk-line)] bg-[var(--mk-s1)] p-3">
-          <p className="mb-2 text-xs text-[var(--mk-mute)]">Profit calendar</p>
-          <Cal />
+          </div>
+          <div className="grid grid-cols-1 gap-2 px-3 pb-3 lg:grid-cols-[1.05fr_1.1fr_0.9fr]">
+            <PerformanceRadar data={radar} score={38.63} color="var(--mk-acc)" />
+            <div className="rounded-lg border border-[var(--mk-line)] bg-[var(--mk-s1)] p-3">
+              <p className="text-[10px] font-medium">Daily cumulative P&amp;L</p>
+              <svg viewBox="0 0 360 150" className="mt-2 h-auto w-full" aria-hidden>
+                {[30, 65, 100, 135].map((y) => (
+                  <line key={y} x1="0" x2="360" y1={y} y2={y} stroke="var(--mk-line)" />
+                ))}
+                <path
+                  d="M0 130 L45 112 L90 103 L135 75 L180 66 L225 39 L270 22 L315 34 L360 70 L360 150 L0 150 Z"
+                  fill="var(--mk-acc)"
+                  opacity="0.22"
+                />
+                <path
+                  d="M0 130 L45 112 L90 103 L135 75 L180 66 L225 39 L270 22 L315 34 L360 70"
+                  fill="none"
+                  stroke="var(--mk-acc)"
+                  strokeWidth="2.5"
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </div>
+            <div className="rounded-lg border border-[var(--mk-line)] bg-[var(--mk-s1)] p-3">
+              <p className="text-[10px] font-medium">Net daily P&amp;L</p>
+              <div className="mt-3 flex h-[150px] items-end justify-around gap-2 border-b border-[var(--mk-line)] pb-0">
+                {dailyBars.map((height, index) => (
+                  <span
+                    key={index}
+                    className="w-5 rounded-t-sm"
+                    style={{
+                      height: `${height}%`,
+                      background:
+                        index === dailyBars.length - 1 ? "var(--color-loss)" : "var(--profit)",
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-2 px-3 pb-3 lg:grid-cols-[0.9fr_1.6fr]">
+            <div className="overflow-hidden rounded-lg border border-[var(--mk-line)] bg-[var(--mk-s1)]">
+              <div className="flex items-center justify-between border-b border-[var(--mk-line)] px-3 py-2">
+                <p className="text-[10px] font-medium">Recent trades</p>
+                <span className="text-[9px] text-[var(--mk-acc)]">View all</span>
+              </div>
+              <div className="grid grid-cols-[0.7fr_0.8fr_0.7fr_0.8fr] gap-2 border-b border-[var(--mk-line)] bg-[var(--mk-s2)] px-3 py-2 text-[8px] uppercase tracking-wide text-[var(--mk-mute)]">
+                <span>Date</span>
+                <span>Market</span>
+                <span>Side</span>
+                <span className="text-right">Net P&amp;L</span>
+              </div>
+              {recent.map(([date, market, side, pnl]) => (
+                <div
+                  key={`${date}-${market}-${pnl}`}
+                  className="grid grid-cols-[0.7fr_0.8fr_0.7fr_0.8fr] gap-2 border-b border-[var(--mk-line)]/70 px-3 py-2 text-[9px] last:border-0"
+                >
+                  <span className="text-[var(--mk-mute)]">{date}</span>
+                  <span>{market}</span>
+                  <span>{side}</span>
+                  <span
+                    className={`text-right font-mono ${pnl.startsWith("+") ? "text-[var(--profit)]" : "text-[var(--color-loss)]"}`}
+                  >
+                    {pnl}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-lg border border-[var(--mk-line)] bg-[var(--mk-s1)] p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-[10px] font-medium">Profit calendar</p>
+                <span className="text-[9px] text-[var(--mk-mute)]">February 2026</span>
+              </div>
+              <Cal />
+            </div>
+          </div>
         </div>
       </div>
     </div>
