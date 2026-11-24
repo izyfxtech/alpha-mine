@@ -6,6 +6,12 @@ import tailwindcss from "@tailwindcss/vite";
 import { cloudflare } from "@cloudflare/vite-plugin";
 
 export default defineConfig({
+  server: {
+    allowedHosts: [".vercel.run"],
+  },
+  preview: {
+    allowedHosts: [".vercel.run"],
+  },
   plugins: [
     // Builds the server side as a Cloudflare Worker (config: wrangler.jsonc) and runs it in workerd during `vite dev`.
     cloudflare({ viteEnvironment: { name: "ssr" } }),
