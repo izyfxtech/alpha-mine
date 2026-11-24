@@ -109,7 +109,7 @@ export function TopBar() {
 
   return (
     <div className="z-20 shrink-0">
-      <header className="flex h-16 items-center gap-3 bg-card px-5 shadow-[0_1px_4px_rgba(60,40,90,0.06)]">
+      <header className="flex h-16 items-center gap-3 border-b border-sidebar-border bg-sidebar px-5 shadow-none">
         {!onPortfolio && (
           <span data-tour="filters" className="inline-flex">
             <FilterToggle mode={fmode} setMode={setFmode} />
