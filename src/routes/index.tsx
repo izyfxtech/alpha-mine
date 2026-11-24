@@ -342,14 +342,15 @@ const Stage = ({ children }: { children: ReactNode }) => (
 function Dashboard() {
   const kpis = [
     ["Net P&L", "+$4,812.37", true],
+    ["Win rate", "64.8%", false],
     ["Profit factor", "1.84", false],
     ["Tilt score", "82", false],
   ] as const;
   return (
     <div
       role="img"
-      aria-label="Sample EdgeWhiz dashboard with KPIs, an equity curve and a profit calendar"
-      className="rounded-xl border border-[var(--mk-line)] bg-[var(--mk-bg)] text-left"
+      aria-label="EdgeWhiz dashboard concept with account controls, key performance metrics, equity curve and profit calendar"
+      className="overflow-hidden rounded-xl border border-[var(--mk-line)] bg-[var(--mk-bg)] text-left shadow-2xl"
     >
       <div className="flex items-center justify-between border-b border-[var(--mk-line)] px-4 py-3 text-sm">
         <div className="flex gap-4 font-semibold">
@@ -359,10 +360,31 @@ function Dashboard() {
             </span>
           ))}
         </div>
-        <span className="text-xs text-[var(--mk-mute)]">Sample data</span>
+        <span className="text-xs text-[var(--mk-mute)]">Visual concept · sample data</span>
       </div>
-      <div className="grid gap-3 p-4 md:grid-cols-4">
-        <div className="grid gap-3">
+      <div className="flex flex-col justify-between gap-4 border-b border-[var(--mk-line)] px-4 py-4 lg:flex-row lg:items-end">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--mk-mute)]">
+            Tracking · dashboard
+          </p>
+          <h3 className="mt-1 text-xl font-semibold">Day trade BTC/ETH</h3>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          {["R-multiple", "Filters", "Nov 01–30, 2026", "All accounts"].map((label) => (
+            <span
+              key={label}
+              className="rounded-md border border-[var(--mk-line)] bg-[var(--mk-s1)] px-3 py-2 text-[var(--mk-mute)]"
+            >
+              {label}
+            </span>
+          ))}
+          <span className="rounded-md bg-[var(--mk-acc)] px-3 py-2 font-semibold text-black">
+            Start my day
+          </span>
+        </div>
+      </div>
+      <div className="grid gap-3 p-4 md:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 md:col-span-2">
           {kpis.map(([k, v, pos]) => (
             <div
               key={k}
@@ -370,7 +392,7 @@ function Dashboard() {
             >
               <p className="text-xs text-[var(--mk-mute)]">{k}</p>
               <p
-                className={`mt-1 font-mono text-2xl font-semibold ${pos ? "text-[var(--mk-acc)]" : ""}`}
+                className={`mt-1 font-mono text-xl font-semibold ${pos ? "text-[var(--mk-acc)]" : ""}`}
               >
                 {v}
               </p>
@@ -399,7 +421,7 @@ function Dashboard() {
           </svg>
         </div>
         <div className="rounded-lg border border-[var(--mk-line)] bg-[var(--mk-s1)] p-3">
-          <p className="mb-2 text-xs text-[var(--mk-mute)]">October</p>
+          <p className="mb-2 text-xs text-[var(--mk-mute)]">Profit calendar</p>
           <Cal />
         </div>
       </div>

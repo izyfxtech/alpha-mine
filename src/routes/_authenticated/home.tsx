@@ -3,7 +3,7 @@ import { localDay } from "@/lib/time/local-time";
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { format, startOfMonth } from "date-fns";
 import { ProfitCalendar } from "@/components/analytics/ProfitCalendar";
-import { ChevronRight, Sparkles } from "lucide-react";
+import { ChevronRight, Plus, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { downloadElementPng } from "@/lib/media/capture";
 import { useProfile } from "@/lib/profile-settings";
@@ -52,9 +52,11 @@ export const Route = createFileRoute("/_authenticated/home")({
 const FULL_DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 import { GettingStarted } from "@/components/onboarding/GettingStarted";
+import { useTradeDrawer } from "@/components/journal/TradeDrawer";
 
 function Home() {
   const { trades, journal, isLoading, flows } = useTrades();
+  const drawer = useTradeDrawer();
   const qc = useQueryClient();
   const firstName = useProfile().profile?.display_name.trim().split(/\s+/)[0] ?? "";
   const [unit, setUnit] = useState<Unit>("cur");
@@ -176,32 +178,50 @@ function Home() {
   };
 
   return (
-    <div className="mx-auto max-w-[1374px] space-y-[30px]">
+    <div className="mx-auto max-w-[1374px] space-y-6 pb-8">
       <GettingStarted />
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="w-full text-xl font-semibold">
-          {firstName ? `Welcome back, ${firstName}` : "Welcome back"}
-        </h1>
-        <div className="flex min-h-[34px] w-full flex-wrap items-center justify-between gap-3">
-          <UnitToggle unit={unit} currency={cur} onChange={setUnit} />
-          {edgeCount > 0 && (
-            <Link
-              to={"/edge-finder" as never}
-              className="flex items-center gap-2 rounded-md border bg-card px-3 py-2 text-[12px] shadow-[0_1px_5px_rgba(60,40,90,0.07)] hover:bg-muted"
-            >
-              <Sparkles className="h-4 w-4" />
-              <span>
-                Edge Finder found{" "}
-                <b>
-                  {edgeCount} insight{edgeCount === 1 ? "" : "s"}
-                </b>{" "}
-                in your journal
-              </span>
-              <ChevronRight className="h-4 w-4" />
-            </Link>
-          )}
+      <header className="flex flex-col gap-5 rounded-2xl border bg-card p-5 shadow-sm sm:flex-row sm:items-end sm:justify-between sm:p-7">
+        <div className="min-w-0">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Account overview
+          </p>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-[30px]">
+            {firstName ? `Welcome back, ${firstName}` : "Welcome back"}
+          </h1>
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 font-medium text-foreground">
+              <span className="h-2 w-2 rounded-full bg-profit" aria-hidden="true" />
+              {journal?.name ?? "Select a journal"}
+            </span>
+            <span>{s.count} trades tracked</span>
+            <span>Balance {fmtMoney(s.balance, cur)}</span>
+          </div>
         </div>
-      </div>
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+          <UnitToggle unit={unit} currency={cur} onChange={setUnit} />
+          <Button variant="ink" onClick={() => drawer.open()} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Log a trade
+          </Button>
+        </div>
+      </header>
+
+      {edgeCount > 0 && (
+        <Link
+          to={"/edge-finder" as never}
+          className="flex items-center gap-2 rounded-xl border bg-card px-4 py-3 text-[12px] shadow-sm transition-colors hover:bg-muted"
+        >
+          <Sparkles className="h-4 w-4 shrink-0" />
+          <span>
+            Edge Finder found{" "}
+            <b>
+              {edgeCount} insight{edgeCount === 1 ? "" : "s"}
+            </b>{" "}
+            in your journal
+          </span>
+          <ChevronRight className="ml-auto h-4 w-4" />
+        </Link>
+      )}
 
       <KpiCards
         trades={trades}
@@ -211,7 +231,7 @@ function Home() {
         avgLossLabel={fmtMoney(s.avgLoss, cur)}
       />
 
-      <div className="grid grid-cols-[1fr_438px] gap-[30px]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_390px]">
         <Panel
           title="Profit Calendar"
           sectionRef={calRef}
@@ -241,7 +261,7 @@ function Home() {
       </div>
 
       {HOME_CHART_ROWS.map((titles) => (
-        <div key={titles[0]} className="grid grid-cols-3 gap-[30px]">
+        <div key={titles[0]} className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
           {titles.map((title) => (
             <Panel key={title} title={title}>
               {charts[title]}

@@ -459,7 +459,10 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
     </button>
   );
   const legRow = (list: Leg[], setLegs: (l: Leg[]) => void, i: number, kind: string) => (
-    <div key={i} className="grid grid-cols-[1fr_1fr_auto] items-center gap-2">
+    <div
+      key={i}
+      className="grid grid-cols-[1fr_1fr_auto] items-center gap-2 rounded-lg border bg-background/70 p-2"
+    >
       <FloatInput
         label={`${kind} Price ${i + 2}`}
         value={list[i]!.price}
@@ -489,7 +492,7 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent
           hideClose
-          className="inset-y-3.5 right-3.5 flex h-auto w-[480px] flex-col gap-0 rounded-[10px] border-0 p-0 sm:max-w-[480px]"
+          className="inset-y-3.5 right-3.5 flex h-auto w-[min(880px,calc(100vw_-_28px))] flex-col gap-0 rounded-xl border-0 p-0 sm:max-w-[880px]"
         >
           <div className="flex items-center gap-2.5 px-5 pb-4 pt-5">
             <button onClick={() => setFav(!fav)} aria-label="Favorite">
@@ -498,6 +501,9 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
             <SheetTitle className="text-[15px] font-semibold">
               {trade ? `Edit Trade #${trade.trade_no}` : "New Trade"}
             </SheetTitle>
+            <span className="hidden max-w-44 truncate rounded-full border bg-muted/50 px-2.5 py-1 text-[11px] text-muted-foreground sm:inline-block">
+              {journal?.name ?? "Current journal"}
+            </span>
             {navList.length > 1 && trade && (
               <span className="flex items-center gap-0.5">
                 <button
@@ -616,8 +622,8 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
                   onChange={set("direction")}
                 />
 
-                <div className="mt-6 grid grid-cols-2 gap-x-3">
-                  <div className="space-y-3">
+                <div className="mt-6 grid grid-cols-1 gap-3 lg:grid-cols-2">
+                  <div className="space-y-3 rounded-xl border bg-muted/20 p-4">
                     <SectionTitle>Trade Entry</SectionTitle>
                     <FloatInput
                       label="Entry Price *"
@@ -625,7 +631,7 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
                       onChange={set("entry_price")}
                       right={plusBtn(
                         () => setExtraEntries([...extraEntries, { price: "", qty: "" }]),
-                        "Add entry",
+                        "Add entry fill",
                       )}
                     />
                     {extraEntries.map((_, i) => legRow(extraEntries, setExtraEntries, i, "Entry"))}
@@ -649,7 +655,7 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
                       />
                     )}
                   </div>
-                  <div className="space-y-3">
+                  <div className="space-y-3 rounded-xl border bg-muted/20 p-4">
                     <SectionTitle>Trade Exit</SectionTitle>
                     <FloatDateTime label="Exit Date" value={f.exit_at} onChange={set("exit_at")} />
                     {stillOpen && (
@@ -663,7 +669,7 @@ export function TradeDrawerProvider({ children }: { children: ReactNode }) {
                       onChange={set("exit_price")}
                       right={plusBtn(
                         () => setExtraExits([...extraExits, { price: "", qty: "" }]),
-                        "Add exit",
+                        "Add exit fill",
                       )}
                     />
                     {extraExits.map((_, i) => legRow(extraExits, setExtraExits, i, "Exit"))}
