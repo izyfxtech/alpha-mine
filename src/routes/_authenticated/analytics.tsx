@@ -1,13 +1,11 @@
 import { byEntry } from "@/lib/pnl/sort";
 import { compareKeys, pushTo } from "@/lib/group";
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { Fragment, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { plannedRRR, useTrades } from "@/lib/journal/journal-context";
 import { Checkbox } from "@/components/ui/checkbox";
-import { computeStats, fmtMoney, isLoss, isWin, type Trade } from "@/lib/pnl/metrics";
-import { KpiCards } from "@/components/analytics/KpiCards";
-import { PageHeader } from "@/components/kit";
+import { isLoss, isWin, type Trade } from "@/lib/pnl/metrics";
 import { cn } from "@/lib/utils";
 import { ColumnsTab, GroupTableHead } from "@/components/analytics/AnalyticsTable";
 import { AnalyticsSidebar } from "@/components/analytics/AnalyticsSidebar";
@@ -22,12 +20,12 @@ import {
 export const Route = createFileRoute("/_authenticated/analytics")({
   head: () => ({
     meta: [
-      { title: "Trade Breakdown — EdgeWhiz" },
+      { title: "Trade Analytics — EdgeWhiz" },
       {
         name: "description",
         content: "Group and drill into your trades by setup, direction, outcome and more.",
       },
-      { property: "og:title", content: "Trade Breakdown — EdgeWhiz" },
+      { property: "og:title", content: "Trade Analytics — EdgeWhiz" },
       {
         property: "og:description",
         content: "Group and drill into your trades by setup, direction, outcome and more.",
@@ -36,10 +34,7 @@ export const Route = createFileRoute("/_authenticated/analytics")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  beforeLoad: () => {
-    throw redirect({ to: "/reports", search: { view: "breakdown" } as never });
-  },
-  component: () => null,
+  component: Analytics,
 });
 
 /** Favourable / adverse excursion of a trade in price points, and as % of the distance to TP / SL. */
@@ -120,15 +115,10 @@ function group(ts: Trade[], c: Crit) {
   return [...m.entries()].sort((a, b) => compareKeys(a[0], b[0]));
 }
 
-export function TradeBreakdown({ embedded = false }: { embedded?: boolean }) {
+function Analytics() {
   const { trades, journal, flows } = useTrades();
   const invested =
     (journal?.starting_balance ?? 0) + flows.reduce((a, f) => a + Number(f.amount), 0);
-  const summary = useMemo(
-    () => computeStats(trades, journal?.starting_balance ?? 0, flows),
-    [trades, journal, flows],
-  );
-  const currency = journal?.currency ?? "USD";
   const [order, setOrder] = useState<string[]>(["setup"]);
   const [open, setOpen] = useState<Set<string>>(new Set(["Overall"]));
   const [visible, setVisible] = useState<string[]>(DEFAULT_VISIBLE);
@@ -202,113 +192,95 @@ export function TradeBreakdown({ embedded = false }: { embedded?: boolean }) {
   const shown = COLS.filter((c) => visible.includes(c.k));
 
   return (
-    <div className="min-w-0 space-y-4 pb-4">
-      {!embedded && (
-        <PageHeader
-          title="Trade breakdown"
-          subtitle={`Grouped results for ${journal?.name ?? "your journal"}`}
-        />
-      )}
-      {!embedded && (
-        <KpiCards
-          trades={trades}
-          s={summary}
-          fmt={(value) => fmtMoney(value, currency)}
-          avgWinLabel={fmtMoney(summary.avgWin, currency)}
-          avgLossLabel={fmtMoney(summary.avgLoss, currency)}
-        />
-      )}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[240px_minmax(0,1fr)]">
-        <AnalyticsSidebar
-          crits={crits}
-          available={criteria.filter((c) => !order.includes(c.key))}
-          onDragStart={(key) => {
-            dragKey.current = key;
-          }}
-          onDrop={reorder}
-          onMove={move}
-          onRemove={(key) => {
-            setOrder((o) => o.filter((k) => k !== key));
-            setOpen(new Set(["Overall"]));
-          }}
-          onAdd={(key) => {
-            setOrder((o) => [...o, key]);
-            setOpen(new Set(["Overall"]));
-          }}
-        />
+    <div className="grid grid-cols-[240px_1fr] gap-[22px]">
+      <AnalyticsSidebar
+        crits={crits}
+        available={criteria.filter((c) => !order.includes(c.key))}
+        onDragStart={(key) => {
+          dragKey.current = key;
+        }}
+        onDrop={reorder}
+        onMove={move}
+        onRemove={(key) => {
+          setOrder((o) => o.filter((k) => k !== key));
+          setOpen(new Set(["Overall"]));
+        }}
+        onAdd={(key) => {
+          setOrder((o) => [...o, key]);
+          setOpen(new Set(["Overall"]));
+        }}
+      />
 
-        <section className="relative min-w-0 overflow-hidden rounded-xl border border-border/70 bg-card p-3">
-          <div className="overflow-x-auto rounded-md border border-border/60">
-            <table className="w-full min-w-[1100px] text-xs tabular">
-              <GroupTableHead columns={shown} />
-              <tbody>
-                {rows.map((r) => {
-                  const st = rowStats(r.ts, invested);
-                  const tone = st.sum > 0 ? "text-profit" : st.sum < 0 ? "text-loss" : "";
-                  const bg =
-                    st.sum > 0 ? "bg-row-win" : st.sum < 0 ? "bg-row-loss" : "bg-background";
-                  return (
-                    <Fragment key={r.path}>
-                      <tr className={cn(ANALYTICS_ROW_CLASS, bg, tone)}>
-                        <td
-                          className={cn("sticky left-0 z-10 whitespace-nowrap border-r px-3", bg)}
-                          style={{ paddingLeft: 12 + r.depth * 22 }}
-                        >
-                          <span className="flex items-center gap-1">
-                            {r.expandable ? (
-                              <button
-                                onClick={() => toggle(r.path)}
-                                aria-label={open.has(r.path) ? "Collapse" : "Expand"}
-                              >
-                                {open.has(r.path) ? (
-                                  <ChevronDown className="h-3.5 w-3.5" />
-                                ) : (
-                                  <ChevronRight className="h-3.5 w-3.5" />
-                                )}
-                              </button>
-                            ) : (
-                              <span className="w-3.5" />
-                            )}
-                            {r.label}
-                          </span>
+      <section className="relative min-w-0 pr-7">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1100px] text-xs tabular">
+            <GroupTableHead columns={shown} />
+            <tbody>
+              {rows.map((r) => {
+                const st = rowStats(r.ts, invested);
+                const tone = st.sum > 0 ? "text-profit" : st.sum < 0 ? "text-loss" : "";
+                const bg = st.sum > 0 ? "bg-row-win" : st.sum < 0 ? "bg-row-loss" : "bg-background";
+                return (
+                  <Fragment key={r.path}>
+                    <tr className={cn(ANALYTICS_ROW_CLASS, bg, tone)}>
+                      <td
+                        className={cn("sticky left-0 z-10 whitespace-nowrap border-r px-3", bg)}
+                        style={{ paddingLeft: 12 + r.depth * 22 }}
+                      >
+                        <span className="flex items-center gap-1">
+                          {r.expandable ? (
+                            <button
+                              onClick={() => toggle(r.path)}
+                              aria-label={open.has(r.path) ? "Collapse" : "Expand"}
+                            >
+                              {open.has(r.path) ? (
+                                <ChevronDown className="h-3.5 w-3.5" />
+                              ) : (
+                                <ChevronRight className="h-3.5 w-3.5" />
+                              )}
+                            </button>
+                          ) : (
+                            <span className="w-3.5" />
+                          )}
+                          {r.label}
+                        </span>
+                      </td>
+                      {shown.map((c) => (
+                        <td key={c.k} className="px-3 text-right">
+                          {st.cells[c.k]}
                         </td>
-                        {shown.map((c) => (
-                          <td key={c.k} className="px-3 text-right">
-                            {st.cells[c.k]}
-                          </td>
-                        ))}
-                      </tr>
-                    </Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <ColumnsTab expanded={colsOpen} onClick={() => setColsOpen((o) => !o)} />
-          {colsOpen && (
-            <aside className="absolute bottom-0 right-7 top-0 z-20 w-56 overflow-auto bg-card p-2 shadow-lg">
-              {COLS.map((c) => (
-                <label
-                  key={c.k}
-                  className="flex cursor-pointer items-center gap-2 rounded px-1 py-1.5 text-xs hover:bg-muted"
-                >
-                  <Checkbox
-                    checked={visible.includes(c.k)}
-                    onCheckedChange={() =>
-                      setVisible((v) =>
-                        v.includes(c.k)
-                          ? v.filter((k) => k !== c.k)
-                          : COLS.map((x) => x.k).filter((k) => k === c.k || v.includes(k)),
-                      )
-                    }
-                  />
-                  {c.l}
-                </label>
-              ))}
-            </aside>
-          )}
-        </section>
-      </div>
+                      ))}
+                    </tr>
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <ColumnsTab expanded={colsOpen} onClick={() => setColsOpen((o) => !o)} />
+        {colsOpen && (
+          <aside className="absolute bottom-0 right-7 top-0 z-20 w-56 overflow-auto bg-card p-2 shadow-lg">
+            {COLS.map((c) => (
+              <label
+                key={c.k}
+                className="flex cursor-pointer items-center gap-2 rounded px-1 py-1.5 text-xs hover:bg-muted"
+              >
+                <Checkbox
+                  checked={visible.includes(c.k)}
+                  onCheckedChange={() =>
+                    setVisible((v) =>
+                      v.includes(c.k)
+                        ? v.filter((k) => k !== c.k)
+                        : COLS.map((x) => x.k).filter((k) => k === c.k || v.includes(k)),
+                    )
+                  }
+                />
+                {c.l}
+              </label>
+            ))}
+          </aside>
+        )}
+      </section>
     </div>
   );
 }

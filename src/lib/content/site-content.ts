@@ -26,8 +26,8 @@ export const FEATURES: Feature[] = [
     icon: NotePencil,
     visual: "journal",
     short: "Log every trade with setups, comments and screenshots.",
-    headline: "Keep the trade and its context together",
-    lead: "Record the instrument, setup, fills, comments and screenshots, then review them in a table shaped to your process.",
+    headline: "A journal you will actually keep up",
+    lead: "Log each trade with its setup, instrument, comments and screenshots, then work from a table that fits the way you review.",
     points: [
       {
         t: "A trade table that fits you",
@@ -118,8 +118,8 @@ export const FEATURES: Feature[] = [
     icon: MagnifyingGlass,
     visual: "edge",
     short: "Finds the strong and weak parts of your trading.",
-    headline: "Find the sessions and setups that pay",
-    lead: "Edge Finder compares your results by setup, market and trading hour, then shows the sample behind each signal.",
+    headline: "Let your data point at your edge",
+    lead: "Edge Finder scans your journal and rates the strong and weak parts of your trading, so you start from evidence.",
     points: [
       { t: "Clear ratings", d: "Each area is marked Strong, Average or Needs attention." },
       {

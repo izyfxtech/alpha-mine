@@ -4,7 +4,7 @@ import { localDay } from "@/lib/time/local-time";
 import { useNavigate } from "@tanstack/react-router";
 import { CornerDownLeft, FileText, Plus, Search } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { CHARTS, NAV, SETTINGS } from "@/lib/nav";
+import { NAV } from "@/lib/nav";
 import { useTrades } from "@/lib/journal/journal-context";
 import { useTradeDrawer } from "@/components/journal/TradeDrawer";
 import { cn } from "@/lib/utils";
@@ -33,98 +33,34 @@ export function CommandPalette({
   });
 
   const items = useMemo<Item[]>(() => {
-    const go =
-      (to: string, search?: Record<string, string>, params?: Record<string, string>) => () => {
-        onOpenChange(false);
-        navigate({ to, search, params } as never);
-      };
-    const pages: Item[] = NAV.map((item) => ({
-      key: item.to,
-      label: item.label,
+    const go = (to: string) => () => {
+      onOpenChange(false);
+      navigate({ to } as never);
+    };
+    const pages: Item[] = [];
+    NAV.forEach((n) => {
+      if (n.to)
+        pages.push({ key: n.to, label: n.label, hint: "Page", icon: n.icon, run: go(n.to) });
+      n.children?.forEach((c) =>
+        pages.push({
+          key: `${n.label}/${c.label}`,
+          label: `${n.label} › ${c.label}`,
+          hint: "Page",
+          icon: n.icon,
+          run: () => {
+            onOpenChange(false);
+            navigate({ to: c.to, params: c.params } as never);
+          },
+        }),
+      );
+    });
+    pages.push({
+      key: "milestones",
+      label: "Milestones",
       hint: "Page",
-      icon: item.icon,
-      run: go(item.to, undefined, item.params),
-    }));
-    const journalPages = [
-      ["Open trades", "/open-trades"],
-      ["Trading plans", "/plans"],
-      ["Missed trades", "/missed-trades"],
-      ["Notebook", "/diary/notebook"],
-      ["Sessions", "/diary/sessions"],
-    ] as const;
-    journalPages.forEach(([label, to]) =>
-      pages.push({
-        key: to,
-        label: `Journal · ${label}`,
-        hint: "Page",
-        icon: NAV[2]!.icon,
-        run: go(to),
-      }),
-    );
-    const reportViews = [
-      ["Reports overview", "overview"],
-      ["Trade breakdown", "breakdown"],
-      ["Equity", "equity"],
-      ["Calendar", "calendar"],
-      ["Chart Lab", "chart-lab"],
-    ] as const;
-    reportViews.forEach(([label, view]) =>
-      pages.push({
-        key: `reports/${view}`,
-        label: `Reports · ${label}`,
-        hint: "Report",
-        icon: NAV[3]!.icon,
-        run: go("/reports", { view }),
-      }),
-    );
-    CHARTS.forEach(([chart, label]) =>
-      pages.push({
-        key: `reports/chart-lab/${chart}`,
-        label: `Chart Lab · ${label}`,
-        hint: "Report",
-        icon: NAV[3]!.icon,
-        run: go("/reports", { view: "chart-lab", chart }),
-      }),
-    );
-    SETTINGS.forEach(([section, label]) =>
-      pages.push({
-        key: `settings/${section}`,
-        label: `Settings · ${label}`,
-        hint: "Setting",
-        icon: NAV[4]!.icon,
-        run: go("/settings/$section", undefined, { section }),
-      }),
-    );
-    pages.push(
-      {
-        key: "edge-finder",
-        label: "Reports · Edge Finder",
-        hint: "Page",
-        icon: NAV[3]!.icon,
-        run: go("/edge-finder"),
-      },
-      {
-        key: "rules",
-        label: "Reports · Rule compliance",
-        hint: "Page",
-        icon: NAV[3]!.icon,
-        run: go("/rules"),
-      },
-      {
-        key: "prop-challenge",
-        label: "Reports · Prop challenge",
-        hint: "Page",
-        icon: NAV[3]!.icon,
-        run: go("/prop-challenge"),
-      },
-      {
-        key: "milestones",
-        label: "Reports · Milestones",
-        hint: "Page",
-        icon: FileText,
-        run: go("/milestones"),
-      },
-    );
+      icon: FileText,
+      run: go("/milestones"),
+    });
     const actions: Item[] = [
       {
         key: "add",

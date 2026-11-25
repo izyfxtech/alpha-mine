@@ -1,4 +1,4 @@
-import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
+import { createFileRoute, notFound } from "@tanstack/react-router";
 import { lazy, Suspense, useMemo } from "react";
 import { useTrades } from "@/lib/journal/journal-context";
 import { CHARTS } from "@/lib/nav";
@@ -58,10 +58,6 @@ const WinRate = lazy(() =>
 );
 
 export const Route = createFileRoute("/_authenticated/chart-lab/$chart")({
-  beforeLoad: ({ params }) => {
-    if (!CHARTS.some(([key]) => key === params.chart)) throw notFound();
-    throw redirect({ to: "/reports", search: { view: "chart-lab", chart: params.chart } as never });
-  },
   loader: ({ params }) => {
     const c = CHARTS.find(([k]) => k === params.chart);
     if (!c) throw notFound();
@@ -88,10 +84,6 @@ export const Route = createFileRoute("/_authenticated/chart-lab/$chart")({
 
 function ChartPage() {
   const { chart } = Route.useParams();
-  return <ChartReport chart={chart} />;
-}
-
-export function ChartReport({ chart }: { chart: string }) {
   return (
     <Suspense fallback={null}>
       <ChartBody chart={chart} />

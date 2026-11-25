@@ -3,7 +3,7 @@ import { ArrowRight } from "@phosphor-icons/react";
 import { CtaBand, PageHero, Section, SiteLayout } from "@/components/marketing/site";
 import { Rv } from "@/components/marketing/marketing-shell";
 
-const DESC = "EdgeWhiz is an independent trading journal from IZ Technologies Limited.";
+const DESC = "EdgeWhiz is built by traders for traders, under IZ Technologies Limited.";
 const beliefs = [
   {
     t: "Decisions over outcomes",
@@ -38,8 +38,8 @@ export const Route = createFileRoute("/about")({
     <SiteLayout>
       <PageHero
         eyebrow="About"
-        title="Why we built EdgeWhiz"
-        lead="We wanted one place to keep the trade, the reason for taking it and the review that follows."
+        title="Built by traders, for traders"
+        lead="EdgeWhiz is made by committed traders for committed traders, and published by IZ Technologies Limited."
       >
         <Link to="/auth" search={{ mode: "signup" }} className="mk-btn mk-btn-pri">
           Start journaling free <ArrowRight size={18} weight="bold" />
@@ -48,16 +48,16 @@ export const Route = createFileRoute("/about")({
       <Section label="Why we exist" title="A journal made by people who trade" split>
         <div className="space-y-6 text-lg text-[var(--mk-mute)]">
           <p>
-            A chart shows the market. A journal should also show your setup, entry, exit and what
-            you noticed at the time.
+            Most trading tools are built to look at the market. EdgeWhiz looks at you: your setups,
+            your exits and the moments your discipline slipped.
           </p>
           <p>
-            We built EdgeWhiz to make that review practical: keep broker records, notes and
-            screenshots together, then compare the decisions across a real sample of trades.
+            That focus comes from the people building it. We are traders, and we wanted a journal
+            serious enough for traders who take the work seriously. So that is what we are making.
           </p>
           <p>
-            EdgeWhiz is published by IZ Technologies Limited. Your journals stay private unless you
-            choose to share one.
+            IZ Technologies Limited is the company behind EdgeWhiz. The people behind it are
+            committed traders, and that shapes every feature we ship.
           </p>
         </div>
       </Section>

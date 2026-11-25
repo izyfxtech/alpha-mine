@@ -1,4 +1,20 @@
-import { Home, Briefcase, BookOpen, FileBarChart, Settings, type LucideIcon } from "lucide-react";
+import {
+  Home,
+  ShieldCheck,
+  Briefcase,
+  BookOpen,
+  BarChart3,
+  LineChart,
+  BookMarked,
+  NotebookPen,
+  FlaskRound,
+  FileBarChart,
+  FlaskConical,
+  Settings,
+  Sparkles,
+  Target,
+  type LucideIcon,
+} from "lucide-react";
 
 export const CHARTS = [
   ["compare", "Compare Charts"],
@@ -34,44 +50,75 @@ export const SETTINGS = [
   ["custom-statistics", "Custom Statistics"],
 ] as const;
 
-export type NavItem = {
-  label: string;
-  icon: LucideIcon;
-  to: string;
-  params?: Record<string, string>;
-  matches?: string[];
-};
+export type NavChild = { label: string; to: string; params?: Record<string, string> };
+export type NavItem = { label: string; icon: LucideIcon; to?: string; children?: NavChild[] };
 
 export const NAV: NavItem[] = [
   { label: "Home", icon: Home, to: "/home" },
   { label: "Portfolio", icon: Briefcase, to: "/portfolio" },
+  { label: "Journal", icon: BookOpen, to: "/journal" },
+  { label: "Trade Analytics", icon: BarChart3, to: "/analytics" },
+  { label: "Equity Graph", icon: LineChart, to: "/equity" },
+  { label: "Edge Finder", icon: Sparkles, to: "/edge-finder" },
+  { label: "Rule Compliance", icon: ShieldCheck, to: "/rules" },
+  { label: "Prop Challenge", icon: Target, to: "/prop-challenge" },
   {
-    label: "Journal",
-    icon: BookOpen,
-    to: "/journal",
-    matches: ["/journal", "/open-trades", "/plans", "/missed-trades", "/diary", "/mentor"],
+    label: "Advanced Journaling",
+    icon: BookMarked,
+    children: [
+      { label: "Trading Plans", to: "/plans" },
+      { label: "Missed Trades - Journal", to: "/missed-trades" },
+      { label: "Missed Trades - Analysis", to: "/missed-trades-analysis" },
+    ],
+  },
+  {
+    label: "Diary",
+    icon: NotebookPen,
+    children: [
+      { label: "Notebook", to: "/diary/notebook" },
+      { label: "Sessions", to: "/diary/sessions" },
+    ],
+  },
+  {
+    label: "Chart Lab",
+    icon: FlaskRound,
+    children: CHARTS.map(([chart, label]) => ({
+      label,
+      to: "/chart-lab/$chart",
+      params: { chart },
+    })),
   },
   {
     label: "Reports",
     icon: FileBarChart,
-    to: "/reports",
-    matches: [
-      "/reports",
-      "/analytics",
-      "/equity",
-      "/chart-lab",
-      "/edge-finder",
-      "/rules",
-      "/prop-challenge",
-      "/milestones",
-      "/strategy-lab",
+    children: [
+      { label: "Calendar", to: "/reports/calendar" },
+      { label: "Monthly Reports", to: "/reports/monthly" },
+      { label: "Chartbook", to: "/reports/chart-book" },
+    ],
+  },
+  {
+    label: "Strategy Lab",
+    icon: FlaskConical,
+    children: [
+      { label: "Alternative Strategies", to: "/strategy-lab/alternatives" },
+      { label: "Backtester", to: "/strategy-lab/backtester" },
+      { label: "Simulator", to: "/strategy-lab/simulator" },
     ],
   },
   {
     label: "Settings",
     icon: Settings,
-    to: "/settings/$section",
-    params: { section: "account" },
-    matches: ["/settings"],
+    children: SETTINGS.map(([section, label]) => ({
+      label,
+      to: "/settings/$section",
+      params: { section },
+    })),
   },
 ];
+
+export function childPath(c: NavChild) {
+  let p = c.to;
+  Object.entries(c.params ?? {}).forEach(([k, v]) => (p = p.replace(`$${k}`, v)));
+  return p;
+}

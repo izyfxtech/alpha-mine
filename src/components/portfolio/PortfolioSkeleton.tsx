@@ -1,7 +1,7 @@
 import { startOfMonth } from "date-fns";
 import { KpiCardsSkeleton } from "@/components/analytics/KpiCards";
 import { ProfitCalendarSkeleton } from "@/components/analytics/ProfitCalendar";
-import { PageHeader, Panel, Stat } from "@/components/kit";
+import { Panel, Stat } from "@/components/kit";
 import { JournalsTrigger } from "@/components/portfolio/JournalsTrigger";
 import { MonthSwitcher } from "@/components/portfolio/MonthSwitcher";
 import { SegmentedToggle } from "@/components/segmented-toggle";
@@ -30,12 +30,8 @@ export function PortfolioSkeleton() {
   const { journals } = useJournal();
   const chart = (height: number) => <Skeleton className="w-full" style={{ height }} />;
   return (
-    <div className="mx-auto max-w-[1460px] space-y-4 pb-8">
-      <PageHeader
-        title="Portfolio"
-        subtitle="Compare each journal on its own balance, then review combined performance in percent or R."
-      />
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="mx-auto max-w-[1374px] space-y-[30px]">
+      <div className="flex items-center justify-between">
         <SegmentedToggle options={PORTFOLIO_UNITS} value="pct" />
         <JournalsTrigger />
       </div>
@@ -89,14 +85,14 @@ export function PortfolioSkeleton() {
 
       <Panel title="Equity Graph">{chart(PORTFOLIO_CHART_HEIGHT.equity)}</Panel>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_390px]">
+      <div className="grid grid-cols-[1fr_438px] gap-[30px]">
         <Panel title="Profit Calendar" action={<MonthSwitcher month={startOfMonth(now())} />}>
           <ProfitCalendarSkeleton />
         </Panel>
         <Panel title="Performance by Weekday">{chart(PORTFOLIO_CHART_HEIGHT.weekday)}</Panel>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_390px]">
+      <div className="grid grid-cols-[1fr_438px] gap-[30px]">
         <Panel title="Best & Worst Trades">
           <div className="max-h-[300px] overflow-hidden">
             <table className="w-full text-xs tabular">

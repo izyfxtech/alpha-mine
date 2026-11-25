@@ -3,9 +3,10 @@ import { localDay } from "@/lib/time/local-time";
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { format, startOfMonth } from "date-fns";
 import { ProfitCalendar } from "@/components/analytics/ProfitCalendar";
-import { ChevronRight, Rocket, Sparkles } from "lucide-react";
+import { ChevronRight, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { downloadElementPng } from "@/lib/media/capture";
+import { useProfile } from "@/lib/profile-settings";
 import { useEdgeInsights } from "@/lib/pnl/use-edge-insights";
 import { useTrades } from "@/lib/journal/journal-context";
 import {
@@ -51,14 +52,11 @@ export const Route = createFileRoute("/_authenticated/home")({
 const FULL_DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 import { GettingStarted } from "@/components/onboarding/GettingStarted";
-import { PerformanceRadar, performanceRadarData } from "@/components/home/PerformanceRadar";
-import { RecentTrades } from "@/components/home/RecentTrades";
-import { useTradeDrawer } from "@/components/journal/TradeDrawer";
 
 function Home() {
   const { trades, journal, isLoading, flows } = useTrades();
-  const drawer = useTradeDrawer();
   const qc = useQueryClient();
+  const firstName = useProfile().profile?.display_name.trim().split(/\s+/)[0] ?? "";
   const [unit, setUnit] = useState<Unit>("cur");
   const edgeCount = useEdgeInsights().length;
   const calRef = useRef<HTMLElement>(null);
@@ -108,10 +106,6 @@ function Home() {
     Array.from({ length: 24 }, (_, h) => ({ k: h, label: `${String(h).padStart(2, "0")}:00` })),
   );
   const bySetup = groupPerformance(trades, (t) => t.setup).sort((a, b) => b.pnl - a.pnl);
-  const dailyPnl = groupPerformance(trades, (t) => localDay(t.entry_at))
-    .sort((a, b) => a.key.localeCompare(b.key))
-    .slice(-14);
-  const dailyCurve = cumulative(dailyPnl.map((day) => ({ net_pnl: day.pnl, entry_at: day.key })));
   const barFmt = (n: number) => fmtMoney(n, cur);
   // Evaluation rows follow the selected display unit (currency, Return %, R multiple)
   const pcts = trades.map((t) => t.retPct);
@@ -182,48 +176,32 @@ function Home() {
   };
 
   return (
-    <div className="mx-auto max-w-[1460px] space-y-4 pb-8">
+    <div className="mx-auto max-w-[1374px] space-y-[30px]">
       <GettingStarted />
-      <header className="flex flex-col gap-4 border-b border-border/70 pb-4 sm:flex-row sm:items-end sm:justify-between">
-        <div className="min-w-0">
-          <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-info">
-            Trading workspace
-          </p>
-          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-2 rounded-md border border-sidebar-primary/30 bg-sidebar-accent px-2.5 py-1.5 font-medium text-foreground">
-              <span className="size-2 rounded-full bg-sidebar-primary" aria-hidden="true" />
-              {journal?.name ?? "Select a journal"}
-            </span>
-            <span>{s.count} trades</span>
-            <span>Balance {fmtMoney(s.balance, cur)}</span>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="w-full text-xl font-semibold">
+          {firstName ? `Welcome back, ${firstName}` : "Welcome back"}
+        </h1>
+        <div className="flex min-h-[34px] w-full flex-wrap items-center justify-between gap-3">
           <UnitToggle unit={unit} currency={cur} onChange={setUnit} />
-          <Button variant="ink" onClick={() => drawer.open()} className="gap-2">
-            <Rocket data-icon="inline-start" />
-            Start my day
-          </Button>
+          {edgeCount > 0 && (
+            <Link
+              to={"/edge-finder" as never}
+              className="flex items-center gap-2 rounded-md border bg-card px-3 py-2 text-[12px] shadow-[0_1px_5px_rgba(60,40,90,0.07)] hover:bg-muted"
+            >
+              <Sparkles className="h-4 w-4" />
+              <span>
+                Edge Finder found{" "}
+                <b>
+                  {edgeCount} insight{edgeCount === 1 ? "" : "s"}
+                </b>{" "}
+                in your journal
+              </span>
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          )}
         </div>
-      </header>
-
-      {edgeCount > 0 && (
-        <Link
-          to={"/edge-finder" as never}
-          className="flex items-center gap-2 rounded-xl border bg-card px-4 py-3 text-[12px] shadow-sm transition-colors hover:bg-muted"
-        >
-          <Sparkles className="h-4 w-4 shrink-0" />
-          <span>
-            Edge Finder found{" "}
-            <b>
-              {edgeCount} insight{edgeCount === 1 ? "" : "s"}
-            </b>{" "}
-            in your journal
-          </span>
-          <ChevronRight className="ml-auto h-4 w-4" />
-        </Link>
-      )}
+      </div>
 
       <KpiCards
         trades={trades}
@@ -233,27 +211,10 @@ function Home() {
         avgLossLabel={fmtMoney(s.avgLoss, cur)}
       />
 
-      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1.1fr)_minmax(300px,0.9fr)]">
-        <PerformanceRadar data={performanceRadarData(s)} score={s.score} />
-        <Panel title="Daily cumulative P&L" className="border border-border/70 p-4 shadow-none">
-          <EquityChart
-            data={dailyCurve}
-            height={250}
-            compact
-            fmt={(value) => fmtMoney(value, cur)}
-          />
-        </Panel>
-        <Panel title="Net daily P&L" className="border border-border/70 p-4 shadow-none">
-          <PnlBars data={dailyPnl} x="key" fmt={barFmt} height={250} />
-        </Panel>
-      </section>
-
-      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.55fr)]">
-        <RecentTrades trades={trades} currency={cur} />
+      <div className="grid grid-cols-[1fr_438px] gap-[30px]">
         <Panel
-          title="Profit calendar"
+          title="Profit Calendar"
           sectionRef={calRef}
-          className="border border-border/70 p-4 shadow-none"
           action={
             <CalendarToolbar
               month={month}
@@ -270,44 +231,24 @@ function Home() {
         >
           <ProfitCalendar trades={trades} month={month} fmt={(pnl, r, pct) => fmt(pnl, r, pct)} />
         </Panel>
-      </section>
 
-      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.8fr)]">
-        <div>
-          <div className="mb-3 flex items-end justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-semibold">Performance breakdown</h2>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Explore the setups, instruments and sessions behind your edge.
-              </p>
-            </div>
-            <Link to="/reports" className="shrink-0 text-xs font-medium text-info hover:underline">
-              Open reports
-            </Link>
-          </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {(
-              [
-                "Performance by Instrument",
-                "Performance by Weekday",
-                "Performance by Hour",
-                "Performance by Setup",
-              ] as const
-            ).map((title) => (
-              <Panel key={title} title={title} className="border border-border/70 p-4 shadow-none">
-                {charts[title]}
-              </Panel>
-            ))}
-          </div>
-        </div>
-        <Panel title="Evaluation" className="h-fit border border-border/70 p-4 shadow-none">
-          <div className="divide-y divide-border/60">
-            {EVALUATION_LABELS.map((label) => (
-              <Stat key={label} label={label} value={evaluation[label]} />
-            ))}
-          </div>
+        <Panel title="Evaluation" className="flex flex-col">
+          <div className="mt-2" />
+          {EVALUATION_LABELS.map((label) => (
+            <Stat key={label} label={label} value={evaluation[label]} />
+          ))}
         </Panel>
-      </section>
+      </div>
+
+      {HOME_CHART_ROWS.map((titles) => (
+        <div key={titles[0]} className="grid grid-cols-3 gap-[30px]">
+          {titles.map((title) => (
+            <Panel key={title} title={title}>
+              {charts[title]}
+            </Panel>
+          ))}
+        </div>
+      ))}
     </div>
   );
 }

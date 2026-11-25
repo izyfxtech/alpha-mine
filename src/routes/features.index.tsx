@@ -26,8 +26,8 @@ export const Route = createFileRoute("/features/")({
     <SiteLayout>
       <PageHero
         eyebrow="Features"
-        title="One journal for the whole trade"
-        lead="Record the entry, exit and reasoning. Then review performance, discipline and risk across your own trading history."
+        title="One journal, every angle on your trading"
+        lead="Log trades, score your discipline, read seventeen reports and test ideas on your own history, all in one place."
       >
         <Link to="/auth" search={{ mode: "signup" }} className="mk-btn mk-btn-pri">
           Start journaling free <ArrowRight size={18} weight="bold" />

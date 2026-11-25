@@ -1,10 +1,22 @@
 import { useDarkMode } from "@/lib/use-dark-mode";
+import { useWhenChanged } from "@/lib/use-when-changed";
 import { safeCurrency } from "@/lib/currencies";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Moon, Sun, PanelLeftClose, PanelLeftOpen, Upload } from "lucide-react";
+import { useIsMentor } from "@/lib/mentor/hooks";
+import {
+  ChevronRight,
+  GraduationCap,
+  Moon,
+  Sun,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Upload,
+} from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Logo } from "@/components/layout/Logo";
-import { NAV, type NavItem } from "@/lib/nav";
+import { NAV, childPath, type NavItem } from "@/lib/nav";
 import { navSlug } from "@/lib/tour";
 import { cn } from "@/lib/utils";
 import { useTrades } from "@/lib/journal/journal-context";
@@ -16,9 +28,56 @@ import { useProfile } from "@/lib/profile-settings";
 const rowCls =
   "flex h-[38px] w-full items-center gap-3 rounded-md px-3 text-[12px] font-medium text-sidebar-foreground hover:bg-sidebar-accent";
 
-function isCurrentSection(item: NavItem, path: string) {
-  return (item.matches ?? [item.to]).some(
-    (route) => path === route || path.startsWith(`${route}/`),
+function Group({ item, collapsed, path }: { item: NavItem; collapsed: boolean; path: string }) {
+  const active = item.children!.some((c) => path === childPath(c));
+  const [open, setOpen] = useState(active);
+  useWhenChanged(active, (now) => {
+    if (now) setOpen(true);
+  });
+  const links = item.children!.map((c) => (
+    <Link
+      key={c.label}
+      to={c.to}
+      params={c.params as never}
+      className={cn(
+        "block whitespace-nowrap rounded-md py-2 pl-[40px] pr-2 text-xs text-sidebar-foreground hover:bg-sidebar-accent",
+        path === childPath(c) && "bg-sidebar-accent font-semibold text-foreground",
+      )}
+    >
+      {c.label}
+    </Link>
+  ));
+  if (collapsed) {
+    return (
+      <Popover>
+        <PopoverTrigger
+          data-tour={navSlug(item.label)}
+          className={cn(rowCls, "justify-center", active && "bg-sidebar-accent")}
+          title={item.label}
+        >
+          <item.icon className="h-[18px] w-[18px]" />
+        </PopoverTrigger>
+        <PopoverContent side="right" align="start" className="w-60 p-2">
+          <p className="px-3 pb-1 text-xs font-semibold uppercase text-muted-foreground">
+            {item.label}
+          </p>
+          <div className="max-h-[70vh] overflow-y-auto">{links}</div>
+        </PopoverContent>
+      </Popover>
+    );
+  }
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger
+        data-tour={navSlug(item.label)}
+        className={cn(rowCls, active && "text-foreground")}
+      >
+        <item.icon className="h-[18px] w-[18px]" />
+        <span className="flex-1 text-left">{item.label}</span>
+        <ChevronRight className={cn("h-4 w-4 transition-transform", open && "rotate-90")} />
+      </CollapsibleTrigger>
+      <CollapsibleContent>{links}</CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -29,6 +88,12 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
   const { settings } = useProfile();
   const drawer = useTradeDrawer();
   const [importOpen, setImportOpen] = useState(false);
+  // Only someone a student has shared a journal with sees the Mentor page.
+  const isMentor = useIsMentor();
+  const items = useMemo<NavItem[]>(
+    () => (isMentor ? [...NAV, { label: "Mentor", icon: GraduationCap, to: "/mentor" }] : NAV),
+    [isMentor],
+  );
   // Only the balance is shown here, so skip the full report (curve, drawdown, ratios) and only redo the sum when the data changes.
   const startingBalance = journal?.starting_balance;
   const balance = useMemo(
@@ -39,7 +104,7 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
   return (
     <aside
       className={cn(
-        "sticky top-0 z-20 flex h-dvh min-h-0 shrink-0 flex-col overflow-hidden border-r bg-sidebar transition-[width]",
+        "flex h-full shrink-0 flex-col border-r bg-sidebar transition-[width]",
         collapsed ? "w-14" : "w-52",
       )}
     >
@@ -50,27 +115,27 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
           <Logo collapsed={collapsed} />
         </Link>
       </div>
-      <nav
-        className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-2"
-        aria-label="Main navigation"
-      >
-        {NAV.map((item) => {
-          const active = isCurrentSection(item, path);
-          return (
+      <nav className="flex-1 space-y-[2px] overflow-y-auto p-2">
+        {items.map((item) =>
+          item.children ? (
+            <Group key={item.label} item={item} collapsed={collapsed} path={path} />
+          ) : (
             <Link
               key={item.label}
-              to={item.to as never}
-              params={item.params as never}
+              to={item.to!}
               title={item.label}
               data-tour={navSlug(item.label)}
-              aria-current={active ? "page" : undefined}
-              className={cn(rowCls, collapsed && "justify-center", active && "bg-sidebar-accent")}
+              className={cn(
+                rowCls,
+                collapsed && "justify-center",
+                path === item.to && "bg-sidebar-accent text-foreground",
+              )}
             >
               <item.icon className="h-[18px] w-[18px]" />
               {!collapsed && item.label}
             </Link>
-          );
-        })}
+          ),
+        )}
         <button
           onClick={toggleDark}
           className={cn(rowCls, collapsed && "justify-center")}
@@ -82,8 +147,7 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
         <button
           onClick={onToggle}
           className={cn(rowCls, collapsed && "justify-center")}
-          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          title="Collapse sidebar"
         >
           {collapsed ? (
             <PanelLeftOpen className="h-[18px] w-[18px]" />
@@ -93,7 +157,7 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
           {!collapsed && "Collapse Sidebar"}
         </button>
       </nav>
-      <div className="flex flex-col gap-2 border-t border-sidebar-border p-2">
+      <div className="space-y-2 p-2">
         {collapsed && settings.showBalance && (
           <div
             className="rounded-lg bg-background px-1 py-2.5 text-center text-xs font-bold tabular"

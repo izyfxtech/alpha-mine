@@ -1,5 +1,5 @@
 import { currentYear } from "@/lib/time/clock";
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { localDay } from "@/lib/time/local-time";
 import { useMemo, useState, type ReactNode } from "react";
 import { endOfMonth, format, isSameMonth, startOfMonth } from "date-fns";
@@ -28,9 +28,6 @@ export const Route = createFileRoute("/_authenticated/reports/calendar")({
   }),
   validateSearch: (s: Record<string, unknown>): { m?: string } =>
     typeof s.m === "string" && /^\d{4}-\d{2}$/.test(s.m) ? { m: s.m } : {},
-  beforeLoad: ({ search }) => {
-    throw redirect({ to: "/reports", search: { view: "calendar", month: search.m } as never });
-  },
   component: CalendarReport,
 });
 

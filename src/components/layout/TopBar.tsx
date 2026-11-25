@@ -109,11 +109,22 @@ export function TopBar() {
 
   return (
     <div className="z-20 shrink-0">
-      <header className="flex h-16 items-center gap-3 border-b border-sidebar-border bg-sidebar px-5 shadow-none">
+      <header className="flex h-16 items-center gap-3 bg-card px-5 shadow-[0_1px_4px_rgba(60,40,90,0.06)]">
         {!onPortfolio && (
           <span data-tour="filters" className="inline-flex">
             <FilterToggle mode={fmode} setMode={setFmode} />
           </span>
+        )}
+        {!onPortfolio && (
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Journal settings"
+            title="Journal settings"
+            onClick={() => navigate({ to: "/settings/$section", params: { section: "journal" } })}
+          >
+            <Settings className="h-5 w-5" />
+          </Button>
         )}
         <div className="flex-1" />
         <button
