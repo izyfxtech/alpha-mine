@@ -1,6 +1,6 @@
 import { byEntry } from "@/lib/pnl/sort";
 import { compareKeys, pushTo } from "@/lib/group";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { Fragment, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { plannedRRR, useTrades } from "@/lib/journal/journal-context";
@@ -22,12 +22,12 @@ import {
 export const Route = createFileRoute("/_authenticated/analytics")({
   head: () => ({
     meta: [
-      { title: "Trade Analytics — EdgeWhiz" },
+      { title: "Trade Breakdown — EdgeWhiz" },
       {
         name: "description",
         content: "Group and drill into your trades by setup, direction, outcome and more.",
       },
-      { property: "og:title", content: "Trade Analytics — EdgeWhiz" },
+      { property: "og:title", content: "Trade Breakdown — EdgeWhiz" },
       {
         property: "og:description",
         content: "Group and drill into your trades by setup, direction, outcome and more.",
@@ -36,7 +36,10 @@ export const Route = createFileRoute("/_authenticated/analytics")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: Analytics,
+  beforeLoad: () => {
+    throw redirect({ to: "/reports", search: { view: "breakdown" } as never });
+  },
+  component: () => null,
 });
 
 /** Favourable / adverse excursion of a trade in price points, and as % of the distance to TP / SL. */
@@ -117,7 +120,7 @@ function group(ts: Trade[], c: Crit) {
   return [...m.entries()].sort((a, b) => compareKeys(a[0], b[0]));
 }
 
-function Analytics() {
+export function TradeBreakdown({ embedded = false }: { embedded?: boolean }) {
   const { trades, journal, flows } = useTrades();
   const invested =
     (journal?.starting_balance ?? 0) + flows.reduce((a, f) => a + Number(f.amount), 0);
@@ -199,18 +202,22 @@ function Analytics() {
   const shown = COLS.filter((c) => visible.includes(c.k));
 
   return (
-    <div className="mx-auto max-w-[1460px] space-y-4 pb-8">
-      <PageHeader
-        title="Trade analytics"
-        subtitle={`Grouped results for ${journal?.name ?? "your journal"}`}
-      />
-      <KpiCards
-        trades={trades}
-        s={summary}
-        fmt={(value) => fmtMoney(value, currency)}
-        avgWinLabel={fmtMoney(summary.avgWin, currency)}
-        avgLossLabel={fmtMoney(summary.avgLoss, currency)}
-      />
+    <div className="min-w-0 space-y-4 pb-4">
+      {!embedded && (
+        <PageHeader
+          title="Trade breakdown"
+          subtitle={`Grouped results for ${journal?.name ?? "your journal"}`}
+        />
+      )}
+      {!embedded && (
+        <KpiCards
+          trades={trades}
+          s={summary}
+          fmt={(value) => fmtMoney(value, currency)}
+          avgWinLabel={fmtMoney(summary.avgWin, currency)}
+          avgLossLabel={fmtMoney(summary.avgLoss, currency)}
+        />
+      )}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[240px_minmax(0,1fr)]">
         <AnalyticsSidebar
           crits={crits}

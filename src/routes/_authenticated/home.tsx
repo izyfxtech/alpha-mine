@@ -281,11 +281,8 @@ function Home() {
                 Explore the setups, instruments and sessions behind your edge.
               </p>
             </div>
-            <Link
-              to="/analytics"
-              className="shrink-0 text-xs font-medium text-info hover:underline"
-            >
-              Open analytics
+            <Link to="/reports" className="shrink-0 text-xs font-medium text-info hover:underline">
+              Open reports
             </Link>
           </div>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

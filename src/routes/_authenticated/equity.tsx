@@ -1,7 +1,7 @@
 import { cumulative } from "@/lib/numbers";
 import { toggled } from "@/lib/collections";
 import { byEntry } from "@/lib/pnl/sort";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { localDay } from "@/lib/time/local-time";
 import { useMemo, useState, type ReactNode } from "react";
 import { useTrades } from "@/lib/journal/journal-context";
@@ -29,10 +29,13 @@ export const Route = createFileRoute("/_authenticated/equity")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: Equity,
+  beforeLoad: () => {
+    throw redirect({ to: "/reports", search: { view: "equity" } as never });
+  },
+  component: () => null,
 });
 
-function Equity() {
+export function EquityReport() {
   const { trades, journal, flows } = useTrades();
   const drawer = useTradeDrawer();
   const [display, setDisplay] = useState<Display>("Return ($)");

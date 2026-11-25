@@ -1,14 +1,10 @@
 import { useDarkMode } from "@/lib/use-dark-mode";
-import { useWhenChanged } from "@/lib/use-when-changed";
 import { safeCurrency } from "@/lib/currencies";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useIsMentor } from "@/lib/mentor/hooks";
-import { ChevronRight, Moon, Sun, PanelLeftClose, PanelLeftOpen, Upload } from "lucide-react";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Moon, Sun, PanelLeftClose, PanelLeftOpen, Upload } from "lucide-react";
 import { Logo } from "@/components/layout/Logo";
-import { NAV, childPath, type NavItem } from "@/lib/nav";
+import { NAV, type NavItem } from "@/lib/nav";
 import { navSlug } from "@/lib/tour";
 import { cn } from "@/lib/utils";
 import { useTrades } from "@/lib/journal/journal-context";
@@ -20,61 +16,9 @@ import { useProfile } from "@/lib/profile-settings";
 const rowCls =
   "flex h-[38px] w-full items-center gap-3 rounded-md px-3 text-[12px] font-medium text-sidebar-foreground hover:bg-sidebar-accent";
 
-function Group({ item, collapsed, path }: { item: NavItem; collapsed: boolean; path: string }) {
-  const selected = (to: string) => path === to || path.startsWith(`${to}/`);
-  const active = item.children!.some((c) => selected(childPath(c)));
-  const [open, setOpen] = useState(active);
-  useWhenChanged(active, (now) => {
-    if (now) setOpen(true);
-  });
-  const links = item.children!.map((c) => {
-    const current = selected(childPath(c));
-    return (
-      <Link
-        key={c.label}
-        to={c.to}
-        params={c.params as never}
-        aria-current={current ? "page" : undefined}
-        className={cn(
-          "block truncate rounded-md py-2 pl-[40px] pr-2 text-xs text-sidebar-foreground hover:bg-sidebar-accent",
-          current && "bg-sidebar-accent font-semibold text-foreground",
-        )}
-      >
-        {c.label}
-      </Link>
-    );
-  });
-  if (collapsed) {
-    return (
-      <Popover>
-        <PopoverTrigger
-          data-tour={navSlug(item.label)}
-          className={cn(rowCls, "justify-center", active && "bg-sidebar-accent")}
-          title={item.label}
-        >
-          <item.icon className="h-[18px] w-[18px]" />
-        </PopoverTrigger>
-        <PopoverContent side="right" align="start" className="w-60 p-2">
-          <p className="px-3 pb-1 text-xs font-semibold uppercase text-muted-foreground">
-            {item.label}
-          </p>
-          <div className="max-h-[70vh] overflow-y-auto">{links}</div>
-        </PopoverContent>
-      </Popover>
-    );
-  }
-  return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger
-        data-tour={navSlug(item.label)}
-        className={cn(rowCls, active && "text-foreground")}
-      >
-        <item.icon className="h-[18px] w-[18px]" />
-        <span className="flex-1 text-left">{item.label}</span>
-        <ChevronRight className={cn("h-4 w-4 transition-transform", open && "rotate-90")} />
-      </CollapsibleTrigger>
-      <CollapsibleContent>{links}</CollapsibleContent>
-    </Collapsible>
+function isCurrentSection(item: NavItem, path: string) {
+  return (item.matches ?? [item.to]).some(
+    (route) => path === route || path.startsWith(`${route}/`),
   );
 }
 
@@ -85,17 +29,6 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
   const { settings } = useProfile();
   const drawer = useTradeDrawer();
   const [importOpen, setImportOpen] = useState(false);
-  // Only someone a student has shared a journal with sees the Mentor page.
-  const isMentor = useIsMentor();
-  const items = useMemo<NavItem[]>(
-    () =>
-      NAV.map((item) =>
-        item.label === "Journal" && isMentor
-          ? { ...item, children: [...(item.children ?? []), { label: "Mentor", to: "/mentor" }] }
-          : item,
-      ),
-    [isMentor],
-  );
   // Only the balance is shown here, so skip the full report (curve, drawdown, ratios) and only redo the sum when the data changes.
   const startingBalance = journal?.starting_balance;
   const balance = useMemo(
@@ -121,27 +54,23 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
         className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-2"
         aria-label="Main navigation"
       >
-        {items.map((item) =>
-          item.children ? (
-            <Group key={item.label} item={item} collapsed={collapsed} path={path} />
-          ) : (
+        {NAV.map((item) => {
+          const active = isCurrentSection(item, path);
+          return (
             <Link
               key={item.label}
-              to={item.to!}
+              to={item.to as never}
+              params={item.params as never}
               title={item.label}
               data-tour={navSlug(item.label)}
-              aria-current={path === item.to ? "page" : undefined}
-              className={cn(
-                rowCls,
-                collapsed && "justify-center",
-                path === item.to && "bg-sidebar-accent text-foreground",
-              )}
+              aria-current={active ? "page" : undefined}
+              className={cn(rowCls, collapsed && "justify-center", active && "bg-sidebar-accent")}
             >
               <item.icon className="h-[18px] w-[18px]" />
               {!collapsed && item.label}
             </Link>
-          ),
-        )}
+          );
+        })}
         <button
           onClick={toggleDark}
           className={cn(rowCls, collapsed && "justify-center")}
