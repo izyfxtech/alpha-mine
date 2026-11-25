@@ -24,7 +24,7 @@ import {
   WEEKDAYS,
   type Trade,
 } from "@/lib/pnl/metrics";
-import { Panel, Stat } from "@/components/kit";
+import { PageHeader, Panel, Stat } from "@/components/kit";
 import { EquityChart, PnlBars } from "@/components/charts";
 import { KpiCards } from "@/components/analytics/KpiCards";
 import { ProfitCalendar } from "@/components/analytics/ProfitCalendar";
@@ -203,8 +203,12 @@ function Portfolio() {
   };
 
   return (
-    <div className="mx-auto max-w-[1374px] space-y-[30px]">
-      <div className="flex items-center justify-between">
+    <div className="mx-auto max-w-[1460px] space-y-4 pb-8">
+      <PageHeader
+        title="Portfolio"
+        subtitle="Compare each journal on its own balance, then review combined performance in percent or R."
+      />
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <SegmentedToggle options={PORTFOLIO_UNITS} value={unit} onChange={setUnit} />
         <Popover>
           <PopoverTrigger asChild>
@@ -344,7 +348,7 @@ function Portfolio() {
         />
       </Panel>
 
-      <div className="grid grid-cols-[1fr_438px] gap-[30px]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_390px]">
         <Panel
           title="Profit Calendar"
           action={<MonthSwitcher month={month} onMonthChange={setMonth} />}
@@ -372,7 +376,7 @@ function Portfolio() {
         </Panel>
       </div>
 
-      <div className="grid grid-cols-[1fr_438px] gap-[30px]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_390px]">
         <Panel title="Best & Worst Trades">
           <div className="max-h-[300px] overflow-y-auto">
             <table className="w-full text-xs tabular">

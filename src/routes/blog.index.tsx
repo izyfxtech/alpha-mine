@@ -29,8 +29,8 @@ export const Route = createFileRoute("/blog/")({
       <SiteLayout>
         <PageHero
           eyebrow="Blog"
-          title="Notes for traders who keep a journal"
-          lead="Practical writing on process, psychology and the numbers behind your results."
+          title="Field notes on process and performance"
+          lead="Short, practical articles on reviewing entries, exits, risk and the habits behind your results."
         />
         <section className="mk-wrap">
           <Rv>

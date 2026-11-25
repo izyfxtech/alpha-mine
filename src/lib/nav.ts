@@ -1,20 +1,4 @@
-import {
-  Home,
-  ShieldCheck,
-  Briefcase,
-  BookOpen,
-  BarChart3,
-  LineChart,
-  BookMarked,
-  NotebookPen,
-  FlaskRound,
-  FileBarChart,
-  FlaskConical,
-  Settings,
-  Sparkles,
-  Target,
-  type LucideIcon,
-} from "lucide-react";
+import { Home, Briefcase, BookOpen, FileBarChart, Settings, type LucideIcon } from "lucide-react";
 
 export const CHARTS = [
   ["compare", "Compare Charts"],
@@ -56,54 +40,41 @@ export type NavItem = { label: string; icon: LucideIcon; to?: string; children?:
 export const NAV: NavItem[] = [
   { label: "Home", icon: Home, to: "/home" },
   { label: "Portfolio", icon: Briefcase, to: "/portfolio" },
-  { label: "Journal", icon: BookOpen, to: "/journal" },
-  { label: "Trade Analytics", icon: BarChart3, to: "/analytics" },
-  { label: "Equity Graph", icon: LineChart, to: "/equity" },
-  { label: "Edge Finder", icon: Sparkles, to: "/edge-finder" },
-  { label: "Rule Compliance", icon: ShieldCheck, to: "/rules" },
-  { label: "Prop Challenge", icon: Target, to: "/prop-challenge" },
   {
-    label: "Advanced Journaling",
-    icon: BookMarked,
+    label: "Journal",
+    icon: BookOpen,
     children: [
-      { label: "Trading Plans", to: "/plans" },
-      { label: "Missed Trades - Journal", to: "/missed-trades" },
-      { label: "Missed Trades - Analysis", to: "/missed-trades-analysis" },
-    ],
-  },
-  {
-    label: "Diary",
-    icon: NotebookPen,
-    children: [
+      { label: "All trades", to: "/journal" },
+      { label: "Open trades", to: "/open-trades" },
+      { label: "Trading plans", to: "/plans" },
+      { label: "Missed trades", to: "/missed-trades" },
+      { label: "Missed trade analysis", to: "/missed-trades-analysis" },
       { label: "Notebook", to: "/diary/notebook" },
       { label: "Sessions", to: "/diary/sessions" },
     ],
   },
   {
-    label: "Chart Lab",
-    icon: FlaskRound,
-    children: CHARTS.map(([chart, label]) => ({
-      label,
-      to: "/chart-lab/$chart",
-      params: { chart },
-    })),
-  },
-  {
     label: "Reports",
     icon: FileBarChart,
     children: [
+      { label: "Trade analytics", to: "/analytics" },
+      { label: "Equity graph", to: "/equity" },
+      { label: "Edge Finder", to: "/edge-finder" },
+      { label: "Rule compliance", to: "/rules" },
+      { label: "Prop challenge", to: "/prop-challenge" },
+      { label: "Milestones", to: "/milestones" },
       { label: "Calendar", to: "/reports/calendar" },
-      { label: "Monthly Reports", to: "/reports/monthly" },
+      { label: "Monthly reports", to: "/reports/monthly" },
+      { label: "Annual report", to: "/reports/annual" },
       { label: "Chartbook", to: "/reports/chart-book" },
-    ],
-  },
-  {
-    label: "Strategy Lab",
-    icon: FlaskConical,
-    children: [
-      { label: "Alternative Strategies", to: "/strategy-lab/alternatives" },
-      { label: "Backtester", to: "/strategy-lab/backtester" },
-      { label: "Simulator", to: "/strategy-lab/simulator" },
+      ...CHARTS.map(([chart, label]) => ({
+        label: `Chart Lab · ${label}`,
+        to: "/chart-lab/$chart",
+        params: { chart },
+      })),
+      { label: "Strategy Lab · Alternatives", to: "/strategy-lab/alternatives" },
+      { label: "Strategy Lab · Backtester", to: "/strategy-lab/backtester" },
+      { label: "Strategy Lab · Simulator", to: "/strategy-lab/simulator" },
     ],
   },
   {

@@ -26,7 +26,12 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 function Layout() {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(max-width: 800px)").matches,
+  );
   const navigate = useNavigate();
   const { pathname } = useLocation();
   // An invite link opened while signed out is remembered across sign-in; pick it up here.
@@ -42,11 +47,11 @@ function Layout() {
   return (
     <JournalProvider>
       <TradeDrawerProvider>
-        <div className="flex h-screen w-full overflow-hidden">
+        <div className="flex h-dvh min-h-0 w-full overflow-hidden">
           <AppSidebar collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
-          <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             <TopBar />
-            <main className="flex-1 overflow-auto p-[21px]">
+            <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-[21px]">
               <div className="w-full min-w-0">
                 <RouteGate>
                   <Outlet />

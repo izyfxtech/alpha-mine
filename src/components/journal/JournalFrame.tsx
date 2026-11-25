@@ -24,8 +24,9 @@ export type JournalView = "table" | "cards" | "gallery";
 
 /** The Journal's box (it is sized to the window by `useFillViewport`). */
 export const JOURNAL_BOX =
-  "flex min-h-[320px] flex-col overflow-hidden rounded-lg bg-card shadow-[0_1px_5px_rgba(60,40,90,0.07)]";
-export const JOURNAL_HEAD_ROW = "h-[42px] border-b text-left text-[12px] text-foreground";
+  "flex min-h-[320px] flex-col overflow-hidden rounded-xl border border-border/70 bg-card shadow-none";
+export const JOURNAL_HEAD_ROW =
+  "h-[42px] border-b bg-muted/50 text-left text-[12px] text-foreground";
 export const JOURNAL_ROW = "h-[32px]";
 export const JOURNAL_FOOTER =
   "flex shrink-0 items-center justify-end gap-4 border-t px-4 py-2.5 text-xs";
@@ -69,11 +70,16 @@ export function JournalToolbar({
   onResetColumns?: () => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-2.5 px-[22px] pb-3 pt-[18px]">
+    <div className="flex flex-wrap items-center gap-2 px-4 py-3">
       <Button variant="ink" size="sm" className="h-9 rounded-md px-4 text-sm" onClick={onAdd}>
         Add Trade
       </Button>
-      <Button variant="ink" size="sm" className="h-9 rounded-md px-4 text-sm" onClick={onImport}>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-9 rounded-md bg-card px-4 text-sm"
+        onClick={onImport}
+      >
         Import Trades
       </Button>
       <span title={selected < 2 ? "Select at least 2 trades to merge" : undefined}>

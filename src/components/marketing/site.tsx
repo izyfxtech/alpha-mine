@@ -22,11 +22,8 @@ function Nav() {
   ] as const;
   return (
     <>
-      <header className="fixed inset-x-0 top-3 z-40 mx-auto w-fit max-w-[calc(100%-24px)]">
-        <nav
-          aria-label="Primary"
-          className="flex items-center gap-4 rounded-2xl border border-[var(--mk-line)] bg-[var(--mk-nav)] px-3 py-2 backdrop-blur-xl"
-        >
+      <header className="sticky top-0 z-40 w-full border-b border-[var(--mk-line)] bg-[var(--mk-nav)] backdrop-blur-xl">
+        <nav aria-label="Primary" className="mk-wrap flex h-16 items-center justify-between gap-4">
           <BrandLink />
           <div className="hidden items-center gap-1 md:flex">
             <div className="group relative">
@@ -75,6 +72,13 @@ function Nav() {
             <Link to="/auth" className="mk-btn mk-btn-sec hidden text-sm md:inline-flex">
               Sign in
             </Link>
+            <Link
+              to="/auth"
+              search={{ mode: "signup" }}
+              className="mk-btn mk-btn-pri hidden text-sm md:inline-flex"
+            >
+              Create account
+            </Link>
             <button
               type="button"
               aria-label={open ? "Close menu" : "Open menu"}
@@ -95,7 +99,7 @@ function Nav() {
         </nav>
       </header>
       <div
-        className={`fixed inset-0 z-30 bg-[var(--mk-panel)] backdrop-blur-2xl transition-opacity duration-500 md:hidden ${open ? "opacity-100" : "pointer-events-none opacity-0"}`}
+        className={`fixed inset-0 z-30 bg-[var(--mk-panel)] transition-opacity duration-300 md:hidden ${open ? "opacity-100" : "pointer-events-none opacity-0"}`}
         aria-hidden={!open}
       >
         <div className="flex h-full flex-col justify-center gap-6 px-6">
@@ -129,7 +133,7 @@ function Footer() {
         <div>
           <BrandLink />
           <p className="mt-4" style={{ maxWidth: 240 }}>
-            The trading journal that finds your edge.
+            Trade records, review notes and performance in one journal.
           </p>
         </div>
         <div>
@@ -207,7 +211,7 @@ function Footer() {
       </div>
       <div className="mk-wrap mt-12 text-sm text-[var(--mk-mute)]">
         <div className="border-t border-[var(--mk-line)] pt-6">
-          © {currentYear()} IZ Technologies Limited. EdgeWhiz is built by traders, for traders.
+          © {currentYear()} IZ Technologies Limited. EdgeWhiz is a private trading journal.
         </div>
       </div>
     </footer>
@@ -239,13 +243,16 @@ export function Section({
   children: ReactNode;
 }) {
   return (
-    <section id={id} className="mk-wrap scroll-mt-24">
-      <div className="py-16 md:py-24">
+    <section id={id} className="mk-wrap scroll-mt-24 border-t border-[var(--mk-line)]">
+      <div className="py-14 md:py-20">
         {title ? (
           <div className={split ? "grid gap-12 lg:grid-cols-[1fr_1.5fr]" : ""}>
             <Rv className={split ? "" : "mb-12"}>
               <p className="text-sm font-semibold text-[var(--mk-acc)]">{label}</p>
-              <h2 className="mt-3 text-3xl font-semibold md:text-4xl" style={{ maxWidth: 560 }}>
+              <h2
+                className="mt-3 text-2xl font-semibold tracking-[-0.025em] md:text-3xl"
+                style={{ maxWidth: 560 }}
+              >
                 {title}
               </h2>
             </Rv>
@@ -261,14 +268,20 @@ export function Section({
 
 export function CtaBand({ title }: { title: string }) {
   return (
-    <section className="mk-wrap pb-24">
+    <section className="mk-wrap pb-20 pt-10">
       <Rv>
-        <div className="rounded-2xl bg-[var(--mk-s1)] px-6 py-20 text-center">
-          <h2 className="mx-auto text-4xl font-semibold md:text-5xl" style={{ maxWidth: 680 }}>
+        <div className="rounded-xl border border-[var(--mk-line)] bg-[var(--mk-s1)] px-6 py-12 md:px-10 md:py-16">
+          <h2
+            className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl"
+            style={{ maxWidth: 680 }}
+          >
             {title}
           </h2>
-          <Link to="/auth" search={{ mode: "signup" }} className="mk-btn mk-btn-pri mt-8">
-            Start journaling free
+          <p className="mt-3 max-w-xl text-sm text-[var(--mk-mute)] md:text-base">
+            Keep the trade log, the review and the next decision in one place.
+          </p>
+          <Link to="/auth" search={{ mode: "signup" }} className="mk-btn mk-btn-pri mt-6">
+            Start a journal
           </Link>
         </div>
       </Rv>
@@ -288,10 +301,12 @@ export function PageHero({
   children?: ReactNode;
 }) {
   return (
-    <section className="mk-wrap pb-8 pt-36 md:pt-44">
-      <p className="text-sm font-semibold text-[var(--mk-acc)]">{eyebrow}</p>
+    <section className="mk-wrap pb-8 pt-16 md:pt-20">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--mk-acc)]">
+        {eyebrow}
+      </p>
       <h1
-        className="mk-grad mt-4 text-5xl font-semibold leading-[1.05] md:text-6xl"
+        className="mk-grad mt-3 text-4xl font-semibold leading-[1.08] tracking-[-0.035em] md:text-5xl"
         style={{ maxWidth: 820 }}
       >
         {title}
