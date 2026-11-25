@@ -31,6 +31,7 @@ import { Route as AuthenticatedOpenTradesRouteImport } from './routes/_authentic
 import { Route as AuthenticatedPlansRouteImport } from './routes/_authenticated/plans'
 import { Route as AuthenticatedPortfolioRouteImport } from './routes/_authenticated/portfolio'
 import { Route as AuthenticatedPropChallengeRouteImport } from './routes/_authenticated/prop-challenge'
+import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedRulesRouteImport } from './routes/_authenticated/rules'
 import { Route as BlogIndexRouteImport } from './routes/blog.index'
 import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
@@ -169,6 +170,11 @@ const AuthenticatedPropChallengeRoute =
     path: '/prop-challenge',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedReportsRoute = AuthenticatedReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedRulesRoute = AuthenticatedRulesRouteImport.update({
   id: '/rules',
   path: '/rules',
@@ -236,27 +242,27 @@ const AuthenticatedMentorJournalIdRoute =
   } as any)
 const AuthenticatedReportsAnnualRoute =
   AuthenticatedReportsAnnualRouteImport.update({
-    id: '/reports/annual',
-    path: '/reports/annual',
-    getParentRoute: () => AuthenticatedRouteRoute,
+    id: '/annual',
+    path: '/annual',
+    getParentRoute: () => AuthenticatedReportsRoute,
   } as any)
 const AuthenticatedReportsCalendarRoute =
   AuthenticatedReportsCalendarRouteImport.update({
-    id: '/reports/calendar',
-    path: '/reports/calendar',
-    getParentRoute: () => AuthenticatedRouteRoute,
+    id: '/calendar',
+    path: '/calendar',
+    getParentRoute: () => AuthenticatedReportsRoute,
   } as any)
 const AuthenticatedReportsChartBookRoute =
   AuthenticatedReportsChartBookRouteImport.update({
-    id: '/reports/chart-book',
-    path: '/reports/chart-book',
-    getParentRoute: () => AuthenticatedRouteRoute,
+    id: '/chart-book',
+    path: '/chart-book',
+    getParentRoute: () => AuthenticatedReportsRoute,
   } as any)
 const AuthenticatedReportsMonthlyRoute =
   AuthenticatedReportsMonthlyRouteImport.update({
-    id: '/reports/monthly',
-    path: '/reports/monthly',
-    getParentRoute: () => AuthenticatedRouteRoute,
+    id: '/monthly',
+    path: '/monthly',
+    getParentRoute: () => AuthenticatedReportsRoute,
   } as any)
 const AuthenticatedSettingsSectionRoute =
   AuthenticatedSettingsSectionRouteImport.update({
@@ -330,6 +336,7 @@ export interface FileRoutesByFullPath {
   '/plans': typeof AuthenticatedPlansRoute
   '/portfolio': typeof AuthenticatedPortfolioRoute
   '/prop-challenge': typeof AuthenticatedPropChallengeRoute
+  '/reports': typeof AuthenticatedReportsRouteWithChildren
   '/rules': typeof AuthenticatedRulesRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/features/$slug': typeof FeaturesSlugRoute
@@ -378,6 +385,7 @@ export interface FileRoutesByTo {
   '/plans': typeof AuthenticatedPlansRoute
   '/portfolio': typeof AuthenticatedPortfolioRoute
   '/prop-challenge': typeof AuthenticatedPropChallengeRoute
+  '/reports': typeof AuthenticatedReportsRouteWithChildren
   '/rules': typeof AuthenticatedRulesRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/features/$slug': typeof FeaturesSlugRoute
@@ -428,6 +436,7 @@ export interface FileRoutesById {
   '/_authenticated/plans': typeof AuthenticatedPlansRoute
   '/_authenticated/portfolio': typeof AuthenticatedPortfolioRoute
   '/_authenticated/prop-challenge': typeof AuthenticatedPropChallengeRoute
+  '/_authenticated/reports': typeof AuthenticatedReportsRouteWithChildren
   '/_authenticated/rules': typeof AuthenticatedRulesRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/features/$slug': typeof FeaturesSlugRoute
@@ -478,6 +487,7 @@ export interface FileRouteTypes {
     | '/plans'
     | '/portfolio'
     | '/prop-challenge'
+    | '/reports'
     | '/rules'
     | '/blog/$slug'
     | '/features/$slug'
@@ -526,6 +536,7 @@ export interface FileRouteTypes {
     | '/plans'
     | '/portfolio'
     | '/prop-challenge'
+    | '/reports'
     | '/rules'
     | '/blog/$slug'
     | '/features/$slug'
@@ -575,6 +586,7 @@ export interface FileRouteTypes {
     | '/_authenticated/plans'
     | '/_authenticated/portfolio'
     | '/_authenticated/prop-challenge'
+    | '/_authenticated/reports'
     | '/_authenticated/rules'
     | '/blog/$slug'
     | '/features/$slug'
@@ -782,6 +794,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPropChallengeRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/reports': {
+      id: '/_authenticated/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof AuthenticatedReportsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/rules': {
       id: '/_authenticated/rules'
       path: '/rules'
@@ -868,31 +887,31 @@ declare module '@tanstack/react-router' {
     }
     '/_authenticated/reports/annual': {
       id: '/_authenticated/reports/annual'
-      path: '/reports/annual'
+      path: '/annual'
       fullPath: '/reports/annual'
       preLoaderRoute: typeof AuthenticatedReportsAnnualRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      parentRoute: typeof AuthenticatedReportsRoute
     }
     '/_authenticated/reports/calendar': {
       id: '/_authenticated/reports/calendar'
-      path: '/reports/calendar'
+      path: '/calendar'
       fullPath: '/reports/calendar'
       preLoaderRoute: typeof AuthenticatedReportsCalendarRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      parentRoute: typeof AuthenticatedReportsRoute
     }
     '/_authenticated/reports/chart-book': {
       id: '/_authenticated/reports/chart-book'
-      path: '/reports/chart-book'
+      path: '/chart-book'
       fullPath: '/reports/chart-book'
       preLoaderRoute: typeof AuthenticatedReportsChartBookRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      parentRoute: typeof AuthenticatedReportsRoute
     }
     '/_authenticated/reports/monthly': {
       id: '/_authenticated/reports/monthly'
-      path: '/reports/monthly'
+      path: '/monthly'
       fullPath: '/reports/monthly'
       preLoaderRoute: typeof AuthenticatedReportsMonthlyRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      parentRoute: typeof AuthenticatedReportsRoute
     }
     '/_authenticated/settings/$section': {
       id: '/_authenticated/settings/$section'
@@ -960,6 +979,23 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedReportsRouteChildren {
+  AuthenticatedReportsAnnualRoute: typeof AuthenticatedReportsAnnualRoute
+  AuthenticatedReportsCalendarRoute: typeof AuthenticatedReportsCalendarRoute
+  AuthenticatedReportsChartBookRoute: typeof AuthenticatedReportsChartBookRoute
+  AuthenticatedReportsMonthlyRoute: typeof AuthenticatedReportsMonthlyRoute
+}
+
+const AuthenticatedReportsRouteChildren: AuthenticatedReportsRouteChildren = {
+  AuthenticatedReportsAnnualRoute: AuthenticatedReportsAnnualRoute,
+  AuthenticatedReportsCalendarRoute: AuthenticatedReportsCalendarRoute,
+  AuthenticatedReportsChartBookRoute: AuthenticatedReportsChartBookRoute,
+  AuthenticatedReportsMonthlyRoute: AuthenticatedReportsMonthlyRoute,
+}
+
+const AuthenticatedReportsRouteWithChildren =
+  AuthenticatedReportsRoute._addFileChildren(AuthenticatedReportsRouteChildren)
+
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAnalyticsRoute: typeof AuthenticatedAnalyticsRoute
   AuthenticatedEdgeFinderRoute: typeof AuthenticatedEdgeFinderRoute
@@ -973,15 +1009,12 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPlansRoute: typeof AuthenticatedPlansRoute
   AuthenticatedPortfolioRoute: typeof AuthenticatedPortfolioRoute
   AuthenticatedPropChallengeRoute: typeof AuthenticatedPropChallengeRoute
+  AuthenticatedReportsRoute: typeof AuthenticatedReportsRouteWithChildren
   AuthenticatedRulesRoute: typeof AuthenticatedRulesRoute
   AuthenticatedChartLabChartRoute: typeof AuthenticatedChartLabChartRoute
   AuthenticatedDiaryNotebookRoute: typeof AuthenticatedDiaryNotebookRoute
   AuthenticatedDiarySessionsRoute: typeof AuthenticatedDiarySessionsRoute
   AuthenticatedMentorJournalIdRoute: typeof AuthenticatedMentorJournalIdRoute
-  AuthenticatedReportsAnnualRoute: typeof AuthenticatedReportsAnnualRoute
-  AuthenticatedReportsCalendarRoute: typeof AuthenticatedReportsCalendarRoute
-  AuthenticatedReportsChartBookRoute: typeof AuthenticatedReportsChartBookRoute
-  AuthenticatedReportsMonthlyRoute: typeof AuthenticatedReportsMonthlyRoute
   AuthenticatedSettingsSectionRoute: typeof AuthenticatedSettingsSectionRoute
   AuthenticatedStrategyLabAlternativesRoute: typeof AuthenticatedStrategyLabAlternativesRoute
   AuthenticatedStrategyLabBacktesterRoute: typeof AuthenticatedStrategyLabBacktesterRoute
@@ -1003,15 +1036,12 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPlansRoute: AuthenticatedPlansRoute,
   AuthenticatedPortfolioRoute: AuthenticatedPortfolioRoute,
   AuthenticatedPropChallengeRoute: AuthenticatedPropChallengeRoute,
+  AuthenticatedReportsRoute: AuthenticatedReportsRouteWithChildren,
   AuthenticatedRulesRoute: AuthenticatedRulesRoute,
   AuthenticatedChartLabChartRoute: AuthenticatedChartLabChartRoute,
   AuthenticatedDiaryNotebookRoute: AuthenticatedDiaryNotebookRoute,
   AuthenticatedDiarySessionsRoute: AuthenticatedDiarySessionsRoute,
   AuthenticatedMentorJournalIdRoute: AuthenticatedMentorJournalIdRoute,
-  AuthenticatedReportsAnnualRoute: AuthenticatedReportsAnnualRoute,
-  AuthenticatedReportsCalendarRoute: AuthenticatedReportsCalendarRoute,
-  AuthenticatedReportsChartBookRoute: AuthenticatedReportsChartBookRoute,
-  AuthenticatedReportsMonthlyRoute: AuthenticatedReportsMonthlyRoute,
   AuthenticatedSettingsSectionRoute: AuthenticatedSettingsSectionRoute,
   AuthenticatedStrategyLabAlternativesRoute:
     AuthenticatedStrategyLabAlternativesRoute,

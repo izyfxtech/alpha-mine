@@ -34,8 +34,13 @@ export const SETTINGS = [
   ["custom-statistics", "Custom Statistics"],
 ] as const;
 
-export type NavChild = { label: string; to: string; params?: Record<string, string> };
-export type NavItem = { label: string; icon: LucideIcon; to?: string; children?: NavChild[] };
+export type NavItem = {
+  label: string;
+  icon: LucideIcon;
+  to: string;
+  params?: Record<string, string>;
+  matches?: string[];
+};
 
 export const NAV: NavItem[] = [
   { label: "Home", icon: Home, to: "/home" },
@@ -43,53 +48,30 @@ export const NAV: NavItem[] = [
   {
     label: "Journal",
     icon: BookOpen,
-    children: [
-      { label: "All trades", to: "/journal" },
-      { label: "Open trades", to: "/open-trades" },
-      { label: "Trading plans", to: "/plans" },
-      { label: "Missed trades", to: "/missed-trades" },
-      { label: "Missed trade analysis", to: "/missed-trades-analysis" },
-      { label: "Notebook", to: "/diary/notebook" },
-      { label: "Sessions", to: "/diary/sessions" },
-    ],
+    to: "/journal",
+    matches: ["/journal", "/open-trades", "/plans", "/missed-trades", "/diary", "/mentor"],
   },
   {
     label: "Reports",
     icon: FileBarChart,
-    children: [
-      { label: "Trade analytics", to: "/analytics" },
-      { label: "Equity graph", to: "/equity" },
-      { label: "Edge Finder", to: "/edge-finder" },
-      { label: "Rule compliance", to: "/rules" },
-      { label: "Prop challenge", to: "/prop-challenge" },
-      { label: "Milestones", to: "/milestones" },
-      { label: "Calendar", to: "/reports/calendar" },
-      { label: "Monthly reports", to: "/reports/monthly" },
-      { label: "Annual report", to: "/reports/annual" },
-      { label: "Chartbook", to: "/reports/chart-book" },
-      ...CHARTS.map(([chart, label]) => ({
-        label: `Chart Lab · ${label}`,
-        to: "/chart-lab/$chart",
-        params: { chart },
-      })),
-      { label: "Strategy Lab · Alternatives", to: "/strategy-lab/alternatives" },
-      { label: "Strategy Lab · Backtester", to: "/strategy-lab/backtester" },
-      { label: "Strategy Lab · Simulator", to: "/strategy-lab/simulator" },
+    to: "/reports",
+    matches: [
+      "/reports",
+      "/analytics",
+      "/equity",
+      "/chart-lab",
+      "/edge-finder",
+      "/rules",
+      "/prop-challenge",
+      "/milestones",
+      "/strategy-lab",
     ],
   },
   {
     label: "Settings",
     icon: Settings,
-    children: SETTINGS.map(([section, label]) => ({
-      label,
-      to: "/settings/$section",
-      params: { section },
-    })),
+    to: "/settings/$section",
+    params: { section: "account" },
+    matches: ["/settings"],
   },
 ];
-
-export function childPath(c: NavChild) {
-  let p = c.to;
-  Object.entries(c.params ?? {}).forEach(([k, v]) => (p = p.replace(`$${k}`, v)));
-  return p;
-}

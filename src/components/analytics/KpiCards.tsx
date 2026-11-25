@@ -5,6 +5,7 @@ import { cumulative } from "@/components/kit";
 import { Spark } from "@/components/charts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fmtNum, fmtPct, type Trade, type computeStats } from "@/lib/pnl/metrics";
+import { cn } from "@/lib/utils";
 
 type Stats = ReturnType<typeof computeStats>;
 
@@ -58,7 +59,7 @@ export function KpiCardsSkeleton() {
         [
           ["Net P&L", "h-9 w-14"],
           ["Trade expectancy", "h-9 w-14"],
-          ["Profit factor", "h-10 w-10 rounded-full"],
+          ["Profit factor", "h-2 w-[92px] rounded-full"],
           ["Trade win %", "h-[58px] w-[84px]"],
           ["Avg win/loss", "h-[9px] w-[105px]"],
         ] as const
@@ -108,24 +109,28 @@ export function KpiCards({
         <Spark data={curve.map((c) => c.v)} width={56} height={36} />
       </Widget>
       <Widget label="Profit factor" value={fmtNum(s.profitFactor)}>
-        <svg
-          viewBox="0 0 40 40"
-          className="size-10 -rotate-90"
+        <div
           role="img"
-          aria-label={`Profit factor ${fmtNum(s.profitFactor)} of 3`}
+          aria-label={`Profit factor ${fmtNum(s.profitFactor)} on a scale from 0 to 3`}
+          className="w-[92px]"
         >
-          <circle cx="20" cy="20" r="14" fill="none" stroke="var(--color-muted)" strokeWidth="4" />
-          <circle
-            cx="20"
-            cy="20"
-            r="14"
-            fill="none"
-            stroke="var(--color-chart-4)"
-            strokeWidth="4"
-            strokeLinecap="round"
-            strokeDasharray={`${(pfScore / 100) * 88} 88`}
-          />
-        </svg>
+          <div className="relative h-2 rounded-full bg-muted">
+            <div
+              className={cn("h-full rounded-full", pf >= 1 ? "bg-profit" : "bg-loss")}
+              style={{ width: `${pfScore}%` }}
+            />
+            <span
+              aria-hidden="true"
+              className="absolute -top-1 h-4 w-px bg-foreground/55"
+              style={{ left: "33.33%" }}
+            />
+          </div>
+          <div className="mt-1 flex justify-between text-[10px] tabular-nums text-muted-foreground">
+            <span>0</span>
+            <span>1</span>
+            <span>3</span>
+          </div>
+        </div>
       </Widget>
       <Widget label="Trade win %" value={fmtPct(s.winRate)}>
         <div className="relative w-[84px] text-center">
