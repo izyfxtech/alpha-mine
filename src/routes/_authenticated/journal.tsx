@@ -290,6 +290,15 @@ function JournalPage() {
 
   return (
     <div ref={fillRef} className={JOURNAL_BOX}>
+      <header className="flex flex-wrap items-end justify-between gap-3 border-b border-border/70 px-4 py-3">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-info">Journal</p>
+          <h1 className="mt-1 text-base font-semibold tracking-tight">Trade history</h1>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {trades.length} trades · {journal?.name ?? "Selected journal"}
+        </p>
+      </header>
       {toolbar}
       {trades.length === 0 ? (
         <div className="p-6">

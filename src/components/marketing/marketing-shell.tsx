@@ -1,5 +1,5 @@
-import { useHydrated, useStoredString } from "@/lib/use-stored-value";
-import { useEffect, type ReactNode } from "react";
+import { useStoredString } from "@/lib/use-stored-value";
+import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { Moon, Sun } from "@phosphor-icons/react";
 import { Logo } from "@/components/layout/Logo";
@@ -7,33 +7,14 @@ import { Logo } from "@/components/layout/Logo";
 type Theme = "dark" | "light";
 const KEY = "am.mk-theme";
 
-/** Marketing + auth wrapper: dark by default, persisted toggle, one observer for reveals and word fades. */
+/** Marketing + auth wrapper with a persisted theme toggle and immediate content rendering. */
 export function MkShell({ children }: { children: ReactNode }) {
   const [storedTheme, storeTheme] = useStoredString(KEY);
   const theme: Theme = storedTheme === "light" ? "light" : "dark";
-  const ready = useHydrated();
-
-  useEffect(() => {
-    if (!ready) return;
-    const els = document.querySelectorAll<HTMLElement>(".mk-rv, .mk-w");
-    const obs = new IntersectionObserver(
-      (entries) =>
-        entries.forEach((e) => {
-          if (e.isIntersecting) {
-            e.target.classList.add("in");
-            obs.unobserve(e.target);
-          }
-        }),
-      { rootMargin: "0px 0px -15% 0px" },
-    );
-    els.forEach((el) => obs.observe(el));
-    return () => obs.disconnect();
-  }, [ready]);
-
   const toggle = () => storeTheme(theme === "dark" ? "light" : "dark");
 
   return (
-    <div className={`mk ${theme === "dark" ? "mk-dark" : "mk-light"} ${ready ? "mk-js" : ""}`}>
+    <div className={`mk ${theme === "dark" ? "mk-dark" : "mk-light"}`}>
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-lg focus:bg-[var(--mk-acc)] focus:px-3 focus:py-2 focus:text-[var(--mk-acc-fg)]"
@@ -68,30 +49,13 @@ export function ThemeToggle() {
 export const Rv = ({
   children,
   className = "",
-  delay = 0,
 }: {
   children: ReactNode;
   className?: string;
   delay?: number;
-}) => (
-  <div
-    className={`mk-rv ${className}`}
-    style={delay ? { transitionDelay: `${delay}ms` } : undefined}
-  >
-    {children}
-  </div>
-);
+}) => <div className={className}>{children}</div>;
 
-/** Each word fades from muted to full colour as it crosses the trigger line. */
-export const Words = ({ text }: { text: string }) => (
-  <>
-    {text.split(" ").map((w, i) => (
-      <span key={i} className="mk-w">
-        {w}{" "}
-      </span>
-    ))}
-  </>
-);
+export const Words = ({ text }: { text: string }) => <>{text}</>;
 
 export const BrandLink = () => (
   <Link to="/" aria-label="EdgeWhiz home">

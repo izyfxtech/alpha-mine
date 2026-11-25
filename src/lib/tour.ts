@@ -23,7 +23,7 @@ export const TOUR_STEPS: TourStep[] = [
   {
     target: "nav-home",
     title: "Home",
-    body: "Your dashboard: balance, calendar, evaluation and your best and worst days at a glance.",
+    body: "Your account dashboard brings the score radar, P&L, recent trades and profit calendar together.",
   },
   {
     target: "add-trade",
@@ -31,44 +31,24 @@ export const TOUR_STEPS: TourStep[] = [
     body: "Log a trade by hand, or use the upload button next to it to import a MetaTrader report or a broker file.",
   },
   {
+    target: "nav-portfolio",
+    title: "Portfolio",
+    body: "Compare performance and balances across your trading journals.",
+  },
+  {
     target: "nav-journal",
     title: "Journal",
-    body: "Every trade as a table, cards or a screenshot gallery. Open one to tag its setup, comments and statistics.",
-  },
-  {
-    target: "nav-trade-analytics",
-    title: "Trade Analytics",
-    body: "Group your results by setup, instrument, day, hour or anything you tag, and see what actually makes money.",
-  },
-  {
-    target: "nav-rule-compliance",
-    title: "Rule Compliance",
-    body: "Score each trade against your own rules and see what breaking them costs.",
-  },
-  {
-    target: "nav-advanced-journaling",
-    title: "Plans and missed trades",
-    body: "Plan a trade before you take it, and log the ones you skipped to learn what they would have done.",
-  },
-  {
-    target: "nav-diary",
-    title: "Diary",
-    body: "Sessions and a notebook, so your mood and your notes sit next to your numbers.",
-  },
-  {
-    target: "nav-chart-lab",
-    title: "Chart Lab",
-    body: "Over 25 charts, including Compare Charts to put two groups side by side and a list of risk ratios.",
+    body: "Open trades, plans, missed setups, sessions and notes from this section. The trade list can be a table, cards or a screenshot gallery.",
   },
   {
     target: "nav-reports",
     title: "Reports",
-    body: "A calendar of your days, monthly reports and a Chartbook of your best screenshots.",
+    body: "Trade analytics, rules, Chart Lab, calendars, strategy tests and progress reports live together here.",
   },
   {
-    target: "nav-strategy-lab",
-    title: "Strategy Lab",
-    body: "Test what-ifs on your own trades, backtest an idea, or practise in the simulator.",
+    target: "nav-settings",
+    title: "Settings",
+    body: "Configure account details, journals, instruments, setups, rules and sharing.",
   },
   {
     target: "journal-picker",
@@ -78,7 +58,7 @@ export const TOUR_STEPS: TourStep[] = [
   {
     target: "filters",
     title: "Filters",
-    body: "Narrow every page to a period, instrument, setup or anything else. The numbers on Home, Analytics and Chart Lab follow them.",
+    body: "Narrow every page to a period, instrument, setup or anything else. Dashboard and report numbers follow them.",
   },
   {
     target: "search",

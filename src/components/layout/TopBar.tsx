@@ -115,17 +115,6 @@ export function TopBar() {
             <FilterToggle mode={fmode} setMode={setFmode} />
           </span>
         )}
-        {!onPortfolio && (
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Journal settings"
-            title="Journal settings"
-            onClick={() => navigate({ to: "/settings/$section", params: { section: "journal" } })}
-          >
-            <Settings className="h-5 w-5" />
-          </Button>
-        )}
         <div className="flex-1" />
         <button
           type="button"

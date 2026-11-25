@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CHARTS } from "@/lib/nav";
+import { CHARTS, NAV } from "@/lib/nav";
 import { type ReactNode } from "react";
 import {
   ArrowRight,
@@ -12,7 +12,7 @@ import {
   Plus,
   type Icon,
 } from "@phosphor-icons/react";
-import { Rv, Words } from "@/components/marketing/marketing-shell";
+import { Rv } from "@/components/marketing/marketing-shell";
 import { Section, SiteLayout } from "@/components/marketing/site";
 import { Cal, Meter } from "@/components/analytics/visuals";
 import { PerformanceRadar, type PerformanceMetric } from "@/components/home/PerformanceRadar";
@@ -86,36 +86,37 @@ function Landing() {
   return (
     <SiteLayout>
       <main>
-        {/* Hero */}
-        <section className="mk-wrap pb-12 pt-36 text-center md:pt-44">
-          <h1
-            className="mk-grad mx-auto text-5xl font-semibold leading-[1.05] md:text-6xl"
-            style={{ maxWidth: 680 }}
-          >
-            Your trades already contain your edge.
-            <br />
-            Find it.
-          </h1>
-          <p
-            className="mx-auto mt-6 text-lg text-[var(--mk-mute)]"
-            style={{ maxWidth: 600, textWrap: "balance" }}
-          >
-            EdgeWhiz is a trading journal that puts hard numbers on your results and on your
-            discipline. Import from MetaTrader 5, tag your decisions, and see what actually pays.
-          </p>
-          <div className="mt-8 flex flex-col items-center gap-3">
-            <Link to="/auth" search={{ mode: "signup" }} className="mk-btn mk-btn-pri">
-              Start journaling free <ArrowRight size={18} weight="bold" />
-            </Link>
-            <p className="text-sm text-[var(--mk-mute)]">
-              Seventeen Chart Lab reports. Private to your account.
-            </p>
+        <section className="mk-wrap pb-14 pt-12 md:pt-16">
+          <div className="grid items-center gap-10 xl:grid-cols-[0.78fr_1.22fr] xl:gap-12">
+            <div className="max-w-[500px]">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--mk-acc)]">
+                Trading journal · execution review
+              </p>
+              <h1 className="mk-grad mt-4 text-4xl font-semibold leading-[1.05] tracking-[-0.04em] md:text-5xl">
+                Review the trade, not just the result.
+              </h1>
+              <p className="mt-5 max-w-[470px] text-base leading-relaxed text-[var(--mk-mute)] md:text-lg">
+                Keep your fills, setup, screenshots and notes together. Compare results by account,
+                market and session to see what to repeat and what to change.
+              </p>
+              <div className="mt-7 flex flex-wrap items-center gap-3">
+                <Link to="/auth" search={{ mode: "signup" }} className="mk-btn mk-btn-pri">
+                  Start a journal <ArrowRight size={18} weight="bold" />
+                </Link>
+                <Link to="/features" className="mk-btn mk-btn-sec">
+                  Explore features
+                </Link>
+              </div>
+              <p className="mt-4 text-xs text-[var(--mk-mute)]">
+                MetaTrader 4/5 · CSV · Excel · manual entry
+              </p>
+            </div>
+            <Rv className="min-w-0">
+              <Stage>
+                <Dashboard />
+              </Stage>
+            </Rv>
           </div>
-          <Rv className="mt-16">
-            <Stage>
-              <Dashboard />
-            </Stage>
-          </Rv>
         </section>
 
         {/* Statement */}
@@ -124,7 +125,8 @@ function Landing() {
             className="mx-auto text-center text-3xl font-medium leading-snug md:text-4xl"
             style={{ maxWidth: 820 }}
           >
-            <Words text="Most traders review their results. Few review their decisions. EdgeWhiz shows you both, so the next trade starts from evidence instead of memory." />
+            Net P&amp;L says what happened. Your setup, session and execution notes help explain why
+            and what to change next.
           </p>
         </Section>
 
@@ -132,7 +134,7 @@ function Landing() {
         <Section
           id="features"
           label="Features"
-          title="Everything you need to review a trade, a week or a whole strategy"
+          title="Tools that use the same trade record, from review to risk analysis"
         >
           <div className="grid gap-4 lg:grid-cols-6">
             <Bento
@@ -342,11 +344,11 @@ const Stage = ({ children }: { children: ReactNode }) => (
 /** Static preview of the signed-in dashboard: account context, risk profile, equity and review workflow. */
 function Dashboard() {
   const radar: PerformanceMetric[] = [
-    { metric: "Win %", value: 55 },
+    { metric: "Win rate", value: 55 },
     { metric: "Profit factor", value: 38 },
-    { metric: "Avg win/loss", value: 42 },
+    { metric: "Payoff", value: 42 },
     { metric: "Recovery", value: 46 },
-    { metric: "Drawdown control", value: 73 },
+    { metric: "Drawdown", value: 73 },
     { metric: "Consistency", value: 62 },
   ];
   const kpis = [
@@ -374,20 +376,13 @@ function Dashboard() {
           <span className="mb-2 rounded-md bg-[var(--mk-acc)] px-2 py-2 text-center text-[11px] font-semibold text-white">
             + Add Trade
           </span>
-          {[
-            "Dashboard",
-            "Day View",
-            "Trade View",
-            "Notebook",
-            "Reports",
-            "Strategies",
-            "Progress Tracker",
-          ].map((item, index) => (
+          {NAV.map(({ label, icon: Icon }, index) => (
             <span
-              key={item}
-              className={`rounded-md px-2 py-2 text-[10px] font-medium ${index === 0 ? "bg-[var(--mk-acc)]/20 text-[var(--mk-fg)]" : "text-[var(--mk-mute)]"}`}
+              key={label}
+              className={`flex items-center gap-2 rounded-md px-2 py-2 text-[10px] font-medium ${index === 0 ? "bg-[var(--mk-acc)]/20 text-[var(--mk-fg)]" : "text-[var(--mk-mute)]"}`}
             >
-              {item}
+              <Icon className="size-3.5 shrink-0" aria-hidden="true" />
+              {label}
             </span>
           ))}
         </aside>

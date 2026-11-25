@@ -1,5 +1,5 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
-import { Empty } from "@/components/kit";
+import { Empty, PageHeader } from "@/components/kit";
 import { SETTINGS } from "@/lib/nav";
 import { Account } from "@/components/settings/account";
 import { Cashflows } from "@/components/settings/cashflows";
@@ -34,8 +34,10 @@ export const Route = createFileRoute("/_authenticated/settings/$section")({
 
 function SettingsPage() {
   const { section } = Route.useParams();
+  const label = SETTINGS.find(([key]) => key === section)?.[1] ?? "Settings";
   return (
-    <div>
+    <div className="mx-auto max-w-[1200px] space-y-4 pb-8">
+      <PageHeader title={label} subtitle="Manage account, journal and review preferences." />
       {section === "account" && <Account />}
       {section === "sharing" && <Mentors />}
       {section === "journal" && <JournalSettings />}

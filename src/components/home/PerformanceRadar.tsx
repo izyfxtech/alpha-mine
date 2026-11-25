@@ -20,11 +20,11 @@ export function performanceRadarData(stats: Stats): PerformanceMetric[] {
   const recoveryFactor = stats.maxDD > 0 ? stats.roi / stats.maxDD : stats.roi > 0 ? 3 : 0;
 
   return [
-    { metric: "Win %", value: bounded(stats.winRate) },
+    { metric: "Win rate", value: bounded(stats.winRate) },
     { metric: "Profit factor", value: scaled(profitFactor, 3) },
-    { metric: "Avg win/loss", value: scaled(avgWinLoss, 3) },
+    { metric: "Payoff", value: scaled(avgWinLoss, 3) },
     { metric: "Recovery", value: scaled(recoveryFactor, 3) },
-    { metric: "Drawdown control", value: 100 - scaled(stats.maxDD, 40) },
+    { metric: "Drawdown", value: 100 - scaled(stats.maxDD, 40) },
     { metric: "Consistency", value: bounded(stats.followedPlanPct) },
   ];
 }
@@ -74,11 +74,11 @@ export function PerformanceRadar({
           role="img"
           aria-label={`Performance radar. ${data.map((item) => `${item.metric}: ${Math.round(item.value)} percent`).join(", ")}`}
         >
-          <RadarChart accessibilityLayer data={data} outerRadius="65%">
+          <RadarChart accessibilityLayer data={data} outerRadius="58%">
             <PolarGrid gridType="polygon" stroke="var(--color-border)" />
             <PolarAngleAxis
               dataKey="metric"
-              tick={{ fill: "var(--color-muted-foreground)", fontSize: 10 }}
+              tick={{ fill: "var(--color-muted-foreground)", fontSize: 9 }}
               tickLine={false}
             />
             <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} tickCount={5} />
@@ -95,7 +95,7 @@ export function PerformanceRadar({
               dataKey="value"
               stroke="var(--color-value)"
               fill="var(--color-value)"
-              fillOpacity={0.24}
+              fillOpacity={0.3}
               strokeWidth={2}
               dot={{ r: 2, fill: "var(--color-value)", strokeWidth: 0 }}
             />

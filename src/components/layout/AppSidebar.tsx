@@ -4,15 +4,7 @@ import { safeCurrency } from "@/lib/currencies";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useIsMentor } from "@/lib/mentor/hooks";
-import {
-  ChevronRight,
-  GraduationCap,
-  Moon,
-  Sun,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Upload,
-} from "lucide-react";
+import { ChevronRight, Moon, Sun, PanelLeftClose, PanelLeftOpen, Upload } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Logo } from "@/components/layout/Logo";
@@ -29,24 +21,29 @@ const rowCls =
   "flex h-[38px] w-full items-center gap-3 rounded-md px-3 text-[12px] font-medium text-sidebar-foreground hover:bg-sidebar-accent";
 
 function Group({ item, collapsed, path }: { item: NavItem; collapsed: boolean; path: string }) {
-  const active = item.children!.some((c) => path === childPath(c));
+  const selected = (to: string) => path === to || path.startsWith(`${to}/`);
+  const active = item.children!.some((c) => selected(childPath(c)));
   const [open, setOpen] = useState(active);
   useWhenChanged(active, (now) => {
     if (now) setOpen(true);
   });
-  const links = item.children!.map((c) => (
-    <Link
-      key={c.label}
-      to={c.to}
-      params={c.params as never}
-      className={cn(
-        "block whitespace-nowrap rounded-md py-2 pl-[40px] pr-2 text-xs text-sidebar-foreground hover:bg-sidebar-accent",
-        path === childPath(c) && "bg-sidebar-accent font-semibold text-foreground",
-      )}
-    >
-      {c.label}
-    </Link>
-  ));
+  const links = item.children!.map((c) => {
+    const current = selected(childPath(c));
+    return (
+      <Link
+        key={c.label}
+        to={c.to}
+        params={c.params as never}
+        aria-current={current ? "page" : undefined}
+        className={cn(
+          "block truncate rounded-md py-2 pl-[40px] pr-2 text-xs text-sidebar-foreground hover:bg-sidebar-accent",
+          current && "bg-sidebar-accent font-semibold text-foreground",
+        )}
+      >
+        {c.label}
+      </Link>
+    );
+  });
   if (collapsed) {
     return (
       <Popover>
@@ -91,7 +88,12 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
   // Only someone a student has shared a journal with sees the Mentor page.
   const isMentor = useIsMentor();
   const items = useMemo<NavItem[]>(
-    () => (isMentor ? [...NAV, { label: "Mentor", icon: GraduationCap, to: "/mentor" }] : NAV),
+    () =>
+      NAV.map((item) =>
+        item.label === "Journal" && isMentor
+          ? { ...item, children: [...(item.children ?? []), { label: "Mentor", to: "/mentor" }] }
+          : item,
+      ),
     [isMentor],
   );
   // Only the balance is shown here, so skip the full report (curve, drawdown, ratios) and only redo the sum when the data changes.
@@ -104,7 +106,7 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
   return (
     <aside
       className={cn(
-        "flex h-full shrink-0 flex-col border-r bg-sidebar transition-[width]",
+        "sticky top-0 z-20 flex h-dvh min-h-0 shrink-0 flex-col overflow-hidden border-r bg-sidebar transition-[width]",
         collapsed ? "w-14" : "w-52",
       )}
     >
@@ -115,7 +117,10 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
           <Logo collapsed={collapsed} />
         </Link>
       </div>
-      <nav className="flex-1 space-y-[2px] overflow-y-auto p-2">
+      <nav
+        className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-2"
+        aria-label="Main navigation"
+      >
         {items.map((item) =>
           item.children ? (
             <Group key={item.label} item={item} collapsed={collapsed} path={path} />
@@ -125,6 +130,7 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
               to={item.to!}
               title={item.label}
               data-tour={navSlug(item.label)}
+              aria-current={path === item.to ? "page" : undefined}
               className={cn(
                 rowCls,
                 collapsed && "justify-center",
@@ -147,7 +153,8 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
         <button
           onClick={onToggle}
           className={cn(rowCls, collapsed && "justify-center")}
-          title="Collapse sidebar"
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {collapsed ? (
             <PanelLeftOpen className="h-[18px] w-[18px]" />
@@ -157,7 +164,7 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
           {!collapsed && "Collapse Sidebar"}
         </button>
       </nav>
-      <div className="space-y-2 p-2">
+      <div className="flex flex-col gap-2 border-t border-sidebar-border p-2">
         {collapsed && settings.showBalance && (
           <div
             className="rounded-lg bg-background px-1 py-2.5 text-center text-xs font-bold tabular"

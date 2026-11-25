@@ -48,8 +48,8 @@ export const Route = createFileRoute("/pricing")({
     <SiteLayout>
       <PageHero
         eyebrow="Pricing"
-        title="Free while we build. Paid plans are coming."
-        lead="Everything in EdgeWhiz is free today. We will add paid plans later, and publish their pricing here before they launch."
+        title="Free to use while we build"
+        lead="Every feature is available at no charge today. If that changes, we will publish the price and plan limits here before launch."
       >
         <Link to="/auth" search={{ mode: "signup" }} className="mk-btn mk-btn-pri">
           Start journaling free <ArrowRight size={18} weight="bold" />
@@ -91,8 +91,8 @@ export const Route = createFileRoute("/pricing")({
                 </span>
               </div>
               <p className="mt-4 text-base text-[var(--mk-mute)]">
-                We are working on paid plans for traders who want more. Pricing and what each plan
-                includes will be published here before anything launches.
+                Paid plans are not available yet. We will publish prices and limits here before they
+                launch.
               </p>
             </div>
           </Rv>

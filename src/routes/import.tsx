@@ -56,8 +56,8 @@ export const Route = createFileRoute("/import")({
     <SiteLayout>
       <PageHero
         eyebrow="Import"
-        title="Bring your trading history with you"
-        lead="Start with months of results instead of an empty journal. Import a MetaTrader 5 report, upload a spreadsheet, or log trades by hand."
+        title="Bring your broker history into the journal"
+        lead="Import a MetaTrader statement, upload CSV or Excel, or add a trade by hand. Keep the broker record and your review in the same place."
       >
         <Link to="/auth" search={{ mode: "signup" }} className="mk-btn mk-btn-pri">
           Start journaling free <ArrowRight size={18} weight="bold" />
